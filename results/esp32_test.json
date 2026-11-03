@@ -1,0 +1,203 @@
+{
+ "board_ip": "<redacted>",
+ "rows": [
+  {
+   "test": "nltp laptop->esp32 (cold)",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.1216
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.18252969999593915
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.11485829999583075,
+   "esp_ms": 120
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.0844
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.061061600004904903
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.07630670000071405,
+   "esp_ms": 74
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 16384,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.0738
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 16384,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.05972499999916181
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.07167249999474734,
+   "esp_ms": 69
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 32768,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.1091
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 32768,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.10392760000104317
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 32768,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.10675900000205729,
+   "esp_ms": 104
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 32768,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.1113
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 32768,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.12173800000164192
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 32768,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.08909090000088327,
+   "esp_ms": 87
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 32768,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.1162
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 32768,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.11727500000415603
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 32768,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.08523730000160867,
+   "esp_ms": 84
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.1606
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.2091567999959807
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.12608069999987492,
+   "esp_ms": 132
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.1606
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.2025534999993397
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.1303561000022455,
+   "esp_ms": 128
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.1741
+  },
+  {
+   "test": "tcp laptop->esp32",
+   "size": 60000,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.18540580000262707
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.1371039000005112,
+   "esp_ms": 134
+  }
+ ]
+}

@@ -1,0 +1,631 @@
+{
+ "kernel": "6.18.33.2-microsoft-standard-WSL2",
+ "notes": "netem on both veth directions; loss_pct is per direction; TSO/GSO/GRO off; bytes from iptables OUTPUT counters",
+ "results": [
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.075,
+   "median_goodput_mbps": 6.979,
+   "mean_wire_overhead_x": 1.247,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.092,
+     "goodput_mbps": 5.699,
+     "link_utilization": 0.285,
+     "wire_bytes_total": 80651,
+     "wire_overhead_x": 1.231,
+     "client_tx_pkts": 80,
+     "client_tx_bytes": 79664,
+     "server_tx_pkts": 16,
+     "server_tx_bytes": 987
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.075,
+     "goodput_mbps": 6.979,
+     "link_utilization": 0.349,
+     "wire_bytes_total": 81735,
+     "wire_overhead_x": 1.247,
+     "client_tx_pkts": 81,
+     "client_tx_bytes": 80682,
+     "server_tx_pkts": 17,
+     "server_tx_bytes": 1053
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.075,
+     "goodput_mbps": 6.991,
+     "link_utilization": 0.35,
+     "wire_bytes_total": 82687,
+     "wire_overhead_x": 1.262,
+     "client_tx_pkts": 82,
+     "client_tx_bytes": 81700,
+     "server_tx_pkts": 16,
+     "server_tx_bytes": 987
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.113,
+   "median_goodput_mbps": 4.649,
+   "mean_wire_overhead_x": 1.22,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.113,
+     "goodput_mbps": 4.649,
+     "link_utilization": 0.232,
+     "wire_bytes_total": 80651,
+     "wire_overhead_x": 1.231,
+     "client_tx_pkts": 80,
+     "client_tx_bytes": 79664,
+     "server_tx_pkts": 16,
+     "server_tx_bytes": 987
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.113,
+     "goodput_mbps": 4.651,
+     "link_utilization": 0.233,
+     "wire_bytes_total": 76620,
+     "wire_overhead_x": 1.169,
+     "client_tx_pkts": 76,
+     "client_tx_bytes": 75592,
+     "server_tx_pkts": 16,
+     "server_tx_bytes": 1028
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.154,
+     "goodput_mbps": 3.404,
+     "link_utilization": 0.17,
+     "wire_bytes_total": 82646,
+     "wire_overhead_x": 1.261,
+     "client_tx_pkts": 82,
+     "client_tx_bytes": 81700,
+     "server_tx_pkts": 15,
+     "server_tx_bytes": 946
+    }
+   ]
+  },
+  {
+   "condition": "cell_10M_100ms_5pct",
+   "rate_mbit": 10,
+   "rtt_ms": 100,
+   "loss_pct": 5.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.249,
+   "median_goodput_mbps": 2.106,
+   "mean_wire_overhead_x": 1.262,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.241,
+     "goodput_mbps": 2.172,
+     "link_utilization": 0.217,
+     "wire_bytes_total": 79903,
+     "wire_overhead_x": 1.219,
+     "client_tx_pkts": 80,
+     "client_tx_bytes": 78723,
+     "server_tx_pkts": 18,
+     "server_tx_bytes": 1180
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.249,
+     "goodput_mbps": 2.106,
+     "link_utilization": 0.211,
+     "wire_bytes_total": 84164,
+     "wire_overhead_x": 1.284,
+     "client_tx_pkts": 86,
+     "client_tx_bytes": 82949,
+     "server_tx_pkts": 19,
+     "server_tx_bytes": 1215
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.309,
+     "goodput_mbps": 1.696,
+     "link_utilization": 0.17,
+     "wire_bytes_total": 84146,
+     "wire_overhead_x": 1.284,
+     "client_tx_pkts": 84,
+     "client_tx_bytes": 82795,
+     "server_tx_pkts": 20,
+     "server_tx_bytes": 1351
+    }
+   ]
+  },
+  {
+   "condition": "radio_5M_200ms_10pct",
+   "rate_mbit": 5,
+   "rtt_ms": 200,
+   "loss_pct": 10.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.72,
+   "median_goodput_mbps": 0.728,
+   "mean_wire_overhead_x": 1.287,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.72,
+     "goodput_mbps": 0.728,
+     "link_utilization": 0.146,
+     "wire_bytes_total": 80103,
+     "wire_overhead_x": 1.222,
+     "client_tx_pkts": 80,
+     "client_tx_bytes": 78858,
+     "server_tx_pkts": 18,
+     "server_tx_bytes": 1245
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.748,
+     "goodput_mbps": 0.701,
+     "link_utilization": 0.14,
+     "wire_bytes_total": 84311,
+     "wire_overhead_x": 1.286,
+     "client_tx_pkts": 83,
+     "client_tx_bytes": 82718,
+     "server_tx_pkts": 22,
+     "server_tx_bytes": 1593
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.56,
+     "goodput_mbps": 0.936,
+     "link_utilization": 0.187,
+     "wire_bytes_total": 88654,
+     "wire_overhead_x": 1.353,
+     "client_tx_pkts": 89,
+     "client_tx_bytes": 86944,
+     "server_tx_pkts": 24,
+     "server_tx_bytes": 1710
+    }
+   ]
+  },
+  {
+   "condition": "bad_2M_300ms_20pct",
+   "rate_mbit": 2,
+   "rtt_ms": 300,
+   "loss_pct": 20.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.825,
+   "median_goodput_mbps": 0.635,
+   "mean_wire_overhead_x": 1.564,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 1.328,
+     "goodput_mbps": 0.395,
+     "link_utilization": 0.197,
+     "wire_bytes_total": 99671,
+     "wire_overhead_x": 1.521,
+     "client_tx_pkts": 99,
+     "client_tx_bytes": 97394,
+     "server_tx_pkts": 28,
+     "server_tx_bytes": 2277
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.825,
+     "goodput_mbps": 0.635,
+     "link_utilization": 0.318,
+     "wire_bytes_total": 102834,
+     "wire_overhead_x": 1.569,
+     "client_tx_pkts": 104,
+     "client_tx_bytes": 100467,
+     "server_tx_pkts": 31,
+     "server_tx_bytes": 2367
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.804,
+     "goodput_mbps": 0.652,
+     "link_utilization": 0.326,
+     "wire_bytes_total": 104915,
+     "wire_overhead_x": 1.601,
+     "client_tx_pkts": 105,
+     "client_tx_bytes": 102426,
+     "server_tx_pkts": 31,
+     "server_tx_bytes": 2489
+    }
+   ]
+  },
+  {
+   "condition": "burst_10M_100ms_10pct",
+   "rate_mbit": 10,
+   "rtt_ms": 100,
+   "loss_pct": 10.0,
+   "loss_mode": "burst",
+   "size_bytes": 65536,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.36,
+   "median_goodput_mbps": 1.457,
+   "mean_wire_overhead_x": 1.536,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.36,
+     "goodput_mbps": 1.457,
+     "link_utilization": 0.146,
+     "wire_bytes_total": 121675,
+     "wire_overhead_x": 1.857,
+     "client_tx_pkts": 120,
+     "client_tx_bytes": 120384,
+     "server_tx_pkts": 18,
+     "server_tx_bytes": 1291
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.336,
+     "goodput_mbps": 1.561,
+     "link_utilization": 0.156,
+     "wire_bytes_total": 81828,
+     "wire_overhead_x": 1.249,
+     "client_tx_pkts": 82,
+     "client_tx_bytes": 80759,
+     "server_tx_pkts": 17,
+     "server_tx_bytes": 1069
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.858,
+     "goodput_mbps": 0.611,
+     "link_utilization": 0.061,
+     "wire_bytes_total": 98391,
+     "wire_overhead_x": 1.501,
+     "client_tx_pkts": 98,
+     "client_tx_bytes": 97047,
+     "server_tx_pkts": 20,
+     "server_tx_bytes": 1344
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.579,
+   "median_goodput_mbps": 14.489,
+   "mean_wire_overhead_x": 1.241,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.579,
+     "goodput_mbps": 14.489,
+     "link_utilization": 0.724,
+     "wire_bytes_total": 1308402,
+     "wire_overhead_x": 1.248,
+     "client_tx_pkts": 1270,
+     "client_tx_bytes": 1291090,
+     "server_tx_pkts": 245,
+     "server_tx_bytes": 17312
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.577,
+     "goodput_mbps": 14.542,
+     "link_utilization": 0.727,
+     "wire_bytes_total": 1309235,
+     "wire_overhead_x": 1.249,
+     "client_tx_pkts": 1271,
+     "client_tx_bytes": 1292108,
+     "server_tx_pkts": 244,
+     "server_tx_bytes": 17127
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.581,
+     "goodput_mbps": 14.436,
+     "link_utilization": 0.722,
+     "wire_bytes_total": 1285924,
+     "wire_overhead_x": 1.226,
+     "client_tx_pkts": 1249,
+     "client_tx_bytes": 1269712,
+     "server_tx_pkts": 233,
+     "server_tx_bytes": 16212
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 0.619,
+   "median_goodput_mbps": 13.555,
+   "mean_wire_overhead_x": 1.252,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.619,
+     "goodput_mbps": 13.555,
+     "link_utilization": 0.678,
+     "wire_bytes_total": 1269257,
+     "wire_overhead_x": 1.21,
+     "client_tx_pkts": 1234,
+     "client_tx_bytes": 1252560,
+     "server_tx_pkts": 252,
+     "server_tx_bytes": 16697
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.593,
+     "goodput_mbps": 14.154,
+     "link_utilization": 0.708,
+     "wire_bytes_total": 1262121,
+     "wire_overhead_x": 1.204,
+     "client_tx_pkts": 1226,
+     "client_tx_bytes": 1246298,
+     "server_tx_pkts": 238,
+     "server_tx_bytes": 15823
+    },
+    {
+     "ok": true,
+     "elapsed_s": 0.678,
+     "goodput_mbps": 12.378,
+     "link_utilization": 0.619,
+     "wire_bytes_total": 1405797,
+     "wire_overhead_x": 1.341,
+     "client_tx_pkts": 1367,
+     "client_tx_bytes": 1387954,
+     "server_tx_pkts": 267,
+     "server_tx_bytes": 17843
+    }
+   ]
+  },
+  {
+   "condition": "cell_10M_100ms_5pct",
+   "rate_mbit": 10,
+   "rtt_ms": 100,
+   "loss_pct": 5.0,
+   "loss_mode": "random",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 1.349,
+   "median_goodput_mbps": 6.22,
+   "mean_wire_overhead_x": 1.309,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 1.569,
+     "goodput_mbps": 5.348,
+     "link_utilization": 0.535,
+     "wire_bytes_total": 1414262,
+     "wire_overhead_x": 1.349,
+     "client_tx_pkts": 1372,
+     "client_tx_bytes": 1393985,
+     "server_tx_pkts": 282,
+     "server_tx_bytes": 20277
+    },
+    {
+     "ok": true,
+     "elapsed_s": 1.274,
+     "goodput_mbps": 6.583,
+     "link_utilization": 0.658,
+     "wire_bytes_total": 1341461,
+     "wire_overhead_x": 1.279,
+     "client_tx_pkts": 1306,
+     "client_tx_bytes": 1322092,
+     "server_tx_pkts": 279,
+     "server_tx_bytes": 19369
+    },
+    {
+     "ok": true,
+     "elapsed_s": 1.349,
+     "goodput_mbps": 6.22,
+     "link_utilization": 0.622,
+     "wire_bytes_total": 1362606,
+     "wire_overhead_x": 1.299,
+     "client_tx_pkts": 1324,
+     "client_tx_bytes": 1342298,
+     "server_tx_pkts": 272,
+     "server_tx_bytes": 20308
+    }
+   ]
+  },
+  {
+   "condition": "radio_5M_200ms_10pct",
+   "rate_mbit": 5,
+   "rtt_ms": 200,
+   "loss_pct": 10.0,
+   "loss_mode": "random",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 2.794,
+   "median_goodput_mbps": 3.003,
+   "mean_wire_overhead_x": 1.408,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 3.025,
+     "goodput_mbps": 2.773,
+     "link_utilization": 0.555,
+     "wire_bytes_total": 1505799,
+     "wire_overhead_x": 1.436,
+     "client_tx_pkts": 1460,
+     "client_tx_bytes": 1483710,
+     "server_tx_pkts": 298,
+     "server_tx_bytes": 22089
+    },
+    {
+     "ok": true,
+     "elapsed_s": 2.77,
+     "goodput_mbps": 3.028,
+     "link_utilization": 0.606,
+     "wire_bytes_total": 1474244,
+     "wire_overhead_x": 1.406,
+     "client_tx_pkts": 1432,
+     "client_tx_bytes": 1453183,
+     "server_tx_pkts": 292,
+     "server_tx_bytes": 21061
+    },
+    {
+     "ok": true,
+     "elapsed_s": 2.794,
+     "goodput_mbps": 3.003,
+     "link_utilization": 0.601,
+     "wire_bytes_total": 1450277,
+     "wire_overhead_x": 1.383,
+     "client_tx_pkts": 1408,
+     "client_tx_bytes": 1428751,
+     "server_tx_pkts": 293,
+     "server_tx_bytes": 21526
+    }
+   ]
+  },
+  {
+   "condition": "bad_2M_300ms_20pct",
+   "rate_mbit": 2,
+   "rtt_ms": 300,
+   "loss_pct": 20.0,
+   "loss_mode": "random",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 6.703,
+   "median_goodput_mbps": 1.251,
+   "mean_wire_overhead_x": 1.636,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 6.415,
+     "goodput_mbps": 1.308,
+     "link_utilization": 0.654,
+     "wire_bytes_total": 1642042,
+     "wire_overhead_x": 1.566,
+     "client_tx_pkts": 1591,
+     "client_tx_bytes": 1615186,
+     "server_tx_pkts": 360,
+     "server_tx_bytes": 26856
+    },
+    {
+     "ok": true,
+     "elapsed_s": 6.804,
+     "goodput_mbps": 1.233,
+     "link_utilization": 0.616,
+     "wire_bytes_total": 1733068,
+     "wire_overhead_x": 1.653,
+     "client_tx_pkts": 1679,
+     "client_tx_bytes": 1701947,
+     "server_tx_pkts": 388,
+     "server_tx_bytes": 31121
+    },
+    {
+     "ok": true,
+     "elapsed_s": 6.703,
+     "goodput_mbps": 1.251,
+     "link_utilization": 0.626,
+     "wire_bytes_total": 1772015,
+     "wire_overhead_x": 1.69,
+     "client_tx_pkts": 1719,
+     "client_tx_bytes": 1741726,
+     "server_tx_pkts": 384,
+     "server_tx_bytes": 30289
+    }
+   ]
+  },
+  {
+   "condition": "burst_10M_100ms_10pct",
+   "rate_mbit": 10,
+   "rtt_ms": 100,
+   "loss_pct": 10.0,
+   "loss_mode": "burst",
+   "size_bytes": 1048576,
+   "protocol": "nltp-default",
+   "reps": 3,
+   "success": "3/3",
+   "median_elapsed_s": 1.339,
+   "median_goodput_mbps": 6.265,
+   "mean_wire_overhead_x": 1.354,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 1.361,
+     "goodput_mbps": 6.162,
+     "link_utilization": 0.616,
+     "wire_bytes_total": 1538207,
+     "wire_overhead_x": 1.467,
+     "client_tx_pkts": 1494,
+     "client_tx_bytes": 1517240,
+     "server_tx_pkts": 282,
+     "server_tx_bytes": 20967
+    },
+    {
+     "ok": true,
+     "elapsed_s": 1.296,
+     "goodput_mbps": 6.47,
+     "link_utilization": 0.647,
+     "wire_bytes_total": 1368589,
+     "wire_overhead_x": 1.305,
+     "client_tx_pkts": 1329,
+     "client_tx_bytes": 1350211,
+     "server_tx_pkts": 248,
+     "server_tx_bytes": 18378
+    },
+    {
+     "ok": true,
+     "elapsed_s": 1.339,
+     "goodput_mbps": 6.265,
+     "link_utilization": 0.627,
+     "wire_bytes_total": 1351528,
+     "wire_overhead_x": 1.289,
+     "client_tx_pkts": 1311,
+     "client_tx_bytes": 1331887,
+     "server_tx_pkts": 274,
+     "server_tx_bytes": 19641
+    }
+   ]
+  }
+ ],
+ "fairness": null
+}

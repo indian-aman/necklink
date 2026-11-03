@@ -1,0 +1,75 @@
+{
+ "board_ip": "<redacted>",
+ "encrypted": true,
+ "radio": "marine-radio",
+ "radio_stats": {
+  "up_sent": 459,
+  "up_dropped": 83,
+  "down_sent": 375,
+  "down_dropped": 24,
+  "up_loss_pct": 18.1,
+  "down_loss_pct": 6.4
+ },
+ "rows": [
+  {
+   "test": "nltp laptop->esp32 (cold)",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.4918
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.4826150000008056,
+   "esp_ms": 1172
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.5696
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.6126341999988654,
+   "esp_ms": 765
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 1.5329
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.8987472999942838,
+   "esp_ms": 1013
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 1.5365
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.8850047000014456,
+   "esp_ms": 1015
+  }
+ ]
+}

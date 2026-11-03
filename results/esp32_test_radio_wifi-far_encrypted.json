@@ -1,0 +1,105 @@
+{
+ "board_ip": "<redacted>",
+ "encrypted": true,
+ "radio": "wifi-far",
+ "radio_stats": {
+  "up_sent": 452,
+  "up_dropped": 24,
+  "down_sent": 486,
+  "down_dropped": 31,
+  "up_loss_pct": 5.3,
+  "down_loss_pct": 6.4
+ },
+ "rows": [
+  {
+   "test": "nltp laptop->esp32 (cold)",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.1548
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.15333629999804543,
+   "esp_ms": 167
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.103
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.23148870000295574,
+   "esp_ms": 240
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 16384,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.1286
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 16384,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.13105540000105975,
+   "esp_ms": 143
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.2535
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 0,
+   "ok": true,
+   "elapsed_s": 0.2848381000003428,
+   "esp_ms": 292
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.2371
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 1,
+   "ok": true,
+   "elapsed_s": 0.19737700000405312,
+   "esp_ms": 210
+  },
+  {
+   "test": "nltp laptop->esp32",
+   "size": 60000,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.3687
+  },
+  {
+   "test": "nltp esp32->laptop",
+   "size": 60000,
+   "rep": 2,
+   "ok": true,
+   "elapsed_s": 0.241927900002338,
+   "esp_ms": 257
+  }
+ ]
+}

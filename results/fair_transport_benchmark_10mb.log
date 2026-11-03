@@ -1,0 +1,13 @@
+[    35s] clean_20M_20ms           10240KB nltp-default   ok=3/3 t=5.643 s  goodput=14.864 Mbps  wire=1.241x
+[    52s] clean_20M_20ms           10240KB tcp-bbr        ok=3/3 t=4.452 s  goodput=18.842 Mbps  wire=1.036x
+[    68s] clean_20M_20ms           10240KB quic-ngtcp2-bbr ok=3/3 t=4.781 s  goodput=17.546 Mbps  wire=1.053x
+[    96s] clean_20M_20ms           10240KB kcptun         ok=3/3 t=7.129 s  goodput=11.767 Mbps  wire=2.306x
+[   151s] cell_10M_100ms_5pct      10240KB nltp-default   ok=3/3 t=11.282 s  goodput=7.435 Mbps  wire=1.28x
+[   182s] cell_10M_100ms_5pct      10240KB tcp-bbr        ok=3/3 t=9.81 s  goodput=8.551 Mbps  wire=1.104x
+[   216s] cell_10M_100ms_5pct      10240KB quic-ngtcp2-bbr ok=3/3 t=9.851 s  goodput=8.516 Mbps  wire=1.108x
+[   268s] cell_10M_100ms_5pct      10240KB kcptun         ok=3/3 t=14.405 s  goodput=5.824 Mbps  wire=1.775x
+[   331s] burst_10M_100ms_10pct    10240KB nltp-default   ok=3/3 t=13.793 s  goodput=6.082 Mbps  wire=1.468x
+[   484s] burst_10M_100ms_10pct    10240KB tcp-bbr        ok=1/3 t=10.855 s  goodput=7.728 Mbps  wire=1.173x
+[   550s] burst_10M_100ms_10pct    10240KB quic-ngtcp2-bbr ok=1/3 t=11.253 s  goodput=7.454 Mbps  wire=1.162x
+[   619s] burst_10M_100ms_10pct    10240KB kcptun         ok=3/3 t=20.997 s  goodput=3.995 Mbps  wire=1.797x
+wrote results/fair_transport_benchmark_10mb.json

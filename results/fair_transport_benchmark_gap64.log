@@ -1,0 +1,22 @@
+[    19s] clean_20M_20ms              64KB nltp-burst64   ok=3/3 t=0.13 s  goodput=4.026 Mbps  wire=1.181x
+[    37s] clean_20M_20ms              64KB nltp-warm      ok=3/3 t=0.119 s  goodput=4.409 Mbps  wire=2.395x
+[    53s] wifi_20M_40ms_2pct          64KB nltp-burst64   ok=3/3 t=0.112 s  goodput=4.678 Mbps  wire=1.154x
+[    71s] wifi_20M_40ms_2pct          64KB nltp-warm      ok=3/3 t=0.169 s  goodput=3.099 Mbps  wire=2.607x
+[    88s] cell_10M_100ms_5pct         64KB nltp-burst64   ok=3/3 t=0.354 s  goodput=1.482 Mbps  wire=1.178x
+[   106s] cell_10M_100ms_5pct         64KB nltp-warm      ok=3/3 t=0.169 s  goodput=3.106 Mbps  wire=2.676x
+[   123s] radio_5M_200ms_10pct        64KB nltp-burst64   ok=3/3 t=0.848 s  goodput=0.618 Mbps  wire=1.334x
+[   144s] radio_5M_200ms_10pct        64KB nltp-warm      ok=3/3 t=0.332 s  goodput=1.58 Mbps  wire=2.664x
+[   162s] bad_2M_300ms_20pct          64KB nltp-burst64   ok=3/3 t=1.212 s  goodput=0.432 Mbps  wire=1.564x
+Traceback (most recent call last):
+  File "scripts/fair_transport_benchmark.py", line 451, in <module>
+    main(args.quick, args.protocols, args.tag, args.fairness == "yes", args.conditions, args.sizes)
+  File "scripts/fair_transport_benchmark.py", line 398, in main
+    runs.append(run_transfer(proto, path, size, sha, rate, port))
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "scripts/fair_transport_benchmark.py", line 307, in run_transfer
+    counters = read_counters()
+               ^^^^^^^^^^^^^^^
+  File "scripts/fair_transport_benchmark.py", line 114, in read_counters
+    rule = lines[2].split()
+           ~~~~~^^^
+IndexError: list index out of range

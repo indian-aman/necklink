@@ -1,0 +1,7 @@
+[    20s] radio_5M_200ms_10pct      1024KB kcp-fast       ok=3/3 t=5.653 s  goodput=1.484 Mbps  wire=3.26x
+[    36s] radio_5M_200ms_10pct      1024KB kcptun         ok=3/3 t=3.152 s  goodput=2.661 Mbps  wire=1.721x
+[   264s] bad_2M_300ms_20pct        1024KB kcp-fast       ok=3/3 t=70.483 s  goodput=0.119 Mbps  wire=4.535x
+[   302s] bad_2M_300ms_20pct        1024KB kcptun         ok=3/3 t=9.384 s  goodput=0.894 Mbps  wire=2.255x
+[   318s] burst_10M_100ms_10pct     1024KB kcp-fast       ok=3/3 t=2.872 s  goodput=2.92 Mbps  wire=3.308x
+[   327s] burst_10M_100ms_10pct     1024KB kcptun         ok=3/3 t=2.072 s  goodput=4.048 Mbps  wire=1.712x
+wrote results/fair_transport_benchmark_kcp_rest.json

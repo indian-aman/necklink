@@ -1,0 +1,32 @@
+{
+  "events": [],
+  "status": "completed_ok",
+  "punched": true,
+  "punch_ms": 275.49,
+  "post_punch_srtt_ms": 257.0,
+  "telemetry_tx_stats": {
+    "raw_equiv_bytes": 18000,
+    "wire_bytes_sent": 3926,
+    "compression_x": 4.58,
+    "silent_tick_pct": 35.6,
+    "elapsed_ms": 2941.2
+  },
+  "file_receipt": {
+    "stream_id": 1,
+    "filename": "transcontinental_ota_128kb.bin",
+    "bytes": 131072,
+    "sha256": "c2cb070a2ff11f53b63464b06cf8032a3e7a5b4ef08e5af0e732aa97b52c505f",
+    "verified_sha256": true,
+    "elapsed_s": 1.4143,
+    "goodput_kbps": 741.43,
+    "estimated_link_loss_pct": 0.02,
+    "encrypted": true
+  },
+  "ground_station_reply": "INDIA_GROUND_STATION_SHA256_OK_128KB",
+  "final_srtt_ms": 1063.95,
+  "min_rtt_ms": 257.0,
+  "wire_bytes_tx_total": 151843,
+  "wire_bytes_rx_total": 1615,
+  "pkts_tx_total": 405,
+  "pkts_rx_total": 31
+}

@@ -1,0 +1,176 @@
+{
+  "file_size_bytes": 65536,
+  "kernel_tcp_0pct_loopback": {
+    "protocol": "OS_Kernel_TCP_SOCK_STREAM",
+    "sha256_verified": true,
+    "elapsed_ms": 1.22,
+    "goodput_kbps": 429885.2,
+    "wire_overhead_x": 1.04
+  },
+  "exact_file_transfer_regimes": [
+    {
+      "regime": "clean_lan_0pct_1ms",
+      "loss_rate": 0.0,
+      "rtt_ms": 1,
+      "TCP_NewReno_SACK": {
+        "protocol": "TCP_NewReno_SACK",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 17.11,
+        "goodput_kbps": 30642.0,
+        "wire_bytes_total": 66250,
+        "wire_overhead_x": 1.011
+      },
+      "QUIC_TLS13_Stream": {
+        "protocol": "QUIC_TLS13_Stream",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 265.97,
+        "goodput_kbps": 1971.2,
+        "wire_bytes_total": 72032,
+        "wire_overhead_x": 1.099
+      },
+      "NLTP_v1_Standalone": {
+        "protocol": "NLTP_v1_Standalone",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 22.31,
+        "goodput_kbps": 23504.8,
+        "wire_bytes_total": 67694,
+        "wire_overhead_x": 1.033
+      }
+    },
+    {
+      "regime": "wifi_drone_5pct_20ms",
+      "loss_rate": 0.05,
+      "rtt_ms": 20,
+      "TCP_NewReno_SACK": {
+        "protocol": "TCP_NewReno_SACK",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 141.26,
+        "goodput_kbps": 3711.5,
+        "wire_bytes_total": 68904,
+        "wire_overhead_x": 1.051
+      },
+      "QUIC_TLS13_Stream": {
+        "protocol": "QUIC_TLS13_Stream",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 372.58,
+        "goodput_kbps": 1407.2,
+        "wire_bytes_total": 73524,
+        "wire_overhead_x": 1.122
+      },
+      "NLTP_v1_Standalone": {
+        "protocol": "NLTP_v1_Standalone",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 140.7,
+        "goodput_kbps": 3726.2,
+        "wire_bytes_total": 69853,
+        "wire_overhead_x": 1.066
+      }
+    },
+    {
+      "regime": "rural_4g_usv_15pct_60ms",
+      "loss_rate": 0.15,
+      "rtt_ms": 60,
+      "TCP_NewReno_SACK": {
+        "protocol": "TCP_NewReno_SACK",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 1158.63,
+        "goodput_kbps": 452.5,
+        "wire_bytes_total": 87571,
+        "wire_overhead_x": 1.336
+      },
+      "QUIC_TLS13_Stream": {
+        "protocol": "QUIC_TLS13_Stream",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 1925.83,
+        "goodput_kbps": 272.2,
+        "wire_bytes_total": 95271,
+        "wire_overhead_x": 1.454
+      },
+      "NLTP_v1_Standalone": {
+        "protocol": "NLTP_v1_Standalone",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 160.29,
+        "goodput_kbps": 3270.8,
+        "wire_bytes_total": 87879,
+        "wire_overhead_x": 1.341
+      }
+    },
+    {
+      "regime": "heavy_radio_25pct_100ms",
+      "loss_rate": 0.25,
+      "rtt_ms": 100,
+      "TCP_NewReno_SACK": {
+        "protocol": "TCP_NewReno_SACK",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 4661.43,
+        "goodput_kbps": 112.5,
+        "wire_bytes_total": 99213,
+        "wire_overhead_x": 1.514
+      },
+      "QUIC_TLS13_Stream": {
+        "protocol": "QUIC_TLS13_Stream",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 6871.45,
+        "goodput_kbps": 76.3,
+        "wire_bytes_total": 107449,
+        "wire_overhead_x": 1.64
+      },
+      "NLTP_v1_Standalone": {
+        "protocol": "NLTP_v1_Standalone",
+        "completed": true,
+        "sha256_verified": true,
+        "elapsed_ms": 348.99,
+        "goodput_kbps": 1502.3,
+        "wire_bytes_total": 101677,
+        "wire_overhead_x": 1.551
+      }
+    }
+  ],
+  "mixed_telemetry_and_reflex_25pct_loss": {
+    "telemetry_scenario": "1200_ticks_AQMS_12ch_at_35pct_packet_loss",
+    "reflex_under_load_scenario": "urgent_ESTOP_during_active_64KB_file_upload_at_15pct_loss_60ms_RTT",
+    "Single_Socket_TCP": {
+      "telemetry_payload_bytes": 63600,
+      "reflex_latency_during_64KB_upload_ms": 736.5
+    },
+    "Raw_QUIC_RFC9221": {
+      "datagram_payload_bytes": 63600,
+      "encrypted_udp_wire_bytes_c2s": 75899,
+      "waveform_nrmse_pct": 22.3
+    },
+    "NeckLink_over_QUIC_RFC9221": {
+      "datagram_payload_bytes": 5372,
+      "encrypted_udp_wire_bytes_c2s": 18919,
+      "payload_compression_vs_raw_quic_x": 11.84,
+      "encrypted_wire_compression_vs_raw_quic_x": 4.01,
+      "waveform_nrmse_pct": 41.21,
+      "reflex_latency_during_64KB_upload_ms": 21.5
+    },
+    "NLTP_v1_Standalone": {
+      "datagram_payload_bytes": 6902,
+      "udp_wire_bytes_c2s": 18262,
+      "payload_compression_vs_raw_x": 9.21,
+      "wire_compression_vs_raw_quic_x": 4.16,
+      "waveform_nrmse_pct": 39.18,
+      "reflex_latency_during_64KB_upload_ms": 40.28
+    }
+  },
+  "embedded_footprint_comparison": {
+    "NeckSocket_plus_Codec_C99_SRAM_bytes": "146 - 482 B (verified 0-FPU GCC -mgeneral-regs-only)",
+    "NLTP_v1_Standalone_C99_SRAM_with_K8_1KB_RxGen_bytes": "~9,200 B (fits STM32F1/ESP32/RP2040 without TLS heap)",
+    "Standard_QUIC_TLS13_X509_Stack_RAM_bytes": "65,000 - 200,000 B (OpenSSL/Picoquic/MsQuic TLS 1.3 + X.509)",
+    "nltp_wire_header_source_bytes": 3840,
+    "necklink_socket_header_source_bytes": 6360
+  }
+}

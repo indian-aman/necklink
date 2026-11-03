@@ -1,0 +1,287 @@
+{
+ "kernel": "6.18.33.2-microsoft-standard-WSL2",
+ "notes": "netem on both veth directions; loss_pct is per direction; TSO/GSO/GRO off; bytes from iptables OUTPUT counters",
+ "results": [
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "udt",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.14,
+   "median_goodput_mbps": 3.742,
+   "mean_wire_overhead_x": 1.049,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.14,
+     "goodput_mbps": 3.742,
+     "link_utilization": 0.187,
+     "wire_bytes_total": 68761,
+     "wire_overhead_x": 1.049,
+     "client_tx_pkts": 56,
+     "client_tx_bytes": 68152,
+     "server_tx_pkts": 9,
+     "server_tx_bytes": 609
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "srt",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.314,
+   "median_goodput_mbps": 1.667,
+   "mean_wire_overhead_x": 1.048,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.314,
+     "goodput_mbps": 1.667,
+     "link_utilization": 0.083,
+     "wire_bytes_total": 68704,
+     "wire_overhead_x": 1.048,
+     "client_tx_pkts": 54,
+     "client_tx_bytes": 68076,
+     "server_tx_pkts": 8,
+     "server_tx_bytes": 628
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "uftp",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 3.076,
+   "median_goodput_mbps": 0.17,
+   "mean_wire_overhead_x": 1.106,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 3.076,
+     "goodput_mbps": 0.17,
+     "link_utilization": 0.009,
+     "wire_bytes_total": 72488,
+     "wire_overhead_x": 1.106,
+     "client_tx_pkts": 91,
+     "client_tx_bytes": 71284,
+     "server_tx_pkts": 18,
+     "server_tx_bytes": 1204
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "quic-ngtcp2-bbr",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.165,
+   "median_goodput_mbps": 3.187,
+   "mean_wire_overhead_x": 1.214,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.165,
+     "goodput_mbps": 3.187,
+     "link_utilization": 0.159,
+     "wire_bytes_total": 79565,
+     "wire_overhead_x": 1.214,
+     "client_tx_pkts": 17,
+     "client_tx_bytes": 6329,
+     "server_tx_pkts": 14,
+     "server_tx_bytes": 73236
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "quic-ngtcp2-cubic",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.164,
+   "median_goodput_mbps": 3.191,
+   "mean_wire_overhead_x": 1.216,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.164,
+     "goodput_mbps": 3.191,
+     "link_utilization": 0.16,
+     "wire_bytes_total": 79702,
+     "wire_overhead_x": 1.216,
+     "client_tx_pkts": 18,
+     "client_tx_bytes": 6368,
+     "server_tx_pkts": 15,
+     "server_tx_bytes": 73334
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "udt",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.22,
+   "median_goodput_mbps": 2.386,
+   "mean_wire_overhead_x": 1.049,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.22,
+     "goodput_mbps": 2.386,
+     "link_utilization": 0.119,
+     "wire_bytes_total": 68761,
+     "wire_overhead_x": 1.049,
+     "client_tx_pkts": 56,
+     "client_tx_bytes": 68152,
+     "server_tx_pkts": 9,
+     "server_tx_bytes": 609
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "srt",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 2.123,
+   "median_goodput_mbps": 0.247,
+   "mean_wire_overhead_x": 1.119,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 2.123,
+     "goodput_mbps": 0.247,
+     "link_utilization": 0.012,
+     "wire_bytes_total": 73312,
+     "wire_overhead_x": 1.119,
+     "client_tx_pkts": 81,
+     "client_tx_bytes": 70824,
+     "server_tx_pkts": 34,
+     "server_tx_bytes": 2488
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "uftp",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 4.832,
+   "median_goodput_mbps": 0.109,
+   "mean_wire_overhead_x": 1.142,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 4.832,
+     "goodput_mbps": 0.109,
+     "link_utilization": 0.005,
+     "wire_bytes_total": 74851,
+     "wire_overhead_x": 1.142,
+     "client_tx_pkts": 100,
+     "client_tx_bytes": 73160,
+     "server_tx_pkts": 25,
+     "server_tx_bytes": 1691
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "quic-ngtcp2-bbr",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.215,
+   "median_goodput_mbps": 2.437,
+   "mean_wire_overhead_x": 1.213,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.215,
+     "goodput_mbps": 2.437,
+     "link_utilization": 0.122,
+     "wire_bytes_total": 79466,
+     "wire_overhead_x": 1.213,
+     "client_tx_pkts": 16,
+     "client_tx_bytes": 6230,
+     "server_tx_pkts": 14,
+     "server_tx_bytes": 73236
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "quic-ngtcp2-cubic",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.216,
+   "median_goodput_mbps": 2.432,
+   "mean_wire_overhead_x": 1.211,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.216,
+     "goodput_mbps": 2.432,
+     "link_utilization": 0.122,
+     "wire_bytes_total": 79358,
+     "wire_overhead_x": 1.211,
+     "client_tx_pkts": 15,
+     "client_tx_bytes": 6158,
+     "server_tx_pkts": 13,
+     "server_tx_bytes": 73200
+    }
+   ]
+  }
+ ],
+ "fairness": null
+}

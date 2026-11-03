@@ -1,0 +1,26 @@
+[    15s] clean_20M_20ms              64KB nltp-default   ok=3/3 t=0.075 s  goodput=6.998 Mbps  wire=1.231x
+[    33s] clean_20M_20ms              64KB nltp-ratecap   ok=3/3 t=0.077 s  goodput=6.85 Mbps  wire=1.231x
+[    48s] wifi_20M_40ms_2pct          64KB nltp-default   ok=3/3 t=0.112 s  goodput=4.662 Mbps  wire=1.246x
+[    66s] wifi_20M_40ms_2pct          64KB nltp-ratecap   ok=3/3 t=0.113 s  goodput=4.642 Mbps  wire=1.223x
+[    82s] cell_10M_100ms_5pct         64KB nltp-default   ok=3/3 t=0.454 s  goodput=1.154 Mbps  wire=1.388x
+[   101s] cell_10M_100ms_5pct         64KB nltp-ratecap   ok=3/3 t=0.306 s  goodput=1.715 Mbps  wire=1.208x
+[   118s] radio_5M_200ms_10pct        64KB nltp-default   ok=3/3 t=0.521 s  goodput=1.006 Mbps  wire=1.293x
+[   138s] radio_5M_200ms_10pct        64KB nltp-ratecap   ok=3/3 t=0.712 s  goodput=0.736 Mbps  wire=1.245x
+[   156s] bad_2M_300ms_20pct          64KB nltp-default   ok=3/3 t=0.853 s  goodput=0.615 Mbps  wire=1.53x
+[   179s] bad_2M_300ms_20pct          64KB nltp-ratecap   ok=3/3 t=2.355 s  goodput=0.223 Mbps  wire=2.066x
+[   199s] burst_10M_100ms_10pct       64KB nltp-default   ok=3/3 t=0.699 s  goodput=0.75 Mbps  wire=1.449x
+[   215s] burst_10M_100ms_10pct       64KB nltp-ratecap   ok=3/3 t=0.234 s  goodput=2.244 Mbps  wire=1.218x
+[   234s] clean_20M_20ms            1024KB nltp-default   ok=3/3 t=0.572 s  goodput=14.658 Mbps  wire=1.204x
+[   251s] clean_20M_20ms            1024KB nltp-ratecap   ok=3/3 t=0.55 s  goodput=15.259 Mbps  wire=1.121x
+[   270s] wifi_20M_40ms_2pct        1024KB nltp-default   ok=3/3 t=0.645 s  goodput=13.007 Mbps  wire=1.228x
+[   287s] wifi_20M_40ms_2pct        1024KB nltp-ratecap   ok=3/3 t=0.707 s  goodput=11.87 Mbps  wire=1.215x
+[   308s] cell_10M_100ms_5pct       1024KB nltp-default   ok=3/3 t=1.311 s  goodput=6.397 Mbps  wire=1.279x
+[   327s] cell_10M_100ms_5pct       1024KB nltp-ratecap   ok=3/3 t=1.317 s  goodput=6.367 Mbps  wire=1.27x
+[   355s] radio_5M_200ms_10pct      1024KB nltp-default   ok=3/3 t=2.906 s  goodput=2.886 Mbps  wire=1.403x
+[   382s] radio_5M_200ms_10pct      1024KB nltp-ratecap   ok=3/3 t=2.858 s  goodput=2.935 Mbps  wire=1.356x
+[   420s] bad_2M_300ms_20pct        1024KB nltp-default   ok=3/3 t=6.787 s  goodput=1.236 Mbps  wire=1.613x
+[   462s] bad_2M_300ms_20pct        1024KB nltp-ratecap   ok=3/3 t=7.971 s  goodput=1.052 Mbps  wire=1.604x
+[   484s] burst_10M_100ms_10pct     1024KB nltp-default   ok=3/3 t=1.714 s  goodput=4.893 Mbps  wire=1.499x
+[   504s] burst_10M_100ms_10pct     1024KB nltp-ratecap   ok=3/3 t=1.624 s  goodput=5.165 Mbps  wire=1.512x
+fairness: {"link": "10 Mbit, 40 ms RTT, 0% random loss", "tcp_alone_mbps": 9.513, "tcp_vs_tcp_mbps": [4.993, 4.525], "tcp_vs_nltp_default": {"tcp_mbps": 8.278, "nltp_ok": true, "nltp_goodput_mbps": 1.573, "nltp_elapsed_s": 21.337250497000014}, "tcp_vs_nltp_ratecap": {"tcp_mbps": 8.799, "nltp_ok": true, "nltp_goodput_mbps": 1.495, "nltp_elapsed_s": 22.44642308799996}}
+wrote results/fair_transport_benchmark_tuned2.json

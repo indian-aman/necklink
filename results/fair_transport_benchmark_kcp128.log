@@ -1,0 +1,13 @@
+[     5s] clean_20M_20ms              64KB kcp-fast128    ok=3/3 t=0.056 s  goodput=9.298 Mbps  wire=1.059x
+[    10s] wifi_20M_40ms_2pct          64KB kcp-fast128    ok=3/3 t=0.247 s  goodput=2.122 Mbps  wire=1.088x
+[    16s] cell_10M_100ms_5pct         64KB kcp-fast128    ok=3/3 t=0.245 s  goodput=2.137 Mbps  wire=1.242x
+[    25s] radio_5M_200ms_10pct        64KB kcp-fast128    ok=3/3 t=0.5 s  goodput=1.048 Mbps  wire=2.148x
+[    32s] bad_2M_300ms_20pct          64KB kcp-fast128    ok=3/3 t=0.771 s  goodput=0.68 Mbps  wire=2.555x
+[    38s] burst_10M_100ms_10pct       64KB kcp-fast128    ok=3/3 t=0.311 s  goodput=1.685 Mbps  wire=1.32x
+[    45s] clean_20M_20ms            1024KB kcp-fast128    ok=3/3 t=0.597 s  goodput=14.058 Mbps  wire=1.545x
+[    52s] wifi_20M_40ms_2pct        1024KB kcp-fast128    ok=3/3 t=0.853 s  goodput=9.835 Mbps  wire=1.255x
+[    66s] cell_10M_100ms_5pct       1024KB kcp-fast128    ok=3/3 t=1.74 s  goodput=4.821 Mbps  wire=1.449x
+[    84s] radio_5M_200ms_10pct      1024KB kcp-fast128    ok=3/3 t=4.077 s  goodput=2.057 Mbps  wire=1.611x
+[   118s] bad_2M_300ms_20pct        1024KB kcp-fast128    ok=3/3 t=8.976 s  goodput=0.935 Mbps  wire=2.109x
+[   163s] burst_10M_100ms_10pct     1024KB kcp-fast128    ok=3/3 t=2.16 s  goodput=3.884 Mbps  wire=1.626x
+wrote results/fair_transport_benchmark_kcp128.json

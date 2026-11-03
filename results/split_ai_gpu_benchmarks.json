@@ -1,0 +1,572 @@
+{
+  "device": "cuda",
+  "gpu_name": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+  "bottleneck_dim": 32,
+  "num_classes": 8,
+  "seeds": [
+    11,
+    22,
+    33
+  ],
+  "protocols": {
+    "Raw-Float32-UDP": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.91,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.88,
+        "hazard_event_accuracy_pct_sem": 0.09,
+        "latent_nrmse_pct": 0.0,
+        "latent_nrmse_pct_sem": 0.0,
+        "bytes_per_step": 130.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 1.0,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 94.94,
+        "overall_accuracy_pct_sem": 0.01,
+        "hazard_event_accuracy_pct": 92.98,
+        "hazard_event_accuracy_pct_sem": 0.07,
+        "latent_nrmse_pct": 17.29,
+        "latent_nrmse_pct_sem": 0.28,
+        "bytes_per_step": 130.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 1.0,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 93.25,
+        "overall_accuracy_pct_sem": 0.19,
+        "hazard_event_accuracy_pct": 91.62,
+        "hazard_event_accuracy_pct_sem": 0.09,
+        "latent_nrmse_pct": 27.97,
+        "latent_nrmse_pct_sem": 0.57,
+        "bytes_per_step": 130.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 1.0,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 90.91,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 89.55,
+        "hazard_event_accuracy_pct_sem": 0.02,
+        "latent_nrmse_pct": 37.07,
+        "latent_nrmse_pct_sem": 0.41,
+        "bytes_per_step": 130.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 1.0,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 89.56,
+        "overall_accuracy_pct_sem": 0.14,
+        "hazard_event_accuracy_pct": 88.73,
+        "hazard_event_accuracy_pct_sem": 0.23,
+        "latent_nrmse_pct": 40.57,
+        "latent_nrmse_pct_sem": 0.1,
+        "bytes_per_step": 130.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 1.0,
+        "compression_vs_raw_x_sem": 0.0
+      }
+    },
+    "Int8-Zlib-Block16": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.91,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.88,
+        "hazard_event_accuracy_pct_sem": 0.09,
+        "latent_nrmse_pct": 0.73,
+        "latent_nrmse_pct_sem": 0.0,
+        "bytes_per_step": 31.55,
+        "bytes_per_step_sem": 0.04,
+        "compression_vs_raw_x": 4.12,
+        "compression_vs_raw_x_sem": 0.01
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 84.65,
+        "overall_accuracy_pct_sem": 0.65,
+        "hazard_event_accuracy_pct": 84.24,
+        "hazard_event_accuracy_pct_sem": 0.87,
+        "latent_nrmse_pct": 52.67,
+        "latent_nrmse_pct_sem": 1.06,
+        "bytes_per_step": 31.55,
+        "bytes_per_step_sem": 0.04,
+        "compression_vs_raw_x": 4.12,
+        "compression_vs_raw_x_sem": 0.01
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 68.0,
+        "overall_accuracy_pct_sem": 0.03,
+        "hazard_event_accuracy_pct": 67.98,
+        "hazard_event_accuracy_pct_sem": 0.08,
+        "latent_nrmse_pct": 84.9,
+        "latent_nrmse_pct_sem": 0.3,
+        "bytes_per_step": 31.55,
+        "bytes_per_step_sem": 0.04,
+        "compression_vs_raw_x": 4.12,
+        "compression_vs_raw_x_sem": 0.01
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 58.16,
+        "overall_accuracy_pct_sem": 0.85,
+        "hazard_event_accuracy_pct": 56.12,
+        "hazard_event_accuracy_pct_sem": 0.58,
+        "latent_nrmse_pct": 99.51,
+        "latent_nrmse_pct_sem": 1.16,
+        "bytes_per_step": 31.55,
+        "bytes_per_step_sem": 0.04,
+        "compression_vs_raw_x": 4.12,
+        "compression_vs_raw_x_sem": 0.01
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 73.43,
+        "overall_accuracy_pct_sem": 0.68,
+        "hazard_event_accuracy_pct": 72.64,
+        "hazard_event_accuracy_pct_sem": 0.36,
+        "latent_nrmse_pct": 76.02,
+        "latent_nrmse_pct_sem": 1.2,
+        "bytes_per_step": 31.55,
+        "bytes_per_step_sem": 0.04,
+        "compression_vs_raw_x": 4.12,
+        "compression_vs_raw_x_sem": 0.01
+      }
+    },
+    "SendOnDelta-UDP": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.92,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.88,
+        "hazard_event_accuracy_pct_sem": 0.08,
+        "latent_nrmse_pct": 3.4,
+        "latent_nrmse_pct_sem": 0.01,
+        "bytes_per_step": 39.7,
+        "bytes_per_step_sem": 0.31,
+        "compression_vs_raw_x": 3.28,
+        "compression_vs_raw_x_sem": 0.02
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 32.04,
+        "overall_accuracy_pct_sem": 2.41,
+        "hazard_event_accuracy_pct": 31.07,
+        "hazard_event_accuracy_pct_sem": 1.46,
+        "latent_nrmse_pct": 348.96,
+        "latent_nrmse_pct_sem": 1.78,
+        "bytes_per_step": 39.7,
+        "bytes_per_step_sem": 0.31,
+        "compression_vs_raw_x": 3.28,
+        "compression_vs_raw_x_sem": 0.02
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 24.05,
+        "overall_accuracy_pct_sem": 2.05,
+        "hazard_event_accuracy_pct": 23.62,
+        "hazard_event_accuracy_pct_sem": 0.89,
+        "latent_nrmse_pct": 406.87,
+        "latent_nrmse_pct_sem": 10.13,
+        "bytes_per_step": 39.7,
+        "bytes_per_step_sem": 0.31,
+        "compression_vs_raw_x": 3.28,
+        "compression_vs_raw_x_sem": 0.02
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 23.02,
+        "overall_accuracy_pct_sem": 0.23,
+        "hazard_event_accuracy_pct": 19.29,
+        "hazard_event_accuracy_pct_sem": 0.58,
+        "latent_nrmse_pct": 386.74,
+        "latent_nrmse_pct_sem": 7.51,
+        "bytes_per_step": 39.7,
+        "bytes_per_step_sem": 0.31,
+        "compression_vs_raw_x": 3.28,
+        "compression_vs_raw_x_sem": 0.02
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 27.42,
+        "overall_accuracy_pct_sem": 0.74,
+        "hazard_event_accuracy_pct": 27.34,
+        "hazard_event_accuracy_pct_sem": 0.37,
+        "latent_nrmse_pct": 336.98,
+        "latent_nrmse_pct_sem": 15.36,
+        "bytes_per_step": 39.7,
+        "bytes_per_step_sem": 0.31,
+        "compression_vs_raw_x": 3.28,
+        "compression_vs_raw_x_sem": 0.02
+      }
+    },
+    "ADPCM-4bit-Leaky": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 94.99,
+        "overall_accuracy_pct_sem": 0.05,
+        "hazard_event_accuracy_pct": 93.82,
+        "hazard_event_accuracy_pct_sem": 0.09,
+        "latent_nrmse_pct": 12.94,
+        "latent_nrmse_pct_sem": 0.23,
+        "bytes_per_step": 18.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 7.22,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 91.2,
+        "overall_accuracy_pct_sem": 0.19,
+        "hazard_event_accuracy_pct": 91.42,
+        "hazard_event_accuracy_pct_sem": 0.29,
+        "latent_nrmse_pct": 44.02,
+        "latent_nrmse_pct_sem": 0.3,
+        "bytes_per_step": 18.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 7.22,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 85.34,
+        "overall_accuracy_pct_sem": 1.0,
+        "hazard_event_accuracy_pct": 86.79,
+        "hazard_event_accuracy_pct_sem": 0.47,
+        "latent_nrmse_pct": 64.48,
+        "latent_nrmse_pct_sem": 0.56,
+        "bytes_per_step": 18.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 7.22,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 78.18,
+        "overall_accuracy_pct_sem": 1.82,
+        "hazard_event_accuracy_pct": 77.03,
+        "hazard_event_accuracy_pct_sem": 1.47,
+        "latent_nrmse_pct": 75.46,
+        "latent_nrmse_pct_sem": 0.1,
+        "bytes_per_step": 18.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 7.22,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 82.37,
+        "overall_accuracy_pct_sem": 0.78,
+        "hazard_event_accuracy_pct": 82.21,
+        "hazard_event_accuracy_pct_sem": 0.36,
+        "latent_nrmse_pct": 62.26,
+        "latent_nrmse_pct_sem": 0.18,
+        "bytes_per_step": 18.0,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 7.22,
+        "compression_vs_raw_x_sem": 0.0
+      }
+    },
+    "ReedSolomon-RS12_8": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.91,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.88,
+        "hazard_event_accuracy_pct_sem": 0.09,
+        "latent_nrmse_pct": 0.73,
+        "latent_nrmse_pct_sem": 0.0,
+        "bytes_per_step": 52.5,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 2.48,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 95.62,
+        "overall_accuracy_pct_sem": 0.05,
+        "hazard_event_accuracy_pct": 93.66,
+        "hazard_event_accuracy_pct_sem": 0.1,
+        "latent_nrmse_pct": 9.61,
+        "latent_nrmse_pct_sem": 0.12,
+        "bytes_per_step": 52.5,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 2.48,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 93.41,
+        "overall_accuracy_pct_sem": 0.08,
+        "hazard_event_accuracy_pct": 91.73,
+        "hazard_event_accuracy_pct_sem": 0.12,
+        "latent_nrmse_pct": 26.67,
+        "latent_nrmse_pct_sem": 0.59,
+        "bytes_per_step": 52.5,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 2.48,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 90.79,
+        "overall_accuracy_pct_sem": 0.27,
+        "hazard_event_accuracy_pct": 89.36,
+        "hazard_event_accuracy_pct_sem": 0.22,
+        "latent_nrmse_pct": 36.91,
+        "latent_nrmse_pct_sem": 0.47,
+        "bytes_per_step": 52.5,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 2.48,
+        "compression_vs_raw_x_sem": 0.0
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 90.66,
+        "overall_accuracy_pct_sem": 0.1,
+        "hazard_event_accuracy_pct": 89.71,
+        "hazard_event_accuracy_pct_sem": 0.18,
+        "latent_nrmse_pct": 36.89,
+        "latent_nrmse_pct_sem": 0.71,
+        "bytes_per_step": 52.5,
+        "bytes_per_step_sem": 0.0,
+        "compression_vs_raw_x": 2.48,
+        "compression_vs_raw_x_sem": 0.0
+      }
+    },
+    "NeckLink-Full": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.88,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.75,
+        "hazard_event_accuracy_pct_sem": 0.1,
+        "latent_nrmse_pct": 10.46,
+        "latent_nrmse_pct_sem": 0.14,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 94.01,
+        "overall_accuracy_pct_sem": 0.24,
+        "hazard_event_accuracy_pct": 92.2,
+        "hazard_event_accuracy_pct_sem": 0.31,
+        "latent_nrmse_pct": 39.31,
+        "latent_nrmse_pct_sem": 0.62,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 90.68,
+        "overall_accuracy_pct_sem": 0.58,
+        "hazard_event_accuracy_pct": 89.86,
+        "hazard_event_accuracy_pct_sem": 0.36,
+        "latent_nrmse_pct": 55.71,
+        "latent_nrmse_pct_sem": 1.15,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 86.71,
+        "overall_accuracy_pct_sem": 1.12,
+        "hazard_event_accuracy_pct": 86.32,
+        "hazard_event_accuracy_pct_sem": 0.99,
+        "latent_nrmse_pct": 66.08,
+        "latent_nrmse_pct_sem": 1.49,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 86.71,
+        "overall_accuracy_pct_sem": 0.5,
+        "hazard_event_accuracy_pct": 86.5,
+        "hazard_event_accuracy_pct_sem": 0.5,
+        "latent_nrmse_pct": 56.72,
+        "latent_nrmse_pct_sem": 0.43,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      }
+    },
+    "NeckLink-NoEcho": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.88,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.75,
+        "hazard_event_accuracy_pct_sem": 0.1,
+        "latent_nrmse_pct": 10.46,
+        "latent_nrmse_pct_sem": 0.14,
+        "bytes_per_step": 30.66,
+        "bytes_per_step_sem": 0.28,
+        "compression_vs_raw_x": 4.24,
+        "compression_vs_raw_x_sem": 0.04
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 94.36,
+        "overall_accuracy_pct_sem": 0.02,
+        "hazard_event_accuracy_pct": 92.37,
+        "hazard_event_accuracy_pct_sem": 0.11,
+        "latent_nrmse_pct": 28.72,
+        "latent_nrmse_pct_sem": 0.35,
+        "bytes_per_step": 30.66,
+        "bytes_per_step_sem": 0.28,
+        "compression_vs_raw_x": 4.24,
+        "compression_vs_raw_x_sem": 0.04
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 91.41,
+        "overall_accuracy_pct_sem": 0.25,
+        "hazard_event_accuracy_pct": 90.0,
+        "hazard_event_accuracy_pct_sem": 0.05,
+        "latent_nrmse_pct": 46.26,
+        "latent_nrmse_pct_sem": 0.81,
+        "bytes_per_step": 30.66,
+        "bytes_per_step_sem": 0.28,
+        "compression_vs_raw_x": 4.24,
+        "compression_vs_raw_x_sem": 0.04
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 87.38,
+        "overall_accuracy_pct_sem": 0.45,
+        "hazard_event_accuracy_pct": 86.16,
+        "hazard_event_accuracy_pct_sem": 0.58,
+        "latent_nrmse_pct": 59.36,
+        "latent_nrmse_pct_sem": 0.76,
+        "bytes_per_step": 30.66,
+        "bytes_per_step_sem": 0.28,
+        "compression_vs_raw_x": 4.24,
+        "compression_vs_raw_x_sem": 0.04
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 86.51,
+        "overall_accuracy_pct_sem": 0.45,
+        "hazard_event_accuracy_pct": 86.32,
+        "hazard_event_accuracy_pct_sem": 0.31,
+        "latent_nrmse_pct": 53.81,
+        "latent_nrmse_pct_sem": 0.36,
+        "bytes_per_step": 30.66,
+        "bytes_per_step_sem": 0.28,
+        "compression_vs_raw_x": 4.24,
+        "compression_vs_raw_x_sem": 0.04
+      }
+    },
+    "NeckLink-NoBrakeGate": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.88,
+        "overall_accuracy_pct_sem": 0.04,
+        "hazard_event_accuracy_pct": 93.75,
+        "hazard_event_accuracy_pct_sem": 0.1,
+        "latent_nrmse_pct": 10.46,
+        "latent_nrmse_pct_sem": 0.14,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 93.93,
+        "overall_accuracy_pct_sem": 0.25,
+        "hazard_event_accuracy_pct": 92.24,
+        "hazard_event_accuracy_pct_sem": 0.33,
+        "latent_nrmse_pct": 40.9,
+        "latent_nrmse_pct_sem": 0.53,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 90.3,
+        "overall_accuracy_pct_sem": 0.65,
+        "hazard_event_accuracy_pct": 90.33,
+        "hazard_event_accuracy_pct_sem": 0.26,
+        "latent_nrmse_pct": 59.81,
+        "latent_nrmse_pct_sem": 1.27,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 86.21,
+        "overall_accuracy_pct_sem": 1.14,
+        "hazard_event_accuracy_pct": 87.62,
+        "hazard_event_accuracy_pct_sem": 0.6,
+        "latent_nrmse_pct": 72.23,
+        "latent_nrmse_pct_sem": 2.3,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 86.92,
+        "overall_accuracy_pct_sem": 0.43,
+        "hazard_event_accuracy_pct": 87.57,
+        "hazard_event_accuracy_pct_sem": 0.26,
+        "latent_nrmse_pct": 60.28,
+        "latent_nrmse_pct_sem": 1.13,
+        "bytes_per_step": 37.14,
+        "bytes_per_step_sem": 0.33,
+        "compression_vs_raw_x": 3.5,
+        "compression_vs_raw_x_sem": 0.03
+      }
+    },
+    "NeckLink-NoMirror": {
+      "loss_0pct": {
+        "overall_accuracy_pct": 95.86,
+        "overall_accuracy_pct_sem": 0.03,
+        "hazard_event_accuracy_pct": 93.72,
+        "hazard_event_accuracy_pct_sem": 0.08,
+        "latent_nrmse_pct": 9.66,
+        "latent_nrmse_pct_sem": 0.12,
+        "bytes_per_step": 35.77,
+        "bytes_per_step_sem": 0.29,
+        "compression_vs_raw_x": 3.63,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_25pct_rand": {
+        "overall_accuracy_pct": 94.43,
+        "overall_accuracy_pct_sem": 0.12,
+        "hazard_event_accuracy_pct": 92.62,
+        "hazard_event_accuracy_pct_sem": 0.13,
+        "latent_nrmse_pct": 33.13,
+        "latent_nrmse_pct_sem": 0.48,
+        "bytes_per_step": 35.77,
+        "bytes_per_step_sem": 0.29,
+        "compression_vs_raw_x": 3.63,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_50pct_rand": {
+        "overall_accuracy_pct": 91.75,
+        "overall_accuracy_pct_sem": 0.38,
+        "hazard_event_accuracy_pct": 90.64,
+        "hazard_event_accuracy_pct_sem": 0.2,
+        "latent_nrmse_pct": 50.59,
+        "latent_nrmse_pct_sem": 1.13,
+        "bytes_per_step": 35.77,
+        "bytes_per_step_sem": 0.29,
+        "compression_vs_raw_x": 3.63,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "loss_65pct_rand": {
+        "overall_accuracy_pct": 87.61,
+        "overall_accuracy_pct_sem": 0.7,
+        "hazard_event_accuracy_pct": 87.04,
+        "hazard_event_accuracy_pct_sem": 0.62,
+        "latent_nrmse_pct": 62.07,
+        "latent_nrmse_pct_sem": 1.08,
+        "bytes_per_step": 35.77,
+        "bytes_per_step_sem": 0.29,
+        "compression_vs_raw_x": 3.63,
+        "compression_vs_raw_x_sem": 0.03
+      },
+      "burst_45pct_ge": {
+        "overall_accuracy_pct": 86.9,
+        "overall_accuracy_pct_sem": 0.58,
+        "hazard_event_accuracy_pct": 86.63,
+        "hazard_event_accuracy_pct_sem": 0.6,
+        "latent_nrmse_pct": 53.99,
+        "latent_nrmse_pct_sem": 0.29,
+        "bytes_per_step": 35.77,
+        "bytes_per_step_sem": 0.29,
+        "compression_vs_raw_x": 3.63,
+        "compression_vs_raw_x_sem": 0.03
+      }
+    }
+  },
+  "wall_seconds": 213.05
+}

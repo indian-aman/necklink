@@ -1,0 +1,175 @@
+{
+ "kernel": "6.18.33.2-microsoft-standard-WSL2",
+ "notes": "netem on both veth directions; loss_pct is per direction; TSO/GSO/GRO off; bytes from iptables OUTPUT counters",
+ "results": [
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcp-fast",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.072,
+   "median_goodput_mbps": 7.266,
+   "mean_wire_overhead_x": 1.059,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.072,
+     "goodput_mbps": 7.266,
+     "link_utilization": 0.363,
+     "wire_bytes_total": 69405,
+     "wire_overhead_x": 1.059,
+     "client_tx_pkts": 49,
+     "client_tx_bytes": 68092,
+     "server_tx_pkts": 4,
+     "server_tx_bytes": 1313
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcp-fast-cc",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.454,
+   "median_goodput_mbps": 1.155,
+   "mean_wire_overhead_x": 1.131,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.454,
+     "goodput_mbps": 1.155,
+     "link_utilization": 0.058,
+     "wire_bytes_total": 74125,
+     "wire_overhead_x": 1.131,
+     "client_tx_pkts": 52,
+     "client_tx_bytes": 72376,
+     "server_tx_pkts": 17,
+     "server_tx_bytes": 1749
+    }
+   ]
+  },
+  {
+   "condition": "clean_20M_20ms",
+   "rate_mbit": 20,
+   "rtt_ms": 20,
+   "loss_pct": 0.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcptun",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.158,
+   "median_goodput_mbps": 3.313,
+   "mean_wire_overhead_x": 1.391,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.158,
+     "goodput_mbps": 3.313,
+     "link_utilization": 0.166,
+     "wire_bytes_total": 91183,
+     "wire_overhead_x": 1.391,
+     "client_tx_pkts": 70,
+     "client_tx_bytes": 90662,
+     "server_tx_pkts": 6,
+     "server_tx_bytes": 521
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcp-fast",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.251,
+   "median_goodput_mbps": 2.091,
+   "mean_wire_overhead_x": 1.103,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.251,
+     "goodput_mbps": 2.091,
+     "link_utilization": 0.105,
+     "wire_bytes_total": 72317,
+     "wire_overhead_x": 1.103,
+     "client_tx_pkts": 51,
+     "client_tx_bytes": 70948,
+     "server_tx_pkts": 6,
+     "server_tx_bytes": 1369
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcp-fast-cc",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.754,
+   "median_goodput_mbps": 0.696,
+   "mean_wire_overhead_x": 1.086,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.754,
+     "goodput_mbps": 0.696,
+     "link_utilization": 0.035,
+     "wire_bytes_total": 71141,
+     "wire_overhead_x": 1.086,
+     "client_tx_pkts": 50,
+     "client_tx_bytes": 69520,
+     "server_tx_pkts": 15,
+     "server_tx_bytes": 1621
+    }
+   ]
+  },
+  {
+   "condition": "wifi_20M_40ms_2pct",
+   "rate_mbit": 20,
+   "rtt_ms": 40,
+   "loss_pct": 2.0,
+   "loss_mode": "random",
+   "size_bytes": 65536,
+   "protocol": "kcptun",
+   "reps": 1,
+   "success": "1/1",
+   "median_elapsed_s": 0.096,
+   "median_goodput_mbps": 5.436,
+   "mean_wire_overhead_x": 1.389,
+   "runs": [
+    {
+     "ok": true,
+     "elapsed_s": 0.096,
+     "goodput_mbps": 5.436,
+     "link_utilization": 0.272,
+     "wire_bytes_total": 91023,
+     "wire_overhead_x": 1.389,
+     "client_tx_pkts": 70,
+     "client_tx_bytes": 90662,
+     "server_tx_pkts": 4,
+     "server_tx_bytes": 361
+    }
+   ]
+  }
+ ],
+ "fairness": null
+}

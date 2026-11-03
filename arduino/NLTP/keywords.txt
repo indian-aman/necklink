@@ -1,0 +1,22 @@
+#######################################
+# Syntax Coloring Map For NLTP
+#######################################
+
+NLTPWiFiNode	KEYWORD1
+nltp_endpoint_t	KEYWORD1
+
+begin	KEYWORD2
+beginRelay	KEYWORD2
+setPeer	KEYWORD2
+setKeepaliveMs	KEYWORD2
+sendBytes	KEYWORD2
+poll	KEYWORD2
+hasReceivedFile	KEYWORD2
+receivedData	KEYWORD2
+receivedLength	KEYWORD2
+receivedFilename	KEYWORD2
+isReceivedShaOk	KEYWORD2
+clearReceived	KEYWORD2
+isSendComplete	KEYWORD2
+isSendVerified	KEYWORD2
+endpoint	KEYWORD2

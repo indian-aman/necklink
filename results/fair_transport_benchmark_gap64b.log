@@ -1,0 +1,13 @@
+[    32s] clean_20M_20ms              64KB nltp-default   ok=5/5 t=0.078 s  goodput=6.745 Mbps  wire=1.256x
+[    60s] clean_20M_20ms              64KB nltp-warm      ok=5/5 t=0.122 s  goodput=4.295 Mbps  wire=2.458x
+[    88s] wifi_20M_40ms_2pct          64KB nltp-default   ok=5/5 t=0.118 s  goodput=4.439 Mbps  wire=1.264x
+[   119s] wifi_20M_40ms_2pct          64KB nltp-warm      ok=5/5 t=0.079 s  goodput=6.662 Mbps  wire=2.46x
+[   148s] cell_10M_100ms_5pct         64KB nltp-default   ok=5/5 t=0.283 s  goodput=1.85 Mbps  wire=1.312x
+[   180s] cell_10M_100ms_5pct         64KB nltp-warm      ok=5/5 t=0.239 s  goodput=2.192 Mbps  wire=2.651x
+[   210s] radio_5M_200ms_10pct        64KB nltp-default   ok=5/5 t=0.538 s  goodput=0.975 Mbps  wire=1.32x
+[   243s] radio_5M_200ms_10pct        64KB nltp-warm      ok=5/5 t=0.49 s  goodput=1.071 Mbps  wire=2.754x
+[   276s] bad_2M_300ms_20pct          64KB nltp-default   ok=5/5 t=1.336 s  goodput=0.393 Mbps  wire=1.565x
+[   314s] bad_2M_300ms_20pct          64KB nltp-warm      ok=5/5 t=0.788 s  goodput=0.665 Mbps  wire=3.292x
+[   340s] burst_10M_100ms_10pct       64KB nltp-default   ok=5/5 t=0.241 s  goodput=2.18 Mbps  wire=1.385x
+[   372s] burst_10M_100ms_10pct       64KB nltp-warm      ok=5/5 t=0.248 s  goodput=2.114 Mbps  wire=2.812x
+wrote results/fair_transport_benchmark_gap64b.json

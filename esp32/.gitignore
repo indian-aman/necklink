@@ -1,0 +1,4 @@
+.pio/
+include/secrets.h
+build.log
+upload.log

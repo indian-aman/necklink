@@ -1,0 +1,225 @@
+/*
+ * nltp_core.h — portable C99 NLTP v1 endpoint (sender + receiver) for microcontrollers and hosts.
+ *
+ * Wire-compatible with the Python NLTPServer / NLTPClient (necklink/nltp.py) for unencrypted transfers:
+ * same frames, shard layout, GF(2^8) Cauchy repair rows, proprioceptive ACKs (incl. the bytes/arrival-rate
+ * trailer), STREAM_META JSON and FIN_ACK. No heap allocation and no floating point; all memory lives in
+ * nltp_endpoint_t (size it with the NLTP_* macros below — the receive slots dominate).
+ *
+ * Optional end-to-end ChaCha20-Poly1305 encryption with RFC 6479 anti-replay (nltp_set_key), matching
+ * NLTPServer/NLTPClient(psk=...). With a key set, unencrypted frames are rejected, as in Python.
+ *
+ * Relay framing and STUN live in nltp_net.h; PING/PONG and NAT keepalive are here (nltp_send_ping, keepalive_ms).
+ * Not in this version: reflex and telemetry lanes, and more than one stream per direction.
+ *
+ * Usage (one peer per endpoint; the app owns the socket and the peer address):
+ *   nltp_init(&ep, conn_id, max_kbps, send_cb, now_ms_cb, user);
+ *   nltp_set_rx_buffer(&ep, buf, cap);          // where received files are written
+ *   nltp_send_buffer(&ep, data, len, "fw.bin"); // start sending (data must stay valid until done)
+ *   loop: for each datagram: nltp_on_datagram(&ep, pkt, len);  then nltp_poll(&ep) at least every ~1 ms
+ */
+#ifndef NLTP_CORE_H
+#define NLTP_CORE_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+#include "nltp_wire.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifndef NLTP_GEN_K
+#define NLTP_GEN_K 8u                       /* shards per generation (must match the peer: Python uses 8) */
+#endif
+#ifndef NLTP_SHARD_BYTES
+#define NLTP_SHARD_BYTES NLTP_DEFAULT_SHARD_LEN  /* 960, must match the peer */
+#endif
+#define NLTP_ROW_MAX (2u + NLTP_SHARD_BYTES)
+#ifndef NLTP_TX_WINDOW
+#define NLTP_TX_WINDOW 32u                  /* generations in flight while sending (Python default) */
+#endif
+#if defined(ESP32) || defined(ESP_PLATFORM) || defined(ARDUINO)
+#  ifndef NLTP_RX_SLOTS
+#    define NLTP_RX_SLOTS 8u                /* ~65 KB endpoint footprint on ESP32 alongside Wi-Fi */
+#  endif
+#  ifndef NLTP_RX_MAX_GENS
+#    define NLTP_RX_MAX_GENS 512u           /* ~3.8 MB max single file on MCU by default */
+#  endif
+#endif
+#ifndef NLTP_RX_SLOTS
+#define NLTP_RX_SLOTS 16u                   /* incomplete generations buffered while receiving (~7.8 KB each) */
+#endif
+#ifndef NLTP_RX_MAX_GENS
+#define NLTP_RX_MAX_GENS 4096u              /* max generations per received stream (~31 MB) */
+#endif
+#define NLTP_PKT_MAX (NLTP_HEADER_BYTES + NLTP_SHARD_HDR_BYTES + NLTP_ROW_MAX)
+#define NLTP_META_MAX 320u
+#define NLTP_COLD_BURST_BYTES (32u * 1024u)
+
+typedef void (*nltp_send_fn)(void *user, const uint8_t *pkt, size_t len);
+typedef uint32_t (*nltp_now_ms_fn)(void *user);  /* monotonic milliseconds, may wrap */
+
+/* --- sender state ------------------------------------------------------- */
+
+typedef struct {
+    uint32_t gen_id;
+    uint8_t valid;
+    uint8_t k;
+    uint16_t row_width;
+    uint8_t next_sys;
+    int16_t proactive_target;   /* -1 until decided */
+    uint8_t proactive_sent;
+    uint8_t proactive_done;
+    uint8_t pending_need;       /* degrees of freedom the receiver asked for */
+    uint8_t repair_in_flight;
+    uint8_t next_parity;        /* parity offset 0..191 */
+    uint32_t last_tx_ms;
+    uint32_t last_repair_ms;
+} nltp_txgen_t;
+
+typedef struct {
+    const uint8_t *data;
+    uint32_t len;
+    uint32_t stream_id;
+    uint32_t total_gens;
+    uint32_t base;              /* first generation not yet confirmed by the receiver */
+    uint8_t active, meta_acked, completed, verified, meta_sent;
+    uint32_t last_meta_ms, started_ms, completed_ms;
+    uint32_t peer_conn_id;
+    uint8_t have_peer_cid;
+    uint16_t meta_len;
+    uint8_t meta[NLTP_META_MAX];
+    nltp_txgen_t win[NLTP_TX_WINDOW];
+} nltp_tx_t;
+
+/* --- pacing / rate control (integer port of necklink.nltp._DeliveryRateController) --- */
+
+typedef struct {
+    uint32_t rate_kbps;
+    int32_t tokens;
+    int32_t max_burst;
+    uint32_t bonus;
+    uint32_t last_ms;
+    uint8_t started;
+} nltp_pacer_t;
+
+typedef struct {
+    uint32_t cap_kbps, rate_kbps;
+    uint8_t mode;               /* 0 = startup, 1 = cruise */
+    uint32_t min_rtt_ms, round_min_rtt_ms, n_rtt_samples;
+    uint8_t startup_exit_pending, round_started, train_probe_done;
+    uint32_t tracked_sid;
+    uint32_t round_t0_ms, round_rx0, sent_bytes, round_sent0, prev_round_sent, prev_queue_ms;
+    uint32_t best_deliv_kbps;
+    uint8_t plateau_rounds;
+    uint16_t random_loss_pm, random_loss_samples;
+    uint32_t btlbw_rounds[6];
+    uint8_t n_btlbw;
+    uint32_t round_arrival_max;
+    uint32_t last_deliv_kbps, last_queue_ms;
+    uint32_t srtt_ms, rttvar_ms;        /* controller's own RTT smoothing, for jitter-aware queue detection */
+    uint32_t rounds_done;
+    uint32_t hist_t[32], hist_sent[32]; /* (time, cumulative bytes sent) at recent ACKs */
+    uint8_t hist_len, hist_head;
+} nltp_rate_t;
+
+/* --- receiver state ------------------------------------------------------ */
+
+typedef struct {
+    int32_t gen_id;             /* -1 = free */
+    uint8_t k, rank;
+    uint16_t row_width;
+    int16_t max_seen_idx;
+    uint8_t seen[26];           /* shard indices 0..207 already used */
+    uint8_t pivot_of_col[NLTP_GEN_K];
+    uint8_t coeff[NLTP_GEN_K][NLTP_GEN_K];
+    uint8_t rows[NLTP_GEN_K][NLTP_ROW_MAX];
+} nltp_rxslot_t;
+
+typedef struct {
+    uint8_t active, meta_received, completed, sha_ok;
+    uint32_t peer_cid, stream_id;
+    uint32_t total_bytes, total_gens;
+    char want_sha[65];
+    char filename[64];
+    uint8_t *out;
+    uint32_t out_cap;
+    uint8_t solved[NLTP_RX_MAX_GENS / 8u];
+    uint32_t n_solved, base_gen;
+    int32_t max_gen_seen;
+    int16_t max_sys_seen;       /* in generation max_gen_seen */
+    uint32_t shards_rcvd, sys_shards_rcvd, bytes_rcvd;
+    uint32_t arr_t0, arr_b0, arr_n0, arrival_kbps;
+    uint8_t arr_started;
+    uint32_t last_ack_ms, ack_echo_ts;
+    uint8_t ack_pending;
+    nltp_rxslot_t slots[NLTP_RX_SLOTS];
+} nltp_rx_t;
+
+/* --- endpoint ------------------------------------------------------------ */
+
+typedef struct {
+    nltp_send_fn send;
+    nltp_now_ms_fn now_ms;
+    void *user;
+    uint32_t conn_id;
+    uint32_t srtt_ms, min_rtt_ms;
+    uint8_t has_rtt, paced;
+    uint16_t peer_loss_pm;      /* receiver-reported loss, permille EMA */
+    uint32_t next_stream_id;
+    nltp_pacer_t pacer;
+    nltp_rate_t rate;
+    nltp_tx_t tx;
+    nltp_rx_t rx;
+    uint32_t pkts_tx, pkts_rx, bytes_tx, bytes_rx, crc_drops, auth_drops;
+    /* NAT keepalive: when keepalive_ms > 0, nltp_poll() sends a PING after that long without sending */
+    uint32_t keepalive_ms, last_tx_ms, pongs_rx;
+    /* frames that passed CRC / authentication: an app may follow a peer's new address (roaming, NAT
+       rebinding) only when this increased for the datagram it just fed in */
+    uint32_t valid_rx;
+    /* encryption */
+    uint8_t encrypted;
+    uint8_t key[32];
+    uint64_t tx_seq;
+    nltp_replay_window_t replay;
+    uint32_t replay_cid;
+    uint8_t replay_valid;
+    uint8_t pkt[NLTP_PKT_MAX + 64u];
+    uint8_t dec[NLTP_PKT_MAX + 64u];
+} nltp_endpoint_t;
+
+/* max_kbps: pacing ceiling (the controller measures the real rate below it); 0 = unpaced. */
+void nltp_init(nltp_endpoint_t *ep, uint32_t conn_id, uint32_t max_kbps,
+               nltp_send_fn send, nltp_now_ms_fn now_ms, void *user);
+void nltp_set_rx_buffer(nltp_endpoint_t *ep, uint8_t *buf, uint32_t cap);
+
+/* Turns on encryption with a 32-byte key (NULL turns it off). Set it before the first packet; both
+   peers need the same key. nltp_key_from_psk() derives the key exactly like Python derive_aead_key(str):
+   a 43/44-char URL-safe base64 key (generate_nltp_key) is used as-is, any other passphrase is hashed. */
+void nltp_set_key(nltp_endpoint_t *ep, const uint8_t key32[32]);
+void nltp_key_from_psk(const char *psk, uint8_t out_key32[32]);
+
+/* Starts sending `data` (kept by reference). Returns the stream id, or 0 if a send is still active. */
+uint32_t nltp_send_buffer(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len, const char *filename);
+
+void nltp_on_datagram(nltp_endpoint_t *ep, const uint8_t *raw, size_t len);
+void nltp_poll(nltp_endpoint_t *ep);
+
+/* Sends a PING to the current peer; its PONG increments ep->pongs_rx and gives an RTT sample.
+   Used for UDP hole punching (both sides ping each other's public address) and keepalives. */
+void nltp_send_ping(nltp_endpoint_t *ep);
+
+/* Status */
+static inline int nltp_tx_done(const nltp_endpoint_t *ep) { return ep->tx.completed; }
+static inline int nltp_tx_verified(const nltp_endpoint_t *ep) { return ep->tx.verified; }
+static inline int nltp_rx_done(const nltp_endpoint_t *ep) { return ep->rx.completed; }
+static inline int nltp_rx_sha_ok(const nltp_endpoint_t *ep) { return ep->rx.sha_ok; }
+static inline uint32_t nltp_rx_len(const nltp_endpoint_t *ep) { return ep->rx.total_bytes; }
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* NLTP_CORE_H */

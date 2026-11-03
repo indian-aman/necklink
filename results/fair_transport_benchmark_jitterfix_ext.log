@@ -1,0 +1,5 @@
+[    19s] jitter_10M_100ms_5pct_j20    64KB nltp-default   ok=3/3 t=0.444 s  goodput=1.18 Mbps  wire=1.271x
+[    34s] reorder_10M_60ms_2pct_r10    64KB nltp-default   ok=3/3 t=0.197 s  goodput=2.659 Mbps  wire=1.224x
+[    61s] jitter_10M_100ms_5pct_j20  1024KB nltp-default   ok=3/3 t=3.276 s  goodput=2.561 Mbps  wire=1.395x
+[   125s] reorder_10M_60ms_2pct_r10  1024KB nltp-default   ok=3/3 t=1.192 s  goodput=7.035 Mbps  wire=1.2x
+wrote results/fair_transport_benchmark_jitterfix_ext.json

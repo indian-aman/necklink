@@ -1,0 +1,650 @@
+[
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.035
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.039
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.039
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.029
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.126
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.064
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.097
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.052
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.206
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.222
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.213
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.236
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.436
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.338
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.4
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.851
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.0
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.001
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.004
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.006
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.0
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.004
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.282
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "plain",
+  "ok": true,
+  "elapsed_s": 0.009
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.032
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.037
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.041
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.054
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.069
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.026
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.077
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.053
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.209
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.226
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.219
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.516
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.487
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.292
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.385
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.856
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.0
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.001
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.005
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.006
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.165
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.061
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.06
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "b64-key",
+  "ok": true,
+  "elapsed_s": 0.009
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.031
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.039
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.038
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.051
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.125
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.124
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.067
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 65536,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.05
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.219
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.224
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.231
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.517
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.556
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.305
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.426
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1048576,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 1.248
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.0
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.001
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.005
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 0,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.005
+ },
+ {
+  "sender": "c",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.0
+ },
+ {
+  "sender": "c",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.006
+ },
+ {
+  "sender": "py",
+  "receiver": "c",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.282
+ },
+ {
+  "sender": "py",
+  "receiver": "py",
+  "loss_pct": 15,
+  "size": 1000,
+  "key_mode": "passphrase",
+  "ok": true,
+  "elapsed_s": 0.01
+ }
+]

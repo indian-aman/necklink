@@ -1,0 +1,235 @@
+[
+ {
+  "test": "STUN: C client learns its public address behind NAT",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "wan": "WAN 198.51.100.2:7005"
+ },
+ {
+  "test": "punch + relay fallback, C -> C, encrypted (run 1)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=606.9",
+  "elapsed_s": 1.992378,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.992"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, C -> Python, encrypted (run 1)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=555.1",
+  "elapsed_s": 1.690994,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.691"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, Python -> C (run 1)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:59799",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok",
+  "elapsed_s": 1.2182544870000243,
+  "sent": []
+ },
+ {
+  "test": "punch + relay fallback, C -> C, encrypted (run 2)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=553.3",
+  "elapsed_s": 1.565191,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.565"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, C -> Python, encrypted (run 2)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=555.9",
+  "elapsed_s": 1.446765,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.447"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, Python -> C (run 2)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:48131",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok",
+  "elapsed_s": 1.5252077210000152,
+  "sent": []
+ },
+ {
+  "test": "punch + relay fallback, C -> C, encrypted (run 3)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=556.5",
+  "elapsed_s": 1.308923,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.309"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, C -> Python, encrypted (run 3)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=556.1",
+  "elapsed_s": 2.261679,
+  "sent": [
+   "SENT 1 ok=1 elapsed=2.262"
+  ]
+ },
+ {
+  "test": "punch + relay fallback, Python -> C (run 3)",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:55263",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok",
+  "elapsed_s": 1.278635883999982,
+  "sent": []
+ },
+ {
+  "test": "relay, C -> Python, encrypted",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "elapsed_s": 2.188345
+ },
+ {
+  "test": "relay, Python -> C, encrypted",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "elapsed_s": 1.3081955490000041
+ },
+ {
+  "test": "relay, C -> C",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "elapsed_s": 1.679705
+ },
+ {
+  "test": "symmetric NAT: hole punch C -> C must fail",
+  "expected_ok": false,
+  "passed": true,
+  "ok": false,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:48237",
+  "receiver_wan": "192.0.2.2:36045",
+  "punch": "PUNCH failed ms=3003.5",
+  "elapsed_s": null,
+  "sent": [],
+  "rx_tail": [
+   "WAN 192.0.2.2:36045",
+   "PUNCH failed ms=3003.4",
+   "RESULT {\"ok\": false, \"error\": \"punch\"}"
+  ],
+  "tx_tail": [
+   "WAN 198.51.100.2:48237",
+   "PUNCH failed ms=3003.5",
+   "RESULT {\"ok\": false, \"error\": \"punch\"}"
+  ]
+ },
+ {
+  "test": "symmetric NAT: punch + automatic relay fallback, C -> C",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "relay (fallback)",
+  "sender_wan": "198.51.100.2:48237",
+  "receiver_wan": "192.0.2.2:36045",
+  "punch": "PUNCH failed ms=3000.9",
+  "elapsed_s": 1.803154,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.803"
+  ]
+ },
+ {
+  "test": "symmetric NAT: relay C -> Python still works",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "elapsed_s": 1.768326
+ },
+ {
+  "test": "NAT forgets after 4 s; 2nd send after 8 s idle, no keepalive",
+  "expected_ok": false,
+  "passed": true,
+  "ok": false,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=554.0",
+  "elapsed_s": 60.000992,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.249",
+   "SENT 2 ok=0 elapsed=60.001"
+  ],
+  "rx_tail": [
+   "WAN 192.0.2.2:7000",
+   "PUNCH ok ms=554.0",
+   "RECEIVED 1 ok=1 bytes=1048576"
+  ],
+  "tx_tail": [
+   "WAN 198.51.100.2:7001",
+   "PUNCH ok ms=554.0",
+   "SENT 1 ok=1 elapsed=1.249",
+   "SENT 2 ok=0 elapsed=60.001",
+   "RESULT {\"ok\": false, \"elapsed_s\": 60.000992, \"pkts_tx\": 8542, \"punch_ms\": 554.0}"
+  ]
+ },
+ {
+  "test": "same, with 1 s keepalives: 2nd send works",
+  "expected_ok": true,
+  "passed": true,
+  "ok": true,
+  "path": "direct",
+  "sender_wan": "198.51.100.2:7001",
+  "receiver_wan": "192.0.2.2:7000",
+  "punch": "PUNCH ok ms=555.8",
+  "elapsed_s": 1.592486,
+  "sent": [
+   "SENT 1 ok=1 elapsed=1.608",
+   "SENT 2 ok=1 elapsed=1.592"
+  ]
+ }
+]
