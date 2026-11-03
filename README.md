@@ -1,43 +1,84 @@
 # NLTP (`necklink` v1.2.0)
 
-**Loss-resilient UDP file and telemetry transport for unreliable wireless, marine radio, cellular-edge, and satellite links — with wire-compatible implementations in Python and zero-heap ANSI C99 (`ESP32` / POSIX).**
-
-Full benchmark methodology, per-iteration ablations, and caveats are documented in [`results/FAIR_BENCHMARK_REPORT.md`](results/FAIR_BENCHMARK_REPORT.md).
+**Loss-resilient two-way UDP file and telemetry transport for unreliable wireless, marine radio, cellular-edge (`4G`/`5G` CGNAT), and satellite links — with wire-compatible implementations in Python, zero-heap ANSI C99, and Arduino / ESP32.**
 
 ---
 
-## What NLTP Is — and Where to Use It
+## Architecture Overview
 
-NLTP combines systematic `GF(2^8)` Cauchy forward error correction (8-shard generations with incremental Gauss-Jordan decoding), a BBR-style delivery-rate and packet-train pacer, optional `ChaCha20-Poly1305` authenticated encryption with an `RFC 6479` 64-bit anti-replay window, and built-in NAT traversal (`RFC 5389` STUN, low-TTL pre-punching, keepalives, and automatic fallback to a zero-knowledge UDP relay).
+NLTP v1.2 combines four components in a single wire format shared across Python (`necklink` / `nltp`) and a zero-malloc, zero-float ANSI C99 engine (`csrc/` & `arduino/NLTP/`):
 
-### Honest Standing Against Existing Protocols (`Linux 6.18` `netem`)
+- **Systematic `GF(2^8)` Cauchy FEC**: 8-shard generations (`960 B` shards) with incremental Gauss-Jordan decoding, proactive parity sizing from queue-free loss estimates, and tail-generation parity protection.
+- **Adaptive Delivery-Rate & Packet-Train Pacer**: 1-RTT packet-train bottleneck probe, jitter-aware RTT variance tracking, and HyStart-style queue control.
+- **Authenticated Encryption**: Optional `ChaCha20-Poly1305` (256-bit key or passphrase) with an `RFC 6479` 64-bit sliding anti-replay window and end-to-end `SHA-256` payload verification.
+- **Built-In NAT & CGNAT Traversal**: `RFC 5389` STUN discovery, low-TTL (`TTL=2`) direct P2P UDP hole-punching, NAT keepalives, and automatic 3-second fallback to a zero-knowledge 1-port UDP relay (`NLTPRelayHub`).
 
-Tested head-to-head on identical emulated symmetric links against **9 real implementations**: Linux kernel `TCP BBR` and `TCP CUBIC`, production C `QUIC` (`ngtcp2` with `BBR` and `CUBIC`), `KCP` (`w128` and `w1024` fast mode), `kcptun` (`KCP + Reed-Solomon`), `UDT4`, `SRT`, and Python `aioquic`.
+---
 
-#### `1 MB` File / Firmware Transfer (Median Time; Wire Bytes ÷ File Size)
+## Post-Upgrade Benchmark & Verification Results
 
-| Emulated Link (Symmetric) | `NLTP v1.2` | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`w128`) | `kcptun` | `UDT4` / `SRT` |
+All protocol comparisons below were measured after all v1.2 rate-control, packet-train, jitter, tail-parity, C99, and NAT-traversal upgrades on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss and rate limits in both directions, wire bytes counted via `iptables` including dropped packets).
+
+### 1. `1 MB` File / Firmware Transfer vs. 8 Competing Implementations
+
+Median completion time across 3 runs (total wire bytes ÷ file size in parentheses):
+
+| Emulated Link (Symmetric) | **`NLTP v1.2`** | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`w128`) | `kcptun` (`FEC`) | `UDT4` | `SRT` |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.23x`) | **`0.51 s` (`1.04x`)** | `0.57 s` (`1.05x`) | `0.60 s` (`1.54x`) | `0.74 s` (`2.25x`) | `0.95 s` (`1.15x`) | `0.87 s` (`1.15x`) |
+| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | **`0.60 s` (`1.20x`)** | `0.65 s` (`1.07x`) | `0.67 s` (`1.07x`) | `0.85 s` (`1.25x`) | `0.81 s` (`1.62x`) | `3.02 s` (`1.07x`) | `1.37 s` (`1.05x`) |
+| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.28 s` (`1.30x`)** | `1.49 s` (`1.12x`) | `1.57 s` (`1.07x`) | `1.74 s` (`1.45x`) | `1.52 s` (`1.75x`) | `9.98 s` (`1.19x`) | `6.49 s` (`1.24x`) |
+| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | **`2.78 s` (`1.41x`)** | `3.45 s` (`1.15x`) | `4.42 s` (`1.16x`) | `4.08 s` (`1.61x`) | `3.15 s` (`1.72x`) | `26.47 s` (`1.37x`) | `14.73 s` *(1/3)* |
+| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`6.36 s` (`1.54x`)** | `8.31 s` (`1.32x`) | `11.87 s` (`1.26x`) | `8.98 s` (`2.11x`) | `9.38 s` (`2.25x`) | `FAIL (0/3)` | `FAIL (0/3)` |
+| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | **`1.84 s` (`1.49x`)** | `13.10 s` *(2/3)* | `3.48 s` (`CUBIC`) | `2.16 s` (`1.63x`) | `2.07 s` (`1.71x`) | `9.55 s` (`1.34x`) | `4.11 s` *(2/3)* |
+
+*(Note: `TCP CUBIC` degraded from `1.80 s` at `2%` loss to `42.50 s` at `10%` loss and `FAIL 0/3` at `20%` loss; `KCP w1024` overflowed router queues on `1 MB`, taking `6.22–70.48 s` and `3.1–6.2x` wire bytes.)*
+
+### 2. `64 KB` Short Transfers & Extended Link Profiles
+
+| Scenario | Payload | **`NLTP v1.2`** | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`fast`) | `kcptun` (`FEC`) |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.24x`) | **`0.51 s` (`1.04x`)** | `0.57 s` (`1.05x`) | `0.60 s` (`1.54x`) | `0.74 s` (`2.25x`) | `0.87–0.95 s` |
-| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | **`0.62 s` (`1.25x`)** | `0.65 s` (`1.07x`) | `0.67 s` (`1.07x`) | `0.85 s` (`1.25x`) | `0.81 s` (`1.62x`) | `1.37–3.02 s` |
-| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.35 s` (`1.31x`)** | `1.49 s` (`1.12x`) | `1.57 s` (`1.07x`) | `1.74 s` (`1.45x`) | `1.52 s` (`1.75x`) | `6.49–9.98 s` |
-| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | **`2.79 s` (`1.41x`)** | `3.45 s` (`1.15x`) | `4.42 s` (`1.16x`) | `4.08 s` (`1.61x`) | `3.15 s` (`1.72x`) | `14.7–26.5 s` |
-| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`6.70 s` (`1.64x`)** | `8.31 s` (`1.32x`) | `11.87 s` (`1.26x`) | `8.98 s` (`2.11x`) | `9.38 s` (`2.25x`) | `FAIL (0/3)` |
-| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | **`1.34 s` (`1.35x`)** | `13.10 s` *(2/3 ok)* | `3.48 s` (`CUBIC`) | `2.16 s` (`1.63x`) | `2.07 s` (`1.71x`) | `4.11–9.55 s` |
-| **GEO Satellite** (`600 ms` RTT, `3%` loss) | **`6.05 s`** | `8.85 s` | `7.29 s` | — | — | — |
+| **GEO Satellite** (`2 Mbit`, `600 ms`, `3%`) | `64 KB` | **`0.91 s` (enc) / `1.02 s`** | `2.77 s` | `2.67 s` | `1.12 s` (`3.25x`) | `1.57 s` (`3.10x`) |
+| **GEO Satellite** (`2 Mbit`, `600 ms`, `3%`) | `1 MB` | **`6.05 s` (`1.23x`)** | `8.85 s` | `7.29 s` | `8.56 s` (`1.68x`) | `7.32 s` (`1.67x`) |
+| **Large Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | `10 MB` | **`13.79 s` (`3/3` ok)** | `10.86 s` *(1/3 ok)* | `11.25 s` *(1/3 ok)* | — | `21.00 s` (`3/3` ok) |
+| **Large Steady Loss** (`10 Mbit`, `100 ms`, `5%`) | `10 MB` | `11.28 s` (`1.28x`) | **`9.81 s` (`1.10x`)** | `9.85 s` (`1.11x`) | — | `14.41 s` (`1.78x`) |
+| **Large Clean Link** (`20 Mbit`, `20 ms`, `0%`) | `10 MB` | `5.64 s` (`1.24x`) | **`4.45 s` (`1.04x`)** | `4.78 s` (`1.05x`) | — | `7.13 s` (`2.31x`) |
+| **Packet Reordering** (`10 Mbit`, `60 ms`, `2%`, `10%` reorder) | `1 MB` | `1.19 s` (`1.20x`) | **`1.12 s` (`1.08x`)** | `1.22 s` (`1.05x`) | `1.42 s` (`1.32x`) | `1.62 s` (`1.91x`) |
+| **Heavy Jitter** (`10 Mbit`, `100 ± 20 ms`, `5%`) | `1 MB` | `3.28 s` (`3/3` ok) | `2.60 s` | `1.52 s` | `2.36 s` | **`1.39 s`** |
+| **Short Transfers (`0–20%` loss)** | `64 KB` | `0.08–1.42 s` (**`0.17 s` warm @ 5%**) | `0.09–3.27 s` | `0.17–2.73 s` | **`0.05–0.77 s`** | `0.06–1.37 s` |
 
-### Summary of Strengths & Limitations
+### 3. Real `ESP32` Hardware & Degraded Radio Verification (`48/48` Encrypted)
 
-- **Where NLTP wins**:
-  - **Medium payloads (`50 KB – 2 MB` logs, telemetry batches, configs, OTA firmware)** over lossy (`2–20%`), bursty-fade, and high-RTT satellite links.
-  - **Heavy bursty fades at `10 MB`**: NLTP was the only tested protocol to complete `3/3` runs (`13.8 s`), whereas `TCP BBR` and `QUIC` each timed out on `2/3` runs.
-  - **Embedded + Shore parity**: Identical wire format across Python and a zero-malloc, zero-float ANSI C99 core running on a `\$4` `ESP32` (`~65 KB` RAM with 8 receive slots; **48/48** encrypted transfers verified across emulated `wifi-far`, `4g-weak`, `marine-radio`, and `20%`-loss profiles).
-  - **Urgent out-of-line reflex lane**: `send_reflex("ESTOP")` bypasses active file queues with zero head-of-line blocking (verified over a live `257 ms` transcontinental Internet link).
-- **Where standard tools are better (do not use NLTP here)**:
-  - **Clean wired/Wi-Fi links & large (`>= 10 MB`) steady-loss transfers**: Kernel `TCP BBR` and `QUIC` are `12–27%` faster and send fewer bytes.
-  - **Tiny (`<= 64 KB`) isolated messages on private links**: `KCP` fast mode is faster on most cells (`0.05–0.17 s` vs `0.05–0.36 s`).
-  - **Wire-byte overhead**: Proactive and tail parity shards send **`1.25–1.64x`** the file size (vs `1.05–1.32x` for `TCP`/`QUIC`), which must be weighed on per-MB metered satellite plans.
-  - **Raw noisy sensor streams**: On real electrochemical AQMS sensor recordings (`825` runs), simple send-on-delta with periodic keyframes (`AbsSoD-KF32`) or `16`-sample `zstd` batching (`Batch16-zstd`) outperformed the experimental `NeckLink` predictive codec (`necklink/codec.py`) in `102/105` configurations. Batch sensor readings and send them reliably over NLTP, or use `AbsSoD-KF32` for unacknowledged beacons.
+Tested on an `ESP32-D0WDQ6` (`Arduino-ESP32`, `~65 KB` endpoint RAM across 8 receive slots, `~89 KB` free heap alongside active Wi-Fi) with `ChaCha20-Poly1305` AEAD enabled in both directions (`Laptop ↔ ESP32`) through `scripts/radio_emulator.py`:
+
+| Radio Profile | Link Emulation (Symmetric + Fades) | Measured Loss (Up / Down) | `16 KB` (`PC → ESP32` / `ESP32 → PC`) | `58 KB` (`PC → ESP32` / `ESP32 → PC`) | Verified |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **`wifi-far`** | `5 Mbit`, `10 ± 5 ms`, `5%` loss | `5.3%` / `6.4%` | `0.13 s` / `0.15 s` | `0.25 s` / `0.24 s` | **`12/12`** |
+| **`4g-weak`** | `2 Mbit`, `60 ± 20 ms`, `3%` + `4%` fades | `8.5%` / `12.9%` | `0.31 s` / `0.39 s` | `0.85 s` / `0.63 s` | **`12/12`** |
+| **`marine-radio`** | `1 Mbit`, `150 ± 30 ms`, `5%` + `6%` fades | `18.1%` / `6.4%` | `0.53 s` / `0.55 s` | `1.53 s` / `0.89 s` | **`12/12`** |
+| **`very-bad`** | `1 Mbit`, `250 ± 40 ms`, `20%` loss | `20.8%` / `20.8%` | `1.52 s` / `0.94 s` | `1.68 s` / `2.80 s` | **`12/12`** |
+
+*(On clean home Wi-Fi, `27/27` plaintext and `27/27` encrypted hardware transfers also passed with `0` CRC/auth drops; encrypted NLTP `0.126–0.216 s` matched unencrypted lwIP `TCP` `0.131–0.212 s`.)*
+
+### 4. Cross-Language C99 ↔ Python Interop & Dual-NAT / CGNAT Suite
+
+- **C99 ↔ Python Interoperability (`72/72` passed, `scripts/c_interop_test.py`)**: Verified `C→C`, `C→Python`, `Python→C`, and `Python→Python` across plaintext, 256-bit base64 keys, and passphrases at `0%` and `15%` loss (`1 KB`, `64 KB`, and `1 MB`).
+- **C99 Cryptographic & Security Self-Test (`9/9` passed, `csrc/tools/nltp_selftest.c`)**: Verified Python key-derivation parity, `5%` bit-flipped packet rejection + FEC recovery, `RFC 6479` replay-attack rejection, wrong-key rejection (`668/668` dropped), and plaintext-to-encrypted downgrade rejection (`671/671` dropped).
+- **Dual-NAT & Symmetric CGNAT Suite (`18/18` passed, `scripts/virtual_nat_test.py`)**: Tested `1 MB` encrypted transfers across two separate Linux NAT routers (`40 ms` RTT + `5%` loss on each last mile):
+  - Direct STUN + low-TTL UDP hole-punching (`C↔C` and `C↔Python`): **`9/9` direct P2P** (`1.22–2.26 s`).
+  - Zero-knowledge `NLTPRelayHub` (`C↔Python` and `C↔C`): **`3/3`** (`1.31–2.19 s`).
+  - Symmetric CGNAT (`MASQUERADE --random-fully`): automatic 3-second fallback to `NLTPRelayHub` completed in **`1.80 s`**.
+  - `4 s` UDP NAT conntrack timeout across an `8 s` idle gap: **`1 s` keepalives** preserved the mapping (`1.59 s` second transfer).
+
+### Summary: When to Use NLTP (and When Not To)
+
+- **Use NLTP for**:
+  - **Medium files, sensor batches, logs, configs, and OTA firmware (`50 KB – 2 MB`)** over lossy (`2–20%`), bursty-fade, cellular-edge, marine radio, or high-RTT satellite links.
+  - **Large bursty-fade transfers (`10 MB`)** where `TCP BBR` and `QUIC` stall or time out.
+  - **Two-way `ESP32` / embedded C99 ↔ Python cloud/shore links**, including behind carrier `4G`/`5G` CGNAT, plus urgent out-of-line `send_reflex("ESTOP")` commands.
+- **Use standard tools instead for**:
+  - **Clean wired/Wi-Fi links and large (`>= 10 MB`) steady-loss transfers**: Kernel `TCP BBR` and `QUIC` (`ngtcp2`) are `12–27%` faster and send fewer wire bytes (`1.04–1.32x` vs NLTP's `1.20–1.64x`).
+  - **Tiny (`<= 64 KB`) isolated messages on private links**: `KCP` fast mode is faster on most cells (`0.05–0.77 s`), though at higher wire-byte cost under heavy loss (`2.15–2.61x`).
 
 ---
 
@@ -45,20 +86,28 @@ Tested head-to-head on identical emulated symmetric links against **9 real imple
 
 | Path | Contents |
 | :--- | :--- |
-| `necklink/` & `nltp/` | Python package & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPRelayHub`, STUN/hole-punch, `ChaCha20-Poly1305` AEAD, `nltp` CLI, optional `aioquic` adapter) |
+| `necklink/` & `nltp/` | Python package & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPRelayHub`, STUN/hole-punch, `ChaCha20-Poly1305` AEAD, `nltp` CLI) |
 | `arduino/NLTP/` | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`) with 3 ESP32 `.ino` examples (receiver, buoy batch sender, and 4G CGNAT relay node) |
 | `examples/python/` | 4 runnable Python scripts (encrypted file + `ESTOP`, 4G CGNAT relay, STUN P2P hole-punching, and ESP32 companion client/listener) |
 | `csrc/` | Portable zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_wire.h`), POSIX CLI (`tools/nltp_cli.c`), and `9/9` security self-test (`tools/nltp_selftest.c`) |
-| `esp32/` | PlatformIO `ESP32` firmware (`Arduino-ESP32`), verified over encrypted Wi-Fi and emulated marine radio links |
+| `esp32/` | PlatformIO `ESP32` firmware (`Arduino-ESP32`), verified bidirectional over encrypted Wi-Fi and emulated radio profiles |
 | `scripts/` | Field-test kit (`field_test.py`), ESP32 & radio emulator (`esp32_test.py`, `radio_emulator.py`), C↔Python 72-pair interop (`c_interop_test.py`), dual-NAT namespace suite (`virtual_nat_test.py`), and `netem` benchmark harnesses |
 | `tests/` | `pytest` unit and integration suite (`20` tests) |
-| `results/` | Full engineering report ([`FAIR_BENCHMARK_REPORT.md`](results/FAIR_BENCHMARK_REPORT.md)) and reproducible JSON/log artifacts |
+| `docs/` | Installation & PyPI publishing guide ([`INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md)) and GitHub Actions CI template ([`github-ci.yml`](docs/github-ci.yml)) |
 
 ---
 
 ## Installation & Quick Start
 
-### 1. Python Package & CLI
+### 1. Python Package & CLI (`import nltp` / `nltp`)
+
+Install directly from GitHub on any machine:
+
+```bash
+pip install git+https://github.com/indian-aman/necklink.git
+```
+
+Or install locally in editable mode for development:
 
 ```bash
 pip install -e ".[dev,quic]"
@@ -68,14 +117,14 @@ pytest tests -v
 Generate a 256-bit key and probe your live NAT mapping via `RFC 5389` STUN:
 
 ```bash
-python -m necklink gen-key
-python -m necklink stun
+nltp gen-key
+nltp stun
 ```
 
-Encrypted file transfer, urgent reflex lane, and telemetry in Python:
+Encrypted file transfer and urgent out-of-line reflex command in Python:
 
 ```python
-from necklink import NLTPServer, NLTPClient, generate_nltp_key
+from nltp import NLTPServer, NLTPClient, generate_nltp_key
 
 key = generate_nltp_key()
 
@@ -90,13 +139,13 @@ with NLTPServer(("0.0.0.0", 9000), save_dir="./inbox", psk=key) as srv:
 
 ```bash
 # On a 1-port public relay VM (holds zero keys, sees only encrypted ciphertext):
-python -m necklink relay --host 0.0.0.0 --port 9000
+nltp relay --host 0.0.0.0 --port 9000
 
 # Receiver behind NAT/CGNAT:
-python -m necklink serve --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --save-dir ./inbox
+nltp serve --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --save-dir ./inbox
 
 # Sender behind NAT/CGNAT:
-python -m necklink send-file --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --file update.bin
+nltp send-file --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --file update.bin
 ```
 
 ### 3. Portable Zero-Heap ANSI C99 Core (`csrc/`)
@@ -134,9 +183,9 @@ Direct P2P hole-punching with automatic 3-second relay fallback from the C CLI:
 python scripts/esp32_test.py --port COM9 --psk auto --radio marine-radio
 ```
 
-### 5. Running a Real Marine / Radio Field Trial
+### 5. Running a Live Marine / Radio Field Trial
 
-To benchmark NLTP side-by-side against kernel `TCP` over a live vessel, buoy, or cellular link between two reachable hosts:
+Benchmark NLTP side-by-side against kernel `TCP` over a live vessel, buoy, or cellular link between two reachable hosts:
 
 ```bash
 # Shore / receiver host:
