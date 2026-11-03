@@ -60,7 +60,37 @@ Tested on an `ESP32-D0WDQ6` (`Arduino-ESP32`, `~65 KB` endpoint RAM across 8 rec
 
 *(On clean home Wi-Fi, `27/27` plaintext and `27/27` encrypted hardware transfers also passed with `0` CRC/auth drops; encrypted NLTP `0.126–0.216 s` matched unencrypted lwIP `TCP` `0.131–0.212 s`.)*
 
-### 4. Cross-Language C99 ↔ Python Interop & Dual-NAT / CGNAT Suite
+### 4. NLTP v1.2 vs. ESP-NOW on `ESP32` Hardware (Speed & Capability Comparison)
+
+Measured side-by-side on the same `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, RSSI `-47 dBm`, `ESP-NOW v2.0`, 5 runs/cell; [`results/esp32_espnow_vs_nltp.json`](results/esp32_espnow_vs_nltp.json)). **NLTP v1.2** and **TCP** were measured **2-hop end-to-end (`ESP32 ↔ Wi-Fi Router ↔ Laptop`)** with `SHA-256` receipt verification; **ESP-NOW** was measured **1-hop over RF** with real IEEE 802.11 hardware `ACK` frames (`100%` ACKed, `0` drops — representing ESP-NOW's 1-hop hardware air-time ceiling without receiver reassembly overhead):
+
+| Mode on `ESP32` (`-47 dBm`) | **`250 B`** *(1 pkt v1)* | **`1,470 B`** *(1 pkt v2)* | **`4 KB`** (`4,096 B`) | **`16 KB`** (`16,384 B`) | **`60 KB`** (`61,440 B`) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **ESP-NOW v1 Default** *(1 Mbps PHY, `250 B` mtu)* | **`3.35 ms`** (`0.60 Mbps`) | `22.20 ms` (`0.53 Mbps`) | `62.28 ms` (`0.53 Mbps`) | `279.07 ms` (`0.47 Mbps`) | `901.49 ms` (`0.55 Mbps`) |
+| **ESP-NOW v2 Default** *(1 Mbps PHY, `1470 B` mtu)* | `3.31 ms` (`0.60 Mbps`) | `26.27 ms` (`0.45 Mbps`) | `65.42 ms` (`0.50 Mbps`) | `298.68 ms` (`0.44 Mbps`) | `1281.90 ms` (`0.38 Mbps`) |
+| **NLTP v1.2 Plain** *(`ESP32 → PC`, 2-hop)* | `10.25 ms` (`0.20 Mbps`) | `17.85 ms` (`0.66 Mbps`) | `35.67 ms` (`0.92 Mbps`) | `91.01 ms` (`1.44 Mbps`) | `194.37 ms` (`2.53 Mbps`) |
+| **NLTP v1.2 Encrypted** *(`ESP32 → PC`, 2-hop)* | `8.36 ms` (`0.24 Mbps`) | **`15.07 ms` (`0.78 Mbps`)** | **`17.67 ms` (`1.86 Mbps`)** | **`49.04 ms` (`2.67 Mbps`)** | `191.05 ms` (`2.57 Mbps`) |
+| **NLTP v1.2 Encrypted** *(`PC → ESP32`, 2-hop)* | `14.76 ms` (`0.14 Mbps`) | `14.69 ms` (`0.80 Mbps`) | `18.46 ms` (`1.78 Mbps`) | `60.80 ms` (`2.16 Mbps`) | **`161.81 ms` (`3.04 Mbps`)** |
+| **TCP** *(`PC → ESP32` lwIP, 2-hop)* | `27.85 ms` (`0.07 Mbps`) | `30.65 ms` (`0.38 Mbps`) | `46.44 ms` (`0.71 Mbps`) | `82.13 ms` (`1.60 Mbps`) | `211.30 ms` (`2.33 Mbps`) |
+| **ESP-NOW v1 Tuned `MCS7`** *(72 Mbps PHY, `250 B`)* | **`0.62 ms` (`3.25 Mbps`)** | `2.25 ms` (`5.22 Mbps`) | `6.07 ms` (`5.40 Mbps`) | `24.25 ms` (`5.41 Mbps`) | `84.92 ms` (`5.79 Mbps`) |
+| **ESP-NOW v2 Tuned `MCS7`** *(72 Mbps PHY, `1470 B`)* | `0.99 ms` (`2.01 Mbps`) | **`1.05 ms` (`11.24 Mbps`)** | **`1.70 ms` (`19.26 Mbps`)** | **`5.57 ms` (`23.52 Mbps`)** | **`19.04 ms` (`25.82 Mbps`)** |
+
+- **Speed vs. Default ESP-NOW (`1 Mbps` 802.11b)**: Stock `esp_now_add_peer()` locks modulation to `1 Mbps` (`~0.44–0.55 Mbps` goodput). Default ESP-NOW is faster only on single `250 B` pings (`3.35 ms` vs `8.36 ms`); from `1.5 KB` to `60 KB`, **encrypted 2-hop NLTP is `1.5x–6.7x` faster** (`161.8 ms` vs `901.5–1,281.9 ms`).
+- **Speed vs. Rate-Unlocked `MCS7` ESP-NOW**: Manually forcing `HT20 MCS7` via `esp_now_set_peer_rate_config` makes 1-hop ESP-NOW faster at short desk range (`5.79 Mbps` v1 / `25.82 Mbps` v2), at the cost of ~`26 dB` lower receiver sensitivity (`~-72 dBm` vs `~-98 dBm`) and zero automatic rate adaptation.
+- **Architectural & Loss-Resilience Differences**:
+
+| Feature | **ESP-NOW** (Espressif) | **NLTP v1.2** (`necklink`) |
+| :--- | :--- | :--- |
+| **Network Layer & Direction** | Layer 2 raw 802.11 action frames; **two-way** | Layer 4/7 over **UDP/IP** (or byte callback); **two-way** (full-duplex `tx`+`rx` on one port) |
+| **Internet / 4G / Satellite** | **No** — local 2.4 GHz radio hop only (~100–400 m; cannot cross routers or SIM cards) | **Yes** — works over Wi-Fi routers, `4G`/`5G` CGNAT (`NLTPRelayHub` / STUN), satellite, and marine IP radios |
+| **Direct Laptop / Cloud Link** | **No** — ESP-to-ESP only (requires an extra USB bridge ESP32 on PC) | **Yes** — `ESP32` talks directly to any Python laptop or Linux cloud server |
+| **Payload Size & Loss Recovery** | `250 B` (v1) / `1,470 B` (v2) per packet; **no file chunking or FEC** (1 lost chunk breaks a multi-KB transfer) | **Multi-MB files & batches**; systematic `GF(2^8)` Cauchy FEC + `SHA-256` survives **`20%` packet loss** |
+| **Encryption & Peer Limit** | `AES-128 CCMP`, capped at **6–17 encrypted peers** (`20` total MAC peers) | **`ChaCha20-Poly1305` (256-bit)** + `RFC 6479` replay window; **no hardware peer-table cap** |
+| **Deep-Sleep Coin-Cell Use** | **Wins (`~1–3 ms` wake-and-tx, no Wi-Fi association)** | Higher power — requires an active Wi-Fi / cellular IP session (`~65 KB` RAM on ESP32) |
+
+*(Note: Because `nltp_init()` in C99 accepts any packet-send callback `nltp_send_fn`, you can also combine both — e.g. deep-sleep deck sensors feeding an ESP32 gateway via ESP-NOW and forwarding shoreward via NLTP, or running NLTP's Cauchy FEC engine directly on top of `esp_now_send` in ESP-NOW v2.0.)*
+
+### 5. Cross-Language C99 ↔ Python Interop & Dual-NAT / CGNAT Suite
 
 - **C99 ↔ Python Interoperability (`72/72` passed, `scripts/c_interop_test.py`)**: Verified `C→C`, `C→Python`, `Python→C`, and `Python→Python` across plaintext, 256-bit base64 keys, and passphrases at `0%` and `15%` loss (`1 KB`, `64 KB`, and `1 MB`).
 - **C99 Cryptographic & Security Self-Test (`9/9` passed, `csrc/tools/nltp_selftest.c`)**: Verified Python key-derivation parity, `5%` bit-flipped packet rejection + FEC recovery, `RFC 6479` replay-attack rejection, wrong-key rejection (`668/668` dropped), and plaintext-to-encrypted downgrade rejection (`671/671` dropped).

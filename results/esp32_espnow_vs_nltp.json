@@ -1,0 +1,1192 @@
+{
+  "board": {
+    "ip": "<redacted>",
+    "rssi_dbm": -47,
+    "channel": 11,
+    "enow_ver": 2
+  },
+  "espnow": [
+    {
+      "mode": "espnow_v1_1mbps_stopwait_ack",
+      "size_bytes": 250,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 1,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 3.635,
+      "goodput_mbps": 0.55,
+      "runs_ms": [
+        3.924,
+        3.635,
+        3.304,
+        3.387,
+        6.212
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_stopwait_ack",
+      "size_bytes": 1470,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 1,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 6,
+      "ok_ratio": "30/30",
+      "median_ms": 21.922,
+      "goodput_mbps": 0.536,
+      "runs_ms": [
+        24.793,
+        18.967,
+        21.922,
+        25.884,
+        18.955
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_stopwait_ack",
+      "size_bytes": 4096,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 1,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 17,
+      "ok_ratio": "85/85",
+      "median_ms": 65.93,
+      "goodput_mbps": 0.497,
+      "runs_ms": [
+        61.838,
+        56.87,
+        74.09,
+        65.93,
+        65.939
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_stopwait_ack",
+      "size_bytes": 16384,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 1,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 66,
+      "ok_ratio": "330/330",
+      "median_ms": 251.523,
+      "goodput_mbps": 0.521,
+      "runs_ms": [
+        246.44,
+        251.523,
+        258.635,
+        250.148,
+        258.531
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_stopwait_ack",
+      "size_bytes": 61440,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 1,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 246,
+      "ok_ratio": "1230/1230",
+      "median_ms": 948.882,
+      "goodput_mbps": 0.518,
+      "runs_ms": [
+        944.337,
+        948.882,
+        1203.51,
+        948.418,
+        961.321
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_burst_ack",
+      "size_bytes": 250,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 3.354,
+      "goodput_mbps": 0.596,
+      "runs_ms": [
+        6.114,
+        3.354,
+        3.307,
+        3.312,
+        3.884
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_burst_ack",
+      "size_bytes": 1470,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 6,
+      "ok_ratio": "30/30",
+      "median_ms": 22.199,
+      "goodput_mbps": 0.53,
+      "runs_ms": [
+        21.58,
+        20.967,
+        22.921,
+        22.199,
+        25.274
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_burst_ack",
+      "size_bytes": 4096,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 17,
+      "ok_ratio": "85/85",
+      "median_ms": 62.276,
+      "goodput_mbps": 0.526,
+      "runs_ms": [
+        57.509,
+        62.276,
+        55.876,
+        75.557,
+        69.543
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_burst_ack",
+      "size_bytes": 16384,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 66,
+      "ok_ratio": "330/330",
+      "median_ms": 279.067,
+      "goodput_mbps": 0.47,
+      "runs_ms": [
+        267.092,
+        281.981,
+        261.665,
+        279.067,
+        289.259
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_burst_ack",
+      "size_bytes": 61440,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 246,
+      "ok_ratio": "1230/1230",
+      "median_ms": 901.486,
+      "goodput_mbps": 0.545,
+      "runs_ms": [
+        955.949,
+        876.957,
+        886.732,
+        901.486,
+        955.922
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_burst_ack",
+      "size_bytes": 250,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 0.616,
+      "goodput_mbps": 3.247,
+      "runs_ms": [
+        0.831,
+        0.617,
+        0.616,
+        0.577,
+        0.576
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_burst_ack",
+      "size_bytes": 1470,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 6,
+      "ok_ratio": "30/30",
+      "median_ms": 2.253,
+      "goodput_mbps": 5.22,
+      "runs_ms": [
+        2.856,
+        2.283,
+        2.213,
+        2.252,
+        2.253
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_burst_ack",
+      "size_bytes": 4096,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 17,
+      "ok_ratio": "85/85",
+      "median_ms": 6.073,
+      "goodput_mbps": 5.396,
+      "runs_ms": [
+        8.608,
+        6.053,
+        7.504,
+        5.607,
+        6.073
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_burst_ack",
+      "size_bytes": 16384,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 66,
+      "ok_ratio": "330/330",
+      "median_ms": 24.252,
+      "goodput_mbps": 5.405,
+      "runs_ms": [
+        36.021,
+        26.908,
+        22.802,
+        24.252,
+        19.936
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_burst_ack",
+      "size_bytes": 61440,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 246,
+      "ok_ratio": "1230/1230",
+      "median_ms": 84.918,
+      "goodput_mbps": 5.788,
+      "runs_ms": [
+        85.96,
+        96.733,
+        84.918,
+        84.563,
+        84.168
+      ]
+    },
+    {
+      "mode": "espnow_v2_1mbps_burst_ack",
+      "size_bytes": 250,
+      "mtu": 1470,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 3.312,
+      "goodput_mbps": 0.604,
+      "runs_ms": [
+        3.351,
+        3.801,
+        3.312,
+        3.306,
+        3.312
+      ]
+    },
+    {
+      "mode": "espnow_v2_1mbps_burst_ack",
+      "size_bytes": 1470,
+      "mtu": 1470,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 26.265,
+      "goodput_mbps": 0.448,
+      "runs_ms": [
+        26.276,
+        26.624,
+        26.265,
+        14.163,
+        13.879
+      ]
+    },
+    {
+      "mode": "espnow_v2_1mbps_burst_ack",
+      "size_bytes": 4096,
+      "mtu": 1470,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 3,
+      "ok_ratio": "15/15",
+      "median_ms": 65.419,
+      "goodput_mbps": 0.501,
+      "runs_ms": [
+        47.213,
+        73.272,
+        86.28,
+        65.419,
+        63.569
+      ]
+    },
+    {
+      "mode": "espnow_v2_1mbps_burst_ack",
+      "size_bytes": 16384,
+      "mtu": 1470,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 12,
+      "ok_ratio": "60/60",
+      "median_ms": 298.677,
+      "goodput_mbps": 0.439,
+      "runs_ms": [
+        301.36,
+        257.875,
+        276.907,
+        298.677,
+        491.178
+      ]
+    },
+    {
+      "mode": "espnow_v2_1mbps_burst_ack",
+      "size_bytes": 61440,
+      "mtu": 1470,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 42,
+      "ok_ratio": "210/210",
+      "median_ms": 1281.904,
+      "goodput_mbps": 0.383,
+      "runs_ms": [
+        1589.713,
+        1188.799,
+        1427.761,
+        1076.372,
+        1281.904
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_burst_ack",
+      "size_bytes": 250,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 0.993,
+      "goodput_mbps": 2.014,
+      "runs_ms": [
+        3.067,
+        1.031,
+        0.993,
+        0.665,
+        0.579
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_burst_ack",
+      "size_bytes": 1470,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 1.046,
+      "goodput_mbps": 11.243,
+      "runs_ms": [
+        0.746,
+        2.035,
+        4.484,
+        1.046,
+        0.748
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_burst_ack",
+      "size_bytes": 4096,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 3,
+      "ok_ratio": "15/15",
+      "median_ms": 1.701,
+      "goodput_mbps": 19.264,
+      "runs_ms": [
+        1.701,
+        1.626,
+        1.663,
+        3.608,
+        2.122
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_burst_ack",
+      "size_bytes": 16384,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 12,
+      "ok_ratio": "60/60",
+      "median_ms": 5.574,
+      "goodput_mbps": 23.515,
+      "runs_ms": [
+        5.501,
+        5.558,
+        5.574,
+        5.616,
+        9.123
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_burst_ack",
+      "size_bytes": 61440,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 0,
+      "rerr": 0,
+      "pkts_per_xfer": 42,
+      "ok_ratio": "210/210",
+      "median_ms": 19.035,
+      "goodput_mbps": 25.822,
+      "runs_ms": [
+        19.035,
+        18.455,
+        22.068,
+        17.521,
+        24.769
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_bcast",
+      "size_bytes": 250,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 3.263,
+      "goodput_mbps": 0.613,
+      "runs_ms": [
+        3.469,
+        3.013,
+        6.659,
+        3.263,
+        3.013
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_bcast",
+      "size_bytes": 1470,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 6,
+      "ok_ratio": "30/30",
+      "median_ms": 18.607,
+      "goodput_mbps": 0.632,
+      "runs_ms": [
+        19.369,
+        17.252,
+        19.131,
+        17.676,
+        18.607
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_bcast",
+      "size_bytes": 4096,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 17,
+      "ok_ratio": "85/85",
+      "median_ms": 52.75,
+      "goodput_mbps": 0.621,
+      "runs_ms": [
+        52.968,
+        52.75,
+        53.507,
+        44.797,
+        47.673
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_bcast",
+      "size_bytes": 16384,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 66,
+      "ok_ratio": "330/330",
+      "median_ms": 206.209,
+      "goodput_mbps": 0.636,
+      "runs_ms": [
+        299.924,
+        234.058,
+        202.987,
+        206.209,
+        202.629
+      ]
+    },
+    {
+      "mode": "espnow_v1_1mbps_bcast",
+      "size_bytes": 61440,
+      "mtu": 250,
+      "rate_mode": 0,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 246,
+      "ok_ratio": "1230/1230",
+      "median_ms": 714.765,
+      "goodput_mbps": 0.688,
+      "runs_ms": [
+        717.539,
+        706.109,
+        714.765,
+        713.751,
+        721.463
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_bcast",
+      "size_bytes": 250,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 0.536,
+      "goodput_mbps": 3.731,
+      "runs_ms": [
+        0.781,
+        0.53,
+        0.577,
+        0.496,
+        0.536
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_bcast",
+      "size_bytes": 1470,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 6,
+      "ok_ratio": "30/30",
+      "median_ms": 1.946,
+      "goodput_mbps": 6.043,
+      "runs_ms": [
+        2.584,
+        4.637,
+        1.946,
+        1.936,
+        1.937
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_bcast",
+      "size_bytes": 4096,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 17,
+      "ok_ratio": "85/85",
+      "median_ms": 6.925,
+      "goodput_mbps": 4.732,
+      "runs_ms": [
+        6.925,
+        7.771,
+        4.834,
+        4.761,
+        7.94
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_bcast",
+      "size_bytes": 16384,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 66,
+      "ok_ratio": "330/330",
+      "median_ms": 16.255,
+      "goodput_mbps": 8.063,
+      "runs_ms": [
+        15.532,
+        21.229,
+        16.255,
+        15.86,
+        22.156
+      ]
+    },
+    {
+      "mode": "espnow_v1_mcs7_bcast",
+      "size_bytes": 61440,
+      "mtu": 250,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 246,
+      "ok_ratio": "1230/1230",
+      "median_ms": 70.097,
+      "goodput_mbps": 7.012,
+      "runs_ms": [
+        73.805,
+        69.508,
+        66.031,
+        70.097,
+        70.136
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_bcast",
+      "size_bytes": 250,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 0.829,
+      "goodput_mbps": 2.413,
+      "runs_ms": [
+        0.57,
+        0.829,
+        0.575,
+        0.956,
+        1.029
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_bcast",
+      "size_bytes": 1470,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 1,
+      "ok_ratio": "5/5",
+      "median_ms": 0.712,
+      "goodput_mbps": 16.517,
+      "runs_ms": [
+        0.71,
+        0.706,
+        0.792,
+        2.195,
+        0.712
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_bcast",
+      "size_bytes": 4096,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 3,
+      "ok_ratio": "15/15",
+      "median_ms": 1.556,
+      "goodput_mbps": 21.059,
+      "runs_ms": [
+        3.834,
+        1.835,
+        1.556,
+        1.454,
+        1.476
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_bcast",
+      "size_bytes": 16384,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 12,
+      "ok_ratio": "60/60",
+      "median_ms": 7.134,
+      "goodput_mbps": 18.373,
+      "runs_ms": [
+        4.748,
+        4.939,
+        9.925,
+        7.475,
+        7.134
+      ]
+    },
+    {
+      "mode": "espnow_v2_mcs7_bcast",
+      "size_bytes": 61440,
+      "mtu": 1470,
+      "rate_mode": 1,
+      "win": 8,
+      "bcast": 1,
+      "rerr": 0,
+      "pkts_per_xfer": 42,
+      "ok_ratio": "210/210",
+      "median_ms": 15.842,
+      "goodput_mbps": 31.026,
+      "runs_ms": [
+        15.842,
+        15.703,
+        15.665,
+        18.992,
+        16.772
+      ]
+    }
+  ],
+  "nltp_and_tcp": [
+    {
+      "mode": "tcp_laptop_to_esp32",
+      "size_bytes": 250,
+      "ok_ratio": "5/5",
+      "median_ms": 27.848,
+      "goodput_mbps": 0.072,
+      "runs_ms": [
+        41.586,
+        17.006,
+        27.848,
+        14.797,
+        37.357
+      ]
+    },
+    {
+      "mode": "tcp_laptop_to_esp32",
+      "size_bytes": 1470,
+      "ok_ratio": "5/5",
+      "median_ms": 30.647,
+      "goodput_mbps": 0.384,
+      "runs_ms": [
+        42.581,
+        35.163,
+        21.573,
+        21.42,
+        30.647
+      ]
+    },
+    {
+      "mode": "tcp_laptop_to_esp32",
+      "size_bytes": 4096,
+      "ok_ratio": "5/5",
+      "median_ms": 46.436,
+      "goodput_mbps": 0.706,
+      "runs_ms": [
+        25.784,
+        29.515,
+        60.651,
+        46.436,
+        46.81
+      ]
+    },
+    {
+      "mode": "tcp_laptop_to_esp32",
+      "size_bytes": 16384,
+      "ok_ratio": "5/5",
+      "median_ms": 82.131,
+      "goodput_mbps": 1.596,
+      "runs_ms": [
+        66.864,
+        82.131,
+        66.85,
+        83.778,
+        85.529
+      ]
+    },
+    {
+      "mode": "tcp_laptop_to_esp32",
+      "size_bytes": 61440,
+      "ok_ratio": "5/5",
+      "median_ms": 211.295,
+      "goodput_mbps": 2.326,
+      "runs_ms": [
+        238.351,
+        223.983,
+        199.796,
+        211.295,
+        203.32
+      ]
+    },
+    {
+      "mode": "nltp_plain_laptop_to_esp32",
+      "size_bytes": 250,
+      "ok_ratio": "5/5",
+      "median_ms": 11.211,
+      "goodput_mbps": 0.178,
+      "runs_ms": [
+        17.497,
+        10.808,
+        10.28,
+        16.781,
+        11.211
+      ]
+    },
+    {
+      "mode": "nltp_plain_esp32_to_laptop",
+      "size_bytes": 250,
+      "ok_ratio": "5/5",
+      "median_ms": 10.249,
+      "goodput_mbps": 0.195,
+      "runs_ms": [
+        7.209,
+        10.23,
+        10.249,
+        12.302,
+        11.246
+      ]
+    },
+    {
+      "mode": "nltp_plain_laptop_to_esp32",
+      "size_bytes": 1470,
+      "ok_ratio": "5/5",
+      "median_ms": 17.957,
+      "goodput_mbps": 0.655,
+      "runs_ms": [
+        19.498,
+        13.205,
+        11.01,
+        22.223,
+        17.957
+      ]
+    },
+    {
+      "mode": "nltp_plain_esp32_to_laptop",
+      "size_bytes": 1470,
+      "ok_ratio": "5/5",
+      "median_ms": 17.853,
+      "goodput_mbps": 0.659,
+      "runs_ms": [
+        17.853,
+        19.069,
+        21.155,
+        10.126,
+        15.822
+      ]
+    },
+    {
+      "mode": "nltp_plain_laptop_to_esp32",
+      "size_bytes": 4096,
+      "ok_ratio": "5/5",
+      "median_ms": 35.969,
+      "goodput_mbps": 0.911,
+      "runs_ms": [
+        23.41,
+        49.13,
+        35.969,
+        29.721,
+        41.223
+      ]
+    },
+    {
+      "mode": "nltp_plain_esp32_to_laptop",
+      "size_bytes": 4096,
+      "ok_ratio": "5/5",
+      "median_ms": 35.668,
+      "goodput_mbps": 0.919,
+      "runs_ms": [
+        17.634,
+        30.669,
+        36.721,
+        35.668,
+        37.704
+      ]
+    },
+    {
+      "mode": "nltp_plain_laptop_to_esp32",
+      "size_bytes": 16384,
+      "ok_ratio": "5/5",
+      "median_ms": 85.768,
+      "goodput_mbps": 1.528,
+      "runs_ms": [
+        114.057,
+        108.7,
+        82.969,
+        85.768,
+        69.18
+      ]
+    },
+    {
+      "mode": "nltp_plain_esp32_to_laptop",
+      "size_bytes": 16384,
+      "ok_ratio": "5/5",
+      "median_ms": 91.01,
+      "goodput_mbps": 1.44,
+      "runs_ms": [
+        116.921,
+        109.041,
+        90.926,
+        91.01,
+        72.829
+      ]
+    },
+    {
+      "mode": "nltp_plain_laptop_to_esp32",
+      "size_bytes": 61440,
+      "ok_ratio": "5/5",
+      "median_ms": 180.958,
+      "goodput_mbps": 2.716,
+      "runs_ms": [
+        264.239,
+        206.266,
+        180.958,
+        168.215,
+        172.626
+      ]
+    },
+    {
+      "mode": "nltp_plain_esp32_to_laptop",
+      "size_bytes": 61440,
+      "ok_ratio": "5/5",
+      "median_ms": 194.37,
+      "goodput_mbps": 2.529,
+      "runs_ms": [
+        233.346,
+        195.494,
+        194.37,
+        167.524,
+        147.803
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_laptop_to_esp32",
+      "size_bytes": 250,
+      "ok_ratio": "5/5",
+      "median_ms": 14.764,
+      "goodput_mbps": 0.135,
+      "runs_ms": [
+        11.356,
+        10.382,
+        18.958,
+        18.446,
+        14.764
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_esp32_to_laptop",
+      "size_bytes": 250,
+      "ok_ratio": "5/5",
+      "median_ms": 8.359,
+      "goodput_mbps": 0.239,
+      "runs_ms": [
+        18.461,
+        7.728,
+        7.377,
+        8.72,
+        8.359
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_laptop_to_esp32",
+      "size_bytes": 1470,
+      "ok_ratio": "5/5",
+      "median_ms": 14.694,
+      "goodput_mbps": 0.8,
+      "runs_ms": [
+        14.694,
+        16.484,
+        13.175,
+        15.535,
+        14.03
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_esp32_to_laptop",
+      "size_bytes": 1470,
+      "ok_ratio": "5/5",
+      "median_ms": 15.068,
+      "goodput_mbps": 0.78,
+      "runs_ms": [
+        15.949,
+        16.947,
+        15.068,
+        9.637,
+        10.949
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_laptop_to_esp32",
+      "size_bytes": 4096,
+      "ok_ratio": "5/5",
+      "median_ms": 18.457,
+      "goodput_mbps": 1.775,
+      "runs_ms": [
+        18.457,
+        16.74,
+        18.526,
+        23.438,
+        15.769
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_esp32_to_laptop",
+      "size_bytes": 4096,
+      "ok_ratio": "5/5",
+      "median_ms": 17.665,
+      "goodput_mbps": 1.855,
+      "runs_ms": [
+        16.07,
+        24.797,
+        17.665,
+        15.701,
+        18.946
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_laptop_to_esp32",
+      "size_bytes": 16384,
+      "ok_ratio": "5/5",
+      "median_ms": 60.804,
+      "goodput_mbps": 2.156,
+      "runs_ms": [
+        72.41,
+        65.916,
+        60.804,
+        52.361,
+        58.953
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_esp32_to_laptop",
+      "size_bytes": 16384,
+      "ok_ratio": "5/5",
+      "median_ms": 49.043,
+      "goodput_mbps": 2.673,
+      "runs_ms": [
+        46.039,
+        51.043,
+        45.957,
+        49.043,
+        58.068
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_laptop_to_esp32",
+      "size_bytes": 61440,
+      "ok_ratio": "5/5",
+      "median_ms": 161.811,
+      "goodput_mbps": 3.038,
+      "runs_ms": [
+        171.049,
+        143.155,
+        161.811,
+        162.974,
+        154.416
+      ]
+    },
+    {
+      "mode": "nltp_encrypted_esp32_to_laptop",
+      "size_bytes": 61440,
+      "ok_ratio": "5/5",
+      "median_ms": 191.054,
+      "goodput_mbps": 2.573,
+      "runs_ms": [
+        191.054,
+        201.559,
+        219.802,
+        186.736,
+        185.733
+      ]
+    }
+  ],
+  "probe": {
+    "unicast_bssid": {
+      "bytes": 250,
+      "mtu": 250,
+      "rate": 0,
+      "win": 1,
+      "bcast": 0,
+      "pkts": 1,
+      "ok_pkts": 1,
+      "fail_pkts": 0,
+      "nomem": 0,
+      "rerr": 0,
+      "us": 4575,
+      "ms": 5
+    },
+    "broadcast": {
+      "bytes": 250,
+      "mtu": 250,
+      "rate": 0,
+      "win": 1,
+      "bcast": 1,
+      "pkts": 1,
+      "ok_pkts": 1,
+      "fail_pkts": 0,
+      "nomem": 0,
+      "rerr": 0,
+      "us": 3103,
+      "ms": 3
+    }
+  }
+}
