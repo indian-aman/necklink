@@ -457,16 +457,42 @@ class NeckSightPipeline:
         """Attach an out-of-line ``pynltp`` ``send_reflex`` callback on looming trigger."""
         return self.looming.attach_nltp_reflex(nltp_client, msg=msg)
 
-    def step(self, frame: np.ndarray, dt: float = 1.0 / 60.0) -> GiantFiberTrigger:
-        """Process one camera frame and return the Giant Fiber trigger result."""
+    def derotate(self, ego_shift_px: Optional[Tuple[float, float]]) -> None:
+        """Apply this frame's camera-rotation image shift ``(dx, dy)`` (grid pixels) to all state."""
+        if ego_shift_px is None:
+            return
+        dx, dy = float(ego_shift_px[0]), float(ego_shift_px[1])
+        if dx == 0.0 and dy == 0.0:
+            return
+        self.retina.shift_state(dx, dy)
+        self.emd.shift_state(dx, dy)
+
+    def step(
+        self,
+        frame: np.ndarray,
+        dt: float = 1.0 / 60.0,
+        ego_shift_px: Optional[Tuple[float, float]] = None,
+    ) -> GiantFiberTrigger:
+        """Process one camera frame and return the Giant Fiber trigger result.
+
+        ``ego_shift_px`` is the image shift caused by camera rotation since the previous frame,
+        in grid pixels (see :func:`necksight.gyro_to_shift_px`). Supplying it from a gyro keeps
+        looming detection working while the platform yaws or pitches; without it, fast turns
+        suppress the looming response along with the false alarms.
+        """
+        self.derotate(ego_shift_px)
         lam = self.retina.step(frame, dt=dt)
         mot = self.emd.step(lam)
         return self.looming.step(mot, dt=dt)
 
     def step_full(
-        self, frame: np.ndarray, dt: float = 1.0 / 60.0
+        self,
+        frame: np.ndarray,
+        dt: float = 1.0 / 60.0,
+        ego_shift_px: Optional[Tuple[float, float]] = None,
     ) -> Tuple[Any, MotionOutput, GiantFiberTrigger]:
         """Process one frame and return ``(lamina_out, motion_out, trigger_out)``."""
+        self.derotate(ego_shift_px)
         lam = self.retina.step(frame, dt=dt)
         mot = self.emd.step(lam)
         trig = self.looming.step(mot, dt=dt)

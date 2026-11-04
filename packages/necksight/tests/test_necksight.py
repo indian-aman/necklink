@@ -33,7 +33,10 @@ class MockNLTPClient:
 
 
 def test_version_exposed() -> None:
-    assert __version__ == "1.0.0"
+    from pathlib import Path
+
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'version = "{__version__}"' in pyproject
 
 
 def test_arbitrary_resolution_downsampling() -> None:
@@ -387,3 +390,68 @@ def test_cli_demo_and_benchmark_quick(capsys: pytest.CaptureFixture[str]) -> Non
     assert bench_data["auroc"] >= 0.98
     assert bench_data["false_alarm_rate"] == 0.0
     assert bench_data["throughput_fps"] > 100.0
+
+
+def _yawing_scene(rng: np.random.Generator, peak_px: float, looming: bool, grid: int = 64, frames: int = 36):
+    """Clutter seen by a camera oscillating in yaw (waves / gusts); optional dark obstacle on
+    a collision course that moves with the scene. Returns frames and true per-frame shifts."""
+    pano = _make_clutter(grid + 64, grid + 64, rng, base_scale=float(grid))
+    period = 24.0
+    amp = peak_px * period / (2.0 * math.pi)
+    phase = float(rng.uniform(0.0, 2.0 * math.pi))
+    yy, xx = np.meshgrid(np.arange(grid, dtype=np.float32), np.arange(grid, dtype=np.float32), indexing="ij")
+    cx, cy = 31.5 + float(rng.uniform(-6, 6)), 31.5 + float(rng.uniform(-6, 6))
+    rate = float(rng.uniform(0.075, 0.125)) * grid
+
+    def offset(t: int) -> float:
+        return amp * math.sin(2.0 * math.pi * t / period + phase)
+
+    out, shifts = [], []
+    for t in range(frames):
+        o = offset(t)
+        x0 = 32.0 + o
+        ix = int(math.floor(x0))
+        fx = x0 - ix
+        bg = (1.0 - fx) * pano[32 : 32 + grid, ix : ix + grid] + fx * pano[32 : 32 + grid, ix + 1 : ix + 1 + grid]
+        frame = bg
+        if looming:
+            rad = rate / max((frames - t) / 60.0, 0.025)
+            edge = np.clip((rad - np.hypot(xx - (cx - o), yy - cy)) / 1.2 + 0.5, 0.0, 1.0)
+            frame = bg * (1.0 - edge) + 15.0 * edge
+        out.append(np.clip(frame + rng.normal(0.0, 4.0, frame.shape), 0, 255).astype(np.float32))
+        shifts.append(-(o - offset(t - 1)))
+    return out, shifts
+
+
+def test_gyro_derotation_keeps_looming_detection_during_yaw_oscillation() -> None:
+    """Regression for 1.1.0: without derotation, 3-4 px/frame yaw oscillation hid 30-50% of
+    looming obstacles. With gyro-derived ego_shift_px every one is caught, with no false alarms."""
+    rng = np.random.default_rng(11)
+    detected_plain = detected_derot = false_alarms = 0
+    n = 8
+    for _ in range(n):
+        frames, shifts = _yawing_scene(rng, peak_px=4.0, looming=True)
+        plain = NeckSightPipeline(grid_size=64)
+        derot = NeckSightPipeline(grid_size=64)
+        detected_plain += any(plain.step(f).triggered for f in frames)
+        detected_derot += any(derot.step(f, ego_shift_px=(s, 0.0)).triggered for f, s in zip(frames, shifts))
+        frames, shifts = _yawing_scene(rng, peak_px=4.0, looming=False)
+        pan_only = NeckSightPipeline(grid_size=64)
+        false_alarms += any(pan_only.step(f, ego_shift_px=(s, 0.0)).triggered for f, s in zip(frames, shifts))
+    assert detected_derot == n
+    assert false_alarms == 0
+    assert detected_plain < n  # documents the failure mode the feature fixes
+
+
+def test_gyro_to_shift_px_conventions_and_shift_grid() -> None:
+    from necksight import gyro_to_shift_px, shift_grid
+
+    # 90 deg HFOV on a 64-px grid: focal = 32 px; 1 rad/s for 1/60 s -> 0.533 px
+    dx, dy = gyro_to_shift_px(1.0, -0.5, 1.0 / 60.0, 90.0, 64)
+    assert math.isclose(dx, 32.0 / 60.0, rel_tol=1e-9)
+    assert math.isclose(dy, -16.0 / 60.0, rel_tol=1e-9)
+    with pytest.raises(ValueError):
+        gyro_to_shift_px(0.0, 0.0, 0.01, 0.0, 64)
+    img = np.arange(64, dtype=np.float32).reshape(8, 8)
+    moved = shift_grid(img, 2.0, 1.0)  # content moves right 2, down 1
+    assert np.allclose(moved[3:, 4:], img[2:-1, 2:-2])

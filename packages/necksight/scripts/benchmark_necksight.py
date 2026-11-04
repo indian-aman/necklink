@@ -1,4 +1,4 @@
-"""Head-to-head empirical benchmark & hero chart generator for NeckSight v1.0.0.
+"""Head-to-head empirical benchmark & hero chart generator for NeckSight v1.1.0.
 
 Evaluates 4 detectors across N=60 synthetic 64x64 cluttered sequences:
   1. NeckSight (T4/T5 + LPLC2 4-quadrant radial symmetry gate)
@@ -144,6 +144,102 @@ class LucasKanadeDivergenceDetector:
         return px * 6
 
 
+def _lk_flow_single(prev: np.ndarray, curr: np.ndarray, reg: float = 1e-3) -> Tuple[np.ndarray, np.ndarray]:
+    avg = 0.5 * (curr + prev)
+    ix = np.zeros_like(curr)
+    iy = np.zeros_like(curr)
+    ix[:, 1:-1] = 0.5 * (avg[:, 2:] - avg[:, :-2])
+    iy[1:-1, :] = 0.5 * (avg[2:, :] - avg[:-2, :])
+    it = curr - prev
+    sxx = _box_sum_5x5(ix * ix) + reg
+    syy = _box_sum_5x5(iy * iy) + reg
+    sxy = _box_sum_5x5(ix * iy)
+    sxt = _box_sum_5x5(ix * it)
+    syt = _box_sum_5x5(iy * it)
+    det = np.maximum(sxx * syy - sxy * sxy, 1e-7)
+    return -(syy * sxt - sxy * syt) / det, -(sxx * syt - sxy * sxt) / det
+
+
+class PyramidalLKCompensatedDetector:
+    """Baseline 2b: the strong classical flow detector.
+
+    3-level coarse-to-fine Lucas-Kanade (two warp refinements per level), global gain
+    normalisation (cancels glare / auto-exposure steps) and global ego-motion compensation
+    (median flow subtracted) before the same local-divergence score as Baseline 2.
+    """
+
+    def __init__(self, grid_size: int = 64, levels: int = 3) -> None:
+        self.grid_size = grid_size
+        self.levels = levels
+        self.reset()
+
+    def reset(self) -> None:
+        self._prev: Optional[np.ndarray] = None
+        self._ema_score = 0.0
+
+    @staticmethod
+    def _down(a: np.ndarray) -> np.ndarray:
+        return 0.25 * (a[0::2, 0::2] + a[1::2, 0::2] + a[0::2, 1::2] + a[1::2, 1::2])
+
+    @staticmethod
+    def _warp(img: np.ndarray, u: np.ndarray, v: np.ndarray) -> np.ndarray:
+        h, w = img.shape
+        yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+        x = np.clip(xx + u, 0, w - 1.001)
+        y = np.clip(yy + v, 0, h - 1.001)
+        x0 = x.astype(np.intp)
+        y0 = y.astype(np.intp)
+        fx = x - x0
+        fy = y - y0
+        return (
+            img[y0, x0] * (1 - fx) * (1 - fy)
+            + img[y0, x0 + 1] * fx * (1 - fy)
+            + img[y0 + 1, x0] * (1 - fx) * fy
+            + img[y0 + 1, x0 + 1] * fx * fy
+        )
+
+    def _flow(self, prev: np.ndarray, curr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        pp, cc = [prev], [curr]
+        for _ in range(self.levels - 1):
+            pp.append(self._down(pp[-1]))
+            cc.append(self._down(cc[-1]))
+        u = np.zeros_like(pp[-1])
+        v = np.zeros_like(pp[-1])
+        for lvl in range(self.levels - 1, -1, -1):
+            if lvl < self.levels - 1:
+                u = 2.0 * np.repeat(np.repeat(u, 2, 0), 2, 1)
+                v = 2.0 * np.repeat(np.repeat(v, 2, 0), 2, 1)
+            for _ in range(2):
+                du, dv = _lk_flow_single(pp[lvl], self._warp(cc[lvl], u, v))
+                u = u + du
+                v = v + dv
+        return u, v
+
+    def step(self, frame: np.ndarray) -> float:
+        f = np.asarray(frame, dtype=np.float32)
+        f = f * (0.5 / max(float(f.mean()), 1e-3))
+        if self._prev is None:
+            self._prev = f
+            return 0.0
+        u, v = self._flow(self._prev, f)
+        self._prev = f
+        u = u - np.median(u)
+        v = v - np.median(v)
+        du_dx = np.zeros_like(u)
+        dv_dy = np.zeros_like(v)
+        du_dx[:, 1:-1] = 0.5 * (u[:, 2:] - u[:, :-2])
+        dv_dy[1:-1, :] = 0.5 * (v[2:, :] - v[:-2, :])
+        div = _box_mean_9x9(du_dx + dv_dy)
+        raw = max(0.0, float(np.max(div[6:-6, 6:-6])))
+        self._ema_score = 0.35 * self._ema_score + 0.65 * raw
+        return self._ema_score
+
+    @property
+    def state_bytes(self) -> int:
+        px = self.grid_size * self.grid_size * 4
+        return px * 8
+
+
 class NaiveUngatedEMDDivergence:
     """Baseline 3 (Ablation): Identical Retina + T4/T5 EMD without LPLC2 4-quadrant gate."""
 
@@ -189,10 +285,14 @@ def _bilinear_shift(pano: np.ndarray, oy: float, ox: float, gh: int, gw: int) ->
     fy = float(oy - iy0)
     fx = float(ox - ix0)
 
-    p00 = pano[iy0 : iy0 + gh, ix0 : ix0 + gw]
-    p01 = pano[iy0 : iy0 + gh, ix0 + 1 : ix0 + 1 + gw]
-    p10 = pano[iy0 + 1 : iy0 + 1 + gh, ix0 : ix0 + gw]
-    p11 = pano[iy0 + 1 : iy0 + 1 + gh, ix0 + 1 : ix0 + 1 + gw]
+    # Wrap-around indexing: some seeds drift the window past the panorama margin.
+    rows = (iy0 + np.arange(gh + 1)) % pano.shape[0]
+    cols = (ix0 + np.arange(gw + 1)) % pano.shape[1]
+    win = pano[np.ix_(rows, cols)]
+    p00 = win[:gh, :gw]
+    p01 = win[:gh, 1:]
+    p10 = win[1:, :gw]
+    p11 = win[1:, 1:]
 
     top = (1.0 - fx) * p00 + fx * p01
     bot = (1.0 - fx) * p10 + fx * p11
@@ -440,19 +540,22 @@ def benchmark_subpixel_odometry(grid: int = 64, seed: int = 99) -> Dict[str, flo
 
 
 def query_c99_metrics() -> Optional[Dict[str, Any]]:
-    """Query compiled WSL ANSI C99 binary if available."""
+    """Build and run the C99 self-test locally (needs make + a C compiler); None if unavailable."""
+    import shutil
+
     csrc_dir = ROOT / "csrc"
-    if not (csrc_dir / "build" / "necksight_selftest").exists():
+    make = shutil.which("make")
+    if make is None:
         return None
-    drive_letter = csrc_dir.drive.rstrip(":").lower()
-    rel_posix = csrc_dir.relative_to(csrc_dir.anchor).as_posix()
-    wsl_csrc = f"/mnt/{drive_letter}/{rel_posix}"
     try:
+        build = subprocess.run([make, "-C", str(csrc_dir), "all"], capture_output=True, text=True, check=False)
+        if build.returncode != 0:
+            return None
         proc = subprocess.run(
-            ["wsl.exe", "bash", "-c", f"cd '{wsl_csrc}' && ./build/necksight_selftest --json"],
+            [str(csrc_dir / "build" / "necksight_selftest"), "--json"],
             capture_output=True,
             text=True,
-            timeout=30,
+            timeout=60,
             check=False,
         )
         idx = proc.stdout.find("{")
@@ -461,6 +564,59 @@ def query_c99_metrics() -> Optional[Dict[str, Any]]:
     except Exception:
         pass
     return None
+
+
+def benchmark_yaw_oscillation(grid: int = 64, frames: int = 36, n_seq: int = 16, seed: int = 11) -> Dict[str, Any]:
+    """Looming obstacle while the camera oscillates in yaw (waves, gusts).
+
+    The obstacle moves with the scene, as it would for a real camera rotation. Reports the
+    detection rate at the default threshold with and without gyro derotation
+    (``ego_shift_px`` from the true per-frame shift), and the pan-only false-alarm rate.
+    """
+    rng = np.random.default_rng(seed)
+    period = 24.0
+    yy, xx = np.meshgrid(np.arange(grid, dtype=np.float32), np.arange(grid, dtype=np.float32), indexing="ij")
+
+    def make(peak: float, looming: bool) -> Tuple[List[np.ndarray], List[float]]:
+        pano = _make_clutter(grid + 64, grid + 64, rng, base_scale=float(grid))
+        amp = peak * period / (2.0 * math.pi)
+        ph = float(rng.uniform(0.0, 2.0 * math.pi))
+        cx = 31.5 + float(rng.uniform(-6, 6))
+        cy = 31.5 + float(rng.uniform(-6, 6))
+        rate = float(rng.uniform(0.075, 0.125)) * grid
+        off = lambda t: amp * math.sin(2.0 * math.pi * t / period + ph)  # noqa: E731
+        seq, shifts = [], []
+        for t in range(frames):
+            o = off(t)
+            fr = _bilinear_shift(pano, 32.0, 32.0 + o, grid, grid)
+            if looming:
+                rad = rate / max((frames - t) / 60.0, 0.025)
+                edge = np.clip((rad - np.hypot(xx - (cx - o), yy - cy)) / 1.2 + 0.5, 0.0, 1.0)
+                fr = fr * (1.0 - edge) + 15.0 * edge
+            seq.append(np.clip(fr + rng.normal(0.0, 4.0, fr.shape), 0, 255).astype(np.float32))
+            shifts.append(-(o - off(t - 1)))
+        return seq, shifts
+
+    out: Dict[str, Any] = {"peak_yaw_px_per_frame": {}}
+    for peak in (0.0, 1.0, 2.0, 3.0, 4.0):
+        loom = [make(peak, True) for _ in range(n_seq)]
+        pan = [make(max(peak, 2.0), False) for _ in range(n_seq)]
+
+        def rate_of(seqs: List[Tuple[List[np.ndarray], List[float]]], derot: bool) -> float:
+            hits = 0
+            for fr, sh in seqs:
+                p = NeckSightPipeline(grid_size=grid)
+                hits += any(p.step(f, ego_shift_px=(s, 0.0) if derot else None).triggered for f, s in zip(fr, sh))
+            return hits / len(seqs)
+
+        out["peak_yaw_px_per_frame"][str(peak)] = {
+            "detection_plain": round(rate_of(loom, False), 3),
+            "detection_gyro_derotated": round(rate_of(loom, True), 3),
+            "pan_only_false_alarm_plain": round(rate_of(pan, False), 3),
+            "pan_only_false_alarm_gyro_derotated": round(rate_of(pan, True), 3),
+        }
+    out["sequences_per_level"] = n_seq
+    return out
 
 
 # ---------------------------------------------------------------------------
@@ -486,7 +642,7 @@ def render_hero_chart(
     gs = fig.add_gridspec(1, 3, width_ratios=[1.08, 1.15, 1.02], wspace=0.26, left=0.055, right=0.975, top=0.80, bottom=0.16)
 
     fig.suptitle(
-        "NeckSight v1.0.0 — Drosophila Optic Lobe (T4/T5 + LPLC2) Looming Reflex Benchmarks",
+        "NeckSight v1.1.0 — Drosophila Optic Lobe (T4/T5 + LPLC2) Looming Reflex Benchmarks",
         fontsize=14.5,
         fontweight="bold",
         color="#0F172A",
@@ -504,6 +660,7 @@ def render_hero_chart(
     methods_order = [
         ("necksight_lplc2", "NeckSight\n(T4/T5 + LPLC2)"),
         ("naive_ungated_emd", "Ungated EMD\n(No LPLC2 Gate)"),
+        ("pyramidal_lk_compensated", "Pyramidal LK\n+ ego-comp"),
         ("lucas_kanade_div", "Lucas-Kanade\nDivergence"),
         ("frame_diff_energy", "Frame-Diff\nMotion Energy"),
     ]
@@ -512,7 +669,7 @@ def render_hero_chart(
     # ---------------- Panel A: AUROC & FAR @ 95% TPR ----------------
     ax1 = fig.add_subplot(gs[0, 0], facecolor="#FFFFFF")
     x = np.arange(len(methods_order))
-    width = 0.36
+    width = 0.38
 
     aurocs = [m_data[k]["auroc"] * 100.0 for k, _ in methods_order]
     fars = [m_data[k]["far_at_95_tpr"] * 100.0 for k, _ in methods_order]
@@ -522,7 +679,7 @@ def render_hero_chart(
         aurocs,
         width,
         label="AUROC (% higher = better)",
-        color=["#0284C7", "#38BDF8", "#818CF8", "#94A3B8"],
+        color=["#0284C7", "#38BDF8", "#6366F1", "#818CF8", "#94A3B8"],
         edgecolor="#0F172A",
         linewidth=0.6,
         zorder=3,
@@ -532,7 +689,7 @@ def render_hero_chart(
         fars,
         width,
         label="False Alarms @ 95% TPR (% lower = better)",
-        color=["#10B981", "#F59E0B", "#FB7185", "#EF4444"],
+        color=["#10B981", "#F59E0B", "#F97316", "#FB7185", "#EF4444"],
         edgecolor="#0F172A",
         linewidth=0.6,
         zorder=3,
@@ -564,7 +721,7 @@ def render_hero_chart(
         )
 
     ax1.set_xticks(x)
-    ax1.set_xticklabels([lbl for _, lbl in methods_order], fontsize=8.6, color="#1E293B")
+    ax1.set_xticklabels([lbl for _, lbl in methods_order], fontsize=7.2, color="#1E293B")
     ax1.set_ylim(0, 116)
     ax1.set_ylabel("Percentage (%)", fontsize=9.5, fontweight="bold", color="#1E293B")
     ax1.set_title("A. Looming vs Yaw/Glare Selectivity", fontsize=11.0, fontweight="bold", color="#0F172A", pad=10)
@@ -646,8 +803,10 @@ def render_hero_chart(
     # ---------------- Panel C: Embedded Throughput, RAM & Sub-Pixel Honesty ----------------
     ax3 = fig.add_subplot(gs[0, 2], facecolor="#FFFFFF")
 
-    c99_fps = summary.get("c99_core", {}).get("throughput_fps", 16000)
-    c99_kb = summary.get("c99_core", {}).get("state_kb", 14.27)
+    if not summary.get("c99_core"):
+        raise RuntimeError("C99 metrics unavailable: install make and a C compiler, then re-run")
+    c99_fps = summary["c99_core"]["throughput_fps"]
+    c99_kb = summary["c99_core"]["state_kb"]
 
     perf_labels = [
         f"NeckSight C99\n(32x32, {c99_kb:.1f} KB)",
@@ -728,11 +887,13 @@ def main() -> int:
     ns = NeckSightPipeline(grid_size=grid)
     ungated = NaiveUngatedEMDDivergence(grid_size=grid)
     lk = LucasKanadeDivergenceDetector(grid_size=grid)
+    pyr_lk = PyramidalLKCompensatedDetector(grid_size=grid)
     fdiff = FrameDiffDetector(grid_size=grid)
 
     detectors = {
         "necksight_lplc2": ns,
         "naive_ungated_emd": ungated,
+        "pyramidal_lk_compensated": pyr_lk,
         "lucas_kanade_div": lk,
         "frame_diff_energy": fdiff,
     }
@@ -746,22 +907,26 @@ def main() -> int:
         ns.reset()
         ungated.reset()
         lk.reset()
+        pyr_lk.reset()
         fdiff.reset()
 
         t_ns: List[float] = []
         t_un: List[float] = []
         t_lk: List[float] = []
+        t_pl: List[float] = []
         t_fd: List[float] = []
 
         for fr in seq:
             t_ns.append(ns.step(fr, dt=dt).looming_score)
             t_un.append(ungated.step(fr, dt=dt))
             t_lk.append(lk.step(fr))
+            t_pl.append(pyr_lk.step(fr))
             t_fd.append(fdiff.step(fr))
 
         per_seq_traces["necksight_lplc2"].append(t_ns)
         per_seq_traces["naive_ungated_emd"].append(t_un)
         per_seq_traces["lucas_kanade_div"].append(t_lk)
+        per_seq_traces["pyramidal_lk_compensated"].append(t_pl)
         per_seq_traces["frame_diff_energy"].append(t_fd)
 
     # Throughput timing on 600 frames per detector
@@ -800,6 +965,7 @@ def main() -> int:
         "necksight_lplc2": round(ns_state_bytes / 1024.0, 2),
         "naive_ungated_emd": round(ungated.state_bytes / 1024.0, 2),
         "lucas_kanade_div": round(lk.state_bytes / 1024.0, 2),
+        "pyramidal_lk_compensated": round(pyr_lk.state_bytes / 1024.0, 2),
         "frame_diff_energy": round(fdiff.state_bytes / 1024.0, 2),
     }
 
@@ -878,19 +1044,26 @@ def main() -> int:
             "state_bytes": c99_raw["state_bytes"],
             "state_kb": round(c99_raw["state_bytes"] / 1024.0, 2),
             "throughput_fps": c99_raw["throughput_fps"],
+            "throughput_note": "desktop x86-64, -O2; not measured on MCU hardware",
             "pan_false_triggers": c99_raw["pan_triggers"],
             "glare_20x_false_triggers": c99_raw["flash_20x_triggers"],
+            "yaw_loom_plain_triggered": c99_raw.get("yaw_loom_plain_triggered"),
+            "yaw_loom_gyro_derotated_triggered": c99_raw.get("yaw_loom_derotated_triggered"),
+            "yaw_pan_derotated_false_triggers": c99_raw.get("yaw_pan_derotated_triggers"),
         }
+    yaw_osc = benchmark_yaw_oscillation(grid=grid, frames=frames)
 
     summary = {
-        "benchmark": "NeckSight v1.0.0 Optic Lobe Benchmark Suite",
+        "benchmark": "NeckSight v1.1.0 Optic Lobe Benchmark Suite",
         "grid_size": f"{grid}x{grid}",
         "total_sequences": len(dataset),
         "positive_looming_sequences": sum(1 for x in labels if x),
         "negative_non_looming_sequences": sum(1 for x in labels if not x),
         "frames_per_sequence": frames,
         "frame_rate_hz": 60,
+        "dataset_note": "Synthetic sequences from build_benchmark_dataset(); not camera footage.",
         "detectors": detector_summaries,
+        "looming_during_yaw_oscillation": yaw_osc,
         "subpixel_odometry_honesty_check": odom_summary,
         "c99_core": c99_summary,
     }

@@ -94,6 +94,13 @@ class RetinaLaminaPreproc:
         self._baseline_log = None
         self._dark_floor = self._fixed_dark_floor
 
+    def shift_state(self, dx: float, dy: float) -> None:
+        """Shift the adaptation baseline by ``(dx, dy)`` grid pixels (ego-motion derotation)."""
+        if self._baseline_log is not None:
+            from .egomotion import shift_grid
+
+            self._baseline_log = shift_grid(self._baseline_log, dx, dy)
+
     def downsample(self, frame: np.ndarray) -> np.ndarray:
         """Downsample an arbitrary ``H x W`` (or ``H x W x C``) frame to ``grid_shape``."""
         arr = np.asarray(frame)

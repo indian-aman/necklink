@@ -731,3 +731,59 @@ void necksight_step_frame_u8(
     necksight_downsample_u8(src, src_h, src_w, src_stride, grid_q4);
     necksight_step_u16(st, grid_q4, dt_ms, out);
 }
+
+
+/* Bilinear Q4 shift of one 32x32 uint16 plane: out(y, x) = in(y - dy, x - dx), edges clamped. */
+static void necksight_shift_plane(uint16_t *plane, uint16_t *scratch, int32_t dx_q4, int32_t dy_q4)
+{
+    const int32_t g = (int32_t)NECKSIGHT_GRID;
+    const int32_t max_q4 = (g - 1) * 16;
+    int32_t y, x;
+    for (y = 0; y < g; y++) {
+        int32_t sy = y * 16 - dy_q4;
+        int32_t y0, fy;
+        if (sy < 0) sy = 0;
+        if (sy > max_q4) sy = max_q4;
+        y0 = sy >> 4;
+        fy = sy & 15;
+        if (y0 >= g - 1) { y0 = g - 2; fy = 16; }
+        for (x = 0; x < g; x++) {
+            int32_t sx = x * 16 - dx_q4;
+            int32_t x0, fx;
+            uint32_t a00, a01, a10, a11, top, bot;
+            if (sx < 0) sx = 0;
+            if (sx > max_q4) sx = max_q4;
+            x0 = sx >> 4;
+            fx = sx & 15;
+            if (x0 >= g - 1) { x0 = g - 2; fx = 16; }
+            a00 = plane[y0 * g + x0];
+            a01 = plane[y0 * g + x0 + 1];
+            a10 = plane[(y0 + 1) * g + x0];
+            a11 = plane[(y0 + 1) * g + x0 + 1];
+            top = a00 * (uint32_t)(16 - fx) + a01 * (uint32_t)fx;
+            bot = a10 * (uint32_t)(16 - fx) + a11 * (uint32_t)fx;
+            scratch[y * g + x] = (uint16_t)((top * (uint32_t)(16 - fy) + bot * (uint32_t)fy + 128U) >> 8);
+        }
+    }
+    memcpy(plane, scratch, sizeof(uint16_t) * (size_t)NECKSIGHT_PIXELS);
+}
+
+void necksight_shift_state(necksight_state_t *st, int16_t dx_q4, int16_t dy_q4)
+{
+    if (st == NULL || !st->initialized || (dx_q4 == 0 && dy_q4 == 0)) {
+        return;
+    }
+    /* f_on is per-frame scratch, rewritten at the start of every step */
+    necksight_shift_plane(st->baseline_q8, st->f_on, dx_q4, dy_q4);
+    necksight_shift_plane(st->d_on, st->f_on, dx_q4, dy_q4);
+    necksight_shift_plane(st->d_off, st->f_on, dx_q4, dy_q4);
+}
+
+int16_t necksight_gyro_to_shift_q4(int32_t rate_mrad_s, uint16_t dt_ms, uint16_t focal_px_q4)
+{
+    int64_t num = (int64_t)rate_mrad_s * (int64_t)dt_ms * (int64_t)focal_px_q4;
+    int64_t q = (num >= 0) ? (num + 500000) / 1000000 : -((-num + 500000) / 1000000);
+    if (q > 32767) q = 32767;
+    if (q < -32767) q = -32767;
+    return (int16_t)q;
+}

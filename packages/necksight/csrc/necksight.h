@@ -123,6 +123,19 @@ void necksight_step_frame_u8(
 );
 
 /* Pure integer utilities exposed for embedded testing */
+/*
+ * Ego-motion derotation (call once per frame, BEFORE the step function).
+ * Shifts the photoreceptor baseline and T4/T5 delay lines by the image motion caused by
+ * camera rotation since the previous frame, in 1/16 grid pixels (Q4). With a gyro this keeps
+ * looming detection working while the platform yaws or pitches. Convention: dx_q4 > 0 when
+ * the scene moves right in the image (camera yawing left), dy_q4 > 0 when it moves down.
+ */
+void necksight_shift_state(necksight_state_t *st, int16_t dx_q4, int16_t dy_q4);
+
+/* Gyro rate (mrad/s) x frame period (ms) x focal length (Q4 grid px) -> image shift in Q4 px.
+ * For the 32-px grid, focal_px_q4 = 16 * 16 / tan(hfov / 2), e.g. 256 for a 90 deg lens. */
+int16_t necksight_gyro_to_shift_q4(int32_t rate_mrad_s, uint16_t dt_ms, uint16_t focal_px_q4);
+
 uint16_t necksight_ilog2_q8(uint32_t v);
 uint32_t necksight_isqrt_u32(uint32_t n);
 

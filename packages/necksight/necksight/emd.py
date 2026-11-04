@@ -122,6 +122,14 @@ class T4T5MotionEngine:
         self._d_on = None
         self._d_off = None
 
+    def shift_state(self, dx: float, dy: float) -> None:
+        """Shift the T4/T5 delay lines by ``(dx, dy)`` grid pixels (ego-motion derotation)."""
+        if self._d_on is not None and self._d_off is not None:
+            from .egomotion import shift_grid
+
+            self._d_on = shift_grid(self._d_on, dx, dy)
+            self._d_off = shift_grid(self._d_off, dx, dy)
+
     def _compute_cardinal_stride(
         self,
         prompt: np.ndarray,

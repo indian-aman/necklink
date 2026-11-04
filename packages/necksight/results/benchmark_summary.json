@@ -1,11 +1,12 @@
 {
-  "benchmark": "NeckSight v1.0.0 Optic Lobe Benchmark Suite",
+  "benchmark": "NeckSight v1.1.0 Optic Lobe Benchmark Suite",
   "grid_size": "64x64",
   "total_sequences": 60,
   "positive_looming_sequences": 24,
   "negative_non_looming_sequences": 36,
   "frames_per_sequence": 36,
   "frame_rate_hz": 60,
+  "dataset_note": "Synthetic sequences from build_benchmark_dataset(); not camera footage.",
   "detectors": {
     "necksight_lplc2": {
       "auroc": 0.9988,
@@ -14,7 +15,7 @@
       "far_at_95_tpr": 0.0,
       "far_yaw_glare_at_95_tpr": 0.0,
       "mean_lead_time_ms_at_95_tpr": 402.9,
-      "throughput_fps": 511.6,
+      "throughput_fps": 689.6,
       "state_kb": 48.0,
       "default_threshold": 0.045,
       "tpr_at_default_threshold": 1.0,
@@ -28,8 +29,18 @@
       "far_at_95_tpr": 0.5556,
       "far_yaw_glare_at_95_tpr": 0.5,
       "mean_lead_time_ms_at_95_tpr": 342.8,
-      "throughput_fps": 861.2,
+      "throughput_fps": 785.2,
       "state_kb": 48.0
+    },
+    "pyramidal_lk_compensated": {
+      "auroc": 0.875,
+      "auroc_looming_vs_yaw_glare": 0.8125,
+      "threshold_at_95_tpr": 2.09548,
+      "far_at_95_tpr": 0.4167,
+      "far_yaw_glare_at_95_tpr": 0.625,
+      "mean_lead_time_ms_at_95_tpr": 199.3,
+      "throughput_fps": 164.9,
+      "state_kb": 128.0
     },
     "lucas_kanade_div": {
       "auroc": 0.522,
@@ -38,7 +49,7 @@
       "far_at_95_tpr": 0.5556,
       "far_yaw_glare_at_95_tpr": 0.8333,
       "mean_lead_time_ms_at_95_tpr": 186.2,
-      "throughput_fps": 1154.1,
+      "throughput_fps": 1208.7,
       "state_kb": 96.0
     },
     "frame_diff_energy": {
@@ -48,9 +59,44 @@
       "far_at_95_tpr": 0.6667,
       "far_yaw_glare_at_95_tpr": 1.0,
       "mean_lead_time_ms_at_95_tpr": 215.2,
-      "throughput_fps": 62768.7,
+      "throughput_fps": 104504.0,
       "state_kb": 16.0
     }
+  },
+  "looming_during_yaw_oscillation": {
+    "peak_yaw_px_per_frame": {
+      "0.0": {
+        "detection_plain": 1.0,
+        "detection_gyro_derotated": 1.0,
+        "pan_only_false_alarm_plain": 0.0,
+        "pan_only_false_alarm_gyro_derotated": 0.0
+      },
+      "1.0": {
+        "detection_plain": 1.0,
+        "detection_gyro_derotated": 1.0,
+        "pan_only_false_alarm_plain": 0.0,
+        "pan_only_false_alarm_gyro_derotated": 0.0
+      },
+      "2.0": {
+        "detection_plain": 1.0,
+        "detection_gyro_derotated": 1.0,
+        "pan_only_false_alarm_plain": 0.0,
+        "pan_only_false_alarm_gyro_derotated": 0.0
+      },
+      "3.0": {
+        "detection_plain": 0.812,
+        "detection_gyro_derotated": 1.0,
+        "pan_only_false_alarm_plain": 0.0,
+        "pan_only_false_alarm_gyro_derotated": 0.0
+      },
+      "4.0": {
+        "detection_plain": 0.562,
+        "detection_gyro_derotated": 1.0,
+        "pan_only_false_alarm_plain": 0.0,
+        "pan_only_false_alarm_gyro_derotated": 0.0
+      }
+    },
+    "sequences_per_level": 16
   },
   "subpixel_odometry_honesty_check": {
     "speed_range_px_per_frame": [
@@ -64,8 +110,12 @@
     "grid": "32x32",
     "state_bytes": 14616,
     "state_kb": 14.27,
-    "throughput_fps": 12463,
+    "throughput_fps": 12932,
+    "throughput_note": "desktop x86-64, -O2; not measured on MCU hardware",
     "pan_false_triggers": 0,
-    "glare_20x_false_triggers": 0
+    "glare_20x_false_triggers": 0,
+    "yaw_loom_plain_triggered": 0,
+    "yaw_loom_gyro_derotated_triggered": 1,
+    "yaw_pan_derotated_false_triggers": 0
   }
 }
