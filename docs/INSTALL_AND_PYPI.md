@@ -1,17 +1,19 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-## 1. Python (`pip install` from GitHub)
+## 1. Python (`pip install pynltp`)
 
-Install the Python library (`import nltp` and `import necklink`) plus the `nltp` CLI command on any laptop or Linux server in one line:
+Install the Python library (`import nltp`, `import pynltp`, and `import necklink`) plus the `nltp` / `pynltp` CLI commands on any laptop or Linux server:
+
+```bash
+pip install pynltp
+```
+
+Or install directly from GitHub / the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
 
 ```bash
 pip install git+https://github.com/indian-aman/necklink.git
-```
-
-Or install the prebuilt wheel from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
-
-```bash
-pip install https://github.com/indian-aman/necklink/releases/download/v1.2.0/necklink-1.2.0-py3-none-any.whl
+# or prebuilt wheel:
+pip install https://github.com/indian-aman/necklink/releases/download/v1.2.0/pynltp-1.2.0-py3-none-any.whl
 ```
 
 Verify installation:

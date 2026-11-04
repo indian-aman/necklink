@@ -1,0 +1,20 @@
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include pynltp *.py
+recursive-include nltp *.py
+recursive-include necklink *.py
+prune arduino
+prune assets
+prune backup
+prune csrc
+prune deliverables
+prune docs
+prune esp32
+prune examples
+prune experiments
+prune java
+prune js
+prune results
+prune scripts
+prune tests

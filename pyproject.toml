@@ -3,23 +3,47 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "necklink"
+name = "pynltp"
 version = "1.2.0"
-description = "NLTP: loss-resilient file and telemetry transport over unreliable wireless and satellite links (Python + zero-heap ANSI C99)"
+description = "NLTP v1.2: loss-resilient ChaCha20-Poly1305 encrypted UDP file & telemetry transport with GF(2^8) Cauchy FEC and 4G CGNAT traversal"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
 authors = [
-  {name = "Amandeep Bains"}
+  {name = "Amandeep Singh Bains"}
 ]
-keywords = ["udp", "fec", "telemetry", "marine", "iot", "esp32", "nat-traversal", "chacha20-poly1305"]
+keywords = [
+  "nltp",
+  "pynltp",
+  "necklink",
+  "udp",
+  "fec",
+  "cauchy",
+  "galois-field",
+  "telemetry",
+  "marine",
+  "iot",
+  "esp32",
+  "stun",
+  "cgnat",
+  "nat-traversal",
+  "chacha20-poly1305",
+]
 classifiers = [
-  "Development Status :: 4 - Beta",
+  "Development Status :: 5 - Production/Stable",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
-  "License :: OSI Approved :: MIT License",
+  "Intended Audience :: Telecommunications Industry",
+  "Operating System :: OS Independent",
   "Programming Language :: C",
+  "Programming Language :: Java",
+  "Programming Language :: JavaScript",
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Internet",
   "Topic :: System :: Networking",
 ]
 dependencies = [
@@ -27,14 +51,22 @@ dependencies = [
   "cryptography>=41.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/indian-aman/necklink"
+Repository = "https://github.com/indian-aman/necklink"
+Releases = "https://github.com/indian-aman/necklink/releases"
+Issues = "https://github.com/indian-aman/necklink/issues"
+Documentation = "https://github.com/indian-aman/necklink#readme"
+
 [project.optional-dependencies]
 quic = ["aioquic>=1.0"]
 torch = ["torch>=2.0"]
 dev = ["pytest>=7.0", "aioquic>=1.0"]
 
 [project.scripts]
-necklink = "necklink.cli:main"
+pynltp = "necklink.cli:main"
 nltp = "necklink.cli:main"
+necklink = "necklink.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["necklink*", "nltp*"]
+include = ["pynltp*", "nltp*", "necklink*"]

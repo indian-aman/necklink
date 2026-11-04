@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="assets/nltp_v12_benchmarks.png" alt="NLTP v1.2 Multi-Protocol & ESP32 Hardware Benchmarks" width="100%">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/nltp_v12_benchmarks.png" alt="NLTP v1.2 Multi-Protocol & ESP32 Hardware Benchmarks" width="100%">
 </p>
 
 ---
@@ -51,11 +51,13 @@ flowchart LR
 
 ## ⚡ 30-Second Quick Start
 
-### 1. Python (`import nltp` + `nltp` CLI)
+### 1. Python (`pynltp` — `import nltp` / `import pynltp` + `nltp` CLI)
 
-Install directly from GitHub on Windows, Linux, or macOS:
+Install on Windows, Linux, or macOS via `pip`:
 
 ```bash
+pip install pynltp
+# Or directly from GitHub:
 pip install git+https://github.com/indian-aman/necklink.git
 ```
 
