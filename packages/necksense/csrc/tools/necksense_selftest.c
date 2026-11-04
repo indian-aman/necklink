@@ -1,5 +1,5 @@
 /*
- * NeckSense v1.0.0 - ANSI C99 Self-Test & Cross-Language Parity Emitter
+ * NeckSense v1.1.0 - ANSI C99 Self-Test & Cross-Language Parity Emitter
  *
  * Verifies:
  *   1. Deterministic zero-heap sparse binary hashing & exact top-k WTA sparsity
@@ -131,7 +131,7 @@ int main(int argc, char **argv) {
         return run_json_parity();
     }
 
-    printf("NeckSense v1.0.0 ANSI C99 Self-Test (Zero-Heap, Zero-Float Q16.16)\n");
+    printf("NeckSense v1.1.0 ANSI C99 Self-Test (Zero-Heap, Zero-Float Q16.16)\n");
     printf("Static footprints: antennal=%zu B, kenyon=%zu B, novelty=%zu B, valence=%zu B\n",
            sizeof(ns_antennal_t), sizeof(ns_kenyon_t), sizeof(ns_novelty_t), sizeof(ns_valence_t));
     printf("------------------------------------------------------------------\n");

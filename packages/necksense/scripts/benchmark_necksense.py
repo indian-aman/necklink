@@ -1,4 +1,4 @@
-"""Honest empirical benchmark & 3-panel chart generator for NeckSense v1.0.0.
+"""Honest empirical benchmark & 3-panel chart generator for NeckSense v1.1.0.
 
 Evaluates three tasks across 5 random seeds (zero sugarcoating):
   1. Nearest-Neighbor Retrieval (N=5,000, D=64):
@@ -34,6 +34,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from necksense import (
+    __version__,
     AntennalNormalizer,
     KenyonHasher,
     KenyonIndex,
@@ -260,7 +261,13 @@ def benchmark_task2_multigas_plumes(seeds: list[int]) -> dict[str, Any]:
         "full_0.1x_25x_with_drift",
     ]
     acc: dict[str, dict[str, list[float]]] = {
-        r: {"necksense": [], "necksense_1shot": [], "l2_knn": [], "zscore_centroid": []}
+        r: {
+            "necksense": [],
+            "necksense_1shot": [],
+            "baseline_corrected_l2_knn": [],
+            "l2_knn": [],
+            "zscore_centroid": [],
+        }
         for r in regimes
     }
 
@@ -339,6 +346,8 @@ def benchmark_task2_multigas_plumes(seeds: list[int]) -> dict[str, Any]:
             acc[r_name]["necksense"].append(c_ns / n_test_plumes)
             acc[r_name]["necksense_1shot"].append(c_ns1 / n_test_plumes)
             acc[r_name]["l2_knn"].append(c_l2 / n_test_plumes)
+            # No drift in these regimes: clean-air baseline is zero, so the corrected pipeline == L2 k-NN
+            acc[r_name]["baseline_corrected_l2_knn"].append(c_l2 / n_test_plumes)
             acc[r_name]["zscore_centroid"].append(c_zs / n_test_plumes)
 
         # Evaluate Regime 3 & 4: Continuous stream with slow thermal/humidity baseline drift
@@ -369,14 +378,18 @@ def benchmark_task2_multigas_plumes(seeds: list[int]) -> dict[str, Any]:
 
             # Initial clean-air warmup so tonic baseline locks onto ambient temperature
             ant_stream.calibrate(_drift_at(0))
+            # Classical e-nose baseline correction: EMA of the clean-air ticks, subtracted from
+            # each plume reading before normalisation (same information NeckSense receives).
+            amb_ema = _drift_at(0).copy()
 
-            c_ns, c_ns1, c_l2, c_zs = 0, 0, 0, 0
+            c_ns, c_ns1, c_l2, c_zs, c_bc = 0, 0, 0, 0, 0
             for ev in range(n_test_plumes):
                 # 15 clean-air ticks between transient plumes
                 for _ in range(15):
                     tick += 1
                     amb = _drift_at(tick) + rng.normal(0.0, 0.006, size=d_sensors)
                     ant_stream.step(amb)
+                    amb_ema += 0.3 * (amb - amb_ema)
 
                 tick += 1
                 c_true = ev % n_classes
@@ -393,9 +406,13 @@ def benchmark_task2_multigas_plumes(seeds: list[int]) -> dict[str, Any]:
                     c_l2 += 1
                 if p_zs == c_true:
                     c_zs += 1
+                p_bc, _ = _predict_baselines(np.maximum(0.0, raw_obs - amb_ema))
+                if p_bc == c_true:
+                    c_bc += 1
 
             acc[r_name]["necksense"].append(c_ns / n_test_plumes)
             acc[r_name]["necksense_1shot"].append(c_ns1 / n_test_plumes)
+            acc[r_name]["baseline_corrected_l2_knn"].append(c_bc / n_test_plumes)
             acc[r_name]["l2_knn"].append(c_l2 / n_test_plumes)
             acc[r_name]["zscore_centroid"].append(c_zs / n_test_plumes)
 
@@ -481,6 +498,31 @@ class _OnlineMahalanobisBaseline:
         return dist2
 
 
+class _L2KnnNoveltyBaseline:
+    """L2-normalise, then score = 1 - max cosine to a ring buffer of recent samples (float32)."""
+
+    def __init__(self, dim: int, memory: int) -> None:
+        self.buf = np.zeros((memory, dim), dtype=np.float32)
+        self.memory = memory
+        self.n = 0
+        self.i = 0
+
+    def update_and_score(self, x: np.ndarray) -> float:
+        v = (x / max(float(np.linalg.norm(x)), 1e-9)).astype(np.float32)
+        score = 1.0 if self.n == 0 else 1.0 - float(np.max(self.buf[: self.n] @ v))
+        self.buf[self.i] = v
+        self.i = (self.i + 1) % self.memory
+        self.n = min(self.n + 1, self.memory)
+        return score
+
+
+class _L2MahalanobisBaseline(_OnlineMahalanobisBaseline):
+    """Online Mahalanobis on L2-normalised inputs (removes the concentration swings)."""
+
+    def update_and_score(self, x: np.ndarray) -> float:
+        return super().update_and_score(x / max(float(np.linalg.norm(x)), 1e-9))
+
+
 def benchmark_task3_streaming_anomaly(seeds: list[int]) -> dict[str, Any]:
     """Task 3: Multi-regime streaming 1-shot anomaly detection (AUROC & us/sample)."""
     dim = 16
@@ -491,7 +533,15 @@ def benchmark_task3_streaming_anomaly(seeds: list[int]) -> dict[str, Any]:
 
     records: dict[str, dict[str, list[float]]] = {
         m: {"auroc": [], "us_per_sample": []}
-        for m in ("necksense_mbon", "online_halfspace", "online_mahalanobis", "rolling_zscore")
+        for m in (
+            "necksense_mbon",
+            "l2_knn_64",
+            "l2_knn_512",
+            "l2_mahalanobis",
+            "online_halfspace",
+            "online_mahalanobis",
+            "rolling_zscore",
+        )
     }
     ns_stream_us_list: list[float] = []
 
@@ -538,12 +588,15 @@ def benchmark_task3_streaming_anomaly(seeds: list[int]) -> dict[str, Any]:
                     stateful_antennal=False,
                     n_kc=1024,
                     d_proj=6,
-                    wta_frac=0.05,
                     lr=0.55,
                     tau_recover=12000.0,
                     seed=seed,
                 ),
             ),
+            # Same 4 KB of state as the MBON weights (64 x 16 float32)
+            ("l2_knn_64", _L2KnnNoveltyBaseline(dim, memory=64)),
+            ("l2_knn_512", _L2KnnNoveltyBaseline(dim, memory=512)),
+            ("l2_mahalanobis", _L2MahalanobisBaseline(dim, alpha=0.015)),
             ("online_halfspace", _OnlineHalfSpaceBaseline(dim, n_proj=32, seed=seed)),
             ("online_mahalanobis", _OnlineMahalanobisBaseline(dim, alpha=0.015)),
             ("rolling_zscore", _RollingZScoreBaseline(dim, alpha=0.03)),
@@ -560,9 +613,7 @@ def benchmark_task3_streaming_anomaly(seeds: list[int]) -> dict[str, Any]:
             records[name]["us_per_sample"].append(us_sample)
 
         # Also measure vectorized batch-encoded stream latency (`score_stream` after AntennalNormalizer)
-        det_fast = MushroomNoveltyDetector(
-            dim, n_kc=1024, d_proj=6, wta_frac=0.05, lr=0.55, seed=seed
-        )
+        det_fast = MushroomNoveltyDetector(dim, n_kc=1024, d_proj=6, lr=0.55, seed=seed)
         t0 = time.perf_counter()
         cond_all = ant_det.normalize(stream)
         _ = det_fast.score_stream(cond_all)
@@ -599,7 +650,7 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
     )
 
     fig, axes = plt.subplots(1, 3, figsize=(17.6, 5.5), dpi=220, facecolor="#FFFFFF")
-    fig.subplots_adjust(left=0.045, right=0.988, top=0.82, bottom=0.17, wspace=0.31)
+    fig.subplots_adjust(left=0.045, right=0.988, top=0.82, bottom=0.26, wspace=0.31)
 
     c_fly = "#0284C7"      # NeckLink / NeckSense cyan-blue
     c_fly_alt = "#0EA5E9"
@@ -640,7 +691,7 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
         f"FlyHash={t1_b1024['flyhash_recall10_mean']*100:.1f}% (0 float muls, 0 KB weight RAM)"
     )
     ax1.text(
-        0.03, 0.66, note_txt, transform=ax1.transAxes, fontsize=7.6, color=c_dark,
+        0.03, -0.30, note_txt, transform=ax1.transAxes, fontsize=7.6, color=c_dark,
         bbox=dict(boxstyle="round,pad=0.4", facecolor="#F8FAFC", edgecolor="#CBD5E1", lw=0.9),
     )
 
@@ -674,28 +725,24 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
         "Full 0.1x-25x\n(+ Drift)",
     ]
     x2 = np.arange(len(r_keys))
-    w2 = 0.26
+    w2 = 0.2
 
     ns_acc = [t2[rk]["necksense"]["mean"] * 100.0 for rk in r_keys]
+    bc_acc = [t2[rk]["baseline_corrected_l2_knn"]["mean"] * 100.0 for rk in r_keys]
     l2_acc = [t2[rk]["l2_knn"]["mean"] * 100.0 for rk in r_keys]
     zs_acc = [t2[rk]["zscore_centroid"]["mean"] * 100.0 for rk in r_keys]
 
-    b_ns = ax2.bar(x2 - w2, ns_acc, width=w2, color=c_fly, label="NeckSense (Antennal + MBON)")
-    b_l2 = ax2.bar(x2, l2_acc, width=w2, color=c_indigo, label="L2-Normalized k-NN")
-    b_zs = ax2.bar(x2 + w2, zs_acc, width=w2, color=c_slate, label="Raw Z-Score Centroid")
+    b_ns = ax2.bar(x2 - 1.5 * w2, ns_acc, width=w2, color=c_fly, label="NeckSense (Antennal + MBON)")
+    b_bc = ax2.bar(x2 - 0.5 * w2, bc_acc, width=w2, color="#059669", label="Baseline-corrected L2 k-NN")
+    b_l2 = ax2.bar(x2 + 0.5 * w2, l2_acc, width=w2, color=c_indigo, label="L2 k-NN (no drift correction)")
+    b_zs = ax2.bar(x2 + 1.5 * w2, zs_acc, width=w2, color=c_slate, label="Raw Z-Score Centroid")
 
-    for b in b_ns:
-        h = b.get_height()
-        ax2.text(b.get_x() + b.get_width() / 2, h + 1.2, f"{h:.0f}%", ha="center", va="bottom",
-                 fontsize=8.2, fontweight="bold", color=c_fly)
-    for b in b_l2:
-        h = b.get_height()
-        ax2.text(b.get_x() + b.get_width() / 2, h + 1.2, f"{h:.0f}%", ha="center", va="bottom",
-                 fontsize=7.8, color=c_indigo)
-    for b in b_zs:
-        h = b.get_height()
-        ax2.text(b.get_x() + b.get_width() / 2, h + 1.2, f"{h:.0f}%", ha="center", va="bottom",
-                 fontsize=7.8, color=c_dark)
+    # Annotate only the drift regimes (all methods are ~100% on the first two)
+    for bars, col in ((b_ns, c_fly), (b_bc, "#059669"), (b_l2, c_indigo), (b_zs, c_dark)):
+        for b in list(bars)[2:]:
+            h = b.get_height()
+            ax2.text(b.get_x() + b.get_width() / 2, h + 1.2, f"{h:.0f}", ha="center", va="bottom",
+                     fontsize=7.2, color=col)
 
     ax2.set_xticks(x2)
     ax2.set_xticklabels(r_labels, fontsize=8.6, color=c_text)
@@ -706,7 +753,7 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
     ax2.set_axisbelow(True)
     ax2.spines["top"].set_visible(False)
     ax2.spines["right"].set_visible(False)
-    ax2.legend(loc="lower left", fontsize=8.0, frameon=True, facecolor="#FFFFFF", edgecolor="#E2E8F0")
+    ax2.legend(loc="upper center", bbox_to_anchor=(0.5, -0.17), ncol=2, fontsize=7.6, frameon=False)
 
     # ------------------------------------------------------------------
     # Panel 3: Streaming 1-Shot Anomaly Detection (AUROC + Latency)
@@ -714,26 +761,38 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
     ax3 = axes[2]
     ax3.set_facecolor("#FFFFFF")
     t3 = summary["task3_streaming_anomaly"]["methods"]
-    m_order = ["rolling_zscore", "online_mahalanobis", "online_halfspace", "necksense_mbon"]
-    m_names = [
-        "Rolling Z-Score\n(Univariate EMA)",
-        "Online Mahalanobis\n(Woodbury Cov)",
-        "Online Half-Space\n(32 Projections)",
-        "NeckSense MBON-a'3\n(1-Shot Anti-Hebbian)",
+    m_order = [
+        "rolling_zscore",
+        "online_halfspace",
+        "online_mahalanobis",
+        "l2_mahalanobis",
+        "l2_knn_64",
+        "l2_knn_512",
+        "necksense_mbon",
     ]
-    m_colors = ["#94A3B8", c_slate, c_indigo, c_fly]
+    m_names = [
+        "Rolling Z-Score (raw)",
+        "Half-Space, 32 proj (raw)",
+        "Mahalanobis (raw)",
+        "L2 + Mahalanobis",
+        "L2 + kNN, 64 slots (4 KB)",
+        "L2 + kNN, 512 slots (32 KB)",
+        "NeckSense MBON (4 KB)",
+    ]
+    m_colors = ["#94A3B8", "#94A3B8", c_slate, c_indigo, "#059669", "#059669", c_fly]
     y3 = np.arange(len(m_order))
     aurocs = [t3[m]["auroc_mean"] for m in m_order]
     lats = [t3[m]["us_per_sample_mean"] for m in m_order]
 
-    bars3 = ax3.barh(y3, aurocs, height=0.52, color=m_colors)
+    bars3 = ax3.barh(y3, aurocs, height=0.6, color=m_colors)
     for idx_b, (b, au, lat) in enumerate(zip(bars3, aurocs, lats)):
-        fw = "bold" if idx_b == 3 else "normal"
-        col = c_fly if idx_b == 3 else c_dark
+        is_ns = m_order[idx_b] == "necksense_mbon"
+        fw = "bold" if is_ns else "normal"
+        col = c_fly if is_ns else c_dark
         extra = ""
-        if idx_b == 3:
+        if is_ns:
             vec_us = t3["necksense_mbon"].get("vectorized_stream_us_per_sample", lat)
-            extra = f" | {vec_us:.0f} us batch"
+            extra = ""
         ax3.text(
             au + 0.015,
             b.get_y() + b.get_height() / 2,
@@ -746,7 +805,7 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
         )
 
     ax3.set_yticks(y3)
-    ax3.set_yticklabels(m_names, fontsize=8.5, color=c_text)
+    ax3.set_yticklabels(m_names, fontsize=8.0, color=c_text)
     ax3.set_xticks([0.0, 0.2, 0.4, 0.6, 0.8, 1.0])
     ax3.set_xlabel("Streaming Anomaly Detection AUROC (Higher = Better)", fontsize=9.5, fontweight="bold", color=c_text)
     ax3.set_xlim(0.0, 1.44)
@@ -757,7 +816,7 @@ def render_hero_chart(summary: dict[str, Any], out_path: Path) -> None:
     ax3.spines["right"].set_visible(False)
 
     fig.suptitle(
-        "NeckSense v1.0.0 — Drosophila Antennal Lobe & Mushroom Body Empirical Benchmarks (5-Seed Mean)",
+        f"NeckSense v{__version__} — Drosophila Antennal Lobe & Mushroom Body Empirical Benchmarks (5-Seed Mean)",
         fontsize=13.2,
         fontweight="bold",
         color=c_text,
@@ -785,7 +844,7 @@ def main() -> int:
     elapsed_s = time.perf_counter() - t_start
     summary = {
         "package": "necksense",
-        "version": "1.0.0",
+        "version": __version__,
         "seeds": seeds,
         "benchmark_wall_seconds": round(elapsed_s, 2),
         "task1_retrieval": res_t1,

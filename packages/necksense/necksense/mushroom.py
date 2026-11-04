@@ -37,6 +37,11 @@ class MushroomNoveltyDetector:
     synaptic weight across those active KCs in `[0, 1]`, then depresses only
     the active synapses via `w_j <- w_j * (1 - lr)`. Optional slow recovery
     (`tau_recover`) relaxes habituated weights back toward `1.0` over time.
+
+    The default code is 2% sparse (about 20 of 1024 Kenyon cells), sparser than the 5% used
+    for classification and search: unrelated inputs then share fewer cells, so a novel
+    pattern is less likely to look half-familiar (streaming AUROC 0.961 -> 0.997 on held-out
+    seeds of the benchmark in ``scripts/benchmark_necksense.py``).
     """
 
     def __init__(
@@ -48,7 +53,7 @@ class MushroomNoveltyDetector:
         stateful_antennal: bool = False,
         n_kc: int = 1024,
         d_proj: int = 6,
-        wta_frac: float = 0.05,
+        wta_frac: float = 0.02,
         lr: float = 0.55,
         tau_recover: float | None = None,
         seed: int = 42,

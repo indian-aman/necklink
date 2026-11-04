@@ -1,4 +1,4 @@
-"""Comprehensive pytest suite for NeckSense (`necksense` v1.0.0)."""
+"""Comprehensive pytest suite for NeckSense (`necksense` v1.1.0)."""
 
 from __future__ import annotations
 
@@ -421,3 +421,36 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         c_out = json.loads(proc.stdout)
         assert c_out["tag1_hex"] == c99_golden["tag1_hex"]
         assert c_out["step1_q16"] == c99_golden["step1_q16"]
+
+
+def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> None:
+    """Regression for the 2% default: 20 recurring normal modes at 0.5x-5x scale plus novel
+    4-channel chords. At 5% sparsity this scored ~0.96 AUROC; 2% should exceed 0.98."""
+    from necksense.cli import _auroc_rank
+
+    rng = np.random.default_rng(123)
+    dim, n_modes = 16, 20
+    modes = np.zeros((n_modes, dim))
+    for m in range(n_modes):
+        modes[m, rng.choice(dim, size=4, replace=False)] = rng.uniform(0.6, 1.4, size=4)
+        modes[m] += rng.uniform(0.02, 0.12, size=dim)
+    det = MushroomNoveltyDetector(
+        dim, antennal=AntennalNormalizer(dim, sigma=0.01, tonic_alpha=0.0), n_kc=1024, lr=0.55, seed=1
+    )
+    assert det.hasher.k_winners == round(0.02 * 1024)
+    scores, labels = [], []
+    for t in range(2200):
+        if t >= 200 and rng.random() < 0.05:
+            x = rng.uniform(0.02, 0.10, size=dim)
+            x[rng.choice(dim, size=4, replace=False)] = rng.uniform(0.8, 1.5, size=4)
+            x *= float(np.exp(rng.uniform(np.log(0.6), np.log(4.0))))
+            label = 1
+        else:
+            scale = float(np.exp(rng.uniform(np.log(0.5), np.log(5.0))))
+            x = np.maximum(0.0, scale * modes[int(rng.integers(n_modes))] + rng.normal(0, 0.03 * scale, dim))
+            label = 0
+        s = det.update_and_score(x)
+        if t >= 200:
+            scores.append(s)
+            labels.append(label)
+    assert _auroc_rank(np.asarray(labels), np.asarray(scores)) > 0.98

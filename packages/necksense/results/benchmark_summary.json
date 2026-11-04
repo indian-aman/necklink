@@ -1,6 +1,6 @@
 {
   "package": "necksense",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "seeds": [
     42,
     43,
@@ -8,7 +8,7 @@
     45,
     46
   ],
-  "benchmark_wall_seconds": 38.2,
+  "benchmark_wall_seconds": 67.6,
   "task1_retrieval": {
     "n_database": 5000,
     "n_queries": 400,
@@ -21,12 +21,12 @@
         "flyhash_sparse_idx_bytes": 32,
         "flyhash_float_muls": 0,
         "simhash_float_muls": 1024,
-        "flyhash_recall10_mean": 0.1829,
-        "flyhash_recall10_std": 0.0053,
-        "simhash_recall10_mean": 0.0948,
-        "simhash_recall10_std": 0.0038,
-        "flyhash_query_us": 186.43,
-        "simhash_query_us": 72.93
+        "flyhash_recall10_mean": 0.1785,
+        "flyhash_recall10_std": 0.0058,
+        "simhash_recall10_mean": 0.0996,
+        "simhash_recall10_std": 0.0021,
+        "flyhash_query_us": 153.32,
+        "simhash_query_us": 67.06
       },
       "32": {
         "active_k": 32,
@@ -35,12 +35,12 @@
         "flyhash_sparse_idx_bytes": 64,
         "flyhash_float_muls": 0,
         "simhash_float_muls": 2048,
-        "flyhash_recall10_mean": 0.2341,
-        "flyhash_recall10_std": 0.0023,
-        "simhash_recall10_mean": 0.1348,
-        "simhash_recall10_std": 0.0046,
-        "flyhash_query_us": 280.26,
-        "simhash_query_us": 63.58
+        "flyhash_recall10_mean": 0.2321,
+        "flyhash_recall10_std": 0.003,
+        "simhash_recall10_mean": 0.1369,
+        "simhash_recall10_std": 0.0043,
+        "flyhash_query_us": 258.06,
+        "simhash_query_us": 79.9
       },
       "64": {
         "active_k": 64,
@@ -49,12 +49,12 @@
         "flyhash_sparse_idx_bytes": 128,
         "flyhash_float_muls": 0,
         "simhash_float_muls": 4096,
-        "flyhash_recall10_mean": 0.2961,
-        "flyhash_recall10_std": 0.0053,
-        "simhash_recall10_mean": 0.1681,
-        "simhash_recall10_std": 0.0046,
-        "flyhash_query_us": 493.99,
-        "simhash_query_us": 65.58
+        "flyhash_recall10_mean": 0.2993,
+        "flyhash_recall10_std": 0.0044,
+        "simhash_recall10_mean": 0.1668,
+        "simhash_recall10_std": 0.0048,
+        "flyhash_query_us": 489.33,
+        "simhash_query_us": 79.1
       },
       "128": {
         "active_k": 128,
@@ -63,12 +63,12 @@
         "flyhash_sparse_idx_bytes": 256,
         "flyhash_float_muls": 0,
         "simhash_float_muls": 8192,
-        "flyhash_recall10_mean": 0.3614,
-        "flyhash_recall10_std": 0.0025,
-        "simhash_recall10_mean": 0.2242,
-        "simhash_recall10_std": 0.0024,
-        "flyhash_query_us": 841.87,
-        "simhash_query_us": 77.16
+        "flyhash_recall10_mean": 0.3619,
+        "flyhash_recall10_std": 0.0035,
+        "simhash_recall10_mean": 0.2253,
+        "simhash_recall10_std": 0.0018,
+        "flyhash_query_us": 798.05,
+        "simhash_query_us": 103.79
       }
     },
     "equal_raw_bit_budget": {
@@ -80,14 +80,14 @@
         "flyhash_proj_ram_bytes": 0,
         "simhash_float_muls": 32768,
         "simhash_proj_ram_bytes": 131072,
-        "flyhash_recall10_mean": 0.2131,
-        "flyhash_recall10_std": 0.0023,
-        "simhash_recall10_mean": 0.4074,
-        "simhash_recall10_std": 0.0076,
-        "flyhash_query_us": 204.38,
-        "simhash_query_us": 221.46,
-        "flyhash_hash_us": 26.14,
-        "simhash_hash_us": 7.05
+        "flyhash_recall10_mean": 0.2167,
+        "flyhash_recall10_std": 0.0009,
+        "simhash_recall10_mean": 0.4064,
+        "simhash_recall10_std": 0.0073,
+        "flyhash_query_us": 221.1,
+        "simhash_query_us": 200.12,
+        "flyhash_hash_us": 23.65,
+        "simhash_hash_us": 5.86
       },
       "1024": {
         "m_bits": 1024,
@@ -97,14 +97,14 @@
         "flyhash_proj_ram_bytes": 0,
         "simhash_float_muls": 65536,
         "simhash_proj_ram_bytes": 262144,
-        "flyhash_recall10_mean": 0.2754,
-        "flyhash_recall10_std": 0.0075,
-        "simhash_recall10_mean": 0.5065,
-        "simhash_recall10_std": 0.0054,
-        "flyhash_query_us": 372.18,
-        "simhash_query_us": 375.96,
-        "flyhash_hash_us": 49.67,
-        "simhash_hash_us": 16.41
+        "flyhash_recall10_mean": 0.275,
+        "flyhash_recall10_std": 0.0052,
+        "simhash_recall10_mean": 0.5051,
+        "simhash_recall10_std": 0.005,
+        "flyhash_query_us": 387.81,
+        "simhash_query_us": 384.85,
+        "flyhash_hash_us": 45.08,
+        "simhash_hash_us": 8.76
       },
       "2048": {
         "m_bits": 2048,
@@ -114,14 +114,14 @@
         "flyhash_proj_ram_bytes": 0,
         "simhash_float_muls": 131072,
         "simhash_proj_ram_bytes": 524288,
-        "flyhash_recall10_mean": 0.3405,
-        "flyhash_recall10_std": 0.0065,
-        "simhash_recall10_mean": 0.5974,
-        "simhash_recall10_std": 0.0059,
-        "flyhash_query_us": 782.91,
-        "simhash_query_us": 677.61,
-        "flyhash_hash_us": 143.56,
-        "simhash_hash_us": 28.92
+        "flyhash_recall10_mean": 0.3402,
+        "flyhash_recall10_std": 0.0055,
+        "simhash_recall10_mean": 0.598,
+        "simhash_recall10_std": 0.0056,
+        "flyhash_query_us": 902.85,
+        "simhash_query_us": 648.64,
+        "flyhash_hash_us": 119.28,
+        "simhash_hash_us": 21.74
       }
     }
   },
@@ -137,6 +137,10 @@
           "std": 0.0
         },
         "necksense_1shot": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "baseline_corrected_l2_knn": {
           "mean": 1.0,
           "std": 0.0
         },
@@ -158,6 +162,10 @@
           "mean": 1.0,
           "std": 0.0
         },
+        "baseline_corrected_l2_knn": {
+          "mean": 1.0,
+          "std": 0.0
+        },
         "l2_knn": {
           "mean": 1.0,
           "std": 0.0
@@ -175,6 +183,10 @@
         "necksense_1shot": {
           "mean": 0.9947,
           "std": 0.0062
+        },
+        "baseline_corrected_l2_knn": {
+          "mean": 1.0,
+          "std": 0.0
         },
         "l2_knn": {
           "mean": 0.334,
@@ -194,6 +206,10 @@
           "mean": 0.9947,
           "std": 0.0045
         },
+        "baseline_corrected_l2_knn": {
+          "mean": 1.0,
+          "std": 0.0
+        },
         "l2_knn": {
           "mean": 0.7647,
           "std": 0.0412
@@ -211,29 +227,47 @@
     "eval_steps": 2500,
     "methods": {
       "necksense_mbon": {
-        "auroc_mean": 0.9658,
-        "auroc_std": 0.0048,
-        "us_per_sample_mean": 118.18,
-        "us_per_sample_std": 5.01,
-        "vectorized_stream_us_per_sample": 71.18
+        "auroc_mean": 0.9942,
+        "auroc_std": 0.0018,
+        "us_per_sample_mean": 107.31,
+        "us_per_sample_std": 5.44,
+        "vectorized_stream_us_per_sample": 83.05
+      },
+      "l2_knn_64": {
+        "auroc_mean": 0.9403,
+        "auroc_std": 0.0081,
+        "us_per_sample_mean": 10.43,
+        "us_per_sample_std": 0.54
+      },
+      "l2_knn_512": {
+        "auroc_mean": 0.9993,
+        "auroc_std": 0.0002,
+        "us_per_sample_mean": 11.34,
+        "us_per_sample_std": 1.67
+      },
+      "l2_mahalanobis": {
+        "auroc_mean": 0.9581,
+        "auroc_std": 0.0098,
+        "us_per_sample_mean": 20.52,
+        "us_per_sample_std": 3.49
       },
       "online_halfspace": {
         "auroc_mean": 0.5902,
         "auroc_std": 0.0346,
-        "us_per_sample_mean": 48.78,
-        "us_per_sample_std": 3.07
+        "us_per_sample_mean": 35.89,
+        "us_per_sample_std": 5.22
       },
       "online_mahalanobis": {
         "auroc_mean": 0.8453,
         "auroc_std": 0.0209,
-        "us_per_sample_mean": 19.74,
-        "us_per_sample_std": 2.23
+        "us_per_sample_mean": 17.74,
+        "us_per_sample_std": 1.6
       },
       "rolling_zscore": {
         "auroc_mean": 0.6349,
         "auroc_std": 0.04,
-        "us_per_sample_mean": 11.4,
-        "us_per_sample_std": 0.9
+        "us_per_sample_mean": 12.44,
+        "us_per_sample_std": 1.96
       }
     }
   }

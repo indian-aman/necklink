@@ -1,5 +1,5 @@
 /*
- * NeckSense v1.0.0 - Zero-Heap, Zero-Float ANSI C99 Implementation
+ * NeckSense v1.1.0 - Zero-Heap, Zero-Float ANSI C99 Implementation
  *
  * Copyright (c) 2026 Amandeep Singh Bains
  * SPDX-License-Identifier: MIT

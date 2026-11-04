@@ -113,7 +113,7 @@ def _cmd_demo(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2))
         return 0
 
-    print("NeckSense v1.0.0 - Drosophila Olfactory & Mushroom Body Circuit Demo")
+    print("NeckSense v1.1.0 - Drosophila Olfactory & Mushroom Body Circuit Demo")
     print("=" * 70)
     print(f"[1] Antennal Lobe (Olsen-Wilson LN): 100x plume cosine sim = {cos_100x:.6f}")
     print(
@@ -274,6 +274,10 @@ def _cmd_benchmark_quick(args: argparse.Namespace) -> int:
     print(
         f"3. Streaming 1-Shot Anomaly (D=32):       "
         f"NeckSense AUROC={auroc_nov:.3f} ({nov_us:.1f} us/sample)"
+    )
+    print(
+        "Note: 'Raw L2-kNN' has no drift correction. With baseline correction, or a normalised\n"
+        "nearest-neighbour memory, classical pipelines match NeckSense; see the README benchmarks."
     )
     return 0
 

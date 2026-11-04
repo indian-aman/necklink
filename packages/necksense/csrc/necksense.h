@@ -1,5 +1,5 @@
 /*
- * NeckSense v1.0.0 - Zero-Heap, Zero-Float ANSI C99 Olfactory & Mushroom Body Core
+ * NeckSense v1.1.0 - Zero-Heap, Zero-Float ANSI C99 Olfactory & Mushroom Body Core
  *
  * Fixed-point Q16.16 (`1.0 == 65536`) implementation of:
  *   1. Antennal Lobe dual-timescale drift adaptation + Olsen-Wilson LN normalization
