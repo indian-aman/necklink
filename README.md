@@ -1,5 +1,7 @@
 <div align="center">
 
+<a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
+
 # NeckSense (`necksense` v1.0.0)
 
 **Concentration-invariant sparse hashing, 1-shot novelty detection, and online associative classification inspired by the *Drosophila* Antennal Lobe & Mushroom Body — in Python (`NumPy`) and zero-heap, zero-float ANSI C99 (`ESP32` / Cortex-M).**
