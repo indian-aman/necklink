@@ -10,7 +10,7 @@
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcompass/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-7%2F7-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)
-[![Pytest](https://img.shields.io/badge/pytest-27%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
+[![Pytest](https://img.shields.io/badge/pytest-30%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
@@ -260,7 +260,7 @@ Python timings vary between runs; `results/benchmark_summary.json` records the l
 | [`neckcompass/cli.py`](neckcompass/cli.py) | `neckcompass demo`, `neckcompass benchmark-quick` |
 | [`csrc/`](csrc/) | C99 core (`neckcompass.h`, `neckcompass.c`), `Makefile`, 7 self-tests |
 | [`scripts/benchmark_neckcompass.py`](scripts/benchmark_neckcompass.py) | Reproducible benchmark (Python and C core) and chart generator |
-| [`tests/test_neckcompass.py`](tests/test_neckcompass.py) | 27 tests: wrap-around, spike rejection at 1.5–6° noise, re-anchoring, plasticity, homing, CLI, and C-vs-Python agreement |
+| [`tests/`](tests/) | 30 tests (including every README example): wrap-around, spike rejection at 1.5–6° noise, re-anchoring, plasticity, homing, CLI, and C-vs-Python agreement |
 
 ---
 

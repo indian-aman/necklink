@@ -9,7 +9,7 @@
 [![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7)](https://pypi.org/project/neckcord/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcord/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20322%20B-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-27%20Py%20%2B%2011%20C99-10B981?style=flat-square)](tests/test_neckcord.py)
+[![Tests](https://img.shields.io/badge/tests-31%20Py%20%2B%2011%20C99-10B981?style=flat-square)](tests/test_neckcord.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
@@ -239,7 +239,7 @@ At 100 Hz the frame is `400 B/s`. That is 6× smaller than sending four `float32
 | [`neckcord/cli.py`](neckcord/cli.py) | `neckcord demo`, `neckcord benchmark-quick` |
 | [`csrc/`](csrc/) | C99 core and 11 self-tests |
 | [`scripts/benchmark_neckcord.py`](scripts/benchmark_neckcord.py) | USV and hexapod benchmark, chart generator |
-| [`tests/test_neckcord.py`](tests/test_neckcord.py) | 27 tests, including the probe, the CRC escape rate and C source checks |
+| [`tests/`](tests/) | 31 tests, including every README example, the probe, the CRC escape rate and C source checks |
 
 ---
 

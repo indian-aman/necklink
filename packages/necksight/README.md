@@ -9,7 +9,7 @@
 [![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9)](https://pypi.org/project/necksight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksight/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-21%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)
+[![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
@@ -243,7 +243,7 @@ Correlation-type motion detectors mix speed with contrast and spatial frequency.
 | [`necksight/cli.py`](necksight/cli.py) | `necksight demo`, `necksight benchmark-quick` |
 | [`csrc/`](csrc/) | C99 core and self-test |
 | [`scripts/benchmark_necksight.py`](scripts/benchmark_necksight.py) | Benchmark and chart generator |
-| [`tests/test_necksight.py`](tests/test_necksight.py) | 21 tests, including derotation during yaw oscillation |
+| [`tests/`](tests/) | 24 tests, including every README example and derotation during yaw oscillation |
 
 ---
 

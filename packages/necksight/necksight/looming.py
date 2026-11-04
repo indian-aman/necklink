@@ -11,7 +11,7 @@ from .emd import MotionOutput, T4T5MotionEngine
 from .retina import RetinaLaminaPreproc
 
 
-@dataclass(slots=True)
+@dataclass
 class GiantFiberTrigger:
     """Output of the LPLC2 -> Giant Fiber (DNp01) collision escape reflex.
 
@@ -34,7 +34,7 @@ class GiantFiberTrigger:
     reflex_dispatched: bool = False
 
 
-@dataclass(slots=True)
+@dataclass
 class _ScaleArmBounds:
     radius: int
     ly0: np.ndarray

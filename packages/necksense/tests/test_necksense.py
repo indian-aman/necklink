@@ -163,7 +163,7 @@ def test_swar_popcount_matches_bit_counts() -> None:
     rng = np.random.default_rng(123)
     words = rng.integers(0, (1 << 63) - 1, size=(64, 16), dtype=np.uint64)
     counts = popcount_u64(words)
-    expected = np.vectorize(lambda v: int(v).bit_count())(words)
+    expected = np.vectorize(lambda v: bin(int(v)).count("1"))(words)  # int.bit_count needs 3.10
     assert np.array_equal(counts, expected)
 
 

@@ -8,7 +8,7 @@
 
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-15%20pytest%20%2B%205%20C99-10B981?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/tests-17%20pytest%20%2B%205%20C99-10B981?style=flat-square)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Install**](#install) ·
@@ -238,7 +238,7 @@ What this shows:
 | [`necksense/cli.py`](necksense/cli.py) | `necksense demo`, `benchmark-quick`, `hash-csv` |
 | [`csrc/`](csrc/) | C99 core, `Makefile`, 5 self-tests and the `--json-parity` emitter |
 | [`scripts/benchmark_necksense.py`](scripts/benchmark_necksense.py) | Reproducible benchmark and chart generator |
-| [`tests/test_necksense.py`](tests/test_necksense.py) | 15 tests, including a static zero-heap/zero-float audit of the C sources and Python ↔ C bit parity |
+| [`tests/`](tests/) | 17 tests, including every README example, a static zero-heap/zero-float audit of the C sources and Python ↔ C bit parity |
 
 ---
 

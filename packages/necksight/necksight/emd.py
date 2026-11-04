@@ -10,7 +10,7 @@ import numpy as np
 from .retina import LaminaOutput
 
 
-@dataclass(slots=True)
+@dataclass
 class MotionOutput:
     """Output of the T4/T5 Elementary Motion Detector and LPTC wide-field stage.
 

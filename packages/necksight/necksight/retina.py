@@ -8,7 +8,7 @@ from typing import Optional, Tuple, Union
 import numpy as np
 
 
-@dataclass(slots=True)
+@dataclass
 class LaminaOutput:
     """Output of the retina-lamina preprocessing stage for a single frame.
 

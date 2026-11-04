@@ -354,6 +354,9 @@ def build_parser() -> argparse.ArgumentParser:
         prog="necksense",
         description="NeckSense: Drosophila Antennal Lobe + Mushroom Body sparse hashing & 1-shot learning.",
     )
+    from . import __version__
+
+    parser.add_argument("--version", action="version", version=f"necksense {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_demo = sub.add_parser("demo", help="Run interactive 4-stage Drosophila circuit showcase")
