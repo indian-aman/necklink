@@ -39,30 +39,44 @@ NeckLink is the brand; each product translates one subsystem of the fruit-fly ne
 | Product | Fly circuit | What it does | Package |
 | :--- | :--- | :--- | :--- |
 | **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** | Cervical connective | Loss-healing telemetry, `GF(2^8)` Cauchy FEC file transport, `ChaCha20-Poly1305` encryption and 4G CGNAT traversal across Python, C99, JS/TS, Java and ESP32 (`210/210` cross-language links verified) | [`pynltp`](https://pypi.org/project/pynltp/) |
-| **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** | Central complex (`E-PG` / `CPU4`) | 16-wedge ring-attractor compass with `10.2×` lower heading error than a 2-state EKF under `70°–150°` magnetic hull spikes, and GPS-denied homing (`316 B` RAM in C99) | [`neckcompass`](https://pypi.org/project/neckcompass/) |
-| **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** | Optic lobe (`T4/T5` + `LPLC2`) | `100×` glare adaptation, motion detection and a four-quadrant looming E-stop (`0.9988` AUROC, `0.0%` false alarms under fast yaw and glare, `12,463 FPS` in C99) | [`necksight`](https://pypi.org/project/necksight/) |
-| **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** | Ventral nerve cord (`BANC` / `MANC`) | 4-byte descending motor command codec, self-healing six-limb CPG and a `42 ms` thruster fault reallocator (`5.1×` less USV spin-out, `304 B` RAM in C99) | [`neckcord`](https://pypi.org/project/neckcord/) |
-| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** | Antennal lobe & mushroom body | Concentration-invariant odour normalisation and a multiplication-free 5% FlyHash for `99.5%` one-shot plume ID and `0.966` anomaly AUROC (`Q16.16` C99) | [wheel v1.0.0](https://github.com/indian-aman/necksense/releases/tag/v1.0.0) |
+| **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** | Central complex (`E-PG` / `CPU4`) | Ring-attractor compass that rejects `70°–150°` magnetometer spikes as well as a 3σ-gated EKF (`0.44°` vs `0.41°` RMSE), re-anchors after a 90° heading upset where the gated EKF stays stuck, and homes without GNSS (`324 B` RAM in C99) | [`neckcompass`](https://pypi.org/project/neckcompass/) |
+| **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** | Optic lobe (`T4/T5` + `LPLC2`) | Glare-adapted motion detection and a four-quadrant looming reflex: `0.9988` AUROC on synthetic clutter vs `0.875` for compensated pyramidal Lucas-Kanade, gyro derotation so obstacles are still caught during fast turns, ~12,000 FPS at 32×32 in C99 (desktop) | [`necksight`](https://pypi.org/project/necksight/) |
+| **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** | Ventral nerve cord (`BANC` / `MANC`) | 4-byte motor command frame, self-healing six-leg gait generator, and a fault-tolerant thruster allocator that isolates a failed thruster in ~`42 ms` (on par with pseudo-inverse + threshold FDI) and can return it to service (`322 B` in C99) | [`neckcord`](https://pypi.org/project/neckcord/) |
+| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** | Antennal lobe & mushroom body | Concentration-invariant normalisation, multiplication-free FlyHash, one-shot novelty detection (`0.994` AUROC in 4 KB) and one-shot classification, with `Q16.16` C99 that is bit-identical to Python | not on PyPI yet: [install from this repo](https://github.com/indian-aman/necklink/tree/main/packages/necksense#install) |
 
-Each product's README has its full benchmarks, honest baseline comparisons and API.
+Each product's README has its full benchmarks, its API and a "when not to use it" section. Each benchmark compares against the strongest simple classical baseline we could build: a gated EKF, threshold FDI, baseline-corrected k-NN, or compensated pyramidal optical flow. Where that baseline ties or wins, the README says so.
+
+> [!IMPORTANT]
+> **v1.1.0 audit (November 2026).** An audit of the four non-NLTP products changed several headline claims and fixed real bugs:
+> - The 1.0.0 claims were measured against weak baselines: an EKF without outlier gating, an allocator without fault detection, classifiers without drift correction. They have been replaced with fair comparisons.
+> - Bugs fixed:
+>   - NeckCompass: re-anchoring never fired with real sensor noise, and self-calibration drifted.
+>   - NeckSight: missed up to half of obstacles during fast turns.
+>   - NeckSight: did not import on Python 3.9.
+> - Improvements: NeckCord recovery probing, and sparser NeckSense novelty codes.
+>
+> The PyPI releases are still 1.0.0. Until 1.1.0 is published, install from this repository (below) to get the fixes. Each package's changelog has the details.
 
 ---
 
 ## Install
 
-```bash
-# NLTP, NeckCompass, NeckSight and NeckCord from PyPI
-pip install pynltp neckcompass necksight neckcord
-
-# NeckSense from its v1.0.0 release wheel
-pip install https://github.com/indian-aman/necksense/releases/download/v1.0.0/necksense-1.0.0-py3-none-any.whl
-```
-
-Any product can also be installed straight from this repository:
+The fixes in v1.1.0 are in this repository but not yet on PyPI (PyPI has 1.0.0). Install from the repository:
 
 ```bash
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/neckcompass"
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksight"
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/neckcord"
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"
 ```
+
+NLTP is published on PyPI as `pynltp`:
+
+```bash
+pip install pynltp
+```
+
+Every package supports Python 3.9+ and depends only on NumPy. Each one's C99 core is two files (`csrc/<name>.h` and `.c`) that you copy into your firmware.
 
 ### Run all five together
 
@@ -109,10 +123,17 @@ Work inside the package you are changing:
 
 ```bash
 cd packages/neckcompass
-pip install -e .
-python -m pytest            # Python test suite
-make -C csrc all test       # Zero-heap C99 core and its self-tests
+pip install -e . pytest
+python -m pytest                     # unit tests, plus every README example
+make -C csrc clean all test          # zero-heap C99 core and its self-tests
+python scripts/benchmark_neckcompass.py   # regenerates results/ and the chart (needs matplotlib)
 ```
+
+CI ([`.github/workflows/packages-ci.yml`](https://github.com/indian-aman/necklink/blob/main/.github/workflows/packages-ci.yml)) runs the following on Python 3.9 and 3.13 for NeckCompass, NeckCord, NeckSense and NeckSight:
+- builds each package's wheel and installs it;
+- runs its CLI;
+- runs its tests, including the README examples;
+- builds the C core with `-Werror` and runs its self-tests.
 
 NLTP also has JavaScript (`packages/nltp/js`), Java (`packages/nltp/java`) and ESP32 (`packages/nltp/esp32`) SDKs; see [its README](https://github.com/indian-aman/necklink/tree/main/packages/nltp#readme).
 

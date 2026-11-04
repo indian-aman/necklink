@@ -149,15 +149,15 @@
     compass: {
       colorVar: "--compass",
       region: "Central complex · E-PG / CPU4 / PFL3",
-      tests: "19 Py + 6 C99 tests passed",
+      tests: "30 Py + 7 C99 tests passed",
       name: "NeckCompass",
       pkg: "neckcompass",
-      desc: "Topological 16-wedge ring-attractor AHRS and fan-shaped body path integrator. Asymmetric P-EN velocity shifters integrate gyro yaw rate with no ±180° wrap-around seam, while coincidence-gated R-neurons shunt 70°–150° steel-hull magnetic spikes before they corrupt gyro bias.",
-      ram: "316 B (Q15)",
-      speed: "0.83 µs / step",
-      gain: "10.2× spike rejection",
-      tradeoffLabel: "Where the baseline wins",
-      tradeoff: "Under pure textbook Gaussian noise with no ferromagnetic anomalies, a 2-state circular EKF edges out the 16-wedge ring (0.39° vs 0.43° RMSE). NeckCompass wins under intermittent hull and motor spikes (1.70° vs 17.42° RMSE) and on 1.12 km GPS-blackout homing (0.84 m miss).",
+      desc: "Topological 16-wedge ring-attractor compass and fan-shaped body path integrator. P-EN velocity shifters integrate gyro yaw rate with no ±180° seam; a noise-sized attractor basin shunts 70°–150° magnetic spikes, and a consistent off-basin cue re-anchors the compass after a real heading upset.",
+      ram: "324 B (Q15)",
+      speed: "~1 µs / step (desktop)",
+      gain: "0.44° RMSE under spikes",
+      tradeoffLabel: "Where the baseline ties or wins",
+      tradeoff: "A 3-sigma innovation-gated EKF is as accurate on spiky magnetometer data (0.41° vs 0.44° RMSE). NeckCompass wins after a 90° heading upset, where the gated EKF stays stuck (0.43° vs 31.9° RMSE), and its compass + homing core fits in 324 B of integer-only C.",
       code: `from neckcompass import RingCompass, FanBodyNavigator\n\ncompass = RingCompass(n_wedges=16)\nnav = FanBodyNavigator(n_columns=16, compass=compass)\n\nhdg, home_dist_m, home_brg = nav.step_with_compass(\n    omega_rad_s=0.12, speed_m_s=1.8, dt=0.02, mag_heading_rad=2.1\n)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
       pypi: "https://pypi.org/project/neckcompass/",
@@ -166,15 +166,15 @@
     sight: {
       colorVar: "--sight",
       region: "Optic lobe · R1–R6 / T4–T5 / LPLC2",
-      tests: "19 Py + 6 C99 tests passed",
+      tests: "24 Py + 7 C99 checks passed",
       name: "NeckSight",
       pkg: "necksight",
       desc: "Logarithmic R1–R6 photoreceptor glare cancellation, an ON/OFF lamina split, 3-arm Reichardt / Barlow-Levick motion detectors, and a four-quadrant LPLC2 radial looming gate that dispatches giant-fibre E-stop reflexes about 403 ms before collision.",
       ram: "14.27 KB (32×32)",
-      speed: "12,463 FPS (C99)",
-      gain: "0.9988 AUROC, 0% FAR",
+      speed: "~12,000 FPS (C99, desktop)",
+      gain: "0.9988 AUROC (synthetic)",
       tradeoffLabel: "Where the baseline wins",
-      tradeoff: "On slow 0.05–0.35 px/frame sub-pixel visual odometry, windowed Lucas-Kanade achieves 2.4× lower velocity MAE (0.055 vs 0.133 px/frame). NeckSight wins on pre-collision reflex gating under 100× sunlight glare steps and fast camera snap-pans (0.0% vs 55.6% false alarms).",
+      tradeoff: "On slow 0.05–0.35 px/frame sub-pixel visual odometry, Lucas-Kanade achieves 2.4× lower velocity MAE (0.055 vs 0.133 px/frame). NeckSight wins on looming detection under glare and fast pans (0% vs 42% false alarms for compensated pyramidal Lucas-Kanade). Feed it a gyro on fast-turning platforms.",
       code: `from necksight import NeckSightPipeline\n\noptic = NeckSightPipeline(grid_size=64, threshold=0.045)\ntrigger = optic.step(camera_frame_u8, dt=1/60)\nif trigger.triggered:\n    print(f"LOOM E-STOP! score={trigger.looming_score:.3f} focus={trigger.focus_xy}")`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
@@ -183,15 +183,15 @@
     cord: {
       colorVar: "--cord",
       region: "Ventral nerve cord · BANC / MANC",
-      tests: "22 Py + 10 C99 tests passed",
+      tests: "31 Py + 11 C99 tests passed",
       name: "NeckCord",
       pkg: "neckcord",
-      desc: "Compresses descending brain motor intent into a 4-byte CRC-4 frame (400 B/s at 100 Hz) that drives a self-healing six-limb Kuramoto CPG and an online presynaptic-shunting thruster wrench allocator, which isolates fouled propulsors in 42 ms.",
-      ram: "304 B (Q15/Q14)",
+      desc: "Compresses descending brain motor intent into a 4-byte frame (400 B/s at 100 Hz) that drives a self-healing six-limb Kuramoto CPG and a fault-tolerant thruster allocator, which isolates fouled propulsors in about 42 ms and can probe them back into service.",
+      ram: "322 B (Q15/Q14)",
       speed: "42 ms fault isolation",
-      gain: "5.1× less USV spin-out",
+      gain: "100% five-leg stability",
       tradeoffLabel: "Where they tie",
-      tradeoff: "When all thrusters are healthy, a static Moore-Penrose pseudo-inverse matches NeckCord within 1 mm RMS cross-track error (0.108 m vs 0.109 m). NeckCord wins the moment a thruster fouls or jams (0.02 N wasted drive vs 22.7 N; 100% five-leg centre-of-mass stability).",
+      tradeoff: "A pseudo-inverse with a simple threshold fault detector on the same thrust feedback performs the same (40 ms vs 42 ms isolation, 4.84° vs 4.77° peak yaw). NeckCord's value is a tested package: graded health, recovery probing and a zero-float C99 port.",
       code: `from neckcord import DescendingFrame, ShuntingThrusterCord, encode_descending_4b\n\nwire_4b = encode_descending_4b(DescendingFrame(drive_fwd=0.7, turn_yaw=-0.2))\nres = allocator.step(wire_4b, feedback_thrust=esc_thrust_n, dt=0.02)\nprint("Thruster commands (N):", res.commands, "Health:", res.health)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
@@ -200,19 +200,19 @@
     sense: {
       colorVar: "--sense",
       region: "Antennal lobe & mushroom body · KC / DAN / MBON",
-      tests: "14 Py + 5 C99 tests passed",
+      tests: "17 Py + 5 C99 tests passed",
       name: "NeckSense",
       pkg: "necksense",
       desc: "Dual-timescale ORN thermal-drift removal and Olsen-Wilson divisive normalisation feed a multiplication-free 5% winner-take-all Kenyon FlyHash, a popcount index, and one-shot anti-Hebbian MBON novelty and associative valence memory.",
       ram: "8.8 KB (M = 1024)",
-      speed: "23.0 µs / sample",
-      gain: "99.5% one-shot plume ID",
+      speed: "~25–30 µs / sample (C99, desktop)",
+      gain: "0.994 novelty AUROC (4 KB)",
       tradeoffLabel: "Where the baseline wins",
-      tradeoff: "At equal dense bit-word size (128 B = 1,024 bits) with 256 KB of FPU weight RAM, 50%-dense Gaussian SimHash packs more entropy than 5%-sparse FlyHash (50.6% vs 27.5% mAP). FlyHash wins by 1.6–1.9× at equal active spikes k, with no float multiplications.",
+      tradeoff: "At equal tag size SimHash beats FlyHash on recall (50.5% vs 27.5%), and a baseline-corrected k-NN matches NeckSense on drifting gas plumes (100% vs 99.5%). NeckSense wins on one-shot novelty at equal 4 KB memory (0.994 vs 0.940 AUROC) with no weights and no float multiplications.",
       code: `from necksense import MushroomNoveltyDetector\n\ndet = MushroomNoveltyDetector(n_inputs=8, stateful_antennal=True, n_kc=1024)\nnovelty = det.update_and_score(enose_8ch_reading)\nif novelty > 0.75:\n    print(f"1-shot chemical plume anomaly detected: {novelty:.3f}")`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
-      pypi: "https://github.com/indian-aman/necksense/releases/tag/v1.0.0",
-      pypiLabel: "Wheel v1.0.0 on GitHub"
+      pypi: "https://github.com/indian-aman/necklink/tree/main/packages/necksense#install",
+      pypiLabel: "Install from repo"
     },
     nltp: {
       colorVar: "--nltp",
@@ -292,22 +292,22 @@
     compass: {
       src: RAW + "necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
       alt: "NeckCompass benchmark charts",
-      caption: "Ring attractor against a 2-state circular EKF and a complementary IMU+mag filter: clean Gaussian noise, 70°–150° magnetic spikes, and a 600 s GPS-blackout survey with homebound return (5 seeds at 50 Hz)."
+      caption: "Ring attractor against a 3-sigma gated EKF, an ungated EKF and a complementary IMU+mag filter: clean Gaussian noise, 70°–150° magnetic spikes, recovery from a 90° heading upset, and a 600 s GPS-blackout survey with homebound return (5 seeds at 50 Hz).",
     },
     sight: {
       src: RAW + "necklink/main/packages/necksight/assets/necksight_benchmarks.png", w: 3564, h: 1232,
       alt: "NeckSight benchmark charts",
-      caption: "Looming reflex on 60 cluttered 64×64 sequences (24 looming obstacles against 36 fast yaw pans, 100× glare steps and cross-traffic): selectivity, giant-fibre trigger timing, and C99 speed and RAM."
+      caption: "Looming reflex on 60 synthetic cluttered 64×64 sequences (24 looming obstacles against 36 fast yaw pans, 100× glare steps and cross-traffic): selectivity, giant-fibre trigger timing, and C99 speed and RAM."
     },
     cord: {
       src: RAW + "necklink/main/packages/neckcord/assets/neckcord_benchmarks.png", w: 3850, h: 1276,
       alt: "NeckCord benchmark charts",
-      caption: "A 3-DOF X-vectored four-thruster USV over 10 irregular wave seeds, plus a six-limb hexapod: waypoint corridor, spin-out and fault isolation, and single-leg jam stability."
+      caption: "A 3-DOF X-vectored four-thruster USV over 10 irregular wave seeds (vs pseudo-inverse with and without fault detection), plus a six-limb hexapod: waypoint corridor, spin-out and fault isolation, and single-leg jam stability."
     },
     sense: {
       src: RAW + "necklink/main/packages/necksense/assets/necksense_benchmarks.png", w: 3872, h: 1210,
       alt: "NeckSense benchmark charts",
-      caption: "Five-seed means: retrieval at equal active spikes against dense Gaussian SimHash, an 8-sensor e-nose under 250× plume swings and drift, and a 20-mode one-shot anomaly stream."
+      caption: "Five-seed means: retrieval against dense Gaussian SimHash, an 8-sensor e-nose under 250× plume swings and drift (vs baseline-corrected k-NN), and a 20-mode one-shot anomaly stream (vs normalised nearest-neighbour memories)."
     },
     nltp: {
       src: RAW + "necklink/main/assets/nltp_v12_benchmarks.png", w: 2992, h: 1188,
@@ -415,7 +415,7 @@
       const mode = btn.getAttribute("data-sim");
       if (mode === "spike") {
         spikeTicks = 55;
-        setStatus("+120° hull magnetic spike. EKF bias corrupted (about 42° error); the NeckCompass ring shunts the spike (under 1.8°).", "--compass");
+        setStatus("+120° hull magnetic spike. An EKF without outlier gating is dragged off (about 42° error); the NeckCompass ring ignores the spike (under 1.8°), as does a properly gated EKF.", "--compass");
       } else if (mode === "glare") {
         glareTicks = 50;
         setStatus("100× sunlight glare step. R1–R6 log photoreceptor adaptation cancels the global flash (0.0% false alarms).", "--sight");
@@ -424,7 +424,7 @@
         setStatus("Head-on obstacle approaching. The LPLC2 four-quadrant radial gate is tracking the expansion.", "--sight");
       } else if (mode === "foul") {
         fouledT2 = true;
-        setStatus("Port-aft thruster T2 fouled (−90%). NeckCord isolates T2 in 42 ms (0.02 N) and rebalances T1, T3 and T4.", "--cord");
+        setStatus("Port-aft thruster fouled (−90%). NeckCord isolates it in about 42 ms (0.02 N) and rebalances surge onto the surviving thrusters with no yaw.", "--cord");
       } else {
         ringErr = ekfErr = ekfBias = 0;
         spikeTicks = glareTicks = estopFlash = 0;
@@ -500,7 +500,7 @@
     ctx.fillStyle = C.ring;
     ctx.fillText("NeckCompass " + Math.abs(ringErr).toFixed(1) + "°", gx, p.y + p.h - 18);
     ctx.fillStyle = C.ekf;
-    ctx.fillText("2-state EKF " + Math.abs(ekfErr).toFixed(1) + "°", gx + Math.min(190, gw * 0.52), p.y + p.h - 18);
+    ctx.fillText("EKF (ungated) " + Math.abs(ekfErr).toFixed(1) + "°", gx + Math.min(190, gw * 0.52), p.y + p.h - 18);
   }
 
   function drawOptic(p) {

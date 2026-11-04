@@ -163,24 +163,24 @@
       <section class="container" aria-label="Headline results">
         <dl class="metrics">
           <div class="metric" style="--c: var(--compass)">
-            <dt>Magnetic-spike heading error</dt>
-            <dd><span class="metric-val">10.2×</span> lower</dd>
-            <dd class="metric-sub">NeckCompass vs 2-state EKF</dd>
+            <dt>Compass heading error under 70°–150° spikes</dt>
+            <dd><span class="metric-val">0.44</span>° RMSE</dd>
+            <dd class="metric-sub">NeckCompass, on par with a gated EKF</dd>
           </div>
           <div class="metric" style="--c: var(--sight)">
-            <dt>Looming vision, zero-float C99</dt>
-            <dd><span class="metric-val">12,463</span> FPS</dd>
-            <dd class="metric-sub">NeckSight, 0% glare false alarms</dd>
+            <dt>Looming detection AUROC</dt>
+            <dd><span class="metric-val">0.999</span></dd>
+            <dd class="metric-sub">NeckSight, synthetic clutter, ~12k FPS in C99</dd>
           </div>
           <div class="metric" style="--c: var(--cord)">
             <dt>Fouled-thruster isolation</dt>
             <dd><span class="metric-val">42</span> ms</dd>
-            <dd class="metric-sub">NeckCord, 4-byte wire frame</dd>
+            <dd class="metric-sub">NeckCord, with recovery probing</dd>
           </div>
           <div class="metric" style="--c: var(--sense)">
-            <dt>One-shot plume ID</dt>
-            <dd><span class="metric-val">99.5</span>%</dd>
-            <dd class="metric-sub">NeckSense, 250× concentration swings</dd>
+            <dt>One-shot novelty AUROC in 4 KB</dt>
+            <dd><span class="metric-val">0.994</span></dd>
+            <dd class="metric-sub">NeckSense, integer-only C99</dd>
           </div>
           <div class="metric" style="--c: var(--nltp)">
             <dt>Encrypted interop links</dt>
@@ -227,10 +227,10 @@
               <span class="module-region">Central complex</span>
             </div>
             <h3>NeckCompass <code>neckcompass</code></h3>
-            <p>A 16-wedge E-PG ring-attractor AHRS and CPU4 GPS-denied path integrator that rejects 70°–150° steel-hull magnetic spikes in 316 bytes of C99 RAM.</p>
+            <p>A 16-wedge E-PG ring-attractor compass and CPU4 GPS-denied path integrator. It rejects 70°–150° magnetic spikes as well as a gated EKF, and re-anchors after heading upsets where the EKF stays stuck, in 324 bytes of C99 RAM.</p>
             <ul class="module-stats">
-              <li><strong>10.2×</strong> better spike rejection than EKF</li>
-              <li><strong>0.83 µs</strong> per step</li>
+              <li><strong>0.44°</strong> RMSE under spikes</li>
+              <li><strong>~1 µs</strong> per step (desktop)</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="compass">Details</a>
@@ -247,9 +247,9 @@
               <span class="module-region">Optic lobe</span>
             </div>
             <h3>NeckSight <code>necksight</code></h3>
-            <p>R1–R6 100× glare adaptation, 3-arm T4/T5 motion detectors and an LPLC2 four-quadrant looming E-stop with 0.9988 AUROC and 0.0% yaw or glare false alarms.</p>
+            <p>R1–R6 glare adaptation, T4/T5 motion detectors and an LPLC2 four-quadrant looming E-stop (0.9988 AUROC on synthetic clutter), with gyro derotation so obstacles are still caught during fast turns.</p>
             <ul class="module-stats">
-              <li><strong>12,463 FPS</strong> in C99</li>
+              <li><strong>~12,000 FPS</strong> in C99 (desktop)</li>
               <li><strong>14.27 KB</strong> at 32×32</li>
             </ul>
             <div class="module-links">
@@ -267,10 +267,10 @@
               <span class="module-region">Ventral nerve cord</span>
             </div>
             <h3>NeckCord <code>neckcord</code></h3>
-            <p>A 4-byte CRC-4 descending motor bottleneck (400 B/s at 100 Hz), a self-healing six-limb hexapod CPG and a presynaptic-shunting USV thruster fault reallocator.</p>
+            <p>A 4-byte descending motor command frame (400 B/s at 100 Hz), a self-healing six-limb hexapod CPG and a fault-tolerant thruster allocator that isolates failed thrusters and can return them to service.</p>
             <ul class="module-stats">
               <li><strong>42 ms</strong> fault isolation</li>
-              <li><strong>5.1×</strong> less USV spin-out</li>
+              <li><strong>322 B</strong> of C99 state</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="cord">Details</a>
@@ -287,15 +287,15 @@
               <span class="module-region">Antennal lobe &amp; mushroom body</span>
             </div>
             <h3>NeckSense <code>necksense</code></h3>
-            <p>Olsen-Wilson 100× concentration-invariant normalisation feeding a multiplication-free 5% winner-take-all FlyHash, for multi-gas plume ID under drift and one-shot anomaly detection.</p>
+            <p>Olsen-Wilson concentration-invariant normalisation feeding a multiplication-free winner-take-all FlyHash, for one-shot classification and one-shot anomaly detection on integer-only MCUs.</p>
             <ul class="module-stats">
-              <li><strong>99.5%</strong> one-shot plume ID</li>
-              <li><strong>0.966</strong> anomaly AUROC</li>
+              <li><strong>0.994</strong> anomaly AUROC (4 KB)</li>
+              <li><strong>Bit-identical</strong> Python ↔ C99</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="sense">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksense" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://github.com/indian-aman/necksense/releases/tag/v1.0.0" target="_blank" rel="noopener" class="text-link">Release v1.0.0</a>
+              <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksense#install" target="_blank" rel="noopener" class="text-link">Install</a>
             </div>
           </article>
 
