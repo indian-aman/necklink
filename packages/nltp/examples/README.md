@@ -2,7 +2,7 @@
 
 ## 1. Python Examples (`examples/python/`)
 
-Install from the repository root (or directly from GitHub via `pip install git+https://github.com/indian-aman/necklink.git`):
+Install from the repository root (or directly from GitHub via `pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"`):
 
 ```bash
 pip install -e .

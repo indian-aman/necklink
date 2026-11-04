@@ -11,9 +11,9 @@
 [![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksense&color=0284C7)](https://pypi.org/project/necksense/)
 [![Release](https://img.shields.io/badge/release-v1.0.0-0EA5E9?style=flat-square)](https://github.com/indian-aman/necksense/releases/tag/v1.0.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksense/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](https://github.com/indian-aman/necksense/tree/main/csrc)
-[![Tests](https://img.shields.io/badge/tests-14%2F14%20pytest%20%2B%205%2F5%20C99-10B981?style=flat-square)](https://github.com/indian-aman/necksense/tree/main/tests)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](https://github.com/indian-aman/necksense/blob/main/LICENSE)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense/csrc)
+[![Tests](https://img.shields.io/badge/tests-14%2F14%20pytest%20%2B%205%2F5%20C99-10B981?style=flat-square)](https://github.com/indian-aman/necklink/tree/main/packages/necksense/tests)
+[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](https://github.com/indian-aman/necklink/blob/main/packages/necksense/LICENSE)
 
 [**30-Second Quick Start**](#-30-second-quick-start) ·
 [**CLI Usage**](#2-command-line-interface-necksense) ·
@@ -24,7 +24,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/indian-aman/necksense/main/assets/necksense_benchmarks.png" alt="NeckSense v1.0.0 Empirical Benchmarks" width="100%">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/necksense/assets/necksense_benchmarks.png" alt="NeckSense v1.0.0 Empirical Benchmarks" width="100%">
 </p>
 
 ---
@@ -64,7 +64,7 @@ Raw Sensor Stream x(t)
 ```bash
 pip install necksense
 # Or from source:
-pip install git+https://github.com/indian-aman/necksense.git
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"
 ```
 
 Condition drifting sensor streams, index sparse `128 B` binary tags, detect 1-shot anomalies, and classify `20x`-scaled plumes in 20 lines:
@@ -123,7 +123,7 @@ necksense hash-csv sensors.csv --id-col 0 --n-kc 1024 --antennal-normalize -o ta
 
 ### 3. Zero-Heap, Zero-Float ANSI C99 Core (`csrc/`)
 
-[`csrc/necksense.h`](https://github.com/indian-aman/necksense/blob/main/csrc/necksense.h) and [`csrc/necksense.c`](https://github.com/indian-aman/necksense/blob/main/csrc/necksense.c) use pure `int32_t` / `uint32_t` / `uint64_t` (`Q16.16` fixed-point, `1.0 == 65536`) with **zero `malloc`** and **zero `float`/`double`**, compiling cleanly under `-O2 -std=c99 -Wall -Wextra -pedantic -Werror`:
+[`csrc/necksense.h`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/csrc/necksense.h) and [`csrc/necksense.c`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/csrc/necksense.c) use pure `int32_t` / `uint32_t` / `uint64_t` (`Q16.16` fixed-point, `1.0 == 65536`) with **zero `malloc`** and **zero `float`/`double`**, compiling cleanly under `-O2 -std=c99 -Wall -Wextra -pedantic -Werror`:
 
 ```bash
 make -C csrc clean all test
@@ -247,17 +247,17 @@ Evaluated across `300` test plumes per seed spanning `250x` dynamic concentratio
 
 | Path | Description |
 | :--- | :--- |
-| [`necksense/antennal.py`](https://github.com/indian-aman/necksense/blob/main/necksense/antennal.py) | `AntennalNormalizer` (dual-timescale drift adaptation + Olsen-Wilson `LN` divisive gain + `Q16.16` parity) |
-| [`necksense/kenyon.py`](https://github.com/indian-aman/necksense/blob/main/necksense/kenyon.py) | `KenyonHasher` (zero-multiply `d_proj=6` sparse projection + `APL` WTA) & `KenyonIndex` (Popcount search + `.npz` I/O) |
-| [`necksense/mushroom.py`](https://github.com/indian-aman/necksense/blob/main/necksense/mushroom.py) | `MushroomNoveltyDetector` (`MBON-alpha'3`) & `MushroomValenceClassifier` (`DAN -> KC -> MBON`) |
-| [`necksense/cli.py`](https://github.com/indian-aman/necksense/blob/main/necksense/cli.py) | `necksense` CLI (`demo`, `benchmark-quick`, `hash-csv`) |
-| [`csrc/`](https://github.com/indian-aman/necksense/tree/main/csrc) | Zero-heap, zero-float `Q16.16` ANSI C99 library (`necksense.h`, `necksense.c`), `Makefile`, and `5/5` self-test |
-| [`scripts/benchmark_necksense.py`](https://github.com/indian-aman/necksense/blob/main/scripts/benchmark_necksense.py) | Reproducible 5-seed benchmark suite & 3-panel hero chart generator |
-| [`results/benchmark_summary.json`](https://github.com/indian-aman/necksense/blob/main/results/benchmark_summary.json) | Complete empirical metrics across all 3 benchmark tasks |
-| [`tests/test_necksense.py`](https://github.com/indian-aman/necksense/blob/main/tests/test_necksense.py) | `14`-test `pytest` suite including static C99 zero-heap/float audit and live C99↔Python bit-parity |
+| [`necksense/antennal.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/necksense/antennal.py) | `AntennalNormalizer` (dual-timescale drift adaptation + Olsen-Wilson `LN` divisive gain + `Q16.16` parity) |
+| [`necksense/kenyon.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/necksense/kenyon.py) | `KenyonHasher` (zero-multiply `d_proj=6` sparse projection + `APL` WTA) & `KenyonIndex` (Popcount search + `.npz` I/O) |
+| [`necksense/mushroom.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/necksense/mushroom.py) | `MushroomNoveltyDetector` (`MBON-alpha'3`) & `MushroomValenceClassifier` (`DAN -> KC -> MBON`) |
+| [`necksense/cli.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/necksense/cli.py) | `necksense` CLI (`demo`, `benchmark-quick`, `hash-csv`) |
+| [`csrc/`](https://github.com/indian-aman/necklink/tree/main/packages/necksense/csrc) | Zero-heap, zero-float `Q16.16` ANSI C99 library (`necksense.h`, `necksense.c`), `Makefile`, and `5/5` self-test |
+| [`scripts/benchmark_necksense.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/scripts/benchmark_necksense.py) | Reproducible 5-seed benchmark suite & 3-panel hero chart generator |
+| [`results/benchmark_summary.json`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/results/benchmark_summary.json) | Complete empirical metrics across all 3 benchmark tasks |
+| [`tests/test_necksense.py`](https://github.com/indian-aman/necklink/blob/main/packages/necksense/tests/test_necksense.py) | `14`-test `pytest` suite including static C99 zero-heap/float audit and live C99↔Python bit-parity |
 
 ---
 
 ## License
 
-Released under the [MIT License](https://github.com/indian-aman/necksense/blob/main/LICENSE). Copyright (c) 2026 Amandeep Singh Bains.
+Released under the [MIT License](https://github.com/indian-aman/necklink/blob/main/packages/necksense/LICENSE). Copyright (c) 2026 Amandeep Singh Bains.

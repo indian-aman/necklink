@@ -50,11 +50,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/indian-aman/neckcord"
-Repository = "https://github.com/indian-aman/neckcord"
+Homepage = "https://github.com/indian-aman/necklink/tree/main/packages/neckcord"
+Repository = "https://github.com/indian-aman/necklink/tree/main/packages/neckcord"
 Releases = "https://github.com/indian-aman/neckcord/releases"
-Issues = "https://github.com/indian-aman/neckcord/issues"
-Documentation = "https://github.com/indian-aman/neckcord#readme"
+Issues = "https://github.com/indian-aman/necklink/issues"
+Documentation = "https://github.com/indian-aman/necklink/tree/main/packages/neckcord#readme"
 
 [project.optional-dependencies]
 nltp = ["pynltp>=1.2.0"]

@@ -49,11 +49,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/indian-aman/neckcompass"
-Repository = "https://github.com/indian-aman/neckcompass"
+Homepage = "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass"
+Repository = "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass"
 Releases = "https://github.com/indian-aman/neckcompass/releases"
-Issues = "https://github.com/indian-aman/neckcompass/issues"
-Documentation = "https://github.com/indian-aman/neckcompass#readme"
+Issues = "https://github.com/indian-aman/necklink/issues"
+Documentation = "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass#readme"
 
 [project.optional-dependencies]
 dev = ["pytest>=7.0", "matplotlib>=3.7", "build>=1.0", "twine>=5.0"]

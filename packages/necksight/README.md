@@ -24,7 +24,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/indian-aman/necksight/main/assets/necksight_benchmarks.png" alt="NeckSight v1.0.0 Drosophila Optic Lobe Looming Reflex Benchmarks" width="100%">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/necksight/assets/necksight_benchmarks.png" alt="NeckSight v1.0.0 Drosophila Optic Lobe Looming Reflex Benchmarks" width="100%">
 </p>
 
 ---

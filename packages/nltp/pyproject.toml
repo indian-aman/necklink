@@ -56,7 +56,7 @@ Homepage = "https://github.com/indian-aman/necklink"
 Repository = "https://github.com/indian-aman/necklink"
 Releases = "https://github.com/indian-aman/necklink/releases"
 Issues = "https://github.com/indian-aman/necklink/issues"
-Documentation = "https://github.com/indian-aman/necklink#readme"
+Documentation = "https://github.com/indian-aman/necklink/tree/main/packages/nltp#readme"
 
 [project.optional-dependencies]
 suite = [

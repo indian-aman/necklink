@@ -25,7 +25,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/indian-aman/neckcord/main/assets/neckcord_benchmarks.png" alt="NeckCord v1.0.0 USV Thruster Fault Reallocation and Hexapod Leg-Loss Benchmarks" width="100%">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcord/assets/neckcord_benchmarks.png" alt="NeckCord v1.0.0 USV Thruster Fault Reallocation and Hexapod Leg-Loss Benchmarks" width="100%">
 </p>
 
 ---

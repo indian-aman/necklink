@@ -23,7 +23,7 @@
 </div>
 
 <p align="center">
-  <img src="https://raw.githubusercontent.com/indian-aman/neckcompass/main/assets/neckcompass_benchmarks.png" alt="NeckCompass v1.0.0 Ring Attractor & Path Integrator Benchmarks" width="100%">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png" alt="NeckCompass v1.0.0 Ring Attractor & Path Integrator Benchmarks" width="100%">
 </p>
 
 ---
@@ -62,7 +62,7 @@ flowchart LR
 ```bash
 pip install neckcompass
 # Or directly from source:
-pip install git+https://github.com/indian-aman/neckcompass.git
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/neckcompass"
 ```
 
 Fuse a biased IMU gyro with a spiky magnetometer and steer home through a complete GPS blackout in 14 lines:

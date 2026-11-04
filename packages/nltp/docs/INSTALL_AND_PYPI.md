@@ -11,7 +11,7 @@ pip install pynltp
 Or install directly from GitHub / the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
 
 ```bash
-pip install git+https://github.com/indian-aman/necklink.git
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
 # or prebuilt wheel:
 pip install https://github.com/indian-aman/necklink/releases/download/v1.2.0/pynltp-1.2.0-py3-none-any.whl
 ```

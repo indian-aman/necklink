@@ -50,11 +50,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/indian-aman/necksense"
-Repository = "https://github.com/indian-aman/necksense"
+Homepage = "https://github.com/indian-aman/necklink/tree/main/packages/necksense"
+Repository = "https://github.com/indian-aman/necklink/tree/main/packages/necksense"
 Releases = "https://github.com/indian-aman/necksense/releases"
-Issues = "https://github.com/indian-aman/necksense/issues"
-Documentation = "https://github.com/indian-aman/necksense#readme"
+Issues = "https://github.com/indian-aman/necklink/issues"
+Documentation = "https://github.com/indian-aman/necklink/tree/main/packages/necksense#readme"
 
 [project.optional-dependencies]
 dev = [
