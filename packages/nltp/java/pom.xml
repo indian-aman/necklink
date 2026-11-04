@@ -10,7 +10,7 @@
   <packaging>jar</packaging>
 
   <name>NLTP Java SDK</name>
-  <description>NeckLink Transport Protocol (NLTP v1.2) — Zero-dependency Java 11+ / Android SDK for loss-resilient ChaCha20-Poly1305 encrypted bidirectional UDP file &amp; reflex transport with GF(2^8) Cauchy FEC, 1-RTT pacing, STUN &amp; 4G CGNAT relay.</description>
+  <description>NeckLink Transport Protocol (NLTP v1.3.2) — Zero-dependency Java 11+ / Android SDK for loss-resilient ChaCha20-Poly1305 encrypted bidirectional UDP file &amp; confirmed reflex transport with GF(2^8) Cauchy FEC, 1-RTT pacing, STUN &amp; 4G CGNAT relay.</description>
   <url>https://github.com/indian-aman/necklink</url>
 
   <licenses>

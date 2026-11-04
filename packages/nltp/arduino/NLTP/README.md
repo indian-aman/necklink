@@ -1,6 +1,6 @@
 # NLTP Arduino Library (`v1.3.2`)
 
-Drop-in Arduino IDE and PlatformIO library wrapping the zero-float, zero-heap-churn ANSI C99 NLTP v1.2 core (`nltp_core.c`, `nltp_net.c`, `nltp_sha256.c`, `nltp_wire.h`).
+Drop-in Arduino IDE and PlatformIO library wrapping the zero-float, zero-heap-churn ANSI C99 NLTP v1.3.2 core (`nltp_core.c`, `nltp_net.c`, `nltp_sha256.c`, `nltp_espnow.h`, `nltp_wire.h`).
 
 100% wire-compatible with the Python `nltp` / `necklink` package (`NLTPServer`, `NLTPClient`, and `NLTPRelayHub`), including `ChaCha20-Poly1305` authenticated encryption and `RFC 6479` 64-bit replay protection.
 

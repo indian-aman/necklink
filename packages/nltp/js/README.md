@@ -1,9 +1,9 @@
-# NLTP v1.2 — JavaScript & TypeScript SDK (`nltp`)
+# NLTP v1.3.2 — JavaScript & TypeScript SDK (`nltp`)
 
-Zero-dependency **JavaScript / TypeScript** implementation of the **NeckLink Transport Protocol (`NLTP v1.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **Java**, and **Arduino / `ESP32`** stacks.
+Zero-dependency **JavaScript / TypeScript** implementation of the **NeckLink Transport Protocol (`NLTP v1.3.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **Java/Android**, and **Arduino / `ESP32` / `ESP8266`** stacks.
 
 - **Zero External Dependencies**: Pure ES2022 (`ESM` + `CommonJS` + `.d.ts` TypeScript declarations) — runs in **Node.js 18+**, **Deno**, **Bun**, and **Browsers** (`WebRTC DataChannel` / `WebTransport` / custom byte callbacks).
-- **Full NLTP v1.2 Wire Parity**:
+- **Full NLTP v1.3.2 Wire Parity**:
   - Systematic `GF(2^8)` Cauchy forward error correction (`0x11D` primitive polynomial, `8`-shard generations, incremental Gauss-Jordan decoding).
   - Pure-JS + `node:crypto` `ChaCha20-Poly1305` (256-bit AEAD, `RFC 8439`) with `20 B` AAD header and `RFC 6479` 64-packet sliding anti-replay window.
   - Exact `deriveAeadKey()` parity with Python & C99 (44-char URL-safe Base64 raw keys and `SHA-256("NLTP-v1-PASSPHRASE:" + psk)` passphrases).

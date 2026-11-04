@@ -90,7 +90,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip build pytest
           python -m build --wheel --outdir dist .
-          python -m pip install dist/*.whl
+          python -m pip install ../neckcompass ../neckcord ../necksense ../necksight dist/*.whl
           nltp --help > /dev/null
           python -m pytest -q tests
       - name: JavaScript SDK tests

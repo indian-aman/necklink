@@ -6,6 +6,7 @@
 
 **Concentration-invariant normalisation, sparse binary hashing, one-shot novelty detection and one-shot classification, modelled on the *Drosophila* antennal lobe and mushroom body, in Python (NumPy) and zero-heap, zero-float `Q16.16` ANSI C99 that is bit-identical to Python.**
 
+[![Version](https://img.shields.io/badge/version-1.1.0-10B981?style=flat-square)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![Tests](https://img.shields.io/badge/tests-17%20pytest%20%2B%205%20C99-10B981?style=flat-square)](tests/)
@@ -50,13 +51,9 @@ raw sensor vector x(t)
 
 ## Install
 
-NeckSense is **not on PyPI yet**. Install from this repository:
-
 ```bash
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"
 ```
-
-or use the v1.0.0 wheel from the archived repository's [release page](https://github.com/indian-aman/necksense/releases/tag/v1.0.0). That wheel predates the 1.1.0 changes below.
 
 ---
 

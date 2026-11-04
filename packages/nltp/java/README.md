@@ -1,9 +1,9 @@
-# NLTP v1.2 — Pure Java SDK (`io.necklink:nltp`)
+# NLTP v1.3.2 — Pure Java & Android SDK (`io.necklink:nltp`)
 
-Zero-external-dependency **Java 11+ / Android API 26+** implementation of the **NeckLink Transport Protocol (`NLTP v1.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **JavaScript/TypeScript**, and **Arduino / `ESP32`** stacks.
+Zero-external-dependency **Java 11+ / Android API 26+** implementation of the **NeckLink Transport Protocol (`NLTP v1.3.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **JavaScript/TypeScript**, and **Arduino / `ESP32` / `ESP8266`** stacks.
 
-- **Zero External Runtime Dependencies**: Uses only standard `java.nio.channels.DatagramChannel`, `Selector`, and `java.security.MessageDigest` (`SHA-256`) + `CRC32` — **portable constant-time `RFC 8439` `ChaCha20-Poly1305` is built directly into `NLTPWire`**, so it works identically on **Java 11–21+ JVMs** and older **Android** runtimes without BouncyCastle.
-- **Full NLTP v1.2 Wire Parity**:
+- **Zero External Runtime Dependencies**: Uses only standard `java.nio.channels.DatagramChannel`, `Selector`, and `java.security.MessageDigest` (`SHA-256`) + `CRC32` — **portable constant-time `RFC 8439` `ChaCha20-Poly1305` is built directly into `NLTPWire`**, so it works identically on **Java 11–21+ JVMs** and **Android** runtimes without BouncyCastle.
+- **Full NLTP v1.3.2 Wire Parity**:
   - Systematic `GF(2^8)` Cauchy forward error correction (`0x11D` primitive polynomial, `8`-shard generations, incremental Gauss-Jordan decoding).
   - `ChaCha20-Poly1305` (256-bit AEAD) + `RFC 6479` 64-packet sliding anti-replay window + strict plaintext-downgrade rejection.
   - Out-of-line urgent reflex channel (`sendReflex`) with zero head-of-line blocking.
