@@ -10,6 +10,7 @@
 
 **Connectome-inspired neuromorphic perception, navigation, motor-reflex, and loss-healing wire primitives distilled from the adult *Drosophila* central nervous system (`325,354` neurons) into zero-heap, zero-float ANSI C99 and Python / JS / Java SDKs.**
 
+[![Live Website](https://img.shields.io/badge/Website-indian--aman.github.io%2Fnecklink-0EA5E9?style=flat-square&logo=githubpages&logoColor=white)](https://indian-aman.github.io/necklink/)
 [![Umbrella Suite](https://img.shields.io/pypi/v/necklink?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necklink&color=0EA5E9)](https://pypi.org/project/necklink/)
 [![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
 [![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=necksense&color=10B981)](https://pypi.org/project/necksense/)
@@ -20,6 +21,7 @@
 [![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%20v1.2.0-00979D?style=flat-square&logo=arduino&logoColor=white)](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
+[**🌐 Live Website**](https://indian-aman.github.io/necklink/) ·
 [**5-Product CNS Suite**](#-the-necklink-fruit-fly-brain-product-family) ·
 [**NLTP Wire Protocol**](#-why-nltp) ·
 [**30-Second Quick Start**](#-30-second-quick-start) ·
