@@ -22,8 +22,16 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 import numpy as np
-import torch
-import torch.nn as nn
+
+try:
+    import torch
+    import torch.nn as nn
+
+    _NN_MODULE_BASE = nn.Module
+except ImportError:  # Optional dependency (`pip install "pynltp[torch]"`)
+    torch = None  # type: ignore[assignment]
+    nn = None  # type: ignore[assignment]
+    _NN_MODULE_BASE = object
 
 from .connectome_priors import DROSOPHILA_NECK_PRIORS, build_epistatic_cryptic_matrix_q8
 
@@ -500,10 +508,12 @@ class NeckLinkDecoder:
         return self.destandardize_q8_to_float(self.decode_q8(pkt))
 
 
-class NeckLinkSplitBottleneck(nn.Module):
+class NeckLinkSplitBottleneck(_NN_MODULE_BASE):  # type: ignore[misc,valid-type]
     """PyTorch Edge-to-Cloud Split-AI Bottleneck Layer."""
 
     def __init__(self, in_dim: int, bottleneck_dim: int = 32, num_classes: int = 8) -> None:
+        if nn is None:
+            raise ImportError("NeckLinkSplitBottleneck requires PyTorch (`pip install 'pynltp[torch]'`).")
         super().__init__()
         self.bottleneck_dim = bottleneck_dim
         self.edge_encoder = nn.Sequential(
