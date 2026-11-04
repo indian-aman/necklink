@@ -6,7 +6,7 @@
 
 **A collision (looming) reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` looming neurons), in Python (NumPy) and zero-heap, zero-float ANSI C99 (`14.3 KB` state).**
 
-[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9)](https://pypi.org/project/necksight/)
+[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9&cacheSeconds=300)](https://pypi.org/project/necksight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksight/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)

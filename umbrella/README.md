@@ -11,10 +11,10 @@
 **Five open-source modules modelled on the adult *Drosophila* central nervous system, built for lossy radios, GPS-denied vehicles, micro-drones and low-cost microcontrollers.**
 
 [![Website](https://img.shields.io/badge/website-indian--aman.github.io%2Fnecklink-0EA5E9?style=flat-square&logo=githubpages&logoColor=white)](https://indian-aman.github.io/necklink/)
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
-[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B)](https://pypi.org/project/neckcompass/)
-[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4)](https://pypi.org/project/necksight/)
-[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E)](https://pypi.org/project/neckcord/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
+[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B&cacheSeconds=300)](https://pypi.org/project/neckcompass/)
+[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4&cacheSeconds=300)](https://pypi.org/project/necksight/)
+[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E&cacheSeconds=300)](https://pypi.org/project/neckcord/)
 [![NeckSense v1.1.0](https://img.shields.io/badge/necksense-v1.1.0-10B981?style=flat-square&logo=python&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](https://github.com/indian-aman/necklink/blob/main/LICENSE)
 

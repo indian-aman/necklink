@@ -6,7 +6,7 @@
 
 **Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, JavaScript/TypeScript, Java, Android, and ESP32/ESP8266.**
 
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
 [![Version](https://img.shields.io/badge/version-1.3.2-0EA5E9?style=flat-square)](#8-changelog)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-216%2F216%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 + ESP8266 Mesh](https://img.shields.io/badge/ESP32%20%2B%20ESP8266%20ESP--NOW-100%25%20SHA--256%20%40%2035%25%20loss-00979D?style=flat-square&logo=espressif&logoColor=white)](#6-benchmarks--hardware-verification)

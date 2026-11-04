@@ -161,7 +161,7 @@
       code: `from neckcompass import RingCompass, FanBodyNavigator\n\ncompass = RingCompass(n_wedges=16)\nnav = FanBodyNavigator(n_columns=16, compass=compass)\n\nhdg, home_dist_m, home_brg = nav.step_with_compass(\n    omega_rad_s=0.12, speed_m_s=1.8, dt=0.02, mag_heading_rad=2.1\n)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
       pypi: "https://pypi.org/project/neckcompass/",
-      pypiLabel: "PyPI v1.0.0"
+      pypiLabel: "PyPI v1.1.0"
     },
     sight: {
       colorVar: "--sight",
@@ -178,7 +178,7 @@
       code: `from necksight import NeckSightPipeline\n\noptic = NeckSightPipeline(grid_size=64, threshold=0.045)\ntrigger = optic.step(camera_frame_u8, dt=1/60)\nif trigger.triggered:\n    print(f"LOOM E-STOP! score={trigger.looming_score:.3f} focus={trigger.focus_xy}")`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
-      pypiLabel: "PyPI v1.0.0"
+      pypiLabel: "PyPI v1.1.0"
     },
     cord: {
       colorVar: "--cord",
@@ -195,7 +195,7 @@
       code: `from neckcord import DescendingFrame, ShuntingThrusterCord, encode_descending_4b\n\nwire_4b = encode_descending_4b(DescendingFrame(drive_fwd=0.7, turn_yaw=-0.2))\nres = allocator.step(wire_4b, feedback_thrust=esc_thrust_n, dt=0.02)\nprint("Thruster commands (N):", res.commands, "Health:", res.health)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
-      pypiLabel: "PyPI v1.0.0"
+      pypiLabel: "PyPI v1.1.0"
     },
     sense: {
       colorVar: "--sense",
@@ -212,24 +212,24 @@
       code: `from necksense import MushroomNoveltyDetector\n\ndet = MushroomNoveltyDetector(n_inputs=8, stateful_antennal=True, n_kc=1024)\nnovelty = det.update_and_score(enose_8ch_reading)\nif novelty > 0.75:\n    print(f"1-shot chemical plume anomaly detected: {novelty:.3f}")`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
       pypi: "https://github.com/indian-aman/necklink/tree/main/packages/necksense#install",
-      pypiLabel: "Install from repo"
+      pypiLabel: "Install v1.1.0"
     },
     nltp: {
       colorVar: "--nltp",
       region: "Cervical connective · loss-healing wire protocol",
-      tests: "23 Py + 210 interop + 48 ESP32",
+      tests: "23 Py + 216 interop + ESP32/ESP8266 mesh",
       name: "NLTP",
       pkg: "pynltp",
-      desc: "A zero-ACK, loss-healing telemetry codec with GF(2^8) systematic Cauchy FEC, plus file and giant-fibre reflex UDP transport secured by ChaCha20-Poly1305 AEAD, RFC 5389 STUN hole-punching and a zero-knowledge single-port 4G CGNAT relay.",
+      desc: "A zero-ACK, loss-healing telemetry codec with GF(2^8) systematic Cauchy FEC, plus file and giant-fibre reflex transport over UDP and routerless ESP-NOW, secured by ChaCha20-Poly1305 AEAD, RFC 5389 STUN hole-punching and a zero-knowledge single-port 4G CGNAT relay.",
       ram: "~65 KB on ESP32",
-      speed: "5-language interop",
-      gain: "No stall at 20% loss",
+      speed: "17.75 Mbps ESP-NOW v2",
+      gain: "100% SHA-256 @ 35% loss",
       tradeoffLabel: "Where the baseline wins",
-      tradeoff: "On clean, loss-free wired fibre or LAN links, kernel TCP BBR reaches higher multi-hundred-Mbps bulk throughput than userspace UDP FEC. NLTP wins on lossy marine radio, Wi-Fi fades, ESP32 nodes and 4G CGNAT links where TCP stalls.",
-      code: `from pynltp import NLTPClient, generate_nltp_key\n\nwith NLTPClient(("127.0.0.1", 9000), psk=generate_nltp_key()) as cli:\n    cli.send_reflex("LOOM_ESTOP")\n    receipt = cli.send_file("telemetry_batch.bin")\n    assert receipt["verified_sha256"]`,
-      repo: "https://github.com/indian-aman/necklink",
+      tradeoff: "On clean, loss-free wired fibre or LAN links, kernel TCP BBR reaches higher multi-hundred-Mbps bulk throughput than userspace UDP FEC. NLTP wins on lossy radio, Wi-Fi fades, ESP32/ESP8266 ESP-NOW meshes and 4G CGNAT links where TCP stalls.",
+      code: `from nltp import NLTPClient, generate_nltp_key\n\nwith NLTPClient(("127.0.0.1", 9000), psk=generate_nltp_key()) as cli:\n    cli.send_reflex("LOOM_ESTOP")\n    receipt = cli.send_file("telemetry_batch.bin")\n    assert receipt["verified_sha256"]`,
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/nltp",
       pypi: "https://pypi.org/project/pynltp/",
-      pypiLabel: "PyPI v1.3.1"
+      pypiLabel: "PyPI v1.3.2"
     }
   };
 
