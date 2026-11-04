@@ -903,10 +903,10 @@ static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, ui
     /* No receive buffer yet: ignore (unacknowledged, so the sender repairs it later) rather than mark
        generations solved whose data could not be stored */
     if (!rx->out) return;
-    if (!rx->active || (rx->completed && sid != rx->stream_id) || (rx->peer_cid != peer_cid && rx->completed)) {
+    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id || peer_cid != rx->peer_cid) {
-        return;  /* one inbound stream at a time */
+    } else if (sid != rx->stream_id) {
+        return;  /* stale packet from an earlier cancelled stream */
     }
     if (rx->completed) {
         send_fin(ep);
@@ -999,9 +999,9 @@ static void rx_on_meta(nltp_endpoint_t *ep, uint32_t peer_cid, uint32_t pkt_ts, 
     nltp_rx_t *rx = &ep->rx;
     const char *js = (const char *)pl;
     uint32_t sid = json_u32(js, len, "stream_id");
-    if (!rx->active || (rx->completed && sid != rx->stream_id) || (rx->peer_cid != peer_cid && rx->completed)) {
+    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id || peer_cid != rx->peer_cid) {
+    } else if (sid != rx->stream_id) {
         return;
     }
     if (rx->completed) {
