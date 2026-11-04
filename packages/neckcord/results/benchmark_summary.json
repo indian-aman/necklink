@@ -1,0 +1,96 @@
+{
+  "benchmark": "NeckCord v1.0.0 Empirical USV & Hexapod Suite",
+  "config": {
+    "dt_s": 0.02,
+    "duration_s": 30.0,
+    "n_seeds": 10,
+    "fault_event": "Port-Aft thruster (T2) sudden 90% loss of thrust at t = 8.0 s"
+  },
+  "bandwidth": {
+    "neckcord_frame_bytes": 4,
+    "raw_4x_float32_plus_8b_hdr_bytes": 24,
+    "neckcord_100hz_bytes_per_s": 400,
+    "raw_actuator_100hz_bytes_per_s": 2400,
+    "compression_ratio_x": 6.0
+  },
+  "usv_intact": {
+    "neckcord": {
+      "peak_yaw_deg": 4.81,
+      "peak_yaw_std_deg": 0.79,
+      "rms_cross_track_m": 0.109,
+      "max_cross_track_m": 0.233,
+      "mean_fouled_thruster_cmd_N": 14.19
+    },
+    "static_pinv": {
+      "peak_yaw_deg": 4.84,
+      "peak_yaw_std_deg": 0.94,
+      "rms_cross_track_m": 0.108,
+      "max_cross_track_m": 0.233,
+      "mean_fouled_thruster_cmd_N": 14.1
+    }
+  },
+  "usv_fault_90pct_T2": {
+    "neckcord": {
+      "peak_yaw_deg": 4.77,
+      "peak_yaw_std_deg": 0.65,
+      "rms_cross_track_m": 0.112,
+      "max_cross_track_m": 0.224,
+      "mean_fouled_thruster_cmd_N": 0.02,
+      "isolation_latency_ms": 42.0
+    },
+    "static_pinv": {
+      "peak_yaw_deg": 24.19,
+      "peak_yaw_std_deg": 2.28,
+      "rms_cross_track_m": 0.498,
+      "max_cross_track_m": 0.735,
+      "mean_fouled_thruster_cmd_N": 22.7
+    }
+  },
+  "hexapod_single_leg_loss": {
+    "intact_6leg_tripod_stability_pct": 100.0,
+    "L2_jammed": {
+      "adaptive_stability_pct": 100.0,
+      "unadapted_stability_pct": 55.0,
+      "adaptive_min_margin_m": 0.0224,
+      "unadapted_min_margin_m": -1.0
+    },
+    "all_6_single_leg_faults": {
+      "L1": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0189,
+        "unadapted_min_margin_m": -1.0
+      },
+      "R1": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0189,
+        "unadapted_min_margin_m": -1.0
+      },
+      "L2": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0224,
+        "unadapted_min_margin_m": -1.0
+      },
+      "R2": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0224,
+        "unadapted_min_margin_m": -1.0
+      },
+      "L3": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0224,
+        "unadapted_min_margin_m": -1.0
+      },
+      "R3": {
+        "adaptive_stability_pct": 100.0,
+        "unadapted_stability_pct": 55.0,
+        "adaptive_min_margin_m": 0.0224,
+        "unadapted_min_margin_m": -1.0
+      }
+    }
+  }
+}
