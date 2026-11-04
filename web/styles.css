@@ -464,7 +464,7 @@ body.intro-active {
   gap: 4px;
   padding: 8px 10px;
   border-bottom: 1px solid var(--border-subtle);
-  background: rgba(15, 23, 42, 0.28);
+  background: var(--bg-elevated);
 }
 
 .install-tab {
