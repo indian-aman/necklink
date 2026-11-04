@@ -1,5 +1,7 @@
 <div align="center">
 
+<a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
+
 # NeckCord (`neckcord` v1.0.0)
 
 **4-byte descending cervical command bottleneck, self-healing hexapod VNC phase CPG, and millisecond presynaptic-shunting thruster control allocation — in Python and zero-heap, zero-float ANSI C99.**
