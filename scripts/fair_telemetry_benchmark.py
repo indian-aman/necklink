@@ -14,7 +14,7 @@ not from giving one side coarser quantization. Baselines:
   - Int8-Zlib-Block16: original baseline from baselines.py (reference).
 
 Datasets: the three synthetic workloads from necklink/workloads.py plus real AQMS recordings
-(Campi H2S station V202, Tridel test unit) and the synthetic AQMS raw-count fixture.
+(Campi H2S station V202, field AQMS test unit) and the synthetic AQMS raw-count fixture.
 
 Run:  python scripts/fair_telemetry_benchmark.py
       python scripts/fair_telemetry_benchmark.py --full --seeds 5 --workers 46 --aqms-dir /content/aqms   (Colab G4)
@@ -99,7 +99,7 @@ def load_datasets(full: bool = False) -> List[Tuple[str, np.ndarray, Dict[str, A
     unit = pd.read_csv(AQMS_DIR / "Handover_Terra_Team" / "03_Templates_and_test_values" / "Sample_station_data_test_unit.csv")
     ucols = ["a0_nh3_counts", "a1_h2s_op1_counts", "a2_h2s_op2_counts", "a3_voc_counts", "h2s_ppm", "nh3_ppm", "voc_ppm", "battery_v"]
     xu = unit[ucols].ffill().dropna().to_numpy(dtype=np.float64)
-    out.append(("real_tridel_test_unit_8ch_1min", _clean(xu), {"real": True, "dt_ms": 60_000.0, "rtt_ms": 1000.0}))
+    out.append(("real_field_test_unit_8ch_1min", _clean(xu), {"real": True, "dt_ms": 60_000.0, "rtt_ms": 1000.0}))
 
     fix = pd.read_csv(raw_dir / "aqms_raw_fixture.csv")
     fcols = [c for c in fix.columns if c != "ts" and not c.startswith("true_")]

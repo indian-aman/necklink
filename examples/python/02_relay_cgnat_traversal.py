@@ -19,7 +19,7 @@ from nltp import NLTPClient, NLTPRelayHub, NLTPServer, generate_nltp_key
 
 def main() -> None:
     shared_key = generate_nltp_key()
-    room_name = "tridel-buoy-07"
+    room_name = "ocean-buoy-07"
 
     with tempfile.TemporaryDirectory() as tmp:
         inbox = Path(tmp) / "shore_inbox"
@@ -31,7 +31,7 @@ def main() -> None:
             relay_addr = relay.getsockname()
             print(f"Zero-knowledge NLTPRelayHub running at {relay_addr[0]}:{relay_addr[1]} (holds 0 keys)")
 
-            # 2. Shore receiver behind Office NAT/Firewall registers in room `tridel-buoy-07`
+            # 2. Shore receiver behind Office NAT/Firewall registers in room `ocean-buoy-07`
             with NLTPServer(("127.0.0.1", 0), relay_addr=relay_addr, room=room_name, psk=shared_key, save_dir=inbox) as srv:
                 # 3. Buoy client behind 4G SIM CGNAT connects to the same room
                 with NLTPClient(relay_addr=relay_addr, room=room_name, psk=shared_key) as cli:

@@ -14,7 +14,7 @@ Stop rule set in advance: *if simple standard methods come within ~20% of NeckLi
 | Script | `scripts/fair_telemetry_benchmark.py` | `scripts/fair_transport_benchmark.py` |
 | Where | Colab G4 (48 vCPU), 825 runs | WSL2, Linux 6.18 kernel, network namespaces + `netem` |
 | Opponents | Absolute send-on-delta + keyframes, acked-baseline delta, 16-reading batch + zstd; same quantizer for all | Real kernel TCP CUBIC and BBR, QUIC (aioquic), NLTP default and rate-capped |
-| Data / links | 6 real Campi H2S stations, real Tridel test unit, 30-day AQMS fixture, original synthetic workloads | 6 links; loss applied in both directions; bandwidth caps; bytes counted with iptables (includes dropped packets) |
+| Data / links | 6 real Campi H2S stations, real field AQMS test unit, 30-day AQMS fixture, original synthetic workloads | 6 links; loss applied in both directions; bandwidth caps; bytes counted with iptables (includes dropped packets) |
 | Results | `fair_telemetry_benchmark_full.json` | `fair_transport_benchmark.json`, `.log` |
 
 Colab G4 can't run the transport test: it blocks creating virtual network links and `netem` (no NET_ADMIN), and it has no BBR (`experiments/colab_probe_net.py`).
@@ -23,7 +23,7 @@ Colab G4 can't run the transport test: it blocks creating virtual network links 
 
 **Error (NRMSE, lower is better) and compression (higher is better).** Deadband 32 (NeckLink's default), mean of 5 seeds.
 
-**Real data (6 Campi stations + Tridel test unit):**
+**Real data (6 Campi stations + field AQMS test unit):**
 
 | Codec | 0% loss | 10% | 30% | 50% | 30% bursty | Compression, data only | Compression incl. 28 B UDP/IP header |
 |---|---|---|---|---|---|---|---|
@@ -671,5 +671,5 @@ Moving 1 MB over two 5%-loss, 40 ms last miles took 1.2–2.3 s, direct or relay
 
 - In the first tables QUIC is the Python aioquic library. From Update 5 on, production ngtcp2 (BBR and CUBIC) is included as well.
 - Loss is emulated by `netem`, not recorded from real Iridium/LoRa/4G links.
-- The Tridel test-unit recording is short (560 readings).
+- The field AQMS test-unit recording is short (560 readings).
 - The NLTP timer starts at client creation (0-RTT), while the TCP timer includes the connection handshake. That is how each protocol actually behaves, but it favours NLTP by one round trip on small files.
