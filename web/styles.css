@@ -86,9 +86,9 @@ body.intro-active {
     #060913;
   opacity: 1;
   visibility: visible;
-  transition: opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-              visibility 0.95s;
+  transition: opacity 1.15s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 1.15s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 0s;
 }
 
 #intro-splash.fade-out {
@@ -96,6 +96,9 @@ body.intro-active {
   transform: scale(1.08);
   visibility: hidden;
   pointer-events: none;
+  transition: opacity 1.15s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 1.15s cubic-bezier(0.4, 0, 0.2, 1),
+              visibility 0s linear 1.15s;
 }
 
 .intro-stage {
@@ -255,10 +258,10 @@ body.intro-active {
 
 /* Main site smooth entrance underneath fading splash */
 #site-shell {
-  opacity: 0.32;
+  opacity: 0.28;
   transform: translateY(16px) scale(0.99);
-  transition: opacity 0.95s cubic-bezier(0.22, 1, 0.36, 1),
-              transform 0.95s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 1.15s cubic-bezier(0.4, 0, 0.2, 1),
+              transform 1.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 #site-shell.revealed {
