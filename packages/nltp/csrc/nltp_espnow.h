@@ -4,8 +4,8 @@
  * Wire Interoperability Guarantee:
  *   Every ESP-NOW v2 vendor action frame carries an UNMODIFIED NLTP v1.2/v1.3 datagram
  *   starting with magic bytes "NL" (0x4E 0x4C) — zero custom L2 wrapper headers.
- *   Because NLTP's default 960 B shard + 12 B shard header + 36 B ChaCha20-Poly1305 AEAD
- *   equals 1,008 B (well below ESP_NOW_MAX_DATA_LEN_V2 = 1,470 B), full-sized NLTP shards
+ *   An encrypted full-size shard is 20 B AEAD header + 12 B shard header + 2 B length + 960 B data
+ *   + 16 B Poly1305 tag = 1,010 B (well below ESP_NOW_MAX_DATA_LEN_V2 = 1,470 B), so full-sized NLTP shards
  *   cross ESP-NOW v2 without fragmentation and can be bridged byte-for-byte transparently
  *   to/from Python (`pynltp`), Linux/macOS/Windows UDP (`nltp_cli`), or 4G relay rooms.
  *
@@ -25,6 +25,9 @@
 
 #include "esp_err.h"
 #include "esp_idf_version.h"
+#if ESP_IDF_VERSION_MAJOR < 5
+#error "nltp_espnow.h needs ESP-IDF 5.x (Arduino-ESP32 core 3.x); the UDP transport works on older cores"
+#endif
 #include "esp_now.h"
 #include "esp_random.h"
 #include "esp_timer.h"
@@ -39,7 +42,7 @@ extern "C" {
 #endif
 
 #define NLTP_ESPNOW_V1_MTU         250u
-#define NLTP_ESPNOW_V1_SHARD_BYTES 192u  /* 20B AEAD + 14B shard hdr + 192B data + 16B tag = 242B <= 250B */
+#define NLTP_ESPNOW_V1_SHARD_BYTES 192u  /* 20B AEAD hdr + 12B shard hdr + 2B len + 192B data + 16B tag = 242B <= 250B */
 
 #ifndef ESP_NOW_MAX_DATA_LEN_V2
 #define NLTP_ESPNOW_MTU 250u
@@ -51,8 +54,24 @@ extern "C" {
 #define NLTP_ESPNOW_RX_QUEUE_DEPTH 10u
 #endif
 
+/* Hub slots. Each slot embeds a full nltp_endpoint_t (~66.7 KB on ESP32 with the default
+ * NLTP_RX_SLOTS=8, ~19.8 KB with -DNLTP_RX_SLOTS=2 -DNLTP_RX_MAX_GENS=64), so keep this small. */
 #ifndef NLTP_ESPNOW_MAX_PEERS
-#define NLTP_ESPNOW_MAX_PEERS 8u
+#define NLTP_ESPNOW_MAX_PEERS 2u
+#endif
+
+/* Compile-time guard: nltp_espnow_hub_t must fit in ESP32 RAM next to Wi-Fi. Raise only if you know
+ * your chip has the memory (e.g. PSRAM); otherwise lower NLTP_ESPNOW_MAX_PEERS or NLTP_RX_SLOTS. */
+#ifndef NLTP_ESPNOW_HUB_MAX_BYTES
+#define NLTP_ESPNOW_HUB_MAX_BYTES (160u * 1024u)
+#endif
+typedef char nltp_espnow_hub_exceeds_NLTP_ESPNOW_HUB_MAX_BYTES_lower_MAX_PEERS_or_RX_SLOTS
+    [(sizeof(nltp_endpoint_t) * NLTP_ESPNOW_MAX_PEERS <= NLTP_ESPNOW_HUB_MAX_BYTES) ? 1 : -1];
+
+/* ESP-NOW allows at most 20 peers in total (ESP_NOW_MAX_TOTAL_PEER_NUM). NLTP tracks the peers it adds
+ * and evicts the least recently used one when it needs room, leaving headroom for the application. */
+#ifndef NLTP_ESPNOW_PEER_CACHE
+#define NLTP_ESPNOW_PEER_CACHE 16u
 #endif
 
 typedef enum {
@@ -90,10 +109,15 @@ typedef void (*nltp_espnow_non_nltp_rx_fn)(const esp_now_recv_info_t *info,
 /* Global singleton ISR/Wi-Fi-task bridge (ESP-IDF provides one global esp_now callback). */
 typedef struct {
     QueueHandle_t rx_q;
-    volatile int32_t tx_inflight;
-    volatile uint32_t tx_ok;
-    volatile uint32_t tx_fail;
+    int32_t tx_inflight;            /* updated with __atomic builtins: Wi-Fi task and app task share it */
+    uint32_t tx_ok;
+    uint32_t tx_fail;
+    uint32_t tx_oversize_drops;     /* v1 mode: frames > 250 B that could not be sent */
+    uint32_t peer_evictions;        /* ESP-NOW peer-table entries freed to make room */
     volatile uint16_t max_tx_frame_len;
+    uint8_t peer_n;
+    uint8_t peer_mac[NLTP_ESPNOW_PEER_CACHE][6];
+    uint32_t peer_used_ms[NLTP_ESPNOW_PEER_CACHE];
     uint8_t initialized;
     uint8_t lr_enabled;
     uint8_t channel;
@@ -102,7 +126,7 @@ typedef struct {
     nltp_espnow_non_nltp_rx_fn non_nltp_rx_cb;
 } nltp_espnow_bus_t;
 
-static nltp_espnow_bus_t g_nltp_espnow_bus = {0, 0, 0, 0, 0, 0, 0, 0, WIFI_IF_STA, 0, 0};
+static nltp_espnow_bus_t g_nltp_espnow_bus;  /* zero-initialised; ifidx is set by nltp_espnow_bus_init() */
 
 static inline uint32_t nltp_espnow_now_ms(void *user) {
     (void)user;
@@ -181,20 +205,105 @@ static inline esp_err_t nltp_espnow_apply_peer_rate(const uint8_t mac[6],
     return esp_now_set_peer_rate_config(mac, &cfg);
 }
 
+static inline uint32_t nltp_espnow_now_ms_u32(void) {
+    return (uint32_t)(esp_timer_get_time() / 1000ULL);
+}
+
+static inline int nltp_espnow_is_bcast(const uint8_t mac[6]) {
+    static const uint8_t bcast[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    return memcmp(mac, bcast, 6) == 0;
+}
+
+static inline int nltp_espnow_cache_find(const uint8_t mac[6]) {
+    uint32_t i;
+    for (i = 0; i < g_nltp_espnow_bus.peer_n; ++i) {
+        if (memcmp(g_nltp_espnow_bus.peer_mac[i], mac, 6) == 0) return (int)i;
+    }
+    return -1;
+}
+
+static inline void nltp_espnow_cache_remove(int idx) {
+    uint32_t last = (uint32_t)g_nltp_espnow_bus.peer_n - 1u;
+    if (idx < 0 || (uint32_t)idx > last) return;
+    if ((uint32_t)idx != last) {
+        memcpy(g_nltp_espnow_bus.peer_mac[idx], g_nltp_espnow_bus.peer_mac[last], 6);
+        g_nltp_espnow_bus.peer_used_ms[idx] = g_nltp_espnow_bus.peer_used_ms[last];
+    }
+    g_nltp_espnow_bus.peer_n = (uint8_t)last;
+}
+
+/* Frees the least recently used NLTP-added peer from the ESP-NOW peer table. */
+static inline int nltp_espnow_evict_lru_peer(void) {
+    uint32_t i, now = nltp_espnow_now_ms_u32(), best_age = 0;
+    int best = -1;
+    for (i = 0; i < g_nltp_espnow_bus.peer_n; ++i) {
+        uint32_t age = now - g_nltp_espnow_bus.peer_used_ms[i];
+        if (best < 0 || age > best_age) {
+            best = (int)i;
+            best_age = age;
+        }
+    }
+    if (best < 0) return 0;
+    esp_now_del_peer(g_nltp_espnow_bus.peer_mac[best]);
+    nltp_espnow_cache_remove(best);
+    g_nltp_espnow_bus.peer_evictions = g_nltp_espnow_bus.peer_evictions + 1u;
+    return 1;
+}
+
+/* Removes `mac` from the ESP-NOW peer table if NLTP added it (e.g. when a hub slot expires). */
+static inline void nltp_espnow_forget_peer(const uint8_t mac[6]) {
+    int idx = nltp_espnow_cache_find(mac);
+    if (idx < 0) return;
+    esp_now_del_peer(mac);
+    nltp_espnow_cache_remove(idx);
+}
+
+/* Adds `mac` to the ESP-NOW peer table if needed (evicting the least recently used NLTP peer when the
+ * table is full) and applies the PHY rate. Call only for peers that sent an authentic packet or that
+ * the application chose explicitly: the table holds at most 20 entries. */
 static inline esp_err_t nltp_espnow_ensure_peer(const uint8_t mac[6],
                                                 nltp_espnow_rate_t rate_mode,
                                                 int8_t rssi_hint) {
+    int idx = nltp_espnow_cache_find(mac);
+    if (idx >= 0) {
+        g_nltp_espnow_bus.peer_used_ms[idx] = nltp_espnow_now_ms_u32();
+    }
     if (!esp_now_is_peer_exist(mac)) {
         esp_now_peer_info_t pi;
+        esp_err_t err;
+        int tries;
+        if (idx >= 0) {
+            nltp_espnow_cache_remove(idx);  /* deleted behind our back (e.g. by the application) */
+            idx = -1;
+        }
         memset(&pi, 0, sizeof(pi));
         memcpy(pi.peer_addr, mac, 6);
         pi.channel = 0;  /* follow active interface channel */
         pi.ifidx = g_nltp_espnow_bus.ifidx;
-        pi.encrypt = false;  /* NLTP provides 256-bit ChaCha20-Poly1305 AEAD with no peer limit */
-        esp_err_t err = esp_now_add_peer(&pi);
+        pi.encrypt = false;  /* NLTP provides 256-bit ChaCha20-Poly1305 AEAD on top */
+        if (!nltp_espnow_is_bcast(mac) && g_nltp_espnow_bus.peer_n >= NLTP_ESPNOW_PEER_CACHE) {
+            nltp_espnow_evict_lru_peer();
+        }
+        err = esp_now_add_peer(&pi);
+        for (tries = 0; err == ESP_ERR_ESPNOW_FULL && tries < 2 && nltp_espnow_evict_lru_peer(); ++tries) {
+            err = esp_now_add_peer(&pi);
+        }
         if (err != ESP_OK) return err;
+        if (!nltp_espnow_is_bcast(mac) && g_nltp_espnow_bus.peer_n < NLTP_ESPNOW_PEER_CACHE) {
+            memcpy(g_nltp_espnow_bus.peer_mac[g_nltp_espnow_bus.peer_n], mac, 6);
+            g_nltp_espnow_bus.peer_used_ms[g_nltp_espnow_bus.peer_n] = nltp_espnow_now_ms_u32();
+            g_nltp_espnow_bus.peer_n = (uint8_t)(g_nltp_espnow_bus.peer_n + 1u);
+        }
     }
     return nltp_espnow_apply_peer_rate(mac, rate_mode, rssi_hint);
+}
+
+static inline void nltp_espnow_inflight_dec(void) {
+    int32_t cur = __atomic_load_n(&g_nltp_espnow_bus.tx_inflight, __ATOMIC_RELAXED);
+    while (cur > 0 &&
+           !__atomic_compare_exchange_n(&g_nltp_espnow_bus.tx_inflight, &cur, cur - 1, 0,
+                                        __ATOMIC_RELAXED, __ATOMIC_RELAXED)) {
+    }
 }
 
 #if ESP_IDF_VERSION >= ESP_IDF_VERSION_VAL(5, 5, 0)
@@ -202,13 +311,12 @@ static void nltp_espnow_tx_isr_cb(const esp_now_send_info_t *tx_info, esp_now_se
 #else
 static void nltp_espnow_tx_isr_cb(const uint8_t *tx_info, esp_now_send_status_t status) {
 #endif
-    int32_t cur = g_nltp_espnow_bus.tx_inflight;
     (void)tx_info;
-    if (cur > 0) g_nltp_espnow_bus.tx_inflight = cur - 1;
+    nltp_espnow_inflight_dec();
     if (status == ESP_NOW_SEND_SUCCESS) {
-        g_nltp_espnow_bus.tx_ok = g_nltp_espnow_bus.tx_ok + 1u;
+        __atomic_add_fetch(&g_nltp_espnow_bus.tx_ok, 1u, __ATOMIC_RELAXED);
     } else {
-        g_nltp_espnow_bus.tx_fail = g_nltp_espnow_bus.tx_fail + 1u;
+        __atomic_add_fetch(&g_nltp_espnow_bus.tx_fail, 1u, __ATOMIC_RELAXED);
     }
 }
 
@@ -291,21 +399,26 @@ static inline esp_err_t nltp_espnow_raw_send(const uint8_t dst_mac[6],
     if ((uint16_t)len > g_nltp_espnow_bus.max_tx_frame_len) {
         g_nltp_espnow_bus.max_tx_frame_len = (uint16_t)len;
     }
-    nltp_espnow_ensure_peer(dst_mac, rate_mode, rssi_hint);
+    {
+        esp_err_t perr = nltp_espnow_ensure_peer(dst_mac, rate_mode, rssi_hint);
+        if (perr != ESP_OK) {
+            __atomic_add_fetch(&g_nltp_espnow_bus.tx_fail, 1u, __ATOMIC_RELAXED);
+            return perr;
+        }
+    }
 
     t0 = esp_timer_get_time();
-    while (g_nltp_espnow_bus.tx_inflight >= 7 && (esp_timer_get_time() - t0) < 15000LL) {
+    while (__atomic_load_n(&g_nltp_espnow_bus.tx_inflight, __ATOMIC_RELAXED) >= 7 &&
+           (esp_timer_get_time() - t0) < 15000LL) {
         esp_rom_delay_us(60);
     }
 
     for (attempt = 0; attempt < 5; ++attempt) {
         esp_err_t rc;
-        g_nltp_espnow_bus.tx_inflight = g_nltp_espnow_bus.tx_inflight + 1;
+        __atomic_add_fetch(&g_nltp_espnow_bus.tx_inflight, 1, __ATOMIC_RELAXED);
         rc = esp_now_send(dst_mac, pkt, len);
         if (rc == ESP_OK) return ESP_OK;
-        if (g_nltp_espnow_bus.tx_inflight > 0) {
-            g_nltp_espnow_bus.tx_inflight = g_nltp_espnow_bus.tx_inflight - 1;
-        }
+        nltp_espnow_inflight_dec();
         if (rc == ESP_ERR_ESPNOW_NO_MEM) {
             esp_rom_delay_us(180);
             continue;
@@ -334,7 +447,10 @@ typedef struct {
 static void nltp_espnow_node_send_cb(void *user, const uint8_t *pkt, size_t len) {
     nltp_espnow_node_t *node = (nltp_espnow_node_t *)user;
     if (!node || !node->has_peer) return;
-    if (node->v1_mode && len > NLTP_ESPNOW_V1_MTU) return;
+    if (node->v1_mode && len > NLTP_ESPNOW_V1_MTU) {
+        __atomic_add_fetch(&g_nltp_espnow_bus.tx_oversize_drops, 1u, __ATOMIC_RELAXED);
+        return;
+    }
     nltp_espnow_raw_send(node->peer_mac, pkt, len, node->rate_mode, node->last_rssi);
 }
 
@@ -407,18 +523,21 @@ static inline void nltp_espnow_node_poll(nltp_espnow_node_t *node) {
         memcpy(prev_mac, node->peer_mac, 6);
         had_peer = node->has_peer;
 
+        /* Replies sent while handling this packet go to its sender. The ESP-NOW peer-table entry is
+         * only created when a reply is actually sent (nltp_espnow_raw_send), i.e. for packets that
+         * passed the CRC / ChaCha20-Poly1305 check, so forged frames cannot fill the 20-entry table. */
         memcpy(node->peer_mac, item.src_mac, 6);
         node->has_peer = 1u;
-        node->last_rssi = item.rssi;
-        node->last_noise = item.noise_floor;
-        nltp_espnow_ensure_peer(item.src_mac, node->rate_mode, item.rssi);
 
         nltp_on_datagram(&node->ep, item.data, item.len);
 
-        /* Only adopt sender MAC if CRC / ChaCha20-Poly1305 AEAD passed */
         if (node->ep.valid_rx == valid_before) {
+            /* Rejected: keep the previous peer */
             memcpy(node->peer_mac, prev_mac, 6);
             node->has_peer = had_peer;
+        } else {
+            node->last_rssi = item.rssi;
+            node->last_noise = item.noise_floor;
         }
     }
     nltp_poll(&node->ep);
@@ -467,10 +586,45 @@ typedef struct {
     void *user;
 } nltp_espnow_hub_t;
 
+/* Stateless check that `pkt` is a well-formed NLTP frame for this hub: with a key, a valid
+ * ChaCha20-Poly1305 tag (no decryption, no replay state); without a key, a valid CRC32 (which only
+ * filters corruption -- plaintext hubs should also set an allow-list callback). */
+static inline int nltp_espnow_frame_ok(const uint8_t *pkt, size_t len, int encrypted, const uint8_t key32[32]) {
+    if (encrypted) {
+        uint8_t type, flags;
+        uint32_t cid, ts;
+        size_t pt_len;
+        return nltp_unpack_encrypted_frame(pkt, len, key32, NULL, &type, &flags, &cid, &ts, NULL, &pt_len);
+    }
+    if (len < NLTP_HEADER_BYTES || (pkt[3] & NLTP_FLAG_ENCRYPTED)) return 0;
+    {
+        uint8_t hdr[NLTP_HEADER_BYTES];
+        uint32_t crc;
+        memcpy(hdr, pkt, NLTP_HEADER_BYTES);
+        nltp_write_u32_le(hdr + 8, 0u);
+        crc = nltp_crc32_ieee(hdr, NLTP_HEADER_BYTES, 0u);
+        if (len > NLTP_HEADER_BYTES) crc = nltp_crc32_ieee(pkt + NLTP_HEADER_BYTES, len - NLTP_HEADER_BYTES, crc);
+        return crc == nltp_read_u32_le(pkt + 8);
+    }
+}
+
+/* A slot is busy while it is receiving or sending an unfinished transfer; busy slots are never evicted. */
+static inline int nltp_espnow_slot_busy(const nltp_espnow_slot_t *slot) {
+    return (slot->ep.rx.active && !slot->ep.rx.completed) || (slot->ep.tx.active && !slot->ep.tx.completed);
+}
+
+static inline void nltp_espnow_hub_release_slot(nltp_espnow_slot_t *slot) {
+    if (slot->in_use) nltp_espnow_forget_peer(slot->mac);
+    slot->in_use = 0;
+}
+
 static void nltp_espnow_slot_send_cb(void *user, const uint8_t *pkt, size_t len) {
     nltp_espnow_slot_t *slot = (nltp_espnow_slot_t *)user;
     if (!slot || !slot->in_use) return;
-    if (slot->v1_mode && len > NLTP_ESPNOW_V1_MTU) return;
+    if (slot->v1_mode && len > NLTP_ESPNOW_V1_MTU) {
+        __atomic_add_fetch(&g_nltp_espnow_bus.tx_oversize_drops, 1u, __ATOMIC_RELAXED);
+        return;
+    }
     nltp_espnow_raw_send(slot->mac, pkt, len, slot->rate_mode, slot->last_rssi);
 }
 
@@ -508,7 +662,7 @@ static inline nltp_espnow_slot_t *nltp_espnow_hub_get_or_create_slot(nltp_espnow
                                                                      uint32_t now_ms) {
     uint32_t i;
     int free_idx = -1;
-    int oldest_idx = 0;
+    int oldest_idx = -1;
     uint32_t oldest_age = 0;
 
     for (i = 0; i < NLTP_ESPNOW_MAX_PEERS; ++i) {
@@ -517,13 +671,20 @@ static inline nltp_espnow_slot_t *nltp_espnow_hub_get_or_create_slot(nltp_espnow
         }
         if (!hub->slots[i].in_use && free_idx < 0) {
             free_idx = (int)i;
-        } else if (hub->slots[i].in_use) {
+        } else if (hub->slots[i].in_use && !nltp_espnow_slot_busy(&hub->slots[i])) {
+            /* only idle slots may be recycled: never drop a transfer in progress */
             uint32_t age = now_ms - hub->slots[i].last_active_ms;
-            if (age >= oldest_age) {
+            if (oldest_idx < 0 || age >= oldest_age) {
                 oldest_age = age;
                 oldest_idx = (int)i;
             }
         }
+    }
+    if (free_idx < 0 && oldest_idx < 0) {
+        return NULL;  /* every slot is mid-transfer: the new sender retries later */
+    }
+    if (free_idx < 0) {
+        nltp_espnow_hub_release_slot(&hub->slots[oldest_idx]);
     }
 
     i = (uint32_t)(free_idx >= 0 ? free_idx : oldest_idx);
@@ -573,15 +734,29 @@ static inline void nltp_espnow_hub_poll(nltp_espnow_hub_t *hub) {
         if (hub->allow_cb && !hub->allow_cb(hub->user, item.src_mac)) {
             continue;  /* MAC not on allow-list: ignore before allocating slot or sending FIN_ACK */
         }
+        {
+            /* Unknown senders must present an authentic frame before they get a slot (and, through the
+             * reply path, an entry in the 20-peer ESP-NOW table). Known senders go straight to their
+             * endpoint, which does the full check including replay protection. */
+            int known = 0;
+            for (i = 0; i < NLTP_ESPNOW_MAX_PEERS; ++i) {
+                if (hub->slots[i].in_use && memcmp(hub->slots[i].mac, item.src_mac, 6) == 0) {
+                    known = 1;
+                    break;
+                }
+            }
+            if (!known && !nltp_espnow_frame_ok(item.data, item.len, hub->encrypted, hub->key32)) {
+                continue;
+            }
+        }
         slot = nltp_espnow_hub_get_or_create_slot(hub, item.src_mac, now_ms);
         if (!slot) continue;
-        slot->last_rssi = item.rssi;
-        nltp_espnow_ensure_peer(item.src_mac, hub->rate_mode, item.rssi);
 
         valid0 = slot->ep.valid_rx;
         nltp_on_datagram(&slot->ep, item.data, item.len);
         if (slot->ep.valid_rx != valid0) {
             slot->last_active_ms = now_ms;
+            slot->last_rssi = item.rssi;
         }
         if (slot->ep.rx.completed &&
             (slot->ep.rx.stream_id != slot->last_reported_sid ||
@@ -599,7 +774,7 @@ static inline void nltp_espnow_hub_poll(nltp_espnow_hub_t *hub) {
     for (i = 0; i < NLTP_ESPNOW_MAX_PEERS; ++i) {
         if (!hub->slots[i].in_use) continue;
         if ((now_ms - hub->slots[i].last_active_ms) >= hub->idle_timeout_ms) {
-            hub->slots[i].in_use = 0;
+            nltp_espnow_hub_release_slot(&hub->slots[i]);  /* also frees its ESP-NOW peer entry */
             continue;
         }
         nltp_poll(&hub->slots[i].ep);

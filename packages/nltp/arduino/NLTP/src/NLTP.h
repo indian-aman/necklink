@@ -1,5 +1,5 @@
 /*
- * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP v1.2 core.
+ * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.3.2).
  *
  * Works out of the box with ESP32, ESP32-S3, ESP32-C3, RP2040-W, and any board
  * providing Arduino's standard <WiFiUdp.h> interface, while remaining 100%
@@ -15,8 +15,14 @@
 
 #include "nltp_core.h"
 #include "nltp_net.h"
+/* NLTP over ESP-NOW needs ESP-IDF 5.x (Arduino-ESP32 core 3.x). On older cores the UDP classes
+ * below still work; NLTPESPNowNode is simply not available. */
 #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+#include "esp_idf_version.h"
+#if ESP_IDF_VERSION_MAJOR >= 5
+#define NLTP_HAS_ESPNOW 1
 #include "nltp_espnow.h"
+#endif
 #endif
 
 class NLTPWiFiNode {
@@ -269,7 +275,7 @@ private:
     static uint32_t _nowThunk(void *) { return millis(); }
 };
 
-#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+#ifdef NLTP_HAS_ESPNOW
 /*
  * NLTPESPNowNode — Zero-wrapper ESP-NOW v2 (1,470 B MTU) Arduino C++ wrapper.
  * Wire-interoperable byte-for-byte with C99 `nltp_espnow_node_t`, `nltp_espnow_hub_t`,
@@ -367,6 +373,6 @@ private:
     uint32_t _lastReportedCid;
     bool _fileReady;
 };
-#endif /* ESP32 */
+#endif /* NLTP_HAS_ESPNOW */
 
 #endif /* NLTP_ARDUINO_H */
