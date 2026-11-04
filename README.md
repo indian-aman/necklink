@@ -1,29 +1,63 @@
 <div align="center">
 
-# NLTP (`pynltp` / `necklink` v1.2.0)
+# NeckLink — Fruit-Fly Brain Edge Autonomy & Wire Suite (`v1.3.0`)
 
-**Loss-resilient, two-way UDP file and telemetry transport for wireless, marine radio, `4G`/`5G` CGNAT, and satellite links — in Python, JavaScript / TypeScript, Java, zero-heap ANSI C99, and Arduino / `ESP32`.**
+**Connectome-inspired neuromorphic perception, navigation, motor-reflex, and loss-healing wire primitives distilled from the adult *Drosophila* central nervous system (`325,354` neurons) into zero-heap, zero-float ANSI C99 and Python / JS / Java SDKs.**
 
-[![PyPI](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
-[![Release](https://img.shields.io/badge/release-v1.2.0-0EA5E9?style=flat-square)](https://github.com/indian-aman/necklink/releases/tag/v1.2.0)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/pynltp/)
-[![JavaScript / TS](https://img.shields.io/badge/JavaScript%20%2F%20TS-ESM%20%2B%20CJS%20%2B%20WebRTC-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](js/)
-[![Java](https://img.shields.io/badge/Java-11%2B%20%7C%20Android-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](java/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%20v1.2.0-00979D?style=flat-square&logo=arduino&logoColor=white)](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)
+[![Umbrella Suite](https://img.shields.io/pypi/v/necklink?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necklink&color=0EA5E9)](https://pypi.org/project/necklink/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
+[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=necksense&color=10B981)](https://pypi.org/project/necksense/)
+[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B)](https://pypi.org/project/neckcompass/)
+[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4)](https://pypi.org/project/necksight/)
+[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E)](https://pypi.org/project/neckcord/)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-210%2F210%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
-[![ESP32 Radio](https://img.shields.io/badge/ESP32%20encrypted%20radio-48%2F48%20verified-10B981?style=flat-square)](results/esp32_espnow_vs_nltp.json)
+[![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%20v1.2.0-00979D?style=flat-square&logo=arduino&logoColor=white)](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
+[**5-Product CNS Suite**](#-the-necklink-fruit-fly-brain-product-family) ·
+[**NLTP Wire Protocol**](#-why-nltp) ·
 [**30-Second Quick Start**](#-30-second-quick-start) ·
-[**JavaScript / TypeScript**](#2-javascript--typescript-nodejs--browser--webrtc) ·
+[**JavaScript / TS**](#2-javascript--typescript-nodejs--browser--webrtc) ·
 [**Java 11+ / Android**](#3-java-11--android-ionecklinknltp) ·
 [**Arduino / ESP32**](#4-arduino-ide--platformio-esp32) ·
-[**4G/5G CGNAT Relay**](#5-traverse-4g5g-carrier-cgnat-in-3-commands) ·
-[**Benchmarks**](#-post-upgrade-benchmarks--hardware-verification) ·
-[**NLTP vs. ESP-NOW**](#3-nltp-v12-vs-esp-now-on-esp32-hardware)
+[**Benchmarks**](#-post-upgrade-benchmarks--hardware-verification)
 
 </div>
+
+<p align="center">
+  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_brand_banner.png" alt="NeckLink Fruit-Fly Brain Product Suite Architecture" width="100%">
+</p>
+
+---
+
+## 🧬 The NeckLink Fruit-Fly Brain Product Family
+
+Every **NeckLink** product translates a distinct anatomical subsystem of the adult fruit fly (*Drosophila melanogaster*) into a standalone, zero-heap, zero-float **ANSI C99** microcontroller library (`ESP32`, `STM32`, `RP2040`) paired with a clean **Python** package:
+
+| Product | *Drosophila* CNS Region | Core Capability & Verified Benchmark | Install & Repository |
+| :--- | :--- | :--- | :--- |
+| **[NLTP (`pynltp`)](https://github.com/indian-aman/necklink)** | **Cervical Connective Bottleneck** | Zero-ACK loss-healing telemetry, `GF(2^8)` Cauchy FEC file transport, `ChaCha20-Poly1305` & `4G` CGNAT relay (`210/210` Py↔C↔JS↔Java; `48/48` `ESP32` radio) | `pip install pynltp` · [GitHub](https://github.com/indian-aman/necklink) · [PyPI](https://pypi.org/project/pynltp/) |
+| **[NeckSense](https://github.com/indian-aman/necksense)** | **Antennal Lobe & Mushroom Body** | `100×` concentration-invariant Olsen-Wilson adaptation, `5%` WTA sparse `FlyHash` (`0` float muls), `99.5%` plume ID under `250×` swings + drift & `0.966` 1-shot anomaly AUROC (`23 µs` `Q16.16` C99) | `pip install necksense` · [GitHub](https://github.com/indian-aman/necksense) · [PyPI](https://pypi.org/project/necksense/) |
+| **[NeckCompass](https://github.com/indian-aman/neckcompass)** | **Central Complex (`E-PG` / `CPU4`)** | Topological 16-wedge ring-attractor AHRS (`10.2×` lower heading error than 2-State EKF under `70°–150°` magnetic hull spikes) & `0.84 m` blind homing miss after `1.12 km` GPS blackout (`316 B` RAM, `~1 µs` `Q15` C99) | `pip install neckcompass` · [GitHub](https://github.com/indian-aman/neckcompass) · [PyPI](https://pypi.org/project/neckcompass/) |
+| **[NeckSight](https://github.com/indian-aman/necksight)** | **Optic Lobe (`T4/T5` + `LPLC2`)** | `R1–R6` `100×` glare cancellation, 3-arm Reichardt/Barlow-Levick motion & 4-quadrant looming E-stop (`0.9988` AUROC, `0.0%` FAR under fast yaw/glare, `14.3 KB` RAM, `12,463 FPS` C99) | `pip install necksight` · [GitHub](https://github.com/indian-aman/necksight) · [PyPI](https://pypi.org/project/necksight/) |
+| **[NeckCord](https://github.com/indian-aman/neckcord)** | **Ventral Nerve Cord (`BANC` / `MANC`)** | `4-byte` `CRC-4` descending motor bottleneck (`400 B/s` @ `100 Hz`), self-healing 6-limb CPG (`100%` 1-leg jam stability) & `42 ms` shunting thruster fault reallocator (`5.1×` lower USV spin-out, `304 B` RAM C99) | `pip install neckcord` · [GitHub](https://github.com/indian-aman/neckcord) · [PyPI](https://pypi.org/project/neckcord/) |
+
+### Install the Complete 5-Organ Suite (`pip install necklink`)
+
+```bash
+pip install necklink
+necklink products          # Inspect installed organ versions
+necklink suite-demo        # Run live 5-organ closed-loop reflex mission over encrypted 15%-loss UDP
+```
+
+```python
+from necklink import nltp, sense, compass, sight, cord, run_autonomous_reflex_demo
+
+report = run_autonomous_reflex_demo(loss=0.15)
+print(report)  # Verified 120° mag-spike rejection + 1-shot plume alert + 50x glare looming E-stop + 4B thruster rescue
+```
+
+---
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/nltp_v12_benchmarks.png" alt="NLTP v1.2 Multi-Protocol & ESP32 Hardware Benchmarks" width="100%">

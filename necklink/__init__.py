@@ -43,6 +43,12 @@ from .internet import (
 )
 from .nltp import NLTPClient, NLTPEndpoint, NLTPServer, ReceivedItem, pack_nltp_frame, unpack_nltp_frame
 from .socket_api import AsyncNeckSocket, NeckSocket, NeckUDPServer
+from .suite import (
+    NECKLINK_SUITE_CATALOG,
+    check_suite_installed,
+    load_organ,
+    run_autonomous_reflex_demo,
+)
 
 try:
     from .quic_adapter import (
@@ -59,7 +65,14 @@ except ImportError:  # Optional dependency (`pip install aioquic`)
     connect_necklink_quic = None  # type: ignore[assignment]
     generate_ephemeral_quic_cert = None  # type: ignore[assignment]
 
-__version__ = "1.2.0"
+__version__ = "1.3.0"
+
+
+def __getattr__(name: str):
+    if name in ("sense", "compass", "sight", "cord"):
+        return load_organ(name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "DROSOPHILA_NECK_PRIORS",
@@ -100,4 +113,8 @@ __all__ = [
     "connect_necklink_quic",
     "generate_ephemeral_quic_cert",
     "LossyUDPRelay",
+    "NECKLINK_SUITE_CATALOG",
+    "check_suite_installed",
+    "load_organ",
+    "run_autonomous_reflex_demo",
 ]

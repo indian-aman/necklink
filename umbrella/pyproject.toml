@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "necklink"
+version = "1.3.0"
+description = "NeckLink Fruit-Fly Brain Edge Autonomy & Wire Suite: umbrella installer for pynltp, necksense, neckcompass, necksight, and neckcord"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+  {name = "Amandeep Singh Bains"}
+]
+keywords = [
+  "necklink",
+  "pynltp",
+  "necksense",
+  "neckcompass",
+  "necksight",
+  "neckcord",
+  "drosophila",
+  "connectome",
+  "neuromorphic",
+  "robotics",
+  "usv",
+  "esp32",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: System :: Networking",
+]
+dependencies = [
+  "pynltp>=1.3.0",
+  "necksense>=1.0.0",
+  "neckcompass>=1.0.0",
+  "necksight>=1.0.0",
+  "neckcord>=1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/indian-aman/necklink"
+Repository = "https://github.com/indian-aman/necklink"
+Releases = "https://github.com/indian-aman/necklink/releases"
+Issues = "https://github.com/indian-aman/necklink/issues"
+Documentation = "https://github.com/indian-aman/necklink#readme"
+
+[tool.setuptools.packages.find]
+include = ["_necklink_umbrella*"]

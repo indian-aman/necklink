@@ -181,6 +181,39 @@ def cmd_send_file(args: argparse.Namespace) -> int:
         return 0 if receipt["verified_sha256"] else 1
 
 
+def cmd_products(_args: argparse.Namespace) -> int:
+    from .suite import NECKLINK_SUITE_CATALOG, check_suite_installed
+
+    installed = check_suite_installed()
+    print("=== NeckLink Fruit-Fly Brain Product Suite ===")
+    for item in NECKLINK_SUITE_CATALOG:
+        ver = installed.get(item["pypi"], "not-installed")
+        print(
+            f"  [{item['name']:11s}] ({item['pypi']:11s} -> {ver:13s}) | {item['region']}\n"
+            f"                {item['summary']}\n"
+            f"                Repo: {item['repo']}  |  Install: pip install {item['pypi']}"
+        )
+    print("  [Umbrella   ] pip install necklink  -> installs all 5 modules")
+    return 0
+
+
+def cmd_suite_demo(args: argparse.Namespace) -> int:
+    import json as _json
+    from .suite import run_autonomous_reflex_demo
+
+    res = run_autonomous_reflex_demo(loss=args.loss, seed=args.seed)
+    print("=== NeckLink 5-Organ Closed-Loop Drosophila Reflex Demo ===")
+    print(_json.dumps(res, indent=2))
+    ok = (
+        res["nltp_reflex_received"]
+        and res["nltp_4b_command_received"]
+        and res["nltp_file_sha256_verified"]
+        and not res["sight_glare_50x_false_alarm"]
+        and res["sight_looming_triggered"]
+    )
+    return 0 if ok else 1
+
+
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = argparse.ArgumentParser(prog="necklink", description="NeckLink Zero-Retransmission Neural Socket, Internet NLTP & QUIC Adapter")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -237,6 +270,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_sf.add_argument("--loss", type=float, default=0.0)
     p_sf.add_argument("--timeout", type=float, default=60.0)
     p_sf.set_defaults(func=cmd_send_file)
+
+    p_prod = sub.add_parser("products", help="List all 5 Drosophila CNS-inspired packages in the NeckLink brand suite")
+    p_prod.set_defaults(func=cmd_products)
+
+    p_suite = sub.add_parser("suite-demo", help="Run live 5-organ closed-loop Drosophila autonomy & reflex mission over NLTP")
+    p_suite.add_argument("--loss", type=float, default=0.15, help="Simulated UDP packet loss fraction (0.0..0.5)")
+    p_suite.add_argument("--seed", type=int, default=42)
+    p_suite.set_defaults(func=cmd_suite_demo)
 
     parsed = parser.parse_args(argv)
     return int(parsed.func(parsed))
