@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 256" width="880" height="256" fill="none">
+  <style>
+    .neck { fill: #0F172A; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', Helvetica, Arial, sans-serif; font-weight: 800; font-size: 116px; letter-spacing: -2.5px; }
+    .link { fill: #0EA5E9; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Inter', Helvetica, Arial, sans-serif; font-weight: 800; font-size: 116px; letter-spacing: -2.5px; }
+    @media (prefers-color-scheme: dark) {
+      .neck { fill: #F8FAFC; }
+      .link { fill: #38BDF8; }
+    }
+  </style>
+  <g transform="translate(8, 0)">
+    <path d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64" stroke="#0EA5E9" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00" stroke="#6366F1" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="128" cy="128" r="21" stroke="#06B6D4" stroke-width="16"/>
+  </g>
+  <text x="252" y="168"><tspan class="neck">Neck</tspan><tspan class="link">Link</tspan></text>
+</svg>

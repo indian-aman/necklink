@@ -1,6 +1,12 @@
 <div align="center">
 
-# NeckLink — Fruit-Fly Brain Edge Autonomy & Wire Suite (`v1.3.0`)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-logo-dark.png">
+  <source media="(prefers-color-scheme: light)" srcset="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-logo-light.png">
+  <img alt="NeckLink Logo" src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-logo-light.png" width="320">
+</picture>
+
+### Fruit-Fly Brain Edge Autonomy & Wire Suite (`v1.3.1`)
 
 **Connectome-inspired neuromorphic perception, navigation, motor-reflex, and loss-healing wire primitives distilled from the adult *Drosophila* central nervous system (`325,354` neurons) into zero-heap, zero-float ANSI C99 and Python / JS / Java SDKs.**
 
