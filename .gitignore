@@ -1,5 +1,8 @@
+# Each package under packages/ has its own .gitignore for its build outputs.
+
 # Local backups, graph index, and caches
 backup/
+inbox/
 .codegraph/
 .pytest_cache/
 __pycache__/
@@ -9,30 +12,6 @@ __pycache__/
 build/
 dist/
 
-# C build artifacts
-csrc/build/
-csrc/tools/nltp_cli
-csrc/tools/nltp_selftest
-*.o
-*.exe
-*.out
-
-# JavaScript / Node.js & Java build caches
-js/node_modules/
-js/*.tgz
-java/target/
-java/build/
-java/.gradle/
-java/*.class
-
-# ESP32 PlatformIO build & Wi-Fi credentials
-esp32/.pio/
-esp32/include/secrets.h
-esp32/*.log
-
-# Large local media/raw dumps, local release zips, and private office docs
-results/_tmp*
-results/*.mp4
-results/fair_telemetry_benchmark.json
-results/fair_telemetry_benchmark_full.json
+# Private release staging and device credentials, wherever they sit
 deliverables/
+**/esp32/include/secrets.h
