@@ -95,6 +95,8 @@ def _path_for(lang: str, p: Path) -> str:
 
 
 def _parse_result(proc: subprocess.Popen, timeout: float = 90.0) -> Dict:
+    if proc.stdin is not None and proc.stdin.closed:
+        proc.stdin = None
     try:
         out, err = proc.communicate(timeout=timeout)
     except subprocess.TimeoutExpired:
@@ -271,6 +273,8 @@ def run_pair(
                 rx_proc.stdin.close()
             except OSError:
                 pass
+            finally:
+                rx_proc.stdin = None
         rx_res = _parse_result(rx_proc, timeout=30.0)
         rx_ok = bool(rx_res.get("ok")) and out_file.exists() and out_file.read_bytes() == expected_bytes
 
