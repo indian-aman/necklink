@@ -1,0 +1,21 @@
+# Python build, test, and bytecode caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.codegraph/
+
+# ANSI C99 build outputs
+csrc/build/
+*.o
+*.exe
+*.out
+
+# OS & editor files
+.DS_Store
+Thumbs.db

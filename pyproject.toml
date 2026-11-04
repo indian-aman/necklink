@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "necksight"
+version = "1.0.0"
+description = "Drosophila optic-lobe T4/T5 motion and LPLC2 4-quadrant looming collision reflex engine in Python and zero-heap ANSI C99"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  {name = "Amandeep Singh Bains"}
+]
+keywords = [
+  "necksight",
+  "necklink",
+  "drosophila",
+  "optic-lobe",
+  "looming",
+  "collision-avoidance",
+  "optical-flow",
+  "hassenstein-reichardt",
+  "barlow-levick",
+  "lplc2",
+  "t4-t5",
+  "robotics",
+  "drones",
+  "usv",
+  "esp32",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: Scientific/Engineering :: Image Processing",
+]
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/indian-aman/necksight"
+Repository = "https://github.com/indian-aman/necksight"
+Releases = "https://github.com/indian-aman/necksight/releases"
+Issues = "https://github.com/indian-aman/necksight/issues"
+Documentation = "https://github.com/indian-aman/necksight#readme"
+
+[project.optional-dependencies]
+nltp = ["pynltp>=1.2.0"]
+dev = ["pytest>=7.0", "matplotlib>=3.7"]
+
+[project.scripts]
+necksight = "necksight.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["necksight*"]
