@@ -1,0 +1,266 @@
+{
+  "timestamp_utc": "2026-11-04T15:09:20Z",
+  "boards": {
+    "COM9": {
+      "role": "bridge_c99",
+      "mac": "ec:64:c9:9b:a2:bc",
+      "espnow_version": 2,
+      "mtu": 1470,
+      "free_heap_bytes": 96348
+    },
+    "COM12": {
+      "role": "arduino_node",
+      "mac": "f0:24:f9:0d:e8:34",
+      "espnow_version": 2,
+      "mtu": 1470,
+      "free_heap_bytes": 101296
+    }
+  },
+  "suite1_c99_arduino_bidirectional": [
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 4,
+      "ms": 6.43,
+      "mbps": 0.005,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -49,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 4,
+      "ms": 5.58,
+      "mbps": 0.006,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -52,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 4096,
+      "ms": 12.73,
+      "mbps": 2.574,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -50,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 4096,
+      "ms": 12.77,
+      "mbps": 2.566,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -53,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 16384,
+      "ms": 43.0,
+      "mbps": 3.048,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -50,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 16384,
+      "ms": 75.07,
+      "mbps": 1.746,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -52,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 32768,
+      "ms": 70.18,
+      "mbps": 3.735,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -50,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "AUTO (HT20 MCS7)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 32768,
+      "ms": 129.13,
+      "mbps": 2.03,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -53,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Fixed HT20 MCS7",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 32768,
+      "ms": 75.1,
+      "mbps": 3.491,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -50,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Fixed HT20 MCS7",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 32768,
+      "ms": 100.03,
+      "mbps": 2.621,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -52,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 4,
+      "ms": 28.02,
+      "mbps": 0.001,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -41,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 4,
+      "ms": 30.07,
+      "mbps": 0.001,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -43,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 193,
+      "ms": 38.93,
+      "mbps": 0.04,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -38,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 193,
+      "ms": 39.0,
+      "mbps": 0.04,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -43,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "Arduino_COM12 -> C99_Hub_COM9",
+      "bytes": 4096,
+      "ms": 346.66,
+      "mbps": 0.095,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -38,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "rate_mode": "Espressif Long Range 250 kbps (LR)",
+      "direction": "C99_Hub_COM9 -> Arduino_COM12",
+      "bytes": 4096,
+      "ms": 542.73,
+      "mbps": 0.06,
+      "sha256_ok": true,
+      "fin_ack_verified": true,
+      "rssi_dbm": -44,
+      "max_l2_frame_bytes": 1010
+    }
+  ],
+  "suite2_fec_15pct_loss": [
+    {
+      "direction": "Arduino_COM12 -> C99_Hub_COM9 (15% RX drop)",
+      "bytes": 16384,
+      "ms": 3819.01,
+      "mbps": 0.034,
+      "sha256_ok": true,
+      "max_l2_frame_bytes": 1010
+    },
+    {
+      "direction": "C99_Hub_COM9 -> Arduino_COM12 (15% RX drop)",
+      "bytes": 16384,
+      "ms": 70.23,
+      "mbps": 1.866,
+      "sha256_ok": true,
+      "max_l2_frame_bytes": 1010
+    }
+  ],
+  "suite3_allowlist_and_deepsleep_rewake": {
+    "unlisted_mac_blocked": true,
+    "blocked_frames_counted": 3,
+    "deep_sleep_wake_rotations": [
+      {
+        "wake_index": 1,
+        "conn_id": "0x5bcde931",
+        "ms": 5.4,
+        "sha256_ok": true
+      },
+      {
+        "wake_index": 2,
+        "conn_id": "0xdfb62fb7",
+        "ms": 6.4,
+        "sha256_ok": true
+      },
+      {
+        "wake_index": 3,
+        "conn_id": "0x29045809",
+        "ms": 6.41,
+        "sha256_ok": true
+      }
+    ]
+  },
+  "suite4_python_slip_espnow_v2_e2e": [
+    {
+      "direction": "Host_Python_pynltp -> SLIP_COM9 -> ESPNowV2 -> OffWiFi_Arduino_COM12",
+      "bytes": 4,
+      "ms": 100.45,
+      "python_fin_ack_verified": true,
+      "esp32_sha256_ok": true,
+      "max_espnow_v2_frame_bytes": 194
+    },
+    {
+      "direction": "Host_Python_pynltp -> SLIP_COM9 -> ESPNowV2 -> OffWiFi_Arduino_COM12",
+      "bytes": 8192,
+      "ms": 1231.28,
+      "python_fin_ack_verified": true,
+      "esp32_sha256_ok": true,
+      "max_espnow_v2_frame_bytes": 1010
+    },
+    {
+      "direction": "OffWiFi_Arduino_COM12 -> ESPNowV2 -> SLIP_COM9 -> Host_Python_pynltp",
+      "bytes": 8192,
+      "ms": 1229.12,
+      "python_sha256_verified": true,
+      "bit_exact_match": true,
+      "esp32_fin_ack_verified": true,
+      "max_espnow_v2_frame_bytes": 1010
+    }
+  ]
+}
