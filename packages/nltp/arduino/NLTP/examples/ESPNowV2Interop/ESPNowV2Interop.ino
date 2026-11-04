@@ -39,6 +39,8 @@ void setup() {
         for (;;) delay(1000);
     }
     nltp.setPeerMac(PEER_MAC);
+    // Optional: talk to legacy ESP-NOW v1 (<= 250 B MTU) peers using 192 B shards (242 B encrypted frames):
+    // nltp.setEspNowV1Mode(true);
 
     Serial.printf("NLTP over ESP-NOW v%lu ready (MTU=%u B, MAC=%s)\n",
                   (unsigned long)nltp.espNowVersion(),

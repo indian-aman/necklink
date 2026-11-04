@@ -38,6 +38,9 @@
 extern "C" {
 #endif
 
+#define NLTP_ESPNOW_V1_MTU         250u
+#define NLTP_ESPNOW_V1_SHARD_BYTES 192u  /* 20B AEAD + 14B shard hdr + 192B data + 16B tag = 242B <= 250B */
+
 #ifndef ESP_NOW_MAX_DATA_LEN_V2
 #define NLTP_ESPNOW_MTU 250u
 #else
@@ -79,20 +82,27 @@ typedef int (*nltp_espnow_rx_filter_fn)(void *user,
                                         const uint8_t *pkt,
                                         size_t len);
 
+/* Optional hook for non-NLTP raw ESP-NOW v1/v2 frames sharing the same radio. */
+typedef void (*nltp_espnow_non_nltp_rx_fn)(const esp_now_recv_info_t *info,
+                                           const uint8_t *data,
+                                           int len);
+
 /* Global singleton ISR/Wi-Fi-task bridge (ESP-IDF provides one global esp_now callback). */
 typedef struct {
     QueueHandle_t rx_q;
     volatile int32_t tx_inflight;
     volatile uint32_t tx_ok;
     volatile uint32_t tx_fail;
+    volatile uint16_t max_tx_frame_len;
     uint8_t initialized;
     uint8_t lr_enabled;
     uint8_t channel;
     wifi_interface_t ifidx;
     uint32_t espnow_version;
+    nltp_espnow_non_nltp_rx_fn non_nltp_rx_cb;
 } nltp_espnow_bus_t;
 
-static nltp_espnow_bus_t g_nltp_espnow_bus = {0, 0, 0, 0, 0, 0, 0, WIFI_IF_STA, 0};
+static nltp_espnow_bus_t g_nltp_espnow_bus = {0, 0, 0, 0, 0, 0, 0, 0, WIFI_IF_STA, 0, 0};
 
 static inline uint32_t nltp_espnow_now_ms(void *user) {
     (void)user;
@@ -204,12 +214,20 @@ static void nltp_espnow_tx_isr_cb(const uint8_t *tx_info, esp_now_send_status_t 
 
 static void nltp_espnow_rx_isr_cb(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
     nltp_espnow_rx_item_t item;
-    if (!g_nltp_espnow_bus.rx_q || !data || len < (int)NLTP_HEADER_BYTES || len > (int)NLTP_ESPNOW_MTU) {
+    if (!data || len <= 0 || len > (int)NLTP_ESPNOW_MTU) {
         return;
     }
-    /* Accept ONLY standard wire-compatible NLTP frames ("NL", version 1) */
-    if (data[0] != NLTP_MAGIC_0 || data[1] != NLTP_MAGIC_1) return;
-    if (((uint8_t)data[2] >> 4) != NLTP_VERSION) return;
+    /* Route non-NLTP vendor frames to optional coexistence / raw ESP-NOW handler */
+    if (len < (int)NLTP_HEADER_BYTES ||
+        data[0] != NLTP_MAGIC_0 ||
+        data[1] != NLTP_MAGIC_1 ||
+        (((uint8_t)data[2] >> 4) != NLTP_VERSION)) {
+        if (g_nltp_espnow_bus.non_nltp_rx_cb) {
+            g_nltp_espnow_bus.non_nltp_rx_cb(info, data, len);
+        }
+        return;
+    }
+    if (!g_nltp_espnow_bus.rx_q) return;
 
     item.len = (uint16_t)len;
     item.rssi = (info && info->rx_ctrl) ? (int8_t)info->rx_ctrl->rssi : -60;
@@ -270,6 +288,9 @@ static inline esp_err_t nltp_espnow_raw_send(const uint8_t dst_mac[6],
     int attempt;
     int64_t t0;
     if (len > NLTP_ESPNOW_MTU) return ESP_ERR_INVALID_SIZE;
+    if ((uint16_t)len > g_nltp_espnow_bus.max_tx_frame_len) {
+        g_nltp_espnow_bus.max_tx_frame_len = (uint16_t)len;
+    }
     nltp_espnow_ensure_peer(dst_mac, rate_mode, rssi_hint);
 
     t0 = esp_timer_get_time();
@@ -302,6 +323,7 @@ typedef struct {
     nltp_endpoint_t ep;
     uint8_t peer_mac[6];
     uint8_t has_peer;
+    uint8_t v1_mode;
     int8_t last_rssi;
     int8_t last_noise;
     nltp_espnow_rate_t rate_mode;
@@ -312,6 +334,7 @@ typedef struct {
 static void nltp_espnow_node_send_cb(void *user, const uint8_t *pkt, size_t len) {
     nltp_espnow_node_t *node = (nltp_espnow_node_t *)user;
     if (!node || !node->has_peer) return;
+    if (node->v1_mode && len > NLTP_ESPNOW_V1_MTU) return;
     nltp_espnow_raw_send(node->peer_mac, pkt, len, node->rate_mode, node->last_rssi);
 }
 
@@ -333,6 +356,10 @@ static inline esp_err_t nltp_espnow_node_init(nltp_espnow_node_t *node,
 
     nltp_init(&node->ep, esp_random() | 1u, max_kbps, nltp_espnow_node_send_cb, nltp_espnow_now_ms, node);
     nltp_set_rx_buffer(&node->ep, rx_buf, rx_cap);
+#if NLTP_ESPNOW_MTU <= NLTP_ESPNOW_V1_MTU
+    node->v1_mode = 1u;
+    nltp_set_shard_bytes(&node->ep, NLTP_ESPNOW_V1_SHARD_BYTES);
+#endif
     if (psk && psk[0]) {
         uint8_t key32[32];
         nltp_key_from_psk(psk, key32);
@@ -357,6 +384,11 @@ static inline void nltp_espnow_node_set_rate(nltp_espnow_node_t *node, nltp_espn
     if (node->has_peer) {
         nltp_espnow_apply_peer_rate(node->peer_mac, rate_mode, node->last_rssi);
     }
+}
+
+static inline void nltp_espnow_node_set_v1_mode(nltp_espnow_node_t *node, int enable_v1) {
+    node->v1_mode = (uint8_t)(enable_v1 ? 1u : 0u);
+    nltp_set_shard_bytes(&node->ep, enable_v1 ? NLTP_ESPNOW_V1_SHARD_BYTES : (uint16_t)NLTP_SHARD_BYTES);
 }
 
 static inline void nltp_espnow_node_poll(nltp_espnow_node_t *node) {
@@ -410,6 +442,7 @@ typedef int (*nltp_espnow_allow_mac_fn)(void *user, const uint8_t src_mac[6]);
 
 typedef struct {
     uint8_t in_use;
+    uint8_t v1_mode;
     uint8_t mac[6];
     int8_t last_rssi;
     uint32_t last_active_ms;
@@ -425,6 +458,7 @@ typedef struct {
     nltp_espnow_slot_t slots[NLTP_ESPNOW_MAX_PEERS];
     uint8_t key32[32];
     uint8_t encrypted;
+    uint8_t v1_mode;
     uint32_t max_kbps;
     uint32_t idle_timeout_ms;
     nltp_espnow_rate_t rate_mode;
@@ -436,6 +470,7 @@ typedef struct {
 static void nltp_espnow_slot_send_cb(void *user, const uint8_t *pkt, size_t len) {
     nltp_espnow_slot_t *slot = (nltp_espnow_slot_t *)user;
     if (!slot || !slot->in_use) return;
+    if (slot->v1_mode && len > NLTP_ESPNOW_V1_MTU) return;
     nltp_espnow_raw_send(slot->mac, pkt, len, slot->rate_mode, slot->last_rssi);
 }
 
@@ -502,14 +537,29 @@ static inline nltp_espnow_slot_t *nltp_espnow_hub_get_or_create_slot(nltp_espnow
     hub->slots[i].last_active_ms = now_ms;
     hub->slots[i].last_reported_sid = 0;
     hub->slots[i].last_reported_cid = 0;
+    hub->slots[i].v1_mode = hub->v1_mode;
     hub->slots[i].rate_mode = hub->rate_mode;
     nltp_init(&hub->slots[i].ep, esp_random() | 1u, hub->max_kbps,
               nltp_espnow_slot_send_cb, nltp_espnow_now_ms, &hub->slots[i]);
+    nltp_set_shard_bytes(&hub->slots[i].ep,
+                         hub->v1_mode ? NLTP_ESPNOW_V1_SHARD_BYTES : (uint16_t)NLTP_SHARD_BYTES);
     nltp_set_rx_buffer(&hub->slots[i].ep, hub->slots[i].rx_buf, hub->slots[i].rx_cap);
     if (hub->encrypted) {
         nltp_set_key(&hub->slots[i].ep, hub->key32);
     }
     return &hub->slots[i];
+}
+
+static inline void nltp_espnow_hub_set_v1_mode(nltp_espnow_hub_t *hub, int enable_v1) {
+    uint32_t i;
+    hub->v1_mode = (uint8_t)(enable_v1 ? 1u : 0u);
+    for (i = 0; i < NLTP_ESPNOW_MAX_PEERS; ++i) {
+        hub->slots[i].v1_mode = hub->v1_mode;
+        if (hub->slots[i].in_use) {
+            nltp_set_shard_bytes(&hub->slots[i].ep,
+                                 enable_v1 ? NLTP_ESPNOW_V1_SHARD_BYTES : (uint16_t)NLTP_SHARD_BYTES);
+        }
+    }
 }
 
 static inline void nltp_espnow_hub_poll(nltp_espnow_hub_t *hub) {

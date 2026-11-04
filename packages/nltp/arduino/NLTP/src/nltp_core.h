@@ -90,6 +90,7 @@ typedef struct {
     uint32_t peer_conn_id;
     uint8_t have_peer_cid;
     uint16_t meta_len;
+    uint16_t shard_bytes;
     uint8_t meta[NLTP_META_MAX];
     nltp_txgen_t win[NLTP_TX_WINDOW];
 } nltp_tx_t;
@@ -155,6 +156,8 @@ typedef struct {
     uint8_t arr_started;
     uint32_t last_ack_ms, ack_echo_ts;
     uint8_t ack_pending;
+    uint8_t peer_gen_k;
+    uint16_t peer_shard_bytes;
     nltp_rxslot_t slots[NLTP_RX_SLOTS];
 } nltp_rx_t;
 
@@ -168,6 +171,7 @@ typedef struct {
     uint32_t srtt_ms, min_rtt_ms;
     uint8_t has_rtt, paced;
     uint16_t peer_loss_pm;      /* receiver-reported loss, permille EMA */
+    uint16_t tx_shard_bytes;    /* runtime TX shard payload bytes (16..NLTP_SHARD_BYTES; 192 fits ESP-NOW v1 250B) */
     uint32_t next_stream_id;
     nltp_pacer_t pacer;
     nltp_rate_t rate;
@@ -194,6 +198,7 @@ typedef struct {
 void nltp_init(nltp_endpoint_t *ep, uint32_t conn_id, uint32_t max_kbps,
                nltp_send_fn send, nltp_now_ms_fn now_ms, void *user);
 void nltp_set_rx_buffer(nltp_endpoint_t *ep, uint8_t *buf, uint32_t cap);
+void nltp_set_shard_bytes(nltp_endpoint_t *ep, uint16_t shard_bytes);
 
 /* Turns on encryption with a 32-byte key (NULL turns it off). Set it before the first packet; both
    peers need the same key. nltp_key_from_psk() derives the key exactly like Python derive_aead_key(str):

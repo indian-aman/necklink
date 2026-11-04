@@ -319,6 +319,14 @@ public:
         if (_node) nltp_espnow_node_set_rate(_node, rateMode);
     }
 
+    void setEspNowV1Mode(bool enableV1) {
+        if (_node) nltp_espnow_node_set_v1_mode(_node, enableV1 ? 1 : 0);
+    }
+
+    bool isEspNowV1Mode() const {
+        return _node ? (_node->v1_mode != 0u) : false;
+    }
+
     bool sendBytes(const uint8_t *data, uint32_t len, const char *filename = "payload.bin") {
         if (!_node || !_node->has_peer) return false;
         if (_node->ep.tx.active && !_node->ep.tx.completed) return false;

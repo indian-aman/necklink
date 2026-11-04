@@ -26,6 +26,7 @@ typedef struct {
     queue_t *q;           /* where this endpoint's packets go */
     int drop_pct, tamper_pct, replay_every;
     uint32_t sent;
+    uint16_t max_len;
 } link_t;
 
 static uint32_t g_clock = 1000;
@@ -54,6 +55,7 @@ static void send_cb(void *user, const uint8_t *pkt, size_t len) {
     link_t *l = (link_t *)user;
     uint8_t copy[PMAX];
     l->sent++;
+    if (len > l->max_len) l->max_len = (uint16_t)len;
     if (l->drop_pct && rand() % 100 < l->drop_pct) return;
     memcpy(copy, pkt, len);
     if (l->tamper_pct && rand() % 100 < l->tamper_pct) copy[len / 2] ^= 0x01;  /* one flipped bit */
@@ -254,6 +256,44 @@ int main(void) {
              memcmp(file_rx, call_w2, sizeof(call_w2)) == 0;
         snprintf(detail, sizeof(detail), "peer_cid=0x%x verified=%d", (unsigned)ep_b.rx.peer_cid, nltp_tx_verified(&ep_a));
         check(ok, "deep-sleep re-wake: new conn_id resets incomplete bridge rx", detail);
+    }
+
+    /* 12. ESP-NOW v1 (192B shard -> <=250B frames) to ESP-NOW v2 (960B) receiver under 15% loss */
+    {
+        uint32_t v1_len = 32u * 1024u + 73u;  /* 22 generations with partial final generation */
+        int t, ok;
+        memset(&link_a, 0, sizeof(link_a));
+        memset(&link_b, 0, sizeof(link_b));
+        link_a.q = &q_ab;
+        link_b.q = &q_ba;
+        link_a.drop_pct = 15;
+        q_ab.head = q_ab.tail = 0;
+        q_ba.head = q_ba.tail = 0;
+
+        nltp_init(&ep_a, 0xA101, 20000, send_cb, clock_cb, &link_a);
+        nltp_set_shard_bytes(&ep_a, 192);  /* ESP-NOW v1 mode: 192B shard -> 242B encrypted L2 frame */
+        nltp_set_key(&ep_a, key);
+
+        nltp_init(&ep_b, 0xB202, 20000, send_cb, clock_cb, &link_b);
+        /* ep_b stays at default NLTP_SHARD_BYTES (960B = ESP-NOW v2) and auto-infers 192B! */
+        nltp_set_key(&ep_b, key);
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+        memset(file_rx, 0, v1_len);
+
+        nltp_send_buffer(&ep_a, file_tx, v1_len, "v1_to_v2.bin");
+        for (t = 0; t < 25000; ++t) {
+            g_clock++;
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+            if (nltp_rx_done(&ep_b) && nltp_tx_done(&ep_a)) break;
+        }
+        ok = nltp_rx_done(&ep_b) && nltp_rx_sha_ok(&ep_b) && nltp_tx_verified(&ep_a) &&
+             link_a.max_len <= 250u && memcmp(file_rx, file_tx, v1_len) == 0;
+        snprintf(detail, sizeof(detail), "max_pkt=%uB (<=250B) gens=%u sha_ok=%d",
+                 (unsigned)link_a.max_len, (unsigned)ep_a.tx.total_gens, nltp_rx_sha_ok(&ep_b));
+        check(ok, "esp-now v1 (192B shard <=250B) -> v2 (960B) rx under 15% loss", detail);
     }
 
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
