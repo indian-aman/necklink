@@ -1,0 +1,67 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neckcord"
+version = "1.0.0"
+description = "Descending cervical 4-byte command bottleneck, self-healing hexapod VNC CPG, and presynaptic-shunting fault-tolerant thruster allocator"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  {name = "Amandeep Singh Bains"}
+]
+keywords = [
+  "neckcord",
+  "necklink",
+  "drosophila",
+  "connectome",
+  "descending-neurons",
+  "ventral-nerve-cord",
+  "cpg",
+  "kuramoto",
+  "control-allocation",
+  "fault-tolerant-control",
+  "usv",
+  "rov",
+  "hexapod",
+  "robotics",
+  "embedded-c99",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/indian-aman/neckcord"
+Repository = "https://github.com/indian-aman/neckcord"
+Releases = "https://github.com/indian-aman/neckcord/releases"
+Issues = "https://github.com/indian-aman/neckcord/issues"
+Documentation = "https://github.com/indian-aman/neckcord#readme"
+
+[project.optional-dependencies]
+nltp = ["pynltp>=1.2.0"]
+dev = ["pytest>=7.0", "matplotlib>=3.7", "build>=1.0", "twine>=5.0"]
+
+[project.scripts]
+neckcord = "neckcord.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["neckcord*"]
