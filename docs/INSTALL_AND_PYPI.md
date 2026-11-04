@@ -1,6 +1,6 @@
-# Installing NLTP (Python, Arduino IDE, PlatformIO, and PyPI Publishing)
+# Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-## 1. Direct `pip install` from GitHub (Works Immediately)
+## 1. Python (`pip install` from GitHub)
 
 Install the Python library (`import nltp` and `import necklink`) plus the `nltp` CLI command on any laptop or Linux server in one line:
 
@@ -49,7 +49,46 @@ lib_deps =
 
 ---
 
-## 4. Publishing to Official PyPI (`pypi.org`)
+## 4. Install in JavaScript / TypeScript (Node.js 18+, Deno, Bun, Browser)
+
+Install the zero-dependency ESM + CommonJS + `.d.ts` package directly from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
+
+```bash
+npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz
+```
+
+Verify installation:
+
+```bash
+npx nltp-js gen-key
+node -e "import('nltp').then(m => console.log('Generated key:', m.generateNltpKey()))"
+```
+
+For Browser / WebRTC / WebTransport environments without `node:dgram`, import `nltp/core` (`NLTPEndpoint`, `packNltpFrame`, `unpackNltpFrame`, `AEADCipherContext`). See [`js/README.md`](../js/README.md) for full details.
+
+---
+
+## 5. Install in Java 11+ / Android (`io.necklink:nltp`)
+
+Download the standalone zero-dependency library + CLI JAR (**`nltp-java-1.2.0.jar`**, compiled with `--release 11`) from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
+
+```bash
+java -jar nltp-java-1.2.0.jar gen-key
+```
+
+Or build and install into your local Maven repository (`~/.m2`) or Gradle build:
+
+```bash
+mvn -f java/pom.xml clean install
+# or
+gradle -p java test jar
+```
+
+See [`java/README.md`](../java/README.md) for full builder and `NLTPEndpoint<P>` documentation.
+
+---
+
+## 6. Publishing to Official PyPI (`pypi.org`)
 
 > **Note on PyPI package names**: The literal name `nltp` on PyPI is occupied by an unrelated 2020 text-preprocessing package (`nltp 0.1.0`), whereas **`necklink`**, **`pynltp`**, and **`nltp-transport`** are available. Because this repository ships a top-level `nltp/` module and `nltp` console script inside the wheel, installing `pip install necklink` (or `pip install pynltp`) still gives users `from nltp import NLTPClient, NLTPServer` and the `nltp` CLI.
 

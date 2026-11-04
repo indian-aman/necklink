@@ -2,22 +2,25 @@
 
 # NLTP (`necklink` v1.2.0)
 
-**Loss-resilient, two-way UDP file and telemetry transport for wireless, marine radio, `4G`/`5G` CGNAT, and satellite links — in Python, zero-heap ANSI C99, and Arduino / `ESP32`.**
+**Loss-resilient, two-way UDP file and telemetry transport for wireless, marine radio, `4G`/`5G` CGNAT, and satellite links — in Python, JavaScript / TypeScript, Java, zero-heap ANSI C99, and Arduino / `ESP32`.**
 
 [![Release](https://img.shields.io/badge/release-v1.2.0-0EA5E9?style=flat-square)](https://github.com/indian-aman/necklink/releases/tag/v1.2.0)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](docs/INSTALL_AND_PYPI.md)
+[![JavaScript / TS](https://img.shields.io/badge/JavaScript%20%2F%20TS-ESM%20%2B%20CJS%20%2B%20WebRTC-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](js/)
+[![Java](https://img.shields.io/badge/Java-11%2B%20%7C%20Android-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](java/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%20v1.2.0-00979D?style=flat-square&logo=arduino&logoColor=white)](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)
-[![C↔Python Interop](https://img.shields.io/badge/C%E2%86%94Python%20interop-72%2F72%20passed-10B981?style=flat-square)](scripts/c_interop_test.py)
+[![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-210%2F210%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 Radio](https://img.shields.io/badge/ESP32%20encrypted%20radio-48%2F48%20verified-10B981?style=flat-square)](results/esp32_espnow_vs_nltp.json)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**30-Second Quick Start**](#-30-second-quick-start) ·
-[**Arduino / ESP32**](#2-arduino-ide--platformio-esp32) ·
-[**4G/5G CGNAT Relay**](#3-traverse-4g5g-carrier-cgnat-in-3-commands) ·
+[**JavaScript / TypeScript**](#2-javascript--typescript-nodejs--browser--webrtc) ·
+[**Java 11+ / Android**](#3-java-11--android-ionecklinknltp) ·
+[**Arduino / ESP32**](#4-arduino-ide--platformio-esp32) ·
+[**4G/5G CGNAT Relay**](#5-traverse-4g5g-carrier-cgnat-in-3-commands) ·
 [**Benchmarks**](#-post-upgrade-benchmarks--hardware-verification) ·
-[**NLTP vs. ESP-NOW**](#3-nltp-v12-vs-esp-now-on-esp32-hardware) ·
-[**Zero-Heap C99**](#4-portable-zero-heap-ansi-c99-core-csrc)
+[**NLTP vs. ESP-NOW**](#3-nltp-v12-vs-esp-now-on-esp32-hardware)
 
 </div>
 
@@ -29,17 +32,17 @@
 
 ## Why NLTP?
 
-Standard `TCP` and `QUIC` stall on bursty wireless fades, while raw microcontroller protocols like `ESP-NOW` cannot cross routers/SIM cards or reassemble multi-kilobyte files when chunks drop. **NLTP v1.2** bridges embedded hardware and cloud/shore software with a single encrypted, FEC-protected UDP wire format:
+Standard `TCP` and `QUIC` stall on bursty wireless fades, while raw microcontroller protocols like `ESP-NOW` cannot cross routers/SIM cards or reassemble multi-kilobyte files when chunks drop. **NLTP v1.2** bridges embedded hardware, mobile/web gateways, and cloud/shore software with a single encrypted, FEC-protected UDP wire format:
 
 - **Survives `20%` Packet Loss & Bursty Fades**: Systematic `GF(2^8)` Cauchy forward error correction (8-shard generations + incremental Gauss-Jordan decoding) reconstructs lost packets without waiting for round-trip retransmission timeouts.
 - **1-RTT Bottleneck Pacing**: Adaptive BBR-style delivery-rate and packet-train probing learns link capacity in a single round trip without overflowing router queues.
-- **One Wire Format (`$4` `ESP32` ↔ Python Cloud/Laptop)**: Zero-malloc, zero-float ANSI C99 engine (`~65 KB` RAM on `ESP32`) talks two-way (`tx` + `rx` on one UDP port) directly to Python `NLTPServer` / `NLTPClient`, verified by `ChaCha20-Poly1305` (256-bit AEAD), `RFC 6479` replay protection, and end-to-end `SHA-256` receipts.
+- **One Wire Format Across 5 Platforms (`ESP32` / C99 ↔ Python ↔ JavaScript/TS ↔ Java)**: Zero-malloc ANSI C99 (`~65 KB` RAM on `ESP32`) talks two-way (`tx` + `rx` on one UDP port) directly to Python, Node.js/Browser, and Java/Android endpoints, verified by `ChaCha20-Poly1305` (256-bit AEAD), `RFC 6479` replay protection, and end-to-end `SHA-256` receipts (`210/210` cross-language pairings verified).
 - **Built-In NAT & Carrier CGNAT Traversal**: `RFC 5389` STUN discovery, low-TTL (`TTL=2`) direct UDP hole-punching, keepalives, and automatic 3-second fallback to a zero-knowledge 1-port UDP relay (`NLTPRelayHub`).
 
 ```mermaid
 flowchart LR
     A["ESP32 / C99 Node (Zero-Heap, ~65 KB RAM)"] <-->|"Wi-Fi / Marine Radio / Satellite"| B["Direct UDP + Cauchy FEC + ChaCha20-Poly1305"]
-    B <--> C["Python Shore / Cloud (NLTPServer & NLTPClient)"]
+    B <--> C["Python · Node.js / TS · Java / Android Shore & Cloud"]
     A <-->|"4G/5G SIM Behind CGNAT"| D["STUN P2P Punch or 1-Port NLTPRelayHub (Zero Keys)"]
     D <--> C
 ```
@@ -81,7 +84,52 @@ nltp send-file --host <SERVER_IP> --port 9000 --psk "<KEY>" --file firmware.bin
 
 ---
 
-### 2. Arduino IDE & PlatformIO (`ESP32`)
+### 2. JavaScript & TypeScript (Node.js / Browser / WebRTC)
+
+Zero external dependencies (`ESM` + `CommonJS` + `.d.ts` TypeScript types + `nltp/core` for WebRTC / WebTransport):
+
+```bash
+npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz
+```
+
+```javascript
+import { NLTPServer, NLTPClient, generateNltpKey } from 'nltp';
+
+const key = generateNltpKey();
+const srv = await NLTPServer.listen({ host: '0.0.0.0', port: 9000, psk: key, saveDir: './inbox' });
+const cli = await NLTPClient.connect({ host: '127.0.0.1', port: 9000, psk: key, maxTxKbps: 10_000 });
+
+await cli.sendReflex('ESTOP_CHECK');
+const receipt = await cli.sendFile('mission_log.bin');
+console.log('Verified SHA-256:', receipt.verifiedSha256);
+
+await cli.close();
+await srv.close();
+```
+
+---
+
+### 3. Java 11+ & Android (`io.necklink:nltp`)
+
+Zero external dependencies — includes portable constant-time `RFC 8439` `ChaCha20-Poly1305` and non-blocking NIO `DatagramChannel` (`--release 11`). Download **[`nltp-java-1.2.0.jar`](https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-java-1.2.0.jar)** or build via Maven/Gradle (`java/`):
+
+```java
+import io.necklink.nltp.*;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Paths;
+
+String key = NLTPWire.generateNltpKey();
+try (NLTPServer srv = NLTPServer.builder().bind("0.0.0.0", 9000).psk(key).saveDir(Paths.get("./inbox")).build();
+     NLTPClient cli = NLTPClient.builder().server("127.0.0.1", 9000).psk(key).maxTxKbps(10_000.0).build()) {
+    cli.sendReflex("ESTOP_CHECK".getBytes(StandardCharsets.UTF_8));
+    TransferReceipt receipt = cli.sendFile(Paths.get("mission_log.bin"), 60_000L);
+    assert receipt.verifiedSha256();
+}
+```
+
+---
+
+### 4. Arduino IDE & PlatformIO (`ESP32`)
 
 - **Arduino IDE (1-Click `.ZIP`)**: Download **[`NLTP-Arduino-1.2.0.zip`](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)** → **Sketch → Include Library → Add .ZIP Library...** → open **File → Examples → NLTP** (`ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`, or `ESP32_Relay_CGNAT_Node`).
 - **PlatformIO (`platformio.ini`)**:
@@ -120,7 +168,7 @@ void loop() {
 
 ---
 
-### 3. Traverse `4G`/`5G` Carrier CGNAT in 3 Commands
+### 5. Traverse `4G`/`5G` Carrier CGNAT in 3 Commands
 
 When both sender and receiver sit behind carrier NAT/firewalls with no public IP or port forwarding, run `nltp relay` on any tiny 1-port VPS (holds **zero keys**, sees only `ChaCha20-Poly1305` ciphertext):
 
@@ -137,7 +185,7 @@ nltp send-file --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --file senso
 
 ---
 
-### 4. Portable Zero-Heap ANSI C99 Core (`csrc/`)
+### 6. Portable Zero-Heap ANSI C99 Core (`csrc/`)
 
 Compiles cleanly under `-std=c99 -Wall -Wextra -pedantic -Werror` with **zero `malloc`** and **zero floating-point operations**:
 
@@ -234,11 +282,15 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
 
 ---
 
-### 4. Cross-Language C99 ↔ Python Interop & Dual-NAT / CGNAT Verification
+### 4. Cross-Language (`Python ↔ C99 ↔ JavaScript ↔ Java`) & Dual-NAT / CGNAT Verification
 
-- **`72/72` C99 ↔ Python Interoperability (`scripts/c_interop_test.py`)**: Verified `C→C`, `C→Python`, `Python→C`, and `Python→Python` across plaintext, 256-bit base64 keys, and passphrases at `0%` and `15%` loss (`1 KB`, `64 KB`, `1 MB`).
-- **`9/9` C99 Cryptographic & Security Self-Test (`csrc/tools/nltp_selftest.c`)**: Verified Python key-derivation parity, `5%` bit-flipped packet rejection + FEC recovery, `RFC 6479` replay rejection, wrong-key rejection (`668/668` dropped), and plaintext-to-encrypted downgrade rejection (`671/671` dropped).
-- **`18/18` Dual-NAT & Symmetric-CGNAT Suite (`scripts/virtual_nat_test.py`)**: `1 MB` encrypted transfers across two separate Linux NAT routers (`40 ms` RTT + `5%` loss on each last mile):
+- **`210/210` 4-Language Wire & Encryption Interoperability ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py) / [`results/multilang_interop_test.json`](results/multilang_interop_test.json))**:
+  - **`192/192` Full 4×4 Directional Matrix**: Every `sender → receiver` pair across **Python**, **ANSI C99**, **JavaScript (Node.js ESM/CJS)**, and **Java (JDK 11+ NIO)** across plaintext, 256-bit Base64 keys, and passphrases at `0%` and `15%` packet loss (`1 KB` short `k=1` generation and `64 KB` multi-generation FEC).
+  - **`8/8` `256 KB` Lossy Cross-Language Stress**: Heterogeneous encrypted multi-window streams (`py↔js`, `js↔java`, `java↔c`, `c↔py`) at `15%` packet loss.
+  - **`6/6` Cross-Language Zero-Knowledge `NLTPRelayHub`**: Python, JavaScript, and Java relay hubs forwarding encrypted `64 KB` streams across heterogeneous language pairs at `10%` loss.
+  - **`4/4` Cross-Language Urgent `send_reflex`**: Out-of-line encrypted `ESTOP` delivery across `Python ↔ JS` and `Python ↔ Java`.
+- **`9/9` C99 + `9/9` JS + `7/7` Java Security & FEC Self-Tests**: Verified cross-SDK key derivation parity, bit-flipped packet rejection + `GF(2^8)` erasure recovery, `RFC 6479` replay rejection, wrong-key rejection, and plaintext-downgrade rejection.
+- **`18/18` Dual-NAT & Symmetric-CGNAT Suite ([`scripts/virtual_nat_test.py`](scripts/virtual_nat_test.py))**: `1 MB` encrypted transfers across two separate Linux NAT routers (`40 ms` RTT + `5%` loss on each last mile):
   - Direct STUN + low-TTL UDP hole-punching (`C↔C` and `C↔Python`): **`9/9` direct P2P** (`1.22–2.26 s`).
   - Zero-knowledge `NLTPRelayHub`: **`3/3`** (`1.31–2.19 s`).
   - Symmetric CGNAT (`MASQUERADE --random-fully`): automatic 3-second fallback to `NLTPRelayHub` completed in **`1.80 s`**.
@@ -266,11 +318,13 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
 | Path | Contents |
 | :--- | :--- |
 | [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python package & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPRelayHub`, STUN/hole-punch, `ChaCha20-Poly1305` AEAD, `nltp` CLI) |
+| [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + Browser/WebRTC `NLTPEndpoint` + Node UDP `NLTPServer`/`NLTPClient`/`NLTPRelayHub` + `nltp-js` CLI) |
+| [`java/`](java/) | Zero-dependency Pure Java 11+ / Android SDK (`io.necklink:nltp`, Maven `pom.xml` + Gradle, portable `ChaCha20-Poly1305`, NIO UDP + `NLTPCli` executable JAR) |
 | [`arduino/NLTP/`](arduino/NLTP/) | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`) with 3 ready-to-flash `ESP32` `.ino` sketches |
-| [`examples/python/`](examples/python/) | 4 runnable Python examples (encrypted file + `ESTOP`, 4G CGNAT relay, STUN P2P hole-punching, and `ESP32` companion script) |
+| [`examples/`](examples/) | Runnable Python (`examples/python/`), JavaScript (`examples/javascript/`), and Java (`examples/java/`) examples |
 | [`csrc/`](csrc/) | Portable zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_wire.h`), POSIX CLI, and `9/9` security self-test |
 | [`esp32/`](esp32/) | PlatformIO `ESP32` hardware firmware (`Arduino-ESP32`), verified bidirectional over encrypted Wi-Fi and emulated radio profiles |
-| [`scripts/`](scripts/) | Live field-trial kit ([`field_test.py`](scripts/field_test.py)), `ESP32` & radio emulator, `72/72` C↔Python interop, `18/18` dual-NAT suite, and `netem` harnesses |
+| [`scripts/`](scripts/) | Live field-trial kit ([`field_test.py`](scripts/field_test.py)), `210/210` 4-language interop ([`multilang_interop_test.py`](scripts/multilang_interop_test.py)), `72/72` C↔Python interop, `18/18` dual-NAT suite, and `netem` harnesses |
 | [`tests/`](tests/) | `pytest` unit and integration suite (`20` tests) |
 | [`docs/`](docs/) | Installation & PyPI publishing guide ([`INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md)) and GitHub Actions CI workflow ([`github-ci.yml`](docs/github-ci.yml)) |
 

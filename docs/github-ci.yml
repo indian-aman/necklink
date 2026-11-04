@@ -24,7 +24,30 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
-      - name: Install package and test dependencies
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Set up Java (Temurin JDK 21, targeting Java 11 bytecode)
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Build zero-dep Java SDK (--release 11) & run 7/7 Java self-tests
+        run: |
+          mkdir -p java/target/classes java/target/test-classes
+          javac --release 11 -Xlint:all -Werror -d java/target/classes java/src/main/java/io/necklink/nltp/*.java
+          jar --create --file java/target/nltp-1.2.0.jar --main-class io.necklink.nltp.NLTPCli -C java/target/classes .
+          javac --release 11 -Xlint:all -Werror -cp java/target/nltp-1.2.0.jar -d java/target/test-classes java/src/test/java/io/necklink/nltp/*.java
+          java -cp "java/target/nltp-1.2.0.jar:java/target/test-classes" io.necklink.nltp.NLTPSelfTest
+
+      - name: Run JavaScript / TypeScript SDK test suite
+        run: |
+          node --test js/test/nltp.test.mjs
+
+      - name: Install Python package and test dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev,quic]"
@@ -33,7 +56,7 @@ jobs:
         run: |
           pytest tests -v
 
-      - name: Run 72-pair C <-> Python wire & encryption interop suite
+      - name: Run 210-pair 4-language (Python <-> C99 <-> JS <-> Java) wire & encryption interop suite
         if: matrix.python-version == '3.12'
         run: |
-          python scripts/c_interop_test.py
+          python scripts/multilang_interop_test.py

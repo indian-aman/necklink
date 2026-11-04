@@ -1,0 +1,62 @@
+{
+  "name": "nltp",
+  "version": "1.2.0",
+  "description": "NeckLink Transport Protocol (NLTP v1.2) — Loss-resilient, ChaCha20-Poly1305 encrypted bidirectional UDP file & reflex transport with GF(2^8) Cauchy FEC, 1-RTT pacing, STUN & 4G CGNAT relay.",
+  "license": "MIT",
+  "author": "Amandeep Singh Bains (@indian-aman)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/indian-aman/necklink.git",
+    "directory": "js"
+  },
+  "type": "module",
+  "main": "./src/index.cjs",
+  "module": "./src/index.js",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./src/index.d.ts",
+      "import": "./src/index.js",
+      "require": "./src/index.cjs"
+    },
+    "./core": {
+      "types": "./src/index.d.ts",
+      "import": "./src/endpoint.js"
+    },
+    "./wire": {
+      "import": "./src/wire.js"
+    },
+    "./endpoint": {
+      "import": "./src/endpoint.js"
+    }
+  },
+  "bin": {
+    "nltp": "./bin/nltp.mjs",
+    "nltp-js": "./bin/nltp.mjs"
+  },
+  "files": [
+    "src/",
+    "bin/",
+    "README.md"
+  ],
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "nltp",
+    "udp",
+    "fec",
+    "cauchy",
+    "galois-field",
+    "chacha20-poly1305",
+    "stun",
+    "nat-traversal",
+    "cgnat",
+    "esp32",
+    "iot",
+    "telemetry"
+  ]
+}

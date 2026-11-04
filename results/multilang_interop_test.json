@@ -1,0 +1,2119 @@
+{
+  "total_tests": 210,
+  "passed": 210,
+  "languages": [
+    "py",
+    "c",
+    "js",
+    "java"
+  ],
+  "all_passed": true,
+  "results": [
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0084
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0046
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0078
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0227
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0017
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0002
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0059
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0206
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0046
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.005
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0075
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0203
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0194
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0217
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0254
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0365
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.012
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0121
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0102
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0666
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0015
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0003
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0083
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0228
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0639
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.062
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0594
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0201
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0204
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.02
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0225
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0331
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0437
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0424
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0473
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0502
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0367
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0363
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0438
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0409
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.038
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0357
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0473
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0415
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.2252
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.2244
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0457
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.2265
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0493
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0854
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0749
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1315
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0805
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0952
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.082
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0873
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0956
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0735
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0821
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0936
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.2952
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.3854
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1099
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1276
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0045
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0059
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0103
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0211
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0017
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0003
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0123
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0226
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0069
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0066
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0113
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0213
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0218
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0287
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0255
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0397
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0099
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0096
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0151
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0679
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0559
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.5543
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0097
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0273
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.007
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0061
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0653
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0233
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0258
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0202
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0239
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0479
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0514
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0436
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0409
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0497
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0415
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0339
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0361
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0527
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.048
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0351
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0508
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0559
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.235
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.237
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0549
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0677
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.049
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0744
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.113
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1147
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0343
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2975
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1464
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1157
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1204
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0881
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0962
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1316
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3271
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2365
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1567
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1187
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0063
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0047
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.009
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0205
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0013
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0002
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0121
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0252
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0061
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0066
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0109
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0218
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0271
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0259
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0224
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0363
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0103
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0682
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0688
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0678
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0064
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1169
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0073
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0227
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0056
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1146
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1127
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0208
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.031
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0212
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0794
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0396
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0481
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.043
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0425
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0406
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0373
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0326
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0409
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0522
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0326
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0398
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0431
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0572
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.239
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.2325
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0534
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0631
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.047
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1165
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0983
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1191
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0479
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1704
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.072
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0822
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0864
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0941
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1554
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0694
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.3147
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.2991
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1211
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1204
+    },
+    {
+      "category": "stress_256k",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2233
+    },
+    {
+      "category": "stress_256k",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1905
+    },
+    {
+      "category": "stress_256k",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.9121
+    },
+    {
+      "category": "stress_256k",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0664
+    },
+    {
+      "category": "stress_256k",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1938
+    },
+    {
+      "category": "stress_256k",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2974
+    },
+    {
+      "category": "stress_256k",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.178
+    },
+    {
+      "category": "stress_256k",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 262144,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.219
+    },
+    {
+      "category": "relay",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0545,
+      "relay_hub": "py"
+    },
+    {
+      "category": "relay",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0781,
+      "relay_hub": "py"
+    },
+    {
+      "category": "relay",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.296,
+      "relay_hub": "js"
+    },
+    {
+      "category": "relay",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1138,
+      "relay_hub": "js"
+    },
+    {
+      "category": "relay",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1294,
+      "relay_hub": "java"
+    },
+    {
+      "category": "relay",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 10,
+      "size": 65536,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0459,
+      "relay_hub": "java"
+    },
+    {
+      "category": "reflex",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 14,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1388
+    },
+    {
+      "category": "reflex",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 16,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2508
+    },
+    {
+      "category": "reflex",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 14,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1578
+    },
+    {
+      "category": "reflex",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 16,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2494
+    }
+  ]
+}

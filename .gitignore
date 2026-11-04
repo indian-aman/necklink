@@ -17,6 +17,14 @@ csrc/tools/nltp_selftest
 *.exe
 *.out
 
+# JavaScript / Node.js & Java build caches
+js/node_modules/
+js/*.tgz
+java/target/
+java/build/
+java/.gradle/
+java/*.class
+
 # ESP32 PlatformIO build & Wi-Fi credentials
 esp32/.pio/
 esp32/include/secrets.h
