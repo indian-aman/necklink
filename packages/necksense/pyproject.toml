@@ -1,0 +1,71 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "necksense"
+version = "1.0.0"
+description = "Drosophila Antennal Lobe + Mushroom Body concentration-invariant sparse hashing, 1-shot novelty detection, and online associative classification in Python and zero-heap ANSI C99"
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [
+  {name = "Amandeep Singh Bains"}
+]
+keywords = [
+  "necksense",
+  "necklink",
+  "drosophila",
+  "flyhash",
+  "mushroom-body",
+  "antennal-lobe",
+  "kenyon-cells",
+  "locality-sensitive-hashing",
+  "anomaly-detection",
+  "novelty-detection",
+  "olfaction",
+  "e-nose",
+  "embedded-ai",
+  "esp32",
+  "tinyml",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: System :: Hardware",
+]
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/indian-aman/necksense"
+Repository = "https://github.com/indian-aman/necksense"
+Releases = "https://github.com/indian-aman/necksense/releases"
+Issues = "https://github.com/indian-aman/necksense/issues"
+Documentation = "https://github.com/indian-aman/necksense#readme"
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=7.0",
+  "matplotlib>=3.7",
+  "build>=1.0",
+  "twine>=5.0",
+]
+
+[project.scripts]
+necksense = "necksense.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["necksense*"]
