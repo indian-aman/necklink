@@ -903,6 +903,18 @@ static int rx_add_row(nltp_rxslot_t *s, const uint8_t *coeff_in, const uint8_t *
     return s->rank == s->k;
 }
 
+/* When may an incoming packet replace the current receive stream?
+ * - same sender (conn_id): a newer stream_id, or any other stream once the current one is complete;
+ * - different conn_id (e.g. a device that woke from deep sleep with a fresh conn_id): only once the
+ *   current stream is complete or has been silent for NLTP_RX_TAKEOVER_MS. Taking over immediately
+ *   (v1.2.1) let a single forged plaintext packet, or one delayed/replayed packet from the sender's
+ *   previous session, wipe a transfer in progress that the sender could then never repair. */
+static int rx_should_reset(const nltp_rx_t *rx, uint32_t peer_cid, uint32_t sid, uint32_t t) {
+    if (!rx->active) return 1;
+    if (peer_cid != rx->peer_cid) return rx->completed || (uint32_t)(t - rx->last_rx_ms) >= NLTP_RX_TAKEOVER_MS;
+    return sid > rx->stream_id || (rx->completed && sid != rx->stream_id);
+}
+
 static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, uint32_t pkt_ts,
                         const uint8_t *pl, size_t len) {
     nltp_rx_t *rx = &ep->rx;
@@ -918,11 +930,12 @@ static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, ui
     /* No receive buffer yet: ignore (unacknowledged, so the sender repairs it later) rather than mark
        generations solved whose data could not be stored */
     if (!rx->out) return;
-    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
+    if (rx_should_reset(rx, peer_cid, sid, t)) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id) {
-        return;  /* stale packet from an earlier cancelled stream */
+    } else if (peer_cid != rx->peer_cid || sid != rx->stream_id) {
+        return;  /* late packet from another sender / an earlier session, or a cancelled stream */
     }
+    rx->last_rx_ms = t;
     if (rx->completed) {
         send_fin(ep);
         return;
@@ -1026,11 +1039,12 @@ static void rx_on_meta(nltp_endpoint_t *ep, uint32_t peer_cid, uint32_t pkt_ts, 
     nltp_rx_t *rx = &ep->rx;
     const char *js = (const char *)pl;
     uint32_t sid = json_u32(js, len, "stream_id");
-    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
+    if (rx_should_reset(rx, peer_cid, sid, now(ep))) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id) {
+    } else if (peer_cid != rx->peer_cid || sid != rx->stream_id) {
         return;
     }
+    rx->last_rx_ms = now(ep);
     if (rx->completed) {
         send_fin(ep);
         return;

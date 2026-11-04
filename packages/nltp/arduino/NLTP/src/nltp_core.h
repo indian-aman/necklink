@@ -34,7 +34,7 @@ extern "C" {
 #define NLTP_GEN_K 8u                       /* shards per generation (must match the peer: Python uses 8) */
 #endif
 #ifndef NLTP_SHARD_BYTES
-#define NLTP_SHARD_BYTES NLTP_DEFAULT_SHARD_LEN  /* 960, must match the peer */
+#define NLTP_SHARD_BYTES NLTP_DEFAULT_SHARD_LEN  /* 960: max shard size; receivers infer the sender's actual size */
 #endif
 #define NLTP_ROW_MAX (2u + NLTP_SHARD_BYTES)
 #ifndef NLTP_TX_WINDOW
@@ -45,17 +45,20 @@ extern "C" {
 #    define NLTP_RX_SLOTS 8u                /* ~65 KB endpoint footprint on ESP32 alongside Wi-Fi */
 #  endif
 #  ifndef NLTP_RX_MAX_GENS
-#    define NLTP_RX_MAX_GENS 512u           /* ~3.8 MB max single file on MCU by default */
+#    define NLTP_RX_MAX_GENS 512u           /* max file: ~3.8 MB at 960 B shards, ~768 KB at 192 B (ESP-NOW v1) */
 #  endif
 #endif
 #ifndef NLTP_RX_SLOTS
 #define NLTP_RX_SLOTS 16u                   /* incomplete generations buffered while receiving (~7.8 KB each) */
 #endif
 #ifndef NLTP_RX_MAX_GENS
-#define NLTP_RX_MAX_GENS 4096u              /* max generations per received stream (~31 MB) */
+#define NLTP_RX_MAX_GENS 4096u              /* max generations per stream: ~31 MB at 960 B shards, ~6 MB at 192 B */
 #endif
 #define NLTP_PKT_MAX (NLTP_HEADER_BYTES + NLTP_SHARD_HDR_BYTES + NLTP_ROW_MAX)
 #define NLTP_META_MAX 320u
+#ifndef NLTP_RX_TAKEOVER_MS
+#define NLTP_RX_TAKEOVER_MS 1000u  /* silence before another conn_id may replace an unfinished receive */
+#endif
 #define NLTP_COLD_BURST_BYTES (32u * 1024u)
 
 typedef void (*nltp_send_fn)(void *user, const uint8_t *pkt, size_t len);
@@ -158,6 +161,7 @@ typedef struct {
     uint8_t ack_pending;
     uint8_t peer_gen_k;
     uint16_t peer_shard_bytes;
+    uint32_t last_rx_ms;        /* time of the last accepted packet of the current stream */
     nltp_rxslot_t slots[NLTP_RX_SLOTS];
 } nltp_rx_t;
 

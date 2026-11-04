@@ -296,6 +296,99 @@ int main(void) {
         check(ok, "esp-now v1 (192B shard <=250B) -> v2 (960B) rx under 15% loss", detail);
     }
 
+    /* 13. v1.2.4 regression: ONE forged plaintext packet with another conn_id must not kill a transfer.
+     *     (v1.2.1-v1.2.3 reset the receive stream on any new conn_id; the sender could never repair it.) */
+    {
+        uint32_t t;
+        int ok, injected = 0;
+        memset(&q_ab, 0, sizeof(q_ab));
+        memset(&q_ba, 0, sizeof(q_ba));
+        memset(&link_a, 0, sizeof(link_a));
+        memset(&link_b, 0, sizeof(link_b));
+        link_a.q = &q_ab;
+        link_b.q = &q_ba;
+        nltp_init(&ep_a, 0x1313, 20000, send_cb, clock_cb, &link_a);
+        nltp_init(&ep_b, 0x3131, 20000, send_cb, clock_cb, &link_b);
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+        memset(file_rx, 0, sizeof(file_tx));
+        nltp_send_buffer(&ep_a, file_tx, sizeof(file_tx), "victim.bin");
+        for (t = 0; t < 20000; ++t) {
+            g_clock++;
+            if (!injected && q_ab.head != q_ab.tail && ep_b.rx.n_solved >= 2u) {
+                uint8_t pkt[PMAX];
+                uint16_t n = q_ab.len[q_ab.head];
+                uint32_t crc;
+                memcpy(pkt, q_ab.data[q_ab.head], n);
+                nltp_write_u32_le(pkt + 4, 0xBAD0BAD1u);           /* attacker's conn_id */
+                nltp_write_u32_le(pkt + 8, 0u);
+                crc = nltp_crc32_ieee(pkt, NLTP_HEADER_BYTES, 0u);  /* plaintext CRC is unkeyed */
+                crc = nltp_crc32_ieee(pkt + NLTP_HEADER_BYTES, n - NLTP_HEADER_BYTES, crc);
+                nltp_write_u32_le(pkt + 8, crc);
+                nltp_on_datagram(&ep_b, pkt, n);
+                injected = 1;
+            }
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+            if (nltp_rx_done(&ep_b) && nltp_tx_done(&ep_a)) break;
+        }
+        ok = injected && nltp_rx_done(&ep_b) && nltp_rx_sha_ok(&ep_b) && ep_b.rx.peer_cid == ep_a.conn_id &&
+             memcmp(file_rx, file_tx, sizeof(file_tx)) == 0;
+        snprintf(detail, sizeof(detail), "forged=%d peer_cid=0x%x sha_ok=%d", injected,
+                 (unsigned)ep_b.rx.peer_cid, nltp_rx_sha_ok(&ep_b));
+        check(ok, "forged plaintext packet mid-transfer is ignored", detail);
+    }
+
+    /* 14. v1.2.4 regression: ONE delayed (or replayed) packet from the sender's previous session -- old
+     *     conn_id, valid AEAD tag -- arriving mid-transfer must not kill the new transfer. */
+    {
+        uint32_t t;
+        int ok, injected = 0;
+        uint8_t old_pkt[PMAX];
+        uint16_t old_n;
+        memset(&q_ab, 0, sizeof(q_ab));
+        memset(&q_ba, 0, sizeof(q_ba));
+        memset(&link_a, 0, sizeof(link_a));
+        memset(&link_b, 0, sizeof(link_b));
+        link_a.q = &q_ab;
+        link_b.q = &q_ba;
+        nltp_init(&ep_a, 0x4141, 20000, send_cb, clock_cb, &link_a);
+        nltp_init(&ep_b, 0x1414, 20000, send_cb, clock_cb, &link_b);
+        nltp_set_key(&ep_a, key);
+        nltp_set_key(&ep_b, key);
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+        nltp_send_buffer(&ep_a, file_tx, sizeof(file_tx), "session1.bin");
+        old_n = q_ab.len[q_ab.head];                       /* keep a copy of session 1's first packet */
+        memcpy(old_pkt, q_ab.data[q_ab.head], old_n);
+        deliver(&q_ab, &ep_b);
+        memset(&q_ab, 0, sizeof(q_ab));
+        memset(&q_ba, 0, sizeof(q_ba));
+
+        g_clock += 5000;                                   /* device sleeps, wakes with a new conn_id */
+        nltp_init(&ep_a, 0x4242, 20000, send_cb, clock_cb, &link_a);
+        nltp_set_key(&ep_a, key);
+        memset(file_rx, 0, sizeof(file_tx));
+        nltp_send_buffer(&ep_a, file_tx, sizeof(file_tx), "session2.bin");
+        for (t = 0; t < 20000; ++t) {
+            g_clock++;
+            if (t == 30) {
+                nltp_on_datagram(&ep_b, old_pkt, old_n);
+                injected = 1;
+            }
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+            if (nltp_rx_done(&ep_b) && nltp_tx_done(&ep_a)) break;
+        }
+        ok = injected && nltp_rx_done(&ep_b) && nltp_rx_sha_ok(&ep_b) && nltp_tx_verified(&ep_a) &&
+             ep_b.rx.peer_cid == ep_a.conn_id && memcmp(file_rx, file_tx, sizeof(file_tx)) == 0;
+        snprintf(detail, sizeof(detail), "peer_cid=0x%x sha_ok=%d", (unsigned)ep_b.rx.peer_cid,
+                 nltp_rx_sha_ok(&ep_b));
+        check(ok, "stale packet from previous session (valid AEAD) ignored", detail);
+    }
+
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");
     return failures ? 1 : 0;
 }
