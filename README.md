@@ -1,11 +1,12 @@
 <div align="center">
 
-# NLTP (`necklink` v1.2.0)
+# NLTP (`pynltp` / `necklink` v1.2.0)
 
 **Loss-resilient, two-way UDP file and telemetry transport for wireless, marine radio, `4G`/`5G` CGNAT, and satellite links — in Python, JavaScript / TypeScript, Java, zero-heap ANSI C99, and Arduino / `ESP32`.**
 
+[![PyPI](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
 [![Release](https://img.shields.io/badge/release-v1.2.0-0EA5E9?style=flat-square)](https://github.com/indian-aman/necklink/releases/tag/v1.2.0)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](docs/INSTALL_AND_PYPI.md)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/pynltp/)
 [![JavaScript / TS](https://img.shields.io/badge/JavaScript%20%2F%20TS-ESM%20%2B%20CJS%20%2B%20WebRTC-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](js/)
 [![Java](https://img.shields.io/badge/Java-11%2B%20%7C%20Android-ED8B00?style=flat-square&logo=openjdk&logoColor=white)](java/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
