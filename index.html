@@ -5,380 +5,526 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>NeckLink — Fruit-Fly Brain Edge Autonomy &amp; Wire Suite</title>
   <meta name="description" content="Connectome-inspired perception, navigation, motor-reflex, and loss-healing wire primitives distilled from the adult Drosophila brain into zero-float ANSI C99 and Python SDKs.">
+  <link rel="canonical" href="https://indian-aman.github.io/necklink/">
   <meta property="og:title" content="NeckLink — Fruit-Fly Brain Edge Autonomy &amp; Wire Suite">
   <meta property="og:description" content="Five connectome-inspired neuromorphic engines in zero-float ANSI C99 and Python for lossy radios, GPS-denied vessels, and microcontrollers.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://indian-aman.github.io/necklink/">
   <meta property="og:image" content="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_brand_banner.png">
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="theme-color" content="#07090f" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
+  <script>
+    // Set the theme and intro state before first paint so the page never flashes
+    (function () {
+      var root = document.documentElement;
+      var saved = null;
+      try { saved = localStorage.getItem("necklink-theme"); } catch (e) {}
+      var prefersLight = window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches;
+      root.setAttribute("data-theme", saved || (prefersLight ? "light" : "dark"));
+      var seen = false;
+      try { seen = sessionStorage.getItem("necklink-intro-seen") === "1"; } catch (e) {}
+      var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      if (seen || reduced) root.classList.add("no-intro");
+    })();
+  </script>
 </head>
-<body class="intro-active">
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
 
-  <!-- ====================================================================
-       1. CINEMATIC LOGO ANIMATION SPLASH (Draws N-Link -> Fades into Site)
-       ==================================================================== -->
-  <div id="intro-splash" role="dialog" aria-label="NeckLink Brand Intro">
+  <!-- Logo intro: draws the N-Link mark, then dissolves into the site (once per browser session) -->
+  <div id="intro-splash" aria-hidden="true">
     <div class="intro-stage">
       <div class="intro-logo-wrap">
         <div class="intro-halo"></div>
         <div class="intro-ripple"></div>
         <svg class="intro-svg" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path class="intro-path-left"
-                d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64"
+          <path class="intro-path-left" d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64"
                 stroke="#0EA5E9" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-          <path class="intro-path-right"
-                d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00"
+          <path class="intro-path-right" d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00"
                 stroke="#6366F1" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-          <circle class="intro-ring"
-                  cx="128" cy="128" r="21" stroke="#06B6D4" stroke-width="16"/>
+          <circle class="intro-ring" cx="128" cy="128" r="21" stroke="#06B6D4" stroke-width="16"/>
         </svg>
       </div>
       <div class="intro-wordmark">
         <div class="intro-title">Neck<span>Link</span></div>
-        <div class="intro-subtitle">Fruit-Fly Brain Edge Autonomy &amp; Wire Suite</div>
+        <div class="intro-subtitle">Fruit-fly brain edge autonomy</div>
       </div>
     </div>
-    <button id="skip-intro-btn" class="intro-skip" type="button">Skip Intro ↵</button>
+    <button id="skip-intro-btn" class="intro-skip" type="button" tabindex="-1">Skip</button>
   </div>
 
-  <!-- ====================================================================
-       2. MAIN WEBSITE SHELL (Rises & Reveals as Logo Dissolves)
-       ==================================================================== -->
-  <div class="bg-grid" aria-hidden="true"></div>
-
   <div id="site-shell">
-    <header class="navbar">
-      <div class="nav-inner">
-        <a href="#" class="brand-link" aria-label="NeckLink Home">
-          <svg class="brand-mark-nav" viewBox="0 0 256 256" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <path d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64"
-                  stroke="#0EA5E9" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
-            <path d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00"
-                  stroke="#6366F1" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+    <header class="nav" id="top">
+      <div class="nav-inner container">
+        <a href="#top" class="brand" aria-label="NeckLink home">
+          <svg class="brand-mark" viewBox="0 0 256 256" fill="none" aria-hidden="true">
+            <path d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64" stroke="#0EA5E9" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00" stroke="#6366F1" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
             <circle cx="128" cy="128" r="21" stroke="#06B6D4" stroke-width="16"/>
           </svg>
           <span class="brand-word">Neck<span>Link</span></span>
         </a>
 
-        <nav class="nav-links">
-          <a href="#explorer">CNS Explorer</a>
-          <a href="#simulator">Live Reflex Sim</a>
-          <a href="#products">5 Products</a>
+        <nav class="nav-links" id="nav-links" aria-label="Primary">
+          <a href="#modules">Modules</a>
+          <a href="#architecture">Architecture</a>
+          <a href="#simulator">Simulator</a>
           <a href="#benchmarks">Benchmarks</a>
+          <a href="#install">Install</a>
         </nav>
 
         <div class="nav-actions">
-          <button id="replay-intro-btn" class="btn-pill" type="button" title="Replay Logo Animation">✦ Replay Intro</button>
-          <button id="theme-toggle-btn" class="btn-pill" type="button" title="Switch Dark / Light Theme">☀ Light</button>
-          <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener" class="btn-pill btn-primary">GitHub ★</a>
+          <button id="theme-toggle-btn" class="icon-btn" type="button" aria-label="Switch to light theme">
+            <svg class="icon icon-sun" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+            <svg class="icon icon-moon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+          </button>
+          <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener" class="btn btn-secondary btn-sm nav-github">
+            <svg class="icon-fill" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            <span>GitHub</span>
+          </a>
+          <button id="menu-btn" class="icon-btn menu-btn" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
+            <svg class="icon icon-menu" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+            <svg class="icon icon-close" viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
+          </button>
         </div>
       </div>
     </header>
 
-    <main>
+    <main id="main">
       <!-- HERO -->
-      <section class="hero container">
-        <div class="eyebrow">
-          <span class="eyebrow-dot"></span>
-          325,354 Adult Drosophila Neurons → Zero-Float ANSI C99 &amp; Python
-        </div>
-        <h1>
-          Tiny Brains. <span class="gradient-text">Unbreakable Autonomy.</span>
-        </h1>
-        <p class="hero-lead">
-          Five modular open-source engines inspired by the fruit-fly central nervous system — engineered for lossy radios, GPS-blackout vessels, micro-drones, and <code>$4</code> microcontrollers with <strong>zero heap allocations</strong>.
-        </p>
+      <section class="hero">
+        <div class="hero-glow" aria-hidden="true"></div>
+        <div class="container hero-inner">
+          <a class="release-pill" href="https://github.com/indian-aman/necklink/releases/tag/v1.3.1" target="_blank" rel="noopener">
+            <span class="release-tag">v1.3.1</span>
+            <span><span class="hide-sm">Lightweight install: </span>PyTorch is now optional</span>
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </a>
 
-        <!-- ONE-CLICK INSTALL BAR -->
-        <div class="install-box">
-          <div class="install-tabs" role="tablist">
-            <button class="install-tab active" data-cmd="pip install pynltp neckcompass necksight neckcord" type="button">PyPI Core</button>
-            <button class="install-tab" data-cmd="pip install pynltp" type="button">NLTP Wire</button>
-            <button class="install-tab" data-cmd="pip install neckcompass" type="button">NeckCompass</button>
-            <button class="install-tab" data-cmd="pip install necksight" type="button">NeckSight</button>
-            <button class="install-tab" data-cmd="pip install neckcord" type="button">NeckCord</button>
-            <button class="install-tab" data-cmd="necklink suite-demo --loss 0.15" type="button">Run 5-Organ Demo</button>
-          </div>
-          <div class="install-cmd-row">
-            <code id="install-code">$ pip install pynltp neckcompass necksight neckcord</code>
-            <button id="copy-cmd-btn" class="copy-btn" type="button">Copy</button>
-          </div>
-        </div>
+          <h1>Tiny brains.<br><span class="gradient-text">Unbreakable autonomy.</span></h1>
 
-        <!-- VERIFIED METRICS STRIP -->
-        <div class="metrics-strip">
-          <div class="metric-card">
-            <div class="metric-val">10.2×</div>
-            <div class="metric-lbl">Lower Magnetic-Spike Heading Error vs EKF</div>
+          <p class="hero-lead">
+            Five open-source engines modelled on the fruit-fly central nervous system, built for lossy radios,
+            GPS-denied vessels, micro-drones and $4 microcontrollers, with zero heap allocations.
+          </p>
+
+          <div class="hero-cta">
+            <a href="#install" class="btn btn-primary">
+              Get started
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </a>
+            <a href="#architecture" class="btn btn-secondary">Explore the architecture</a>
           </div>
-          <div class="metric-card">
-            <div class="metric-val">12,463 FPS</div>
-            <div class="metric-lbl">Zero-Float C99 Looming Vision (<code>0%</code> Glare FAR)</div>
+
+          <div class="terminal" id="install">
+            <div class="terminal-bar">
+              <span class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+              <div class="terminal-tabs" role="tablist" aria-label="Install command">
+                <button class="terminal-tab active" role="tab" aria-selected="true" type="button"
+                        data-cmd="pip install pynltp neckcompass necksight neckcord">Python</button>
+                <button class="terminal-tab" role="tab" aria-selected="false" type="button"
+                        data-cmd="necklink suite-demo --loss 0.15">5-module demo</button>
+                <button class="terminal-tab" role="tab" aria-selected="false" type="button"
+                        data-cmd="npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz">JavaScript</button>
+                <button class="terminal-tab" role="tab" aria-selected="false" type="button"
+                        data-cmd="curl -LO https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-java-1.2.0.jar">Java</button>
+                <button class="terminal-tab" role="tab" aria-selected="false" type="button"
+                        data-cmd="lib_deps = https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip">ESP32</button>
+                <button class="terminal-tab" role="tab" aria-selected="false" type="button"
+                        data-cmd="make -C csrc all test">C99</button>
+              </div>
+            </div>
+            <div class="terminal-body">
+              <code><span class="prompt" aria-hidden="true">$</span> <span id="install-code">pip install pynltp neckcompass necksight neckcord</span></code>
+              <button id="copy-cmd-btn" class="copy-btn" type="button" aria-label="Copy command">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
           </div>
-          <div class="metric-card">
-            <div class="metric-val">42 ms</div>
-            <div class="metric-lbl">Fouled Thruster Isolation (<code>4B</code> Wire Frame)</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-val">99.5%</div>
-            <div class="metric-lbl">1-Shot Plume ID Across <code>250×</code> Concentration Swings</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-val">210 / 210</div>
-            <div class="metric-lbl">Verified <code>Py ↔ C99 ↔ JS ↔ Java</code> Encrypted Links</div>
-          </div>
+
+          <p class="hero-meta">
+            <span>Distilled from 325,354 adult <em>Drosophila</em> neurons</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>Python, ANSI C99, JavaScript, Java and ESP32</span>
+            <span class="dot-sep" aria-hidden="true"></span>
+            <span>MIT licensed</span>
+          </p>
         </div>
       </section>
 
-      <!-- INTERACTIVE 5-ORGAN CNS EXPLORER -->
-      <section id="explorer" class="section container">
-        <div class="section-header">
-          <h2>Interactive <em>Drosophila</em> CNS Architecture</h2>
-          <p>Click any neural subsystem below to inspect its silicon footprint, empirical benchmark win, honest baseline trade-off, and Python quick-start.</p>
+      <!-- VERIFIED METRICS -->
+      <section class="container" aria-label="Headline results">
+        <dl class="metrics">
+          <div class="metric" style="--c: var(--compass)">
+            <dt>Magnetic-spike heading error</dt>
+            <dd><span class="metric-val">10.2×</span> lower</dd>
+            <dd class="metric-sub">NeckCompass vs 2-state EKF</dd>
+          </div>
+          <div class="metric" style="--c: var(--sight)">
+            <dt>Looming vision, zero-float C99</dt>
+            <dd><span class="metric-val">12,463</span> FPS</dd>
+            <dd class="metric-sub">NeckSight, 0% glare false alarms</dd>
+          </div>
+          <div class="metric" style="--c: var(--cord)">
+            <dt>Fouled-thruster isolation</dt>
+            <dd><span class="metric-val">42</span> ms</dd>
+            <dd class="metric-sub">NeckCord, 4-byte wire frame</dd>
+          </div>
+          <div class="metric" style="--c: var(--sense)">
+            <dt>One-shot plume ID</dt>
+            <dd><span class="metric-val">99.5</span>%</dd>
+            <dd class="metric-sub">NeckSense, 250× concentration swings</dd>
+          </div>
+          <div class="metric" style="--c: var(--nltp)">
+            <dt>Encrypted interop links</dt>
+            <dd><span class="metric-val">210/210</span></dd>
+            <dd class="metric-sub">NLTP, Python ↔ C99 ↔ JS ↔ Java</dd>
+          </div>
+        </dl>
+      </section>
+
+      <!-- MODULES -->
+      <section id="modules" class="section container">
+        <div class="section-head">
+          <p class="kicker">Modules</p>
+          <h2>Five standalone modules. One architecture.</h2>
+          <p>Install only the module you need, or combine all five into a closed-loop reflex stack.</p>
         </div>
 
-        <div class="explorer-grid">
-          <div class="cns-map-card">
-            <svg class="cns-svg" viewBox="0 0 420 420" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <!-- Translucent Brain + VNC Silhouette -->
-              <path d="M 135 88 C 65 82, 42 155, 88 205 C 118 232, 165 225, 184 238 L 188 308 C 182 325, 182 375, 210 392 C 238 375, 238 325, 232 308 L 236 238 C 255 225, 302 232, 332 205 C 378 155, 355 82, 285 88 C 255 58, 165 58, 135 88 Z"
-                    fill="rgba(15, 23, 42, 0.55)" stroke="rgba(148, 163, 184, 0.28)" stroke-width="2"/>
+        <div class="module-grid">
+          <article class="module-card" style="--c: var(--nltp)">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="4"/><path d="M10 7v10M14 7v10"/></svg>
+              </span>
+              <span class="module-region">Cervical connective</span>
+            </div>
+            <h3>NLTP <code>pynltp</code></h3>
+            <p>Loss-resilient UDP file, telemetry and reflex transport with GF(2^8) Cauchy FEC, ChaCha20-Poly1305 AEAD and single-port 4G CGNAT traversal, across Python, C99, JS/TS, Java and ESP32.</p>
+            <ul class="module-stats">
+              <li><strong>20% loss</strong> without stalling</li>
+              <li><strong>~65 KB</strong> on ESP32</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="nltp">Details</a>
+              <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener" class="text-link">PyPI v1.3.1</a>
+            </div>
+          </article>
 
-              <!-- 1. Mushroom Body (Left Emerald — NeckSense) -->
-              <g class="cns-node" data-organ="sense" style="color: #10B981;">
-                <circle cx="114" cy="148" r="42" fill="rgba(16, 185, 129, 0.14)" stroke="#10B981" stroke-width="2.5"/>
-                <path d="M 94 166 Q 114 146 112 120 M 112 144 L 134 126 M 112 144 L 92 130 M 114 152 L 136 160"
-                      stroke="#10B981" stroke-width="3" stroke-linecap="round"/>
-                <text x="114" y="206" text-anchor="middle" fill="#10B981" font-size="11" font-weight="700">NeckSense</text>
+          <article class="module-card" style="--c: var(--compass)">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" stroke-dasharray="2.4 2"/><circle cx="16.2" cy="7.8" r="1.4" class="fill"/></svg>
+              </span>
+              <span class="module-region">Central complex</span>
+            </div>
+            <h3>NeckCompass <code>neckcompass</code></h3>
+            <p>A 16-wedge E-PG ring-attractor AHRS and CPU4 GPS-denied path integrator that rejects 70°–150° steel-hull magnetic spikes in 316 bytes of C99 RAM.</p>
+            <ul class="module-stats">
+              <li><strong>10.2×</strong> better spike rejection than EKF</li>
+              <li><strong>0.83 µs</strong> per step</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="compass">Details</a>
+              <a href="https://github.com/indian-aman/neckcompass" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="text-link">PyPI v1.0.0</a>
+            </div>
+          </article>
+
+          <article class="module-card" style="--c: var(--sight)">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 12l4-4M12 12l-4-4M12 12l4 4M12 12l-4 4"/></svg>
+              </span>
+              <span class="module-region">Optic lobe</span>
+            </div>
+            <h3>NeckSight <code>necksight</code></h3>
+            <p>R1–R6 100× glare adaptation, 3-arm T4/T5 motion detectors and an LPLC2 four-quadrant looming E-stop with 0.9988 AUROC and 0.0% yaw or glare false alarms.</p>
+            <ul class="module-stats">
+              <li><strong>12,463 FPS</strong> in C99</li>
+              <li><strong>14.27 KB</strong> at 32×32</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="sight">Details</a>
+              <a href="https://github.com/indian-aman/necksight" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://pypi.org/project/necksight/" target="_blank" rel="noopener" class="text-link">PyPI v1.0.0</a>
+            </div>
+          </article>
+
+          <article class="module-card" style="--c: var(--cord)">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><rect x="8.5" y="3" width="7" height="18" rx="3.5"/><path d="M8.5 8H4M8.5 12H3.5M8.5 16H4M15.5 8H20M15.5 12h5M15.5 16H20"/></svg>
+              </span>
+              <span class="module-region">Ventral nerve cord</span>
+            </div>
+            <h3>NeckCord <code>neckcord</code></h3>
+            <p>A 4-byte CRC-4 descending motor bottleneck (400 B/s at 100 Hz), a self-healing six-limb hexapod CPG and a presynaptic-shunting USV thruster fault reallocator.</p>
+            <ul class="module-stats">
+              <li><strong>42 ms</strong> fault isolation</li>
+              <li><strong>5.1×</strong> less USV spin-out</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="cord">Details</a>
+              <a href="https://github.com/indian-aman/neckcord" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://pypi.org/project/neckcord/" target="_blank" rel="noopener" class="text-link">PyPI v1.0.0</a>
+            </div>
+          </article>
+
+          <article class="module-card" style="--c: var(--sense)">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M6 20c2-3 6-5 6-11M12 13l5-4M12 13l-5-3M12 9c0-2 1-4 3-6"/><circle cx="12" cy="13" r="1.6" class="fill"/></svg>
+              </span>
+              <span class="module-region">Antennal lobe &amp; mushroom body</span>
+            </div>
+            <h3>NeckSense <code>necksense</code></h3>
+            <p>Olsen-Wilson 100× concentration-invariant normalisation feeding a multiplication-free 5% winner-take-all FlyHash, for multi-gas plume ID under drift and one-shot anomaly detection.</p>
+            <ul class="module-stats">
+              <li><strong>99.5%</strong> one-shot plume ID</li>
+              <li><strong>0.966</strong> anomaly AUROC</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="sense">Details</a>
+              <a href="https://github.com/indian-aman/necksense" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://github.com/indian-aman/necksense/releases/tag/v1.0.0" target="_blank" rel="noopener" class="text-link">Release v1.0.0</a>
+            </div>
+          </article>
+
+          <article class="module-card module-card-cta">
+            <div class="module-top">
+              <span class="module-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+              </span>
+              <span class="module-region">All five together</span>
+            </div>
+            <h3>Run the closed-loop demo</h3>
+            <p>The <code>necklink</code> command ships with <code>pynltp</code> and runs a live five-module autonomy and reflex mission over NLTP, with simulated packet loss.</p>
+            <div class="mini-terminal">
+              <code><span class="prompt" aria-hidden="true">$</span> necklink suite-demo --loss 0.15</code>
+              <button class="copy-btn" type="button" data-copy="necklink suite-demo --loss 0.15" aria-label="Copy command">
+                <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+              </button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- INTERACTIVE CNS ARCHITECTURE -->
+      <section id="architecture" class="section container">
+        <div class="section-head">
+          <p class="kicker">Architecture</p>
+          <h2>Mapped onto the <em>Drosophila</em> nervous system</h2>
+          <p>Select a subsystem to see its memory footprint, headline result, where the classical baseline still wins, and a Python quick start.</p>
+        </div>
+
+        <div class="explorer">
+          <div class="panel cns-panel">
+            <svg class="cns-svg" viewBox="0 0 420 420" fill="none" role="img" aria-label="Fruit-fly central nervous system with the five NeckLink modules">
+              <path class="cns-body" d="M 135 88 C 65 82, 42 155, 88 205 C 118 232, 165 225, 184 238 L 188 308 C 182 325, 182 375, 210 392 C 238 375, 238 325, 232 308 L 236 238 C 255 225, 302 232, 332 205 C 378 155, 355 82, 285 88 C 255 58, 165 58, 135 88 Z"/>
+
+              <g class="cns-node" data-organ="sense" style="--c: var(--sense)">
+                <circle class="node-fill" cx="114" cy="148" r="42"/>
+                <path class="node-line" d="M 94 166 Q 114 146 112 120 M 112 144 L 134 126 M 112 144 L 92 130 M 114 152 L 136 160"/>
+                <text x="114" y="206" text-anchor="middle">NeckSense</text>
               </g>
 
-              <!-- 2. Central Complex Ring (Center Gold — NeckCompass) -->
-              <g class="cns-node active" data-organ="compass" style="color: #F59E0B;">
-                <circle cx="210" cy="128" r="36" fill="rgba(245, 158, 11, 0.14)" stroke="#F59E0B" stroke-width="3"/>
-                <circle cx="210" cy="128" r="20" stroke="#FBBF24" stroke-width="2" stroke-dasharray="6 5"/>
-                <circle cx="228" cy="110" r="5" fill="#FDE68A"/>
-                <text x="210" y="78" text-anchor="middle" fill="#F59E0B" font-size="11" font-weight="700">NeckCompass</text>
+              <g class="cns-node" data-organ="compass" style="--c: var(--compass)">
+                <circle class="node-fill" cx="210" cy="128" r="36"/>
+                <circle class="node-line" cx="210" cy="128" r="20" stroke-dasharray="6 5"/>
+                <circle class="node-dot" cx="228" cy="110" r="5"/>
+                <text x="210" y="78" text-anchor="middle">NeckCompass</text>
               </g>
 
-              <!-- 3. Optic Lobe (Right Cyan — NeckSight) -->
-              <g class="cns-node" data-organ="sight" style="color: #06B6D4;">
-                <circle cx="308" cy="148" r="42" fill="rgba(6, 182, 212, 0.14)" stroke="#06B6D4" stroke-width="2.5"/>
-                <polygon points="308,122 326,132 326,154 308,164 290,154 290,132" stroke="#22D3EE" stroke-width="2.2" fill="none"/>
-                <path d="M 308 143 L 322 129 M 308 143 L 294 129 M 308 143 L 322 157 M 308 143 L 294 157"
-                      stroke="#22D3EE" stroke-width="2" stroke-linecap="round"/>
-                <text x="308" y="206" text-anchor="middle" fill="#06B6D4" font-size="11" font-weight="700">NeckSight</text>
+              <g class="cns-node" data-organ="sight" style="--c: var(--sight)">
+                <circle class="node-fill" cx="308" cy="148" r="42"/>
+                <polygon class="node-line" points="308,122 326,132 326,154 308,164 290,154 290,132"/>
+                <path class="node-line" d="M 308 143 L 322 129 M 308 143 L 294 129 M 308 143 L 322 157 M 308 143 L 294 157"/>
+                <text x="308" y="206" text-anchor="middle">NeckSight</text>
               </g>
 
-              <!-- 4. Cervical Connective Bottleneck (Neck Sky Blue — NLTP) -->
-              <g class="cns-node" data-organ="nltp" style="color: #0EA5E9;">
-                <rect x="184" y="226" width="52" height="66" rx="16" fill="rgba(14, 165, 233, 0.16)" stroke="#0EA5E9" stroke-width="2.5"/>
-                <line x1="201" y1="234" x2="201" y2="284" stroke="#38BDF8" stroke-width="2.5" stroke-linecap="round"/>
-                <line x1="210" y1="232" x2="210" y2="286" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round"/>
-                <line x1="219" y1="234" x2="219" y2="284" stroke="#6366F1" stroke-width="2.5" stroke-linecap="round"/>
-                <text x="142" y="263" text-anchor="end" fill="#38BDF8" font-size="11" font-weight="700">NLTP Wire</text>
+              <g class="cns-node" data-organ="nltp" style="--c: var(--nltp)">
+                <rect class="node-fill" x="184" y="226" width="52" height="66" rx="16"/>
+                <path class="node-line" d="M 201 236 L 201 282 M 210 234 L 210 284 M 219 236 L 219 282"/>
+                <text x="146" y="263" text-anchor="end">NLTP</text>
               </g>
 
-              <!-- 5. Ventral Nerve Cord (Bottom Coral — NeckCord) -->
-              <g class="cns-node" data-organ="cord" style="color: #F43F5E;">
-                <rect x="180" y="306" width="60" height="82" rx="22" fill="rgba(244, 63, 94, 0.15)" stroke="#F43F5E" stroke-width="2.5"/>
-                <path d="M 142 326 Q 162 316 180 326 M 140 348 Q 160 338 180 348 M 142 370 Q 162 360 180 370"
-                      stroke="#FB7185" stroke-width="2.2" stroke-linecap="round"/>
-                <path d="M 240 326 Q 258 316 278 326 M 240 348 Q 260 338 280 348 M 240 370 Q 258 360 278 370"
-                      stroke="#FB7185" stroke-width="2.2" stroke-linecap="round"/>
-                <text x="210" y="408" text-anchor="middle" fill="#F43F5E" font-size="11" font-weight="700">NeckCord</text>
+              <g class="cns-node" data-organ="cord" style="--c: var(--cord)">
+                <rect class="node-fill" x="180" y="306" width="60" height="82" rx="22"/>
+                <path class="node-line" d="M 142 326 Q 162 316 180 326 M 140 348 Q 160 338 180 348 M 142 370 Q 162 360 180 370 M 240 326 Q 258 316 278 326 M 240 348 Q 260 338 280 348 M 240 370 Q 258 360 278 370"/>
+                <text x="210" y="410" text-anchor="middle">NeckCord</text>
               </g>
             </svg>
 
-            <div class="organ-pills">
-              <button class="organ-pill active" data-organ="compass" type="button">NeckCompass</button>
-              <button class="organ-pill" data-organ="sight" type="button">NeckSight</button>
-              <button class="organ-pill" data-organ="cord" type="button">NeckCord</button>
-              <button class="organ-pill" data-organ="sense" type="button">NeckSense</button>
-              <button class="organ-pill" data-organ="nltp" type="button">NLTP Wire</button>
+            <div class="segmented chips" role="tablist" aria-label="Subsystem">
+              <button class="seg-btn" role="tab" type="button" data-organ="compass">NeckCompass</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="sight">NeckSight</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="cord">NeckCord</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="sense">NeckSense</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="nltp">NLTP</button>
             </div>
           </div>
 
-          <!-- DYNAMIC ORGAN SPECIFICATION PANEL -->
-          <div class="organ-detail-card" id="organ-detail">
+          <div class="panel detail-panel" id="organ-detail" aria-live="polite">
             <div class="detail-top">
-              <span id="det-region" class="detail-badge">Central Complex · E-PG / CPU4 / PFL3</span>
-              <span id="det-tests" class="detail-badge" style="background: rgba(16,185,129,0.14); color: #10B981;">19 Py + 6 C99 Tests Passed</span>
+              <span id="det-region" class="badge badge-accent"></span>
+              <span id="det-tests" class="badge badge-ok"></span>
             </div>
-            <h3 id="det-title" class="detail-title">NeckCompass (<code>neckcompass</code>)</h3>
+            <h3 id="det-title" class="detail-title"></h3>
             <p id="det-desc" class="detail-desc"></p>
 
-            <div class="spec-row">
-              <div class="spec-chip">
-                <div class="spec-chip-k">C99 Static RAM</div>
-                <div id="det-ram" class="spec-chip-v">316 B (Q15)</div>
-              </div>
-              <div class="spec-chip">
-                <div class="spec-chip-k">MCU Speed</div>
-                <div id="det-speed" class="spec-chip-v">0.83 µs / step</div>
-              </div>
-              <div class="spec-chip">
-                <div class="spec-chip-k">Headline Gain</div>
-                <div id="det-gain" class="spec-chip-v">10.2× Spike Rejection</div>
-              </div>
+            <dl class="spec-row">
+              <div class="spec"><dt>C99 static RAM</dt><dd id="det-ram"></dd></div>
+              <div class="spec"><dt>Speed</dt><dd id="det-speed"></dd></div>
+              <div class="spec"><dt>Headline result</dt><dd id="det-gain"></dd></div>
+            </dl>
+
+            <div class="tradeoff">
+              <p class="tradeoff-label" id="det-tradeoff-label">Honest baseline</p>
+              <p id="det-tradeoff"></p>
             </div>
 
-            <div id="det-tradeoff" class="tradeoff-box"></div>
-            <pre id="det-code" class="code-snippet"></pre>
+            <div class="code-block">
+              <div class="code-bar">
+                <span>Python</span>
+                <button class="copy-btn" id="copy-code-btn" type="button" aria-label="Copy code">
+                  <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                  <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+                </button>
+              </div>
+              <pre id="det-code"></pre>
+            </div>
 
             <div class="detail-links">
-              <a id="det-repo" href="https://github.com/indian-aman/neckcompass" target="_blank" rel="noopener" class="btn-pill btn-primary">GitHub Repository →</a>
-              <a id="det-pypi" href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="btn-pill">PyPI Package ↗</a>
+              <a id="det-repo" href="https://github.com/indian-aman/neckcompass" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+                View repository
+                <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+              </a>
+              <a id="det-pypi" href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">PyPI v1.0.0</a>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- LIVE 60-FPS INTERACTIVE REFLEX SIMULATOR -->
+      <!-- LIVE REFLEX SIMULATOR -->
       <section id="simulator" class="section container">
-        <div class="section-header">
-          <h2>Live Closed-Loop Reflex Simulator</h2>
-          <p>Trigger real-world marine and aerial hazards below to watch how NeckLink's neuromorphic primitives respond in real time compared with classical filters.</p>
+        <div class="section-head">
+          <p class="kicker">Simulator</p>
+          <h2>Closed-loop reflex simulator</h2>
+          <p>Trigger marine and aerial hazards and watch the neuromorphic modules respond alongside a classical filter. This is an illustrative animation of the benchmarked behaviour, running in your browser.</p>
         </div>
 
-        <div class="sim-card">
-          <div class="sim-controls">
-            <button class="sim-btn" data-sim="spike" type="button">⚡ Inject +120° Magnetic Spike</button>
-            <button class="sim-btn" data-sim="glare" type="button">☀️ Trigger 100× Sunlight Glare</button>
-            <button class="sim-btn" data-sim="loom" type="button">🪨 Launch Looming Obstacle</button>
-            <button class="sim-btn" data-sim="foul" type="button">🌿 Foul Thruster T2 (-90%)</button>
-            <button class="sim-btn" data-sim="reset" type="button">↺ Reset Nominal</button>
+        <div class="panel sim">
+          <div class="sim-controls" role="group" aria-label="Hazards">
+            <button class="sim-btn" data-sim="spike" type="button" style="--c: var(--compass)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+              Magnetic spike +120°
+            </button>
+            <button class="sim-btn" data-sim="glare" type="button" style="--c: var(--sight)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
+              100× sunlight glare
+            </button>
+            <button class="sim-btn" data-sim="loom" type="button" style="--c: var(--sight)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>
+              Looming obstacle
+            </button>
+            <button class="sim-btn" data-sim="foul" type="button" style="--c: var(--cord)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
+              Foul thruster T2 (−90%)
+            </button>
+            <button class="sim-btn sim-btn-reset" data-sim="reset" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+              Reset
+            </button>
           </div>
           <div class="sim-canvas-wrap">
-            <canvas id="reflex-canvas" width="1120" height="350"></canvas>
+            <canvas id="reflex-canvas" aria-label="Live plots of compass error, optic-lobe looming gate and thruster allocation"></canvas>
           </div>
-          <div class="sim-log">
-            <span id="sim-status">NOMINAL CRUISE — RingCompass locked (0.4° err) · T4/T5 Optic Lobe scanning · 4B Cervical link @ 100 Hz</span>
-            <span>60 Hz Live Canvas</span>
+          <div class="sim-status">
+            <span class="status-dot" id="sim-dot" aria-hidden="true"></span>
+            <span id="sim-status" role="status">Nominal cruise. Ring compass locked (0.4° error), optic lobe scanning, 4-byte cervical link at 100 Hz.</span>
           </div>
         </div>
       </section>
 
-      <!-- ALL 5 PRODUCTS OVERVIEW -->
-      <section id="products" class="section container">
-        <div class="section-header">
-          <h2>Five Standalone Modules. One Unified Architecture.</h2>
-          <p>Install only the single organ you need, or combine all five into a closed-loop autonomous reflex stack.</p>
-        </div>
-
-        <div class="cards-grid">
-          <article class="product-card">
-            <div>
-              <span class="detail-badge" style="background: rgba(14,165,233,0.14); color: #38bdf8;">Cervical Connective</span>
-              <h3 style="margin-top:10px; font-size:1.3rem;">NLTP (<code>pynltp</code>)</h3>
-              <p style="margin-top:8px; color:var(--text-secondary); font-size:0.93rem; line-height:1.55;">
-                Loss-resilient UDP file, telemetry &amp; reflex transport with <code>GF(2^8)</code> Cauchy FEC, <code>ChaCha20-Poly1305</code> AEAD, and 1-port <code>4G</code> CGNAT traversal across Python, C99, JS/TS, Java, and <code>ESP32</code>.
-              </p>
-            </div>
-            <div class="detail-links">
-              <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener" class="btn-pill">GitHub</a>
-              <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener" class="btn-pill">PyPI v1.3.1</a>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div>
-              <span class="detail-badge" style="background: rgba(245,158,11,0.14); color: #f59e0b;">Central Complex</span>
-              <h3 style="margin-top:10px; font-size:1.3rem;">NeckCompass</h3>
-              <p style="margin-top:8px; color:var(--text-secondary); font-size:0.93rem; line-height:1.55;">
-                16-wedge topological <code>E-PG</code> ring-attractor AHRS and <code>CPU4</code> GPS-denied path integrator. Rejects <code>70°–150°</code> steel-hull magnetic spikes <code>10.2×</code> better than 2-State EKF in <code>316 B</code> C99 RAM.
-              </p>
-            </div>
-            <div class="detail-links">
-              <a href="https://github.com/indian-aman/neckcompass" target="_blank" rel="noopener" class="btn-pill">GitHub</a>
-              <a href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="btn-pill">PyPI v1.0.0</a>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div>
-              <span class="detail-badge" style="background: rgba(6,182,212,0.14); color: #06b6d4;">Optic Lobe</span>
-              <h3 style="margin-top:10px; font-size:1.3rem;">NeckSight</h3>
-              <p style="margin-top:8px; color:var(--text-secondary); font-size:0.93rem; line-height:1.55;">
-                <code>R1–R6</code> <code>100×</code> glare adaptation, 3-arm <code>T4/T5</code> motion detectors, and <code>LPLC2</code> 4-quadrant looming E-stop (<code>0.9988</code> AUROC, <code>0.0%</code> yaw/glare false alarms, <code>12,463 FPS</code> C99).
-              </p>
-            </div>
-            <div class="detail-links">
-              <a href="https://github.com/indian-aman/necksight" target="_blank" rel="noopener" class="btn-pill">GitHub</a>
-              <a href="https://pypi.org/project/necksight/" target="_blank" rel="noopener" class="btn-pill">PyPI v1.0.0</a>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div>
-              <span class="detail-badge" style="background: rgba(244,63,94,0.14); color: #f43f5e;">Ventral Nerve Cord</span>
-              <h3 style="margin-top:10px; font-size:1.3rem;">NeckCord</h3>
-              <p style="margin-top:8px; color:var(--text-secondary); font-size:0.93rem; line-height:1.55;">
-                <code>4-byte</code> <code>CRC-4</code> descending motor bottleneck (<code>400 B/s</code> @ <code>100 Hz</code>), self-healing 6-limb hexapod CPG, and <code>42 ms</code> presynaptic-shunting USV thruster fault reallocator.
-              </p>
-            </div>
-            <div class="detail-links">
-              <a href="https://github.com/indian-aman/neckcord" target="_blank" rel="noopener" class="btn-pill">GitHub</a>
-              <a href="https://pypi.org/project/neckcord/" target="_blank" rel="noopener" class="btn-pill">PyPI v1.0.0</a>
-            </div>
-          </article>
-
-          <article class="product-card">
-            <div>
-              <span class="detail-badge" style="background: rgba(16,185,129,0.14); color: #10b981;">Antennal Lobe &amp; Mushroom Body</span>
-              <h3 style="margin-top:10px; font-size:1.3rem;">NeckSense</h3>
-              <p style="margin-top:8px; color:var(--text-secondary); font-size:0.93rem; line-height:1.55;">
-                Olsen-Wilson <code>100×</code> concentration-invariant normalization, <code>5%</code> WTA sparse <code>FlyHash</code> (<code>0</code> float muls), <code>99.5%</code> multi-gas plume ID under drift, and <code>0.966</code> 1-shot anomaly AUROC.
-              </p>
-            </div>
-            <div class="detail-links">
-              <a href="https://github.com/indian-aman/necksense" target="_blank" rel="noopener" class="btn-pill">GitHub</a>
-              <a href="https://github.com/indian-aman/necksense/releases/tag/v1.0.0" target="_blank" rel="noopener" class="btn-pill">Release v1.0.0</a>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <!-- EMPIRICAL BENCHMARK GALLERY -->
+      <!-- BENCHMARKS -->
       <section id="benchmarks" class="section container">
-        <div class="section-header">
-          <h2>Transparent Head-to-Head Benchmarks</h2>
-          <p>Every NeckLink engine is benchmarked against strong classical baselines — reporting both where fruit-fly circuits win and where classical algorithms remain superior.</p>
+        <div class="section-head">
+          <p class="kicker">Benchmarks</p>
+          <h2>Head-to-head against classical baselines</h2>
+          <p>Every engine is benchmarked against strong classical methods, reporting both where the fly circuits win and where the classical algorithm is still better.</p>
         </div>
 
-        <div class="bench-tabs">
-          <button class="organ-pill active" data-bench="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_brand_banner.png" type="button">5-Organ Architecture</button>
-          <button class="organ-pill" data-bench="https://raw.githubusercontent.com/indian-aman/neckcompass/main/assets/neckcompass_benchmarks.png" type="button">NeckCompass vs EKF</button>
-          <button class="organ-pill" data-bench="https://raw.githubusercontent.com/indian-aman/necksight/main/assets/necksight_benchmarks.png" type="button">NeckSight vs Lucas-Kanade</button>
-          <button class="organ-pill" data-bench="https://raw.githubusercontent.com/indian-aman/neckcord/main/assets/neckcord_benchmarks.png" type="button">NeckCord Thruster &amp; CPG</button>
-          <button class="organ-pill" data-bench="https://raw.githubusercontent.com/indian-aman/necksense/main/assets/necksense_benchmarks.png" type="button">NeckSense vs SimHash</button>
-          <button class="organ-pill" data-bench="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/nltp_v12_benchmarks.png" type="button">NLTP Wire &amp; ESP32</button>
+        <div class="segmented segmented-scroll bench-tabs" role="tablist" aria-label="Benchmark">
+          <button class="seg-btn active" role="tab" aria-selected="true" type="button" data-bench="compass">NeckCompass vs EKF</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="sight">NeckSight vs Lucas-Kanade</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="cord">NeckCord thrusters &amp; CPG</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="sense">NeckSense vs SimHash</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="nltp">NLTP wire &amp; ESP32</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="suite">Suite overview</button>
         </div>
 
-        <div class="bench-img-frame">
-          <img id="bench-preview-img"
-               src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_brand_banner.png"
-               alt="NeckLink Empirical Benchmark Chart">
-        </div>
+        <figure class="bench-figure">
+          <div class="bench-frame">
+            <img id="bench-img" src="https://raw.githubusercontent.com/indian-aman/neckcompass/main/assets/neckcompass_benchmarks.png"
+                 alt="NeckCompass benchmark charts" loading="lazy" width="4070" height="1298">
+          </div>
+          <figcaption>
+            <span id="bench-caption"></span>
+            <a id="bench-open" class="text-link" href="https://raw.githubusercontent.com/indian-aman/neckcompass/main/assets/neckcompass_benchmarks.png" target="_blank" rel="noopener">Open full size</a>
+          </figcaption>
+        </figure>
       </section>
     </main>
 
-    <footer>
+    <footer class="footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <a href="#top" class="brand" aria-label="NeckLink home">
+            <svg class="brand-mark" viewBox="0 0 256 256" fill="none" aria-hidden="true">
+              <path d="M 62.00 202.00 L 62.00 76.00 A 22.00 22.00 0 0 1 104.48 67.97 L 111.40 85.64" stroke="#0EA5E9" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M 144.60 170.36 L 151.52 188.03 A 22.00 22.00 0 0 0 194.00 180.00 L 194.00 54.00" stroke="#6366F1" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="128" cy="128" r="21" stroke="#06B6D4" stroke-width="16"/>
+            </svg>
+            <span class="brand-word">Neck<span>Link</span></span>
+          </a>
+          <p>Fruit-fly brain edge autonomy and wire suite, in Python and zero-heap ANSI C99.</p>
+        </div>
+        <div class="footer-col">
+          <h4>Modules</h4>
+          <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener">NLTP</a>
+          <a href="https://github.com/indian-aman/neckcompass" target="_blank" rel="noopener">NeckCompass</a>
+          <a href="https://github.com/indian-aman/necksight" target="_blank" rel="noopener">NeckSight</a>
+          <a href="https://github.com/indian-aman/neckcord" target="_blank" rel="noopener">NeckCord</a>
+          <a href="https://github.com/indian-aman/necksense" target="_blank" rel="noopener">NeckSense</a>
+        </div>
+        <div class="footer-col">
+          <h4>Resources</h4>
+          <a href="https://github.com/indian-aman/necklink/releases" target="_blank" rel="noopener">Releases</a>
+          <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener">pynltp on PyPI</a>
+          <a href="https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip">Arduino library</a>
+          <a href="https://github.com/indian-aman/necklink/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
+        </div>
+        <div class="footer-col">
+          <h4>Author</h4>
+          <a href="https://github.com/indian-aman" target="_blank" rel="noopener">Amandeep Singh Bains</a>
+          <a href="https://github.com/indian-aman?tab=repositories" target="_blank" rel="noopener">All projects</a>
+        </div>
+      </div>
       <div class="container">
-        <p>
-          <strong>NeckLink</strong> · Engineered by <a href="https://github.com/indian-aman" target="_blank" rel="noopener">Amandeep Singh Bains</a> · MIT License
-        </p>
-        <p style="margin-top:8px; font-size:0.82rem;">
-          <a href="https://github.com/indian-aman/necklink">NLTP</a> ·
-          <a href="https://github.com/indian-aman/neckcompass">NeckCompass</a> ·
-          <a href="https://github.com/indian-aman/necksight">NeckSight</a> ·
-          <a href="https://github.com/indian-aman/neckcord">NeckCord</a> ·
-          <a href="https://github.com/indian-aman/necksense">NeckSense</a>
-        </p>
+        <div class="footer-bottom">
+          <span>© 2026 Amandeep Singh Bains. Released under the MIT License.</span>
+          <button id="replay-intro-btn" class="text-btn" type="button">Replay intro</button>
+        </div>
       </div>
     </footer>
   </div>
