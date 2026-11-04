@@ -1,0 +1,13 @@
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include necksight *.py
+include csrc/Makefile
+include csrc/necksight.h
+include csrc/necksight.c
+include csrc/tools/necksight_selftest.c
+prune assets
+prune csrc/build
+prune results
+prune scripts
+prune tests
