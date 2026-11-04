@@ -159,7 +159,7 @@
       tradeoffLabel: "Where the baseline wins",
       tradeoff: "Under pure textbook Gaussian noise with no ferromagnetic anomalies, a 2-state circular EKF edges out the 16-wedge ring (0.39° vs 0.43° RMSE). NeckCompass wins under intermittent hull and motor spikes (1.70° vs 17.42° RMSE) and on 1.12 km GPS-blackout homing (0.84 m miss).",
       code: `from neckcompass import RingCompass, FanBodyNavigator\n\ncompass = RingCompass(n_wedges=16)\nnav = FanBodyNavigator(n_columns=16, compass=compass)\n\nhdg, home_dist_m, home_brg = nav.step_with_compass(\n    omega_rad_s=0.12, speed_m_s=1.8, dt=0.02, mag_heading_rad=2.1\n)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
-      repo: "https://github.com/indian-aman/neckcompass",
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
       pypi: "https://pypi.org/project/neckcompass/",
       pypiLabel: "PyPI v1.0.0"
     },
@@ -176,7 +176,7 @@
       tradeoffLabel: "Where the baseline wins",
       tradeoff: "On slow 0.05–0.35 px/frame sub-pixel visual odometry, windowed Lucas-Kanade achieves 2.4× lower velocity MAE (0.055 vs 0.133 px/frame). NeckSight wins on pre-collision reflex gating under 100× sunlight glare steps and fast camera snap-pans (0.0% vs 55.6% false alarms).",
       code: `from necksight import NeckSightPipeline\n\noptic = NeckSightPipeline(grid_size=64, threshold=0.045)\ntrigger = optic.step(camera_frame_u8, dt=1/60)\nif trigger.triggered:\n    print(f"LOOM E-STOP! score={trigger.looming_score:.3f} focus={trigger.focus_xy}")`,
-      repo: "https://github.com/indian-aman/necksight",
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
       pypiLabel: "PyPI v1.0.0"
     },
@@ -193,7 +193,7 @@
       tradeoffLabel: "Where they tie",
       tradeoff: "When all thrusters are healthy, a static Moore-Penrose pseudo-inverse matches NeckCord within 1 mm RMS cross-track error (0.108 m vs 0.109 m). NeckCord wins the moment a thruster fouls or jams (0.02 N wasted drive vs 22.7 N; 100% five-leg centre-of-mass stability).",
       code: `from neckcord import DescendingFrame, ShuntingThrusterCord, encode_descending_4b\n\nwire_4b = encode_descending_4b(DescendingFrame(drive_fwd=0.7, turn_yaw=-0.2))\nres = allocator.step(wire_4b, feedback_thrust=esc_thrust_n, dt=0.02)\nprint("Thruster commands (N):", res.commands, "Health:", res.health)`,
-      repo: "https://github.com/indian-aman/neckcord",
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
       pypiLabel: "PyPI v1.0.0"
     },
@@ -210,7 +210,7 @@
       tradeoffLabel: "Where the baseline wins",
       tradeoff: "At equal dense bit-word size (128 B = 1,024 bits) with 256 KB of FPU weight RAM, 50%-dense Gaussian SimHash packs more entropy than 5%-sparse FlyHash (50.6% vs 27.5% mAP). FlyHash wins by 1.6–1.9× at equal active spikes k, with no float multiplications.",
       code: `from necksense import MushroomNoveltyDetector\n\ndet = MushroomNoveltyDetector(n_inputs=8, stateful_antennal=True, n_kc=1024)\nnovelty = det.update_and_score(enose_8ch_reading)\nif novelty > 0.75:\n    print(f"1-shot chemical plume anomaly detected: {novelty:.3f}")`,
-      repo: "https://github.com/indian-aman/necksense",
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
       pypi: "https://github.com/indian-aman/necksense/releases/tag/v1.0.0",
       pypiLabel: "Wheel v1.0.0 on GitHub"
     },
@@ -290,22 +290,22 @@
   const RAW = "https://raw.githubusercontent.com/indian-aman/";
   const BENCH = {
     compass: {
-      src: RAW + "neckcompass/main/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
+      src: RAW + "necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
       alt: "NeckCompass benchmark charts",
       caption: "Ring attractor against a 2-state circular EKF and a complementary IMU+mag filter: clean Gaussian noise, 70°–150° magnetic spikes, and a 600 s GPS-blackout survey with homebound return (5 seeds at 50 Hz)."
     },
     sight: {
-      src: RAW + "necksight/main/assets/necksight_benchmarks.png", w: 3564, h: 1232,
+      src: RAW + "necklink/main/packages/necksight/assets/necksight_benchmarks.png", w: 3564, h: 1232,
       alt: "NeckSight benchmark charts",
       caption: "Looming reflex on 60 cluttered 64×64 sequences (24 looming obstacles against 36 fast yaw pans, 100× glare steps and cross-traffic): selectivity, giant-fibre trigger timing, and C99 speed and RAM."
     },
     cord: {
-      src: RAW + "neckcord/main/assets/neckcord_benchmarks.png", w: 3850, h: 1276,
+      src: RAW + "necklink/main/packages/neckcord/assets/neckcord_benchmarks.png", w: 3850, h: 1276,
       alt: "NeckCord benchmark charts",
       caption: "A 3-DOF X-vectored four-thruster USV over 10 irregular wave seeds, plus a six-limb hexapod: waypoint corridor, spin-out and fault isolation, and single-leg jam stability."
     },
     sense: {
-      src: RAW + "necksense/main/assets/necksense_benchmarks.png", w: 3872, h: 1210,
+      src: RAW + "necklink/main/packages/necksense/assets/necksense_benchmarks.png", w: 3872, h: 1210,
       alt: "NeckSense benchmark charts",
       caption: "Five-seed means: retrieval at equal active spikes against dense Gaussian SimHash, an 8-sensor e-nose under 250× plume swings and drift, and a 20-mode one-shot anomaly stream."
     },
