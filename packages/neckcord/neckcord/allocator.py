@@ -51,6 +51,7 @@ class ShuntingThrusterCord:
         shunt_knee: float = 0.48,
         effort_deadband_frac: float = 0.05,
         prioritize_yaw_sway: bool = True,
+        probe_interval_s: float | None = None,
     ) -> None:
         w_mat = np.asarray(wrench_matrix, dtype=np.float64)
         if w_mat.ndim != 2 or w_mat.shape[0] != 3 or not (4 <= w_mat.shape[1] <= 8):
@@ -68,12 +69,17 @@ class ShuntingThrusterCord:
         self.shunt_knee = float(max(shunt_floor + 1e-3, shunt_knee))
         self.effort_deadband = float(effort_deadband_frac) * self.u_max
         self.prioritize_yaw_sway = bool(prioritize_yaw_sway)
+        if probe_interval_s is not None and probe_interval_s <= 0.0:
+            raise ValueError("probe_interval_s must be positive or None")
+        self.probe_interval_s = None if probe_interval_s is None else float(probe_interval_s)
 
         self.health = np.ones(self.n_actuators, dtype=np.float64)
         self.shunt_gain = np.ones(self.n_actuators, dtype=np.float64)
         self._last_cmd = np.zeros(self.n_actuators, dtype=np.float64)
         self._expected_effort = np.zeros(self.n_actuators, dtype=np.float64)
         self._initialized_effort = False
+        self._isolated_time = np.zeros(self.n_actuators, dtype=np.float64)
+        self.probe_count = 0
 
     @classmethod
     def usv_vectored_4(
@@ -157,6 +163,35 @@ class ShuntingThrusterCord:
         self._last_cmd.fill(0.0)
         self._expected_effort.fill(0.0)
         self._initialized_effort = False
+        self._isolated_time.fill(0.0)
+
+    def reinstate_actuator(self, index: int) -> None:
+        """Return an isolated actuator to service (e.g. after the operator cleared a fouled prop).
+
+        Health is set to the shunt knee, so the actuator is driven again and the feedback loop
+        either confirms it (health climbs back to 1.0 over ``tau_recover``) or re-isolates it
+        within a few control ticks.
+        """
+        self.set_actuator_health(index, self.shunt_knee)
+        self._isolated_time[index] = 0.0
+
+    def _probe_isolated(self, dt: float) -> None:
+        """Periodically re-test isolated actuators so transient faults (ESC brownout) can recover.
+
+        An isolated actuator is commanded 0, so feedback can never show that it has recovered.
+        With ``probe_interval_s`` set, each isolated actuator is reinstated after that long; a
+        still-faulty one is re-isolated in ~2 ticks, costing a brief wrench error per probe.
+        """
+        if self.probe_interval_s is None:
+            return
+        for i in range(self.n_actuators):
+            if self.shunt_gain[i] <= 1e-4:
+                self._isolated_time[i] += max(float(dt), 0.0)
+                if self._isolated_time[i] >= self.probe_interval_s:
+                    self.reinstate_actuator(i)
+                    self.probe_count += 1
+            else:
+                self._isolated_time[i] = 0.0
 
     def set_actuator_health(self, index: int, health: float) -> None:
         """Explicitly set health `h_i in [0, 1]` for actuator `index` and update shunting."""
@@ -306,6 +341,7 @@ class ShuntingThrusterCord:
             measured_wrench=measured_wrench,
             dt=dt,
         )
+        self._probe_isolated(dt)
 
         if isinstance(wrench_or_frame, (bytes, bytearray, memoryview)):
             frame = decode_descending_4b(wrench_or_frame)

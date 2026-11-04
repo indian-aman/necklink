@@ -1,5 +1,5 @@
 /*
- * NeckCord v1.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Implementation
+ * NeckCord v1.1.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Implementation
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
  */
@@ -799,6 +799,22 @@ int nc_shunting_set_health(nc_shunting_cord_t *cord, uint8_t idx, int16_t health
     return NC_OK;
 }
 
+int nc_shunting_reinstate(nc_shunting_cord_t *cord, uint8_t idx)
+{
+    if (cord == NULL || idx >= cord->n_actuators) {
+        return NC_ERR_ARG;
+    }
+    cord->isolated_ms[idx] = 0u;
+    return nc_shunting_set_health(cord, idx, cord->shunt_knee_q15);
+}
+
+void nc_shunting_set_probe_interval(nc_shunting_cord_t *cord, uint16_t probe_interval_ms)
+{
+    if (cord != NULL) {
+        cord->probe_interval_ms = probe_interval_ms;
+    }
+}
+
 static int nc_solve_gram3x3_q14(
     const int32_t g[9],
     const int32_t rhs_q14[3],
@@ -1064,6 +1080,20 @@ int nc_shunting_step(
             }
         }
         nc_recompute_shunt_q15(cord);
+    }
+
+    if (cord->probe_interval_ms > 0u) {
+        for (i = 0u; i < cord->n_actuators; ++i) {
+            if (cord->shunt_q15[i] <= 4) {
+                uint32_t t = (uint32_t)cord->isolated_ms[i] + (uint32_t)dt_ms;
+                cord->isolated_ms[i] = (uint16_t)((t > 65535u) ? 65535u : t);
+                if (cord->isolated_ms[i] >= cord->probe_interval_ms) {
+                    (void)nc_shunting_reinstate(cord, i);
+                }
+            } else {
+                cord->isolated_ms[i] = 0u;
+            }
+        }
     }
 
     rc = nc_shunting_allocate(cord, wrench_des_q14, out_res);

@@ -1,4 +1,4 @@
-"""NeckCord (`neckcord` v1.0.0): Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord."""
+"""NeckCord (`neckcord` v1.1.0): Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord."""
 
 from .allocator import AllocationResult, ShuntingThrusterCord
 from .cervical import (
@@ -12,7 +12,7 @@ from .cervical import (
 )
 from .cpg import CPGState, LIMB_NAMES, SegmentalCPGCord, compute_support_margin
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "__version__",

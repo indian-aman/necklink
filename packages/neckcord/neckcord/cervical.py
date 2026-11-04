@@ -41,7 +41,9 @@ def compute_crc4(upper28: int) -> int:
 
     Chosen seed (`0x9`) and final XOR (`0x5`) guarantee that both stuck-low (`0x00000000`)
     and stuck-high (`0xFFFFFFFF`) bus faults fail CRC validation, in addition to 100% of
-    single-bit flips across all 32 bits.
+    single-bit flips across all 32 bits. Like any 4-bit check it lets roughly 1 in 16 random
+    multi-bit corruptions through (measured: ~4% of 2-bit errors, ~6% of random words), so
+    run the frame over a link with its own integrity check (e.g. NLTP's AEAD or a CAN CRC).
     """
     crc = 0x9
     val = int(upper28) & 0x0FFFFFFF
@@ -213,7 +215,11 @@ def decode_descending_4b(
 
 
 class CervicalBottleneckLink:
-    """Stateful rolling-sequence wrapper for 4-byte cervical TX/RX streams (`400 B/s` @ `100 Hz`)."""
+    """Stateful rolling-sequence wrapper for 4-byte cervical TX/RX streams (`400 B/s` @ `100 Hz`).
+
+    The sequence counter is 2 bits, so ``dropped_frames`` counts gaps modulo 4: a burst of
+    exactly 4 (or 8, ...) lost frames is invisible. Pair it with a receive-timeout watchdog.
+    """
 
     def __init__(self) -> None:
         self._tx_seq: int = 0
@@ -228,8 +234,7 @@ class CervicalBottleneckLink:
         seq = self._tx_seq
         self._tx_seq = (self._tx_seq + 1) & 0x3
         self.tx_frames += 1
-        frame.seq = seq
-        return encode_descending_4b(frame, seq=seq)
+        return encode_descending_4b(frame, seq=seq)  # does not modify the caller's frame
 
     def unpack(self, raw: bytes | bytearray | memoryview) -> DescendingFrame:
         """Decode `raw`, tracking CRC failures and rolling sequence gaps."""

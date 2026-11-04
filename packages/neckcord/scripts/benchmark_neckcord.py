@@ -1,4 +1,4 @@
-"""Empirical 3-DOF Vectored USV & 6-Limb Hexapod Benchmark for NeckCord v1.0.0.
+"""Empirical 3-DOF Vectored USV & 6-Limb Hexapod Benchmark for NeckCord v1.1.0.
 
 Evaluates:
   1. Intact 4-thruster vectored USV (`100%` health, `30 s`, `dt = 0.02 s`, `10` wave seeds):
@@ -92,7 +92,7 @@ def _corridor_query(px: float, py: float) -> tuple[float, float, float]:
 def simulate_usv_episode(
     *,
     seed: int,
-    use_neckcord: bool,
+    mode: str,
     inject_fault: bool,
     dt: float = 0.02,
     duration_s: float = 30.0,
@@ -108,8 +108,18 @@ def simulate_usv_episode(
         tau_actuator=0.04,
         tau_fault=0.028,
     )
+    if mode not in ("neckcord", "static_pinv", "pinv_fdi"):
+        raise ValueError(mode)
+    use_neckcord = mode == "neckcord"
     w_pinv_static = np.linalg.pinv(cord.W)
     link = CervicalBottleneckLink()
+    # Classical baseline with the SAME per-thruster thrust feedback: a ratio-threshold fault
+    # detector (measured / commanded < 0.5 for 3 consecutive ticks while |cmd| > 5% u_max)
+    # that drops the failed column and recomputes the pseudo-inverse.
+    fdi_alive = np.ones(4, dtype=bool)
+    fdi_count = np.zeros(4, dtype=np.int64)
+    w_pinv_fdi = w_pinv_static.copy()
+    false_isolations = 0
 
     # Fossen 3-DOF rigid + hydrodynamic added mass parameters (1.1 m survey USV)
     m11 = 24.0
@@ -204,6 +214,26 @@ def simulate_usv_episode(
                 and bool(alloc.isolated_mask[2])
             ):
                 isolated_latency_ms = (t - fault_time_s) * 1000.0
+            if not (inject_fault and t >= fault_time_s):
+                false_isolations = max(false_isolations, int(np.count_nonzero(alloc.isolated_mask)))
+        elif mode == "pinv_fdi":
+            fb = true_eff * u_act + rng.normal(0.0, 0.40, size=4)
+            for i in range(4):
+                if fdi_alive[i] and abs(u_act[i]) > 0.05 * cord.u_max:
+                    fdi_count[i] = fdi_count[i] + 1 if fb[i] / u_act[i] < 0.5 else 0
+                    if fdi_count[i] >= 3:
+                        fdi_alive[i] = False
+                        w_pinv_fdi = np.zeros((4, 3))
+                        w_pinv_fdi[fdi_alive, :] = np.linalg.pinv(cord.W[:, fdi_alive])
+                        if inject_fault and t >= fault_time_s and i == 2 and isolated_latency_ms is None:
+                            isolated_latency_ms = (t - fault_time_s) * 1000.0
+                        elif not (inject_fault and t >= fault_time_s):
+                            false_isolations += 1
+            w_vec = np.array([fx_des, fy_des, tz_des], dtype=np.float64)
+            u_cmd = w_pinv_fdi @ w_vec
+            peak = float(np.max(np.abs(u_cmd)))
+            if peak > cord.u_max:
+                u_cmd = u_cmd * (cord.u_max / peak)
         else:
             w_vec = np.array([fx_des, fy_des, tz_des], dtype=np.float64)
             u_cmd = np.clip(w_pinv_static @ w_vec, -cord.u_max, cord.u_max)
@@ -259,6 +289,7 @@ def simulate_usv_episode(
         "max_cross_track_m": float(np.max(post_ct)),
         "isolation_latency_ms": isolated_latency_ms if isolated_latency_ms is not None else -1.0,
         "mean_fouled_thruster_cmd_N": float(np.mean(fouled_cmd_arr[eval_mask])),
+        "false_isolations": false_isolations,
     }
 
 
@@ -304,11 +335,13 @@ def evaluate_hexapod_leg_loss(dt: float = 0.005, eval_duration_s: float = 8.0) -
     cpg_intact = SegmentalCPGCord(adapt_to_damage=True)
     for _ in range(warmup_steps):
         cpg_intact.step(cmd, dt=dt)
-    intact_stable = sum(1 for _ in range(eval_steps) if cpg_intact.step(cmd, dt=dt).is_statically_stable)
+    intact_states = [cpg_intact.step(cmd, dt=dt) for _ in range(eval_steps)]
+    intact_stable = sum(1 for st in intact_states if st.is_statically_stable)
     intact_pct = round(100.0 * intact_stable / eval_steps, 2)
 
     return {
         "intact_6leg_tripod_stability_pct": intact_pct,
+        "intact_6leg_min_margin_m": round(float(min(st.support_margin_m for st in intact_states)), 4),
         "L2_jammed": per_limb["L2"],
         "per_limb": per_limb,
     }
@@ -317,6 +350,7 @@ def evaluate_hexapod_leg_loss(dt: float = 0.005, eval_duration_s: float = 8.0) -
 def render_hero_chart(
     fault_nc: list[dict[str, Any]],
     fault_st: list[dict[str, Any]],
+    fault_fdi: list[dict[str, Any]],
     hex_res: dict[str, Any],
     summary: dict[str, Any],
     out_path: Path,
@@ -345,7 +379,7 @@ def render_hero_chart(
     )
 
     fig.suptitle(
-        "NeckCord v1.0.0 — 4-Byte Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord",
+        "NeckCord v1.1.0 — 4-Byte Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord",
         fontsize=14,
         fontweight="bold",
         color="#0F172A",
@@ -362,6 +396,7 @@ def render_hero_chart(
 
     c_nc = "#0284C7"
     c_st = "#DC2626"
+    c_fdi = "#7C3AED"
     c_ref = "#334155"
     c_ok = "#059669"
 
@@ -398,13 +433,23 @@ def render_hero_chart(
         label=f"Static PInv + PID (RMS XTE {st_rms:.2f} m)",
         zorder=5,
     )
+    fdi_rms = summary["usv_fault_90pct_T2"]["pinv_fdi"]["rms_cross_track_m"]
+    ax_a.plot(
+        np.mean([r["x"] for r in fault_fdi], axis=0),
+        np.mean([r["y"] for r in fault_fdi], axis=0),
+        color=c_fdi,
+        linewidth=1.8,
+        linestyle="--",
+        label=f"PInv + threshold FDI (RMS XTE {fdi_rms:.2f} m)",
+        zorder=6,
+    )
     ax_a.plot(
         mean_nc_x,
         mean_nc_y,
         color=c_nc,
         linewidth=2.6,
         label=f"NeckCord 4B + Shunting (RMS XTE {nc_rms:.2f} m)",
-        zorder=6,
+        zorder=7,
     )
 
     fault_idx = int(round(8.0 / 0.02))
@@ -475,6 +520,14 @@ def render_hero_chart(
         linewidth=2.3,
         label=f"NeckCord Peak Yaw: {summary['usv_fault_90pct_T2']['neckcord']['peak_yaw_deg']:.1f}°",
     )
+    ax_b.plot(
+        t_vec,
+        np.mean(np.array([r["yaw_err_deg"] for r in fault_fdi]), axis=0),
+        color=c_fdi,
+        linewidth=1.8,
+        linestyle="--",
+        label=f"PInv + FDI Peak Yaw: {summary['usv_fault_90pct_T2']['pinv_fdi']['peak_yaw_deg']:.1f}°",
+    )
     ax_b.axvline(8.0, color="#D97706", linestyle="--", linewidth=1.4)
 
     iso_ms = summary["usv_fault_90pct_T2"]["neckcord"]["isolation_latency_ms"]
@@ -485,11 +538,9 @@ def render_hero_chart(
         0.97,
         0.34,
         (
-            f"Shunting Isolation: {iso_ms:.0f} ms\n"
-            f"Fouled T2 Drive: {fouled_nc_n:.2f} N vs {fouled_st_n:.1f} N\n"
-            f"Command Link @ 100 Hz:\n"
-            f"  NeckCord 4B: 400 B/s (6.0x smaller)\n"
-            f"  Raw 4xFloat32+Hdr: 2,400 B/s"
+            f"Isolation: NeckCord {iso_ms:.0f} ms, PInv+FDI {summary['usv_fault_90pct_T2']['pinv_fdi']['isolation_latency_ms']:.0f} ms\n"
+            f"Fouled T2 Drive: {fouled_nc_n:.2f} N vs {fouled_st_n:.1f} N (no FDI)\n"
+            f"Command Link @ 100 Hz: 400 B/s (4 B frames)"
         ),
         transform=ax_b.transAxes,
         ha="right",
@@ -499,7 +550,7 @@ def render_hero_chart(
         bbox=dict(boxstyle="round,pad=0.32", facecolor="#ECFEFF", edgecolor="#67E8F9", lw=0.9, alpha=0.94),
     )
 
-    ax_b.set_title("B. USV Heading Spin-Out & Fault Isolation")
+    ax_b.set_title("B. Heading Error After T2 Fault (mean of 10 seeds)")
     ax_b.set_xlabel("Mission Time t (s)")
     ax_b.set_ylabel("Corridor Heading Error |Δψ| (deg)")
     ax_b.set_xlim(0.0, 30.0)
@@ -577,19 +628,28 @@ def main() -> int:
     duration_s = 30.0
 
     intact_nc = [
-        simulate_usv_episode(seed=s, use_neckcord=True, inject_fault=False, dt=dt, duration_s=duration_s)
+        simulate_usv_episode(seed=s, mode="neckcord", inject_fault=False, dt=dt, duration_s=duration_s)
         for s in seeds
     ]
     intact_st = [
-        simulate_usv_episode(seed=s, use_neckcord=False, inject_fault=False, dt=dt, duration_s=duration_s)
+        simulate_usv_episode(seed=s, mode="static_pinv", inject_fault=False, dt=dt, duration_s=duration_s)
         for s in seeds
     ]
     fault_nc = [
-        simulate_usv_episode(seed=s, use_neckcord=True, inject_fault=True, dt=dt, duration_s=duration_s)
+        simulate_usv_episode(seed=s, mode="neckcord", inject_fault=True, dt=dt, duration_s=duration_s)
         for s in seeds
     ]
     fault_st = [
-        simulate_usv_episode(seed=s, use_neckcord=False, inject_fault=True, dt=dt, duration_s=duration_s)
+        simulate_usv_episode(seed=s, mode="static_pinv", inject_fault=True, dt=dt, duration_s=duration_s)
+        for s in seeds
+    ]
+
+    intact_fdi = [
+        simulate_usv_episode(seed=s, mode="pinv_fdi", inject_fault=False, dt=dt, duration_s=duration_s)
+        for s in seeds
+    ]
+    fault_fdi = [
+        simulate_usv_episode(seed=s, mode="pinv_fdi", inject_fault=True, dt=dt, duration_s=duration_s)
         for s in seeds
     ]
 
@@ -605,14 +665,15 @@ def main() -> int:
                 float(np.mean([r["mean_fouled_thruster_cmd_N"] for r in runs])), 2
             ),
         }
+        out["false_isolation_runs"] = int(sum(1 for r in runs if r["false_isolations"] > 0))
         if include_iso:
-            out["isolation_latency_ms"] = round(
-                float(np.mean([r["isolation_latency_ms"] for r in runs])), 1
-            )
+            lat = [r["isolation_latency_ms"] for r in runs if r["isolation_latency_ms"] >= 0.0]
+            out["isolation_latency_ms"] = round(float(np.mean(lat)), 1) if lat else None
+            out["isolated_runs"] = len(lat)
         return out
 
     summary: dict[str, Any] = {
-        "benchmark": "NeckCord v1.0.0 Empirical USV & Hexapod Suite",
+        "benchmark": "NeckCord v1.1.0 Empirical USV & Hexapod Suite",
         "config": {
             "dt_s": dt,
             "duration_s": duration_s,
@@ -622,6 +683,8 @@ def main() -> int:
         "bandwidth": {
             "neckcord_frame_bytes": 4,
             "raw_4x_float32_plus_8b_hdr_bytes": 24,
+            "plain_int8_3dof_plus_flags_bytes": 4,
+            "note": "The 6x is versus 4 x float32 + an 8-byte header. Plain int8 quantisation of the same 3 axes is also ~4 B; the frame's value is the fixed layout, flags, sequence counter and CRC, not compression.",
             "neckcord_100hz_bytes_per_s": 400,
             "raw_actuator_100hz_bytes_per_s": 2400,
             "compression_ratio_x": 6.0,
@@ -629,13 +692,16 @@ def main() -> int:
         "usv_intact": {
             "neckcord": _agg(intact_nc),
             "static_pinv": _agg(intact_st),
+            "pinv_fdi": _agg(intact_fdi),
         },
         "usv_fault_90pct_T2": {
             "neckcord": _agg(fault_nc, include_iso=True),
             "static_pinv": _agg(fault_st, include_iso=False),
+            "pinv_fdi": _agg(fault_fdi, include_iso=True),
         },
         "hexapod_single_leg_loss": {
             "intact_6leg_tripod_stability_pct": hex_res["intact_6leg_tripod_stability_pct"],
+            "intact_6leg_min_margin_m": hex_res["intact_6leg_min_margin_m"],
             "L2_jammed": hex_res["L2_jammed"],
             "all_6_single_leg_faults": hex_res["per_limb"],
         },
@@ -649,6 +715,7 @@ def main() -> int:
     render_hero_chart(
         fault_nc=fault_nc,
         fault_st=fault_st,
+        fault_fdi=fault_fdi,
         hex_res=hex_res,
         summary=summary,
         out_path=chart_path,

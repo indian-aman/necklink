@@ -1,4 +1,4 @@
-"""Comprehensive test suite for `neckcord` v1.0.0."""
+"""Comprehensive test suite for `neckcord` v1.1.0."""
 
 from __future__ import annotations
 
@@ -380,3 +380,67 @@ def test_c99_zero_float_zero_malloc_source_audit() -> None:
         matches = forbidden.findall(text)
         assert matches == [], f"Forbidden token(s) {matches} found in csrc/{fname}"
 
+
+
+def _drive_usv4(cord, alloc, eff_t2: float, ticks: int):
+    eff = np.array([1.0, 1.0, eff_t2, 1.0])
+    for _ in range(ticks):
+        alloc = cord.step(np.array([35.0, 0.0, 0.0]), feedback_thrust=eff * alloc.commands, dt=0.02)
+    return alloc
+
+
+def test_recovery_probe_returns_cleared_thruster_to_service() -> None:
+    cord = ShuntingThrusterCord.usv_vectored_4(tau_actuator=0.0, probe_interval_s=2.0)
+    alloc = cord.step(np.array([35.0, 0.0, 0.0]), dt=0.02)
+    alloc = _drive_usv4(cord, alloc, 0.03, 50)  # 1 s brownout
+    assert alloc.isolated_mask[2]
+    alloc = _drive_usv4(cord, alloc, 1.0, 200)  # 4 s healthy again
+    assert not alloc.isolated_mask[2]
+    assert cord.health[2] > 0.9
+    assert cord.probe_count >= 1
+
+
+def test_without_probe_isolation_is_permanent_until_reinstated() -> None:
+    cord = ShuntingThrusterCord.usv_vectored_4(tau_actuator=0.0)
+    alloc = cord.step(np.array([35.0, 0.0, 0.0]), dt=0.02)
+    alloc = _drive_usv4(cord, alloc, 0.03, 50)
+    alloc = _drive_usv4(cord, alloc, 1.0, 200)
+    assert alloc.isolated_mask[2]  # commanded 0, so feedback can never show recovery
+    cord.reinstate_actuator(2)
+    alloc = _drive_usv4(cord, alloc, 1.0, 100)
+    assert not alloc.isolated_mask[2]
+
+
+def test_probe_keeps_dead_thruster_mostly_isolated() -> None:
+    cord = ShuntingThrusterCord.usv_vectored_4(tau_actuator=0.0, probe_interval_s=2.0)
+    alloc = cord.step(np.array([35.0, 0.0, 0.0]), dt=0.02)
+    isolated = 0
+    for _ in range(500):  # 10 s with T2 permanently at 3%
+        alloc = _drive_usv4(cord, alloc, 0.03, 1)
+        isolated += int(alloc.isolated_mask[2])
+    assert isolated >= 480
+    with pytest.raises(ValueError):
+        ShuntingThrusterCord.usv_vectored_4(probe_interval_s=0.0)
+
+
+def test_link_pack_does_not_mutate_caller_frame() -> None:
+    link = CervicalBottleneckLink()
+    frame = DescendingFrame(drive_fwd=0.5, seq=0)
+    link.pack(frame)
+    link.pack(frame)
+    assert frame.seq == 0
+    assert link.unpack(link.pack(frame)).seq == 2
+
+
+def test_crc4_documented_multibit_escape_rate() -> None:
+    """The README states ~6% of random corrupted words pass CRC-4; keep that claim honest."""
+    rng = np.random.default_rng(0)
+    words = rng.integers(0, 2**32, size=20000, dtype=np.uint64)
+    accepted = 0
+    for w in words:
+        try:
+            decode_descending_4b(int(w).to_bytes(4, "big"))
+            accepted += 1
+        except CervicalCRCError:
+            pass
+    assert 0.04 < accepted / len(words) < 0.08

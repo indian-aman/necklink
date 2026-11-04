@@ -1,5 +1,5 @@
 /*
- * NeckCord v1.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
+ * NeckCord v1.1.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
  *
  * Implements:
  *   1. 4-byte Descending Cervical Command Frame codec + CRC-4 verification
@@ -124,6 +124,8 @@ typedef struct {
     uint16_t tau_act_ms;                       /* actuator lag [ms], e.g. 40 */
     uint16_t tau_fault_ms;                     /* fast fault onset [ms], e.g. 28 */
     uint16_t tau_recover_ms;                   /* slow recovery [ms], e.g. 850 */
+    uint16_t probe_interval_ms;                /* re-test isolated actuators (0 = never)  */
+    uint16_t isolated_ms[NC_MAX_ACTUATORS];    /* time each actuator has been isolated    */
     uint8_t prioritize_yaw_sway;               /* 1 = protect Fy/Tz before Fx saturation */
     uint8_t initialized;
 } nc_shunting_cord_t;
@@ -147,6 +149,13 @@ int nc_shunting_init(
 void nc_shunting_init_usv4(nc_shunting_cord_t *cord, int16_t lx_mm, int16_t ly_mm);
 
 int nc_shunting_set_health(nc_shunting_cord_t *cord, uint8_t idx, int16_t health_q15);
+
+/* Return an isolated actuator to service (health = shunt knee); feedback then confirms
+ * or re-isolates it. Matches ShuntingThrusterCord.reinstate_actuator() in Python. */
+int nc_shunting_reinstate(nc_shunting_cord_t *cord, uint8_t idx);
+
+/* Automatically reinstate isolated actuators every probe_interval_ms (0 disables, default). */
+void nc_shunting_set_probe_interval(nc_shunting_cord_t *cord, uint16_t probe_interval_ms);
 
 int nc_shunting_allocate(
     const nc_shunting_cord_t *cord,

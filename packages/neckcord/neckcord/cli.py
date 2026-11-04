@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from . import __version__
+
 import argparse
 import json
 import math
@@ -203,7 +205,7 @@ def cmd_demo(as_json: bool = False) -> int:
         print(json.dumps(payload, indent=2))
         return 0
 
-    print("=== NeckCord v1.0.0 End-to-End Demo ===")
+    print(f"=== NeckCord v{__version__} End-to-End Demo ===")
     print(
         f"1. Cervical Bottleneck : 0x{wire.hex().upper()} ({len(wire)} bytes = 400 B/s @ 100 Hz)"
     )
@@ -290,16 +292,20 @@ def cmd_benchmark_quick(seeds: int = 4, as_json: bool = False) -> int:
     print(f"=== NeckCord Quick Benchmark ({seeds} wave seeds) ===")
     print(
         f"USV 90% Port-Aft Loss | Peak Yaw  : NeckCord {u['neckcord_peak_yaw_deg']:.2f} deg "
-        f"vs Static PInv {u['static_pinv_peak_yaw_deg']:.2f} deg"
+        f"vs PInv without fault detection {u['static_pinv_peak_yaw_deg']:.2f} deg"
     )
     print(
         f"USV 90% Port-Aft Loss | RMS XTE   : NeckCord {u['neckcord_rms_ct_m']:.3f} m "
-        f"vs Static PInv {u['static_pinv_rms_ct_m']:.3f} m"
+        f"vs PInv without fault detection {u['static_pinv_rms_ct_m']:.3f} m"
     )
     print(f"USV Fault Isolation   | Latency   : {u['neckcord_isolation_ms']:.1f} ms")
     print(
         f"Hexapod L2 Jammed     | Stability : NeckCord {h['neckcord_adaptive_vnc']:.1f}% "
         f"vs Unadapted {h['unadapted_tripod_cpg']:.1f}%"
+    )
+    print(
+        "Note: a pseudo-inverse with a simple threshold fault detector on the same feedback\n"
+        "performs about the same as NeckCord; see scripts/benchmark_neckcord.py."
     )
     return 0
 
@@ -307,9 +313,9 @@ def cmd_benchmark_quick(seeds: int = 4, as_json: bool = False) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="neckcord",
-        description="NeckCord v1.0.0: 4-byte descending cervical bottleneck + self-healing VNC motor/thruster cord",
+        description=f"NeckCord v{__version__}: 4-byte descending cervical bottleneck + self-healing VNC motor/thruster cord",
     )
-    parser.add_argument("--version", action="version", version="neckcord 1.0.0")
+    parser.add_argument("--version", action="version", version=f"neckcord {__version__}")
     sub = parser.add_subparsers(dest="subcommand")
 
     p_demo = sub.add_parser("demo", help="Run end-to-end cervical + CPG + thruster shunting demo")

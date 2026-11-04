@@ -1,5 +1,5 @@
 {
-  "benchmark": "NeckCord v1.0.0 Empirical USV & Hexapod Suite",
+  "benchmark": "NeckCord v1.1.0 Empirical USV & Hexapod Suite",
   "config": {
     "dt_s": 0.02,
     "duration_s": 30.0,
@@ -9,6 +9,8 @@
   "bandwidth": {
     "neckcord_frame_bytes": 4,
     "raw_4x_float32_plus_8b_hdr_bytes": 24,
+    "plain_int8_3dof_plus_flags_bytes": 4,
+    "note": "The 6x is versus 4 x float32 + an 8-byte header. Plain int8 quantisation of the same 3 axes is also ~4 B; the frame's value is the fixed layout, flags, sequence counter and CRC, not compression.",
     "neckcord_100hz_bytes_per_s": 400,
     "raw_actuator_100hz_bytes_per_s": 2400,
     "compression_ratio_x": 6.0
@@ -19,14 +21,24 @@
       "peak_yaw_std_deg": 0.79,
       "rms_cross_track_m": 0.109,
       "max_cross_track_m": 0.233,
-      "mean_fouled_thruster_cmd_N": 14.19
+      "mean_fouled_thruster_cmd_N": 14.19,
+      "false_isolation_runs": 0
     },
     "static_pinv": {
       "peak_yaw_deg": 4.84,
       "peak_yaw_std_deg": 0.94,
       "rms_cross_track_m": 0.108,
       "max_cross_track_m": 0.233,
-      "mean_fouled_thruster_cmd_N": 14.1
+      "mean_fouled_thruster_cmd_N": 14.1,
+      "false_isolation_runs": 0
+    },
+    "pinv_fdi": {
+      "peak_yaw_deg": 4.84,
+      "peak_yaw_std_deg": 0.94,
+      "rms_cross_track_m": 0.108,
+      "max_cross_track_m": 0.233,
+      "mean_fouled_thruster_cmd_N": 14.1,
+      "false_isolation_runs": 0
     }
   },
   "usv_fault_90pct_T2": {
@@ -36,18 +48,32 @@
       "rms_cross_track_m": 0.112,
       "max_cross_track_m": 0.224,
       "mean_fouled_thruster_cmd_N": 0.02,
-      "isolation_latency_ms": 42.0
+      "false_isolation_runs": 0,
+      "isolation_latency_ms": 42.0,
+      "isolated_runs": 10
     },
     "static_pinv": {
       "peak_yaw_deg": 24.19,
       "peak_yaw_std_deg": 2.28,
       "rms_cross_track_m": 0.498,
       "max_cross_track_m": 0.735,
-      "mean_fouled_thruster_cmd_N": 22.7
+      "mean_fouled_thruster_cmd_N": 22.7,
+      "false_isolation_runs": 0
+    },
+    "pinv_fdi": {
+      "peak_yaw_deg": 4.84,
+      "peak_yaw_std_deg": 0.95,
+      "rms_cross_track_m": 0.116,
+      "max_cross_track_m": 0.231,
+      "mean_fouled_thruster_cmd_N": 0.03,
+      "false_isolation_runs": 0,
+      "isolation_latency_ms": 40.0,
+      "isolated_runs": 10
     }
   },
   "hexapod_single_leg_loss": {
     "intact_6leg_tripod_stability_pct": 100.0,
+    "intact_6leg_min_margin_m": 0.068,
     "L2_jammed": {
       "adaptive_stability_pct": 100.0,
       "unadapted_stability_pct": 55.0,

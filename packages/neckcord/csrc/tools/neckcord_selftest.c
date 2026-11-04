@@ -1,5 +1,5 @@
 /*
- * NeckCord v1.0.0 - Pure Integer ANSI C99 Verification Suite (10/10 tests)
+ * NeckCord v1.1.0 - Pure Integer ANSI C99 Verification Suite (11 tests)
  *
  * Verifies:
  *   1. Static RAM footprint (< 3 KB, zero heap)
@@ -12,6 +12,7 @@
  *   8. Single-leg amputation (L2 jammed) VNC pentapod vs unadapted stability
  *   9. 4-thruster vectored USV online fault isolation & zero-spin rebalancing
  *  10. 8-actuator octo-ROV dual-fault wrench rebalancing
+ *  11. Recovery probe: transient fault returns to service, persistent fault stays isolated
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
  */
@@ -378,9 +379,66 @@ static void test_10_octo8_dual_fault_rebalance(void)
           "8-channel octo-ROV allocator isolates 2 failed thrusters & tracks full 3-DOF wrench");
 }
 
+/* Drive the USV4 cord for n ticks with T2 at efficiency eff_q15; returns 1 if T2 is isolated. */
+static int run_usv4_ticks(nc_shunting_cord_t *cord, nc_alloc_result_t *res, int16_t eff_t2_q15, int n)
+{
+    int32_t w_des[3] = { 16384, 0, 0 };
+    int k;
+    uint8_t i;
+    for (k = 0; k < n; ++k) {
+        int16_t fb_q15[4];
+        for (i = 0u; i < 4u; ++i) {
+            int32_t eff = (i == 2u) ? eff_t2_q15 : NC_Q15_ONE;
+            fb_q15[i] = (int16_t)(((int64_t)eff * res->cmd_q15[i]) / NC_Q15_ONE);
+        }
+        (void)nc_shunting_step(cord, w_des, fb_q15, 20u, res);
+    }
+    return (res->isolated_mask & (1u << 2)) != 0u;
+}
+
+static void test_11_recovery_probe(void)
+{
+    nc_shunting_cord_t cord;
+    nc_alloc_result_t res;
+    int32_t w_des[3] = { 16384, 0, 0 };
+    int isolated_after_fault, isolated_after_clear, isolated_without_probe;
+    int persistent_isolated_ticks = 0;
+    int k;
+
+    /* Transient brownout: T2 fails for 1 s, then works again. Probe every 2 s. */
+    nc_shunting_init_usv4(&cord, 450, 350);
+    cord.tau_act_ms = 0u;
+    nc_shunting_set_probe_interval(&cord, 2000u);
+    (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
+    isolated_after_fault = run_usv4_ticks(&cord, &res, 1000, 50);       /* 1 s at 3% */
+    isolated_after_clear = run_usv4_ticks(&cord, &res, NC_Q15_ONE, 200); /* 4 s healthy */
+
+    /* Same without probing: it stays isolated forever. */
+    nc_shunting_init_usv4(&cord, 450, 350);
+    cord.tau_act_ms = 0u;
+    (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
+    (void)run_usv4_ticks(&cord, &res, 1000, 50);
+    isolated_without_probe = run_usv4_ticks(&cord, &res, NC_Q15_ONE, 200);
+
+    /* Persistent fault with probing: isolated for the large majority of ticks. */
+    nc_shunting_init_usv4(&cord, 450, 350);
+    cord.tau_act_ms = 0u;
+    nc_shunting_set_probe_interval(&cord, 2000u);
+    (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
+    for (k = 0; k < 500; ++k) {
+        persistent_isolated_ticks += run_usv4_ticks(&cord, &res, 1000, 1);
+    }
+
+    printf("    probe: isolated after fault=%d, after clear=%d (no-probe=%d), persistent fault isolated %d/500 ticks\n",
+           isolated_after_fault, isolated_after_clear, isolated_without_probe, persistent_isolated_ticks);
+    CHECK(isolated_after_fault && !isolated_after_clear && isolated_without_probe &&
+          res.cmd_q15[2] == 0 && persistent_isolated_ticks >= 480,
+          "Recovery probe returns a cleared thruster to service and keeps a dead one isolated");
+}
+
 int main(void)
 {
-    printf("=== NeckCord v1.0.0 ANSI C99 Fixed-Point Self-Test ===\n");
+    printf("=== NeckCord v1.1.0 ANSI C99 Fixed-Point Self-Test ===\n");
     test_1_static_ram_budget();
     test_2_trig_lut_accuracy();
     test_3_cervical_roundtrip_and_python_parity();
@@ -391,6 +449,7 @@ int main(void)
     test_8_hexapod_single_leg_amputation_adaptation();
     test_9_usv4_fault_isolation_and_zero_spin_rebalance();
     test_10_octo8_dual_fault_rebalance();
+    test_11_recovery_probe();
 
     printf("=== Summary: %d/%d passed, %d failed ===\n",
            g_passed, g_passed + g_failed, g_failed);
