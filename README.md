@@ -1,5 +1,7 @@
 <div align="center">
 
+<a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
+
 # NeckSight (`necksight` v1.0.0)
 
 ***Drosophila* Optic-Lobe `T4`/`T5` Motion & `LPLC2` 4-Quadrant Looming Collision-Reflex Engine — in Python (`NumPy`) and Zero-Heap, Zero-Float ANSI C99 (`< 15 KB` RAM, `> 12,000 FPS`).**
