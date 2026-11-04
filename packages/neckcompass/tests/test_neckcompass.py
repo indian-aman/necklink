@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import ctypes
 import json
 import math
+import shutil
+import subprocess
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -13,6 +17,7 @@ from neckcompass import (
     PlasticLandmarkRing,
     RingCompass,
     __version__,
+    basin_sigma_for_noise,
     circular_error_rad,
     wrap_angle,
 )
@@ -20,7 +25,8 @@ from neckcompass.cli import main as cli_main
 
 
 def test_version_and_angle_wrapping() -> None:
-    assert __version__ == "1.0.0"
+    pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    assert f'version = "{__version__}"' in pyproject
     for k in range(-5, 6):
         ang = 0.73 + 2.0 * math.pi * k
         assert math.isclose(float(wrap_angle(ang)), 0.73, abs_tol=1e-12)
@@ -349,3 +355,148 @@ def test_cli_demo_and_benchmark_quick_json(capsys: pytest.CaptureFixture[str]) -
     spiky = bench_out["scenario_b_ferromagnetic_spikes"]
     assert clean["ekf"]["rmse_deg"] <= clean["neckcompass"]["rmse_deg"]
     assert spiky["neckcompass"]["rmse_deg"] < 0.25 * spiky["ekf"]["rmse_deg"]
+
+
+def _spiky_stream(seed: int, mag_noise_deg: float, duration_s: float = 90.0):
+    """Biased gyro + noisy magnetometer with 70-150 deg half-sine spikes every ~15 s."""
+    rng = np.random.default_rng(seed)
+    dt = 0.02
+    psi = 0.3
+    bias = math.radians(0.9)
+    out = []
+    next_spike = 8.0
+    spike = None
+    for k in range(int(duration_s / dt)):
+        t = k * dt
+        omega = 0.32 * math.sin(0.14 * t) + 0.19 * math.cos(0.08 * t)
+        psi = float(wrap_angle(psi + omega * dt))
+        anom = 0.0
+        if spike is None and t >= next_spike:
+            spike = (t, float(rng.uniform(1.0, 2.0)), math.radians(float(rng.uniform(70, 150))) * rng.choice([-1, 1]))
+        if spike is not None:
+            t0, dur, peak = spike
+            if t <= t0 + dur:
+                anom = peak * math.sin(math.pi * (t - t0) / dur)
+            else:
+                spike = None
+                next_spike = t + float(rng.uniform(11, 19))
+        gyro = omega + bias + rng.normal(0.0, math.radians(1.5))
+        mag = float(wrap_angle(psi + anom + rng.normal(0.0, math.radians(mag_noise_deg))))
+        out.append((t, psi, gyro, mag))
+    return dt, out
+
+
+@pytest.mark.parametrize("mag_noise_deg", [1.5, 3.0, 6.0])
+def test_spiky_magnetometer_rmse_stays_near_sensor_noise_floor(mag_noise_deg: float) -> None:
+    dt, stream = _spiky_stream(seed=7, mag_noise_deg=mag_noise_deg)
+    compass = RingCompass(initial_heading_rad=stream[0][3], cue_noise_deg=mag_noise_deg)
+    errs = []
+    for t, psi, gyro, mag in stream:
+        est = compass.update(gyro, dt, mag_heading_rad=mag)
+        if t > 15.0:
+            errs.append(math.degrees(float(circular_error_rad(est, psi))))
+    rmse = float(np.sqrt(np.mean(np.square(errs))))
+    # Spikes reach 150 deg; the compass must stay well below the raw sensor noise.
+    assert rmse < 0.4 * mag_noise_deg + 0.3, rmse
+
+
+def test_reanchor_works_with_realistic_magnetometer_noise() -> None:
+    """Regression: re-anchoring used to compare per-sample d(mag)/dt with the gyro, so 3 deg of
+    noise at 50 Hz (~3.7 rad/s apparent rate) blocked it forever."""
+    rng = np.random.default_rng(3)
+    dt = 0.02
+    truth = math.radians(40.0)
+    compass = RingCompass(initial_heading_rad=truth + math.radians(90.0), reanchor_seconds=10.0)
+    for k in range(int(12.0 / dt)):
+        omega = 0.2 * math.sin(0.3 * k * dt)
+        truth = float(wrap_angle(truth + omega * dt))
+        mag = float(wrap_angle(truth + rng.normal(0.0, math.radians(3.0))))
+        compass.update(omega, dt, mag_heading_rad=mag)
+    assert abs(math.degrees(float(circular_error_rad(compass.heading_rad, truth)))) < 3.0
+
+
+def test_short_spike_never_triggers_reanchor() -> None:
+    compass = RingCompass(initial_heading_rad=0.0, reanchor_seconds=3.0)
+    dt = 0.02
+    for _ in range(int(2.5 / dt)):  # 2.5 s spike < 3 s re-anchor window
+        compass.update(0.0, dt, mag_heading_rad=math.radians(120.0))
+    for _ in range(int(1.0 / dt)):
+        compass.update(0.0, dt, mag_heading_rad=0.0)
+    assert abs(compass.heading_deg) < 0.5
+
+
+def test_basin_sigma_for_noise_half_width() -> None:
+    for noise in (1.0, 3.0, 10.0):
+        sigma = basin_sigma_for_noise(noise)
+        half = math.radians(4.0 + noise)
+        gate = math.exp(-(((1.0 - math.cos(half)) / sigma) ** 2))
+        assert math.isclose(gate, 0.5, rel_tol=1e-9)
+    with pytest.raises(ValueError):
+        basin_sigma_for_noise(0.0)
+
+
+def _build_c_core(tmp_path: Path):
+    cc = shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+    if cc is None:
+        pytest.skip("no C compiler available")
+    src = Path(__file__).resolve().parents[1] / "csrc" / "neckcompass.c"
+    lib_path = tmp_path / "libneckcompass.so"
+    subprocess.run([cc, "-O2", "-std=c99", "-shared", "-fPIC", "-o", str(lib_path), str(src)], check=True)
+    lib = ctypes.CDLL(str(lib_path))
+    lib.nc_compass_update.restype = ctypes.c_int16
+    return lib
+
+
+def test_c99_core_matches_python_on_spiky_stream(tmp_path: Path) -> None:
+    lib = _build_c_core(tmp_path)
+    bam_per_rad = 65536.0 / (2.0 * math.pi)
+
+    def to_bam(rad: float) -> int:
+        v = int(round(float(wrap_angle(rad)) * bam_per_rad))
+        return ((v + 32768) % 65536) - 32768
+
+    dt, stream = _spiky_stream(seed=11, mag_noise_deg=3.0)
+    state = ctypes.create_string_buffer(256)
+    lib.nc_compass_init(state)
+    lib.nc_compass_reset(state, ctypes.c_int16(to_bam(stream[0][3])))
+    py = RingCompass(initial_heading_rad=stream[0][3])
+    c_errs, py_errs = [], []
+    for t, psi, gyro, mag in stream:
+        bam = lib.nc_compass_update(
+            state, ctypes.c_int32(int(round(gyro * bam_per_rad))), ctypes.c_uint32(20),
+            ctypes.c_int16(to_bam(mag)), ctypes.c_uint8(1), ctypes.c_int16(32767),
+            ctypes.c_int16(0), ctypes.c_uint8(0), ctypes.c_int16(0),
+        )
+        est_py = py.update(gyro, dt, mag_heading_rad=mag)
+        if t > 15.0:
+            c_errs.append(math.degrees(float(circular_error_rad(bam / bam_per_rad, psi))))
+            py_errs.append(math.degrees(float(circular_error_rad(est_py, psi))))
+    c_rmse = float(np.sqrt(np.mean(np.square(c_errs))))
+    py_rmse = float(np.sqrt(np.mean(np.square(py_errs))))
+    assert c_rmse < 1.0, c_rmse
+    assert abs(c_rmse - py_rmse) < 0.25, (c_rmse, py_rmse)
+
+
+def test_plastic_self_supervised_stays_calibrated_with_noise_and_gyro_bias() -> None:
+    """Regression: without an absolute reference the learned map used to absorb gyro drift
+    (33 deg error after 60 s with 0.9 deg/s bias; 56 deg after 4 min with 2 deg mag noise)."""
+
+    def warp(psi: float) -> float:
+        return float(wrap_angle(psi + math.radians(20.0) * math.sin(psi) + math.radians(16.0) * math.sin(2.0 * psi)))
+
+    rng = np.random.default_rng(5)
+    plastic = PlasticLandmarkRing(n_wedges=16, n_ring_neurons=32)
+    dt = 0.02
+    psi = 0.0
+    gyro_bias = math.radians(0.9)
+    for k in range(int(240.0 / dt)):
+        omega = 0.6 + 0.3 * math.sin(0.05 * k * dt)
+        psi = float(wrap_angle(psi + omega * dt))
+        plastic.update(
+            omega + gyro_bias + rng.normal(0.0, math.radians(1.5)),
+            dt,
+            raw_mag_heading_rad=warp(psi) + rng.normal(0.0, math.radians(2.0)),
+        )
+    grid = np.linspace(-math.pi, math.pi, 72, endpoint=False)
+    errs = [math.degrees(float(circular_error_rad(plastic.map_raw_heading(warp(float(a)))[0], float(a)))) for a in grid]
+    assert float(np.sqrt(np.mean(np.square(errs)))) < 3.0

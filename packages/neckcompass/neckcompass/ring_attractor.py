@@ -32,6 +32,24 @@ def circular_error_rad(est_rad: float | np.ndarray, truth_rad: float | np.ndarra
     return wrap_angle(np.asarray(est_rad) - np.asarray(truth_rad))
 
 
+_GATE_HALF_RATIO = math.sqrt(math.log(2.0))  # gate = 0.5 where (1 - cos d) = 0.8326 * basin_sigma
+_REANCHOR_TAU_S = 1.0
+_REANCHOR_MIN_COHERENCE = 0.8
+
+
+def basin_sigma_for_noise(cue_noise_deg: float) -> float:
+    """Return the ``basin_sigma`` whose gate half-width suits a cue with ``cue_noise_deg`` 1-sigma noise.
+
+    The basin half-width (gate = 0.5) is ``4 deg + 1.0 * cue_noise_deg``: tight enough to
+    shunt the leading and trailing edges of ferromagnetic spikes, wide enough to accept
+    ordinary sensor noise plus a few degrees of gyro drift between cue updates.
+    """
+    if not (cue_noise_deg > 0.0):
+        raise ValueError("cue_noise_deg must be positive")
+    half_width_rad = math.radians(4.0 + float(cue_noise_deg))
+    return (1.0 - math.cos(half_width_rad)) / _GATE_HALF_RATIO
+
+
 @dataclass(frozen=True)
 class CompassDiagnostics:
     """Snapshot of internal neural state from a RingCompass update step."""
@@ -54,10 +72,15 @@ class RingCompass:
 
     External cues (``mag_heading_rad``, ``sun_heading_rad``) excite localized von-Mises
     Ring-Neuron (R2 / R4d) receptive fields gated by cooperative dendritic coincidence
-    with the active E-PG bump. Cues within the attractor basin (~30 deg) smoothly pull
-    the bump and adapt a slow homeostatic P-EN bias trim; transient 60-160 deg
-    ferromagnetic ship-hull or motor-cable spikes fall onto Delta7-inhibited wedges
-    and are naturally rejected without yanking the heading or corrupting bias state.
+    with the active E-PG bump. Cues within the attractor basin (half-width
+    ``4 deg + cue_noise_deg``, i.e. 7 deg by default) smoothly pull the bump and adapt a
+    slow homeostatic P-EN bias trim; transient ferromagnetic ship-hull or motor-cable
+    spikes fall outside the basin and are rejected without yanking the heading or
+    corrupting the bias state.
+
+    Set ``cue_noise_deg`` to the 1-sigma noise of your calibrated magnetometer (or sun
+    sensor). If the cue stays consistently off-basin for ``reanchor_seconds`` (a real
+    heading upset rather than a spike), the bump re-anchors onto the averaged cue.
     """
 
     def __init__(
@@ -66,23 +89,31 @@ class RingCompass:
         initial_heading_rad: Optional[float] = None,
         *,
         cue_kappa: float = 4.0,
-        basin_sigma: float = 0.14,
+        cue_noise_deg: float = 3.0,
+        basin_sigma: Optional[float] = None,
         mag_gain: float = 1.6,
         sun_gain: float = 3.2,
         bias_adapt_rate: float = 0.55,
         max_bias_rad_s: float = 0.15,
         inhibition_threshold: float = 0.0,
-        reanchor_seconds: Optional[float] = 15.0,
+        reanchor_seconds: Optional[float] = 10.0,
     ) -> None:
         if n_wedges < 8 or (n_wedges % 2) != 0:
             raise ValueError(f"n_wedges must be an even integer >= 8, got {n_wedges}")
         if cue_kappa <= 0.0:
             raise ValueError("cue_kappa must be positive")
+        if not (cue_noise_deg > 0.0):
+            raise ValueError("cue_noise_deg must be positive")
+        if basin_sigma is None:
+            basin_sigma = basin_sigma_for_noise(cue_noise_deg)
         if basin_sigma <= 0.0:
             raise ValueError("basin_sigma must be positive")
+        if reanchor_seconds is not None and reanchor_seconds <= 0.0:
+            raise ValueError("reanchor_seconds must be positive or None")
 
         self.n_wedges: int = int(n_wedges)
         self.cue_kappa: float = float(cue_kappa)
+        self.cue_noise_deg: float = float(cue_noise_deg)
         self.basin_sigma: float = float(basin_sigma)
         self.mag_gain: float = float(mag_gain)
         self.sun_gain: float = float(sun_gain)
@@ -102,8 +133,11 @@ class RingCompass:
         self._initialized: bool = False
         self._pen_bias_rad_s: float = 0.0
 
-        # Track sustained kinematically coherent off-basin cue (for genuine cold re-orientation)
-        self._prev_mag_rad: Optional[float] = None
+        # Track a sustained, consistent off-basin cue offset (for genuine re-orientation after
+        # an upset, e.g. a wrong initial heading or a gyro saturation event). Short ferromagnetic
+        # spikes (< reanchor_seconds) never qualify.
+        self._offbasin_c: float = 0.0
+        self._offbasin_s: float = 0.0
         self._coherent_offbasin_time: float = 0.0
         self._last_mag_gate: float = 0.0
         self._last_sun_gate: float = 0.0
@@ -124,7 +158,11 @@ class RingCompass:
         self._initialized = True
         if reset_bias:
             self._pen_bias_rad_s = 0.0
-        self._prev_mag_rad = None
+        self._reset_reanchor_tracker()
+
+    def _reset_reanchor_tracker(self) -> None:
+        self._offbasin_c = 0.0
+        self._offbasin_s = 0.0
         self._coherent_offbasin_time = 0.0
 
     @property
@@ -235,8 +273,6 @@ class RingCompass:
                 self.reset(float(mag_heading_rad), reset_bias=False)
             else:
                 self.reset(float(omega_rad_s) * float(dt), reset_bias=False)
-            if mag_heading_rad is not None:
-                self._prev_mag_rad = float(wrap_angle(mag_heading_rad))
             return self.heading_rad
 
         # 1. Delta7 first-harmonic readout + P-EN asymmetric velocity shift
@@ -283,28 +319,31 @@ class RingCompass:
             mag_gate = self._basin_coincidence_gate(mag_ang, pred_heading)
             self._last_mag_gate = mag_gate
 
-            # Check long-horizon kinematic coherence for genuine cold re-anchoring
+            # Re-anchoring: if the cue has sat *consistently* outside the basin for
+            # ``reanchor_seconds`` (a steady offset rather than a transient spike), the
+            # compass itself is wrong. The low-pass innovation phasor averages out
+            # per-sample sensor noise; its resultant length measures consistency.
             if (
                 self.reanchor_seconds is not None
                 and mag_gate < 0.05
                 and sun_heading_rad is None
                 and dt > 0.0
             ):
-                if self._prev_mag_rad is not None:
-                    d_mag = float(wrap_angle(mag_ang - self._prev_mag_rad))
-                    rate_mismatch = abs(d_mag - (float(omega_rad_s) - self._pen_bias_rad_s) * dt) / max(dt, 1e-6)
-                    if rate_mismatch < 0.25:  # < ~14 deg/s discrepancy -> kinematically coherent field
-                        self._coherent_offbasin_time += dt
-                    else:
-                        self._coherent_offbasin_time = 0.0
+                innov = float(wrap_angle(mag_ang - pred_heading))
+                # Seed with the first off-basin sample so the timer starts immediately.
+                alpha = 1.0 if self._coherent_offbasin_time == 0.0 else min(1.0, dt / _REANCHOR_TAU_S)
+                self._offbasin_c += alpha * (math.cos(innov) - self._offbasin_c)
+                self._offbasin_s += alpha * (math.sin(innov) - self._offbasin_s)
+                if math.hypot(self._offbasin_c, self._offbasin_s) >= _REANCHOR_MIN_COHERENCE:
+                    self._coherent_offbasin_time += dt
+                else:
+                    self._coherent_offbasin_time = 0.0
                 if self._coherent_offbasin_time >= self.reanchor_seconds:
-                    self.reset(mag_ang, reset_bias=False)
-                    self._prev_mag_rad = mag_ang
+                    mean_innov = math.atan2(self._offbasin_s, self._offbasin_c)
+                    self.reset(pred_heading + mean_innov, reset_bias=False)
                     return self.heading_rad
             else:
-                self._coherent_offbasin_time = 0.0
-
-            self._prev_mag_rad = mag_ang
+                self._reset_reanchor_tracker()
 
             eff_mag = self.mag_gain * mag_conf * mag_gate * dt
             if eff_mag > 0.0:
@@ -376,6 +415,15 @@ class PlasticLandmarkRing:
         self._cos_epg: np.ndarray = np.cos(self.epg_thetas)
         self._sin_epg: np.ndarray = np.sin(self.epg_thetas)
         self._prev_raw_ang: Optional[float] = None
+        # Self-supervised learning has no absolute reference, so slow gyro drift would be
+        # learned into the map as a rotation. Soft/hard-iron distortion averages to zero over
+        # a full turn, so the map is periodically re-centred to a zero-mean correction until
+        # an absolute reference (sun / visual / GNSS course) has been seen.
+        self._map_offset_rad: float = 0.0
+        self._has_absolute_reference: bool = False
+        self._learn_steps: int = 0
+        self._grid: np.ndarray = np.linspace(-math.pi, math.pi, 36, endpoint=False)
+        self._grid_r_act: np.ndarray = np.stack([self.encode_r_neurons(a) for a in self._grid], axis=1)
 
         # Initialize R -> E-PG synaptic matrix with weak topographic identity prior
         diff = self.epg_thetas[:, None] - self.r_thetas[None, :]
@@ -396,9 +444,16 @@ class PlasticLandmarkRing:
         amp = float(math.hypot(c1, s1))
         if amp <= 1e-9:
             return float(wrap_angle(raw_mag_heading_rad)), 0.0
-        corrected = float(wrap_angle(math.atan2(s1, c1)))
+        corrected = float(wrap_angle(math.atan2(s1, c1) - self._map_offset_rad))
         conf = float(np.clip(amp, 0.0, 1.0))
         return corrected, conf
+
+    def _recenter_zero_mean(self) -> None:
+        """Set the map's output offset so the mean correction over the circle is zero."""
+        drive = self.weights @ self._grid_r_act  # (n_wedges, 36)
+        mapped = np.arctan2(self._sin_epg @ drive, self._cos_epg @ drive)
+        diff = mapped - self._grid
+        self._map_offset_rad = float(math.atan2(float(np.mean(np.sin(diff))), float(np.mean(np.cos(diff)))))
 
     def update(
         self,
@@ -417,6 +472,9 @@ class PlasticLandmarkRing:
         across soft-iron warps while learning their inverse into ``self.weights``.
         """
         raw_ang = float(wrap_angle(raw_mag_heading_rad))
+        if reference_heading_rad is not None and not self._has_absolute_reference:
+            self._has_absolute_reference = True
+            self._map_offset_rad = 0.0
         if not self.compass.initialized:
             seed = float(reference_heading_rad) if reference_heading_rad is not None else raw_ang
             self.compass.reset(seed)
@@ -440,14 +498,20 @@ class PlasticLandmarkRing:
             r_act = self.encode_r_neurons(raw_ang)
             target_epg = np.cos(self.epg_thetas - heading)
             pred_epg = self.weights @ r_act
-            # Movement-gated Hebbian / anti-Hebbian update (uniform exposure in R-neuron space)
+            # Movement-gated Hebbian / anti-Hebbian update (uniform exposure in R-neuron space).
+            # The raw-angle step is capped at 2x the gyro-measured turn: per-sample magnetometer
+            # noise would otherwise dominate it and drive learning while the vehicle is still.
+            d_turn = abs(float(omega_rad_s)) * dt
             if self._prev_raw_ang is None:
-                d_raw = abs(float(omega_rad_s)) * dt
+                d_raw = d_turn
             else:
-                d_raw = abs(float(wrap_angle(raw_ang - self._prev_raw_ang)))
+                d_raw = min(abs(float(wrap_angle(raw_ang - self._prev_raw_ang))), 2.0 * d_turn)
             self._prev_raw_ang = raw_ang
             step_rate = min(0.95, self.learning_rate * max(d_raw, 0.05 * dt))
             self.weights += step_rate * np.outer(target_epg - pred_epg, r_act)
             np.clip(self.weights, -8.0, 8.0, out=self.weights)
+            self._learn_steps += 1
+            if not self._has_absolute_reference and self._learn_steps % 25 == 0:
+                self._recenter_zero_mean()
 
         return heading

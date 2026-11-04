@@ -15,7 +15,7 @@ from .ring_attractor import RingCompass, circular_error_rad, wrap_angle
 
 
 class _CircularEKF2State:
-    """Optimal 2-state Circular Extended Kalman Filter [heading_rad, gyro_bias_rad_s]."""
+    """2-state Circular EKF [heading_rad, gyro_bias_rad_s], optionally with an innovation gate."""
 
     def __init__(
         self,
@@ -23,7 +23,9 @@ class _CircularEKF2State:
         gyro_std_rad_s: float = math.radians(1.5),
         bias_rw_rad_s_rt_s: float = math.radians(0.08),
         mag_std_rad: float = math.radians(3.0),
+        gate_sigma: Optional[float] = None,
     ) -> None:
+        self.gate_sigma = gate_sigma
         self.psi = float(wrap_angle(init_heading_rad))
         self.bias = 0.0
         r_mag = float(mag_std_rad) ** 2
@@ -45,6 +47,10 @@ class _CircularEKF2State:
 
         innov = float(wrap_angle(mag_rad - psi_pred))
         s_cov = pp00 + self.r_mag
+        if self.gate_sigma is not None and innov * innov > (self.gate_sigma ** 2) * s_cov:
+            self.psi = psi_pred  # outlier rejected: predict only
+            self.P[:] = [[pp00, pp01], [pp10, pp11]]
+            return self.psi
         k0 = pp00 / s_cov
         k1 = pp10 / s_cov
 
@@ -160,12 +166,19 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
             bias_rw_rad_s_rt_s=bias_rw_std,
             mag_std_rad=mag_std,
         )
+        ekf_g = _CircularEKF2State(
+            init_mag,
+            gyro_std_rad_s=gyro_std,
+            bias_rw_rad_s_rt_s=bias_rw_std,
+            mag_std_rad=mag_std,
+            gate_sigma=3.0,
+        )
         psi_gyro = init_mag
         psi_comp = init_mag
         tau_comp = 2.5
         alpha_comp = dt / (tau_comp + dt)
 
-        errs = {"neckcompass": [], "ekf": [], "complementary": [], "gyro_dr": []}
+        errs = {"neckcompass": [], "ekf_gated": [], "ekf": [], "complementary": [], "gyro_dr": []}
         for k in range(steps):
             t = k * dt
             omega_true = 0.30 * math.sin(0.15 * t) + 0.18 * math.cos(0.09 * t)
@@ -186,6 +199,7 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
 
             psi_nc = nc.update(omega_meas, dt, mag_heading_rad=mag_meas)
             psi_ekf = ekf.update(omega_meas, dt, mag_meas)
+            psi_ekf_g = ekf_g.update(omega_meas, dt, mag_meas)
             psi_gyro = float(wrap_angle(psi_gyro + omega_meas * dt))
             pred_c = float(wrap_angle(psi_comp + omega_meas * dt))
             psi_comp = float(wrap_angle(pred_c + alpha_comp * float(wrap_angle(mag_meas - pred_c))))
@@ -193,6 +207,7 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
             if k >= int(15.0 / dt):  # Steady-state window after 15 s warmup
                 errs["neckcompass"].append(abs(math.degrees(float(circular_error_rad(psi_nc, psi_true)))))
                 errs["ekf"].append(abs(math.degrees(float(circular_error_rad(psi_ekf, psi_true)))))
+                errs["ekf_gated"].append(abs(math.degrees(float(circular_error_rad(psi_ekf_g, psi_true)))))
                 errs["complementary"].append(abs(math.degrees(float(circular_error_rad(psi_comp, psi_true)))))
                 errs["gyro_dr"].append(abs(math.degrees(float(circular_error_rad(psi_gyro, psi_true)))))
 
@@ -226,7 +241,8 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
         print("-" * 82)
         labels = [
             ("NeckCompass (E-PG 16w)", "neckcompass"),
-            ("2-State Circular EKF", "ekf"),
+            ("EKF + 3-sigma gate", "ekf_gated"),
+            ("EKF (no outlier gate)", "ekf"),
             ("Complementary IMU+Mag", "complementary"),
             ("Gyro Dead-Reckoning", "gyro_dr"),
         ]
@@ -237,8 +253,9 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
             print(f"{label:<28} | {c_rmse:>16.2f} | {s_rmse:>16.2f} | {s_p95:>15.2f}")
         print("-" * 82)
         print(
-            "Note: Under ideal Gaussian noise, 2-State EKF is minimum-variance optimal; "
-            "under 115-135 deg ferromagnetic spikes, NeckCompass rejects off-basin outliers."
+            "Note: a properly gated EKF is as accurate as NeckCompass on these streams. NeckCompass's\n"
+            "edge is recovery from heading upsets (see scripts/benchmark_neckcompass.py, scenario D)\n"
+            "and a 324 B zero-float C99 core."
         )
     return result
 

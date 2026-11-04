@@ -7,8 +7,8 @@
  * Designed for 32-bit/16-bit MCUs (ESP32, STM32, RP2040, flight controllers, USVs):
  *   - 0 bytes heap allocation
  *   - 0 hardware/software FPU instructions
- *   - < 600 bytes total RAM + Flash LUT footprint
- *   - < 2 us update time on desktop/ARM/Xtensa
+ *   - ~330 bytes of state RAM (see selftest [1/7]) + 260 B Flash LUT
+ *   - ~1 us per update on a desktop x86-64 core (not yet measured on MCU hardware)
  *
  * SPDX-License-Identifier: MIT
  */
@@ -42,8 +42,12 @@ typedef struct {
     int16_t  sun_gain_q8;               /* R4d sun/sky pull gain in Q8 (256 = 1.0 s^-1)     */
     int16_t  bias_rate_q8;              /* P-EN homeostatic bias rate in Q8 (256 = 1.0 s^-2)*/
     int16_t  last_mag_gate_q15;         /* Latest dendritic coincidence gate in [0, 32767]  */
+    int16_t  gate_dist_q15;             /* Basin edge: gate = 0 where (1 - cos d) >= this   */
+    int16_t  offbasin_c_q15;            /* Low-pass off-basin innovation phasor (cos)       */
+    int16_t  offbasin_s_q15;            /* Low-pass off-basin innovation phasor (sin)       */
+    uint16_t offbasin_ms;               /* Time the cue has sat consistently off-basin      */
+    uint16_t reanchor_ms;               /* Re-anchor after this long off-basin (0 = never)  */
     uint8_t  initialized;               /* 1 once E-PG bump has been seeded                 */
-    uint8_t  reserved[3];
 } nc_compass_t;
 
 typedef struct {
@@ -68,6 +72,17 @@ uint32_t nc_isqrt64(uint64_t val);
 
 /* 16-wedge E-PG Ring Attractor Compass API */
 void     nc_compass_init(nc_compass_t *comp);
+
+/*
+ * Tune the attractor basin to the 1-sigma noise of the heading cue (centidegrees).
+ * Basin half-width (gate = 0.5) = 4 deg + noise. nc_compass_init() applies 3.00 deg.
+ * Matches RingCompass(cue_noise_deg=...) in Python.
+ */
+void     nc_compass_set_cue_noise(nc_compass_t *comp, int32_t noise_cdeg);
+
+/* Re-anchor onto the averaged cue after it sits consistently off-basin this long
+ * (ms, max 65535; 0 disables). nc_compass_init() applies 10000 ms. */
+void     nc_compass_set_reanchor_ms(nc_compass_t *comp, uint16_t reanchor_ms);
 void     nc_compass_reset(nc_compass_t *comp, nc_bam_t heading_bam);
 nc_bam_t nc_compass_heading_bam(const nc_compass_t *comp);
 

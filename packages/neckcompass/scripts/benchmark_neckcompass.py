@@ -1,10 +1,15 @@
 """Honest empirical benchmark & 3-panel hero figure generator for NeckCompass v1.0.0.
 
-Compares 4 estimators across 3 scenarios (5 random seeds each, 50 Hz):
-  1. NeckCompass (16-wedge E-PG ring attractor + 16-column opponent CPU4 + PFL3)
-  2. 2-State Circular Extended Kalman Filter (EKF) [heading, gyro_bias] (optimal Q, R)
-  3. Complementary IMU + Magnetometer Filter (circular innovation, tau = 2.5 s)
-  4. Gyro Dead-Reckoning (unanchored integration of biased MEMS yaw rate)
+Compares heading estimators across 4 scenarios (5 random seeds each, 50 Hz):
+  1. NeckCompass Python (16-wedge E-PG ring attractor + 16-column opponent CPU4 + PFL3)
+  2. NeckCompass C99 Q15 core (same sensor streams, driven through ctypes)
+  3. 2-State Circular EKF [heading, gyro_bias] with a 3-sigma innovation gate (the strong
+     classical baseline: this is how a production EKF handles magnetometer outliers)
+  4. The same EKF without outlier gating (textbook form)
+  5. Complementary IMU + Magnetometer Filter (circular innovation, tau = 2.5 s)
+  6. Gyro Dead-Reckoning (unanchored integration of biased MEMS yaw rate)
+
+Scenario D measures recovery after a 90 deg heading upset (e.g. a wrong initial heading).
 
 Outputs:
   - results/benchmark_summary.json
@@ -13,8 +18,11 @@ Outputs:
 
 from __future__ import annotations
 
+import ctypes
 import json
 import math
+import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -30,11 +38,13 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from neckcompass import FanBodyNavigator, RingCompass, circular_error_rad, wrap_angle
+from neckcompass import FanBodyNavigator, RingCompass, __version__, circular_error_rad, wrap_angle
 
 
 SEEDS = [101, 102, 103, 104, 105]
 DT = 0.02  # 50 Hz IMU / magnetometer loop
+HEADING_METHODS = ["neckcompass", "neckcompass_c99", "ekf_gated", "ekf", "complementary", "gyro_dr"]
+NAV_METHODS = ["neckcompass", "ekf_gated", "ekf", "complementary", "gyro_dr"]
 
 
 class CircularEKF2State:
@@ -79,6 +89,101 @@ class CircularEKF2State:
         return self.psi
 
 
+class GatedCircularEKF2State(CircularEKF2State):
+    """Same EKF with a chi-square innovation gate: reject |innov| > gate_sigma * sqrt(S)."""
+
+    def __init__(self, *args, gate_sigma: float = 3.0, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.gate_sigma = float(gate_sigma)
+
+    def update(self, omega_meas: float, dt: float, mag_rad: float) -> float:
+        psi_pred = float(wrap_angle(self.psi + (omega_meas - self.bias) * dt))
+        p00, p01, p10, p11 = self.P[0, 0], self.P[0, 1], self.P[1, 0], self.P[1, 1]
+        pp00 = p00 - dt * (p10 + p01) + (dt * dt) * p11 + self.gyro_var * (dt * dt)
+        pp01 = p01 - dt * p11
+        pp10 = p10 - dt * p11
+        pp11 = p11 + self.bias_rw_var * dt
+        innov = float(wrap_angle(mag_rad - psi_pred))
+        s_cov = pp00 + self.r_mag
+        if innov * innov > (self.gate_sigma ** 2) * s_cov:
+            # Outlier: predict only (covariance keeps growing, so the gate re-opens over time)
+            self.psi = psi_pred
+            self.P[:] = [[pp00, pp01], [pp10, pp11]]
+            return self.psi
+        k0 = pp00 / s_cov
+        k1 = pp10 / s_cov
+        self.psi = float(wrap_angle(psi_pred + k0 * innov))
+        self.bias = float(self.bias + k1 * innov)
+        self.P[0, 0] = (1.0 - k0) * pp00
+        self.P[0, 1] = (1.0 - k0) * pp01
+        self.P[1, 0] = pp10 - k1 * pp00
+        self.P[1, 1] = pp11 - k1 * pp01
+        return self.psi
+
+
+_BAM_PER_RAD = 65536.0 / (2.0 * math.pi)
+
+
+def _build_c_library() -> Path | None:
+    """Compile csrc/neckcompass.c into a shared library; return None if no C compiler."""
+    cc = os.environ.get("CC") or shutil.which("cc") or shutil.which("gcc") or shutil.which("clang")
+    if cc is None:
+        return None
+    out = ROOT / "csrc" / "build" / ("libneckcompass" + (".dll" if os.name == "nt" else ".so"))
+    out.parent.mkdir(parents=True, exist_ok=True)
+    proc = subprocess.run(
+        [cc, "-O2", "-std=c99", "-shared", "-fPIC", "-o", str(out), str(ROOT / "csrc" / "neckcompass.c")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    return out if proc.returncode == 0 else None
+
+
+class C99RingCompass:
+    """Thin ctypes driver for the zero-float C99 core (nc_compass_*)."""
+
+    _lib = None
+
+    def __init__(self, init_heading_rad: float) -> None:
+        lib = C99RingCompass._lib
+        self._state = ctypes.create_string_buffer(256)  # nc_compass_t is ~60 B
+        lib.nc_compass_init(self._state)
+        lib.nc_compass_reset(self._state, ctypes.c_int16(self._to_bam(init_heading_rad)))
+
+    @staticmethod
+    def _to_bam(rad: float) -> int:
+        v = int(round(float(wrap_angle(rad)) * _BAM_PER_RAD))
+        return ((v + 32768) % 65536) - 32768
+
+    def update(self, omega_rad_s: float, dt: float, mag_rad: float) -> float:
+        lib = C99RingCompass._lib
+        bam = lib.nc_compass_update(
+            self._state,
+            ctypes.c_int32(int(round(omega_rad_s * _BAM_PER_RAD))),
+            ctypes.c_uint32(int(round(dt * 1000.0))),
+            ctypes.c_int16(self._to_bam(mag_rad)),
+            ctypes.c_uint8(1),
+            ctypes.c_int16(32767),
+            ctypes.c_int16(0),
+            ctypes.c_uint8(0),
+            ctypes.c_int16(0),
+        )
+        return float(wrap_angle(bam / _BAM_PER_RAD))
+
+
+def _load_c_core() -> bool:
+    if C99RingCompass._lib is not None:
+        return True
+    path = _build_c_library()
+    if path is None:
+        return False
+    lib = ctypes.CDLL(str(path))
+    lib.nc_compass_update.restype = ctypes.c_int16
+    C99RingCompass._lib = lib
+    return True
+
+
 class ComplementaryCircularFilter:
     """Standard circular IMU + Magnetometer complementary filter."""
 
@@ -116,7 +221,9 @@ def _spike_offset_at(t: float, events: list[tuple[float, float, float]]) -> floa
     return 0.0
 
 
-def run_heading_scenario(seed: int, spiky: bool, duration_s: float = 180.0) -> dict:
+def run_heading_scenario(
+    seed: int, spiky: bool, duration_s: float = 180.0, init_offset_deg: float = 0.0
+) -> dict:
     rng = np.random.default_rng(seed + (1000 if spiky else 0))
     steps = int(duration_s / DT)
     warmup_steps = int(15.0 / DT)
@@ -129,23 +236,23 @@ def run_heading_scenario(seed: int, spiky: bool, duration_s: float = 180.0) -> d
     events = _generate_spike_events(rng, duration_s, mean_interval_s=15.0) if spiky else []
 
     psi_true = float(rng.uniform(-1.5, 1.5))
-    init_mag = float(wrap_angle(psi_true + rng.normal(0.0, mag_std)))
+    init_mag = float(wrap_angle(psi_true + rng.normal(0.0, mag_std) + math.radians(init_offset_deg)))
 
-    nc = RingCompass(n_wedges=16, initial_heading_rad=init_mag)
+    nc = RingCompass(n_wedges=16, initial_heading_rad=init_mag, cue_noise_deg=math.degrees(mag_std))
+    nc_c = C99RingCompass(init_mag) if _load_c_core() else None
+    ekf_g = GatedCircularEKF2State(init_mag, gyro_std, bias_rw_std, mag_std)
     ekf = CircularEKF2State(init_mag, gyro_std, bias_rw_std, mag_std)
     comp = ComplementaryCircularFilter(init_mag, tau_s=2.5)
     psi_gyro = init_mag
 
-    errs: dict[str, list[float]] = {
-        "neckcompass": [],
-        "ekf": [],
-        "complementary": [],
-        "gyro_dr": [],
-    }
+    errs: dict[str, list[float]] = {m: [] for m in HEADING_METHODS}
+    if nc_c is None:
+        errs.pop("neckcompass_c99")
     trace: dict[str, list[float]] = {
         "t": [],
         "spike_deg": [],
         "err_nc": [],
+        "err_ekf_gated": [],
         "err_ekf": [],
         "err_comp": [],
     }
@@ -160,26 +267,27 @@ def run_heading_scenario(seed: int, spiky: bool, duration_s: float = 180.0) -> d
         anom = _spike_offset_at(t, events)
         mag_meas = float(wrap_angle(psi_true + anom + rng.normal(0.0, mag_std)))
 
-        psi_nc = nc.update(omega_meas, DT, mag_heading_rad=mag_meas)
-        psi_ekf = ekf.update(omega_meas, DT, mag_meas)
-        psi_comp = comp.update(omega_meas, DT, mag_meas)
+        est = {
+            "neckcompass": nc.update(omega_meas, DT, mag_heading_rad=mag_meas),
+            "ekf_gated": ekf_g.update(omega_meas, DT, mag_meas),
+            "ekf": ekf.update(omega_meas, DT, mag_meas),
+            "complementary": comp.update(omega_meas, DT, mag_meas),
+        }
+        if nc_c is not None:
+            est["neckcompass_c99"] = nc_c.update(omega_meas, DT, mag_meas)
         psi_gyro = float(wrap_angle(psi_gyro + omega_meas * DT))
-
-        e_nc = abs(math.degrees(float(circular_error_rad(psi_nc, psi_true))))
-        e_ekf = abs(math.degrees(float(circular_error_rad(psi_ekf, psi_true))))
-        e_comp = abs(math.degrees(float(circular_error_rad(psi_comp, psi_true))))
-        e_gyro = abs(math.degrees(float(circular_error_rad(psi_gyro, psi_true))))
+        est["gyro_dr"] = psi_gyro
 
         if k >= warmup_steps:
-            errs["neckcompass"].append(e_nc)
-            errs["ekf"].append(e_ekf)
-            errs["complementary"].append(e_comp)
-            errs["gyro_dr"].append(e_gyro)
+            for name, psi_est in est.items():
+                errs[name].append(abs(math.degrees(float(circular_error_rad(psi_est, psi_true)))))
 
+        psi_nc, psi_ekf, psi_comp = est["neckcompass"], est["ekf"], est["complementary"]
         if spiky and seed == SEEDS[0] and t <= 120.0 and (k % 2 == 0):
             trace["t"].append(t)
             trace["spike_deg"].append(math.degrees(anom))
             trace["err_nc"].append(math.degrees(float(circular_error_rad(psi_nc, psi_true))))
+            trace["err_ekf_gated"].append(math.degrees(float(circular_error_rad(est["ekf_gated"], psi_true))))
             trace["err_ekf"].append(math.degrees(float(circular_error_rad(psi_ekf, psi_true))))
             trace["err_comp"].append(math.degrees(float(circular_error_rad(psi_comp, psi_true))))
 
@@ -221,14 +329,16 @@ def run_gps_blackout_return_scenario(seed: int) -> dict:
     gyro_bias = init_bias
     init_mag = float(wrap_angle(true_psi + mag_noise[0]))
 
-    nc_compass = RingCompass(n_wedges=16, initial_heading_rad=init_mag)
+    nc_compass = RingCompass(n_wedges=16, initial_heading_rad=init_mag, cue_noise_deg=math.degrees(mag_std))
     nc_nav = FanBodyNavigator(n_columns=16, compass=nc_compass)
 
+    ekf_g = GatedCircularEKF2State(init_mag, gyro_std, bias_rw_std, mag_std)
     ekf = CircularEKF2State(init_mag, gyro_std, bias_rw_std, mag_std)
     comp = ComplementaryCircularFilter(init_mag, tau_s=2.5)
     psi_gyro = init_mag
 
     dr_xy = {
+        "ekf_gated": [0.0, 0.0],
         "ekf": [0.0, 0.0],
         "complementary": [0.0, 0.0],
         "gyro_dr": [0.0, 0.0],
@@ -261,6 +371,10 @@ def run_gps_blackout_return_scenario(seed: int) -> dict:
         # Update all 4 estimators on identical outbound sensory stream
         nc_nav.step_with_compass(omega_meas, v_meas, DT, mag_heading_rad=mag_meas)
 
+        p_ekfg = ekf_g.update(omega_meas, DT, mag_meas)
+        dr_xy["ekf_gated"][0] += v_meas * math.cos(p_ekfg) * DT
+        dr_xy["ekf_gated"][1] += v_meas * math.sin(p_ekfg) * DT
+
         p_ekf = ekf.update(omega_meas, DT, mag_meas)
         dr_xy["ekf"][0] += v_meas * math.cos(p_ekf) * DT
         dr_xy["ekf"][1] += v_meas * math.sin(p_ekf) * DT
@@ -280,7 +394,7 @@ def run_gps_blackout_return_scenario(seed: int) -> dict:
     return_results: dict[str, dict] = {}
     return_traces: dict[str, list[tuple[float, float]]] = {}
 
-    for method in ["neckcompass", "ekf", "complementary", "gyro_dr"]:
+    for method in NAV_METHODS:
         rx, ry, rpsi = outbound_end[0], outbound_end[1], true_psi
         rbias = gyro_bias
         ret_path_m = 0.0
@@ -301,11 +415,12 @@ def run_gps_blackout_return_scenario(seed: int) -> dict:
                 if est_dist < 0.5:
                     break
                 home_ang = math.atan2(-ey, -ex)
-                cur_est = (
-                    ekf.psi
-                    if method == "ekf"
-                    else (comp.psi if method == "complementary" else psi_gyro)
-                )
+                cur_est = {
+                    "ekf_gated": ekf_g.psi,
+                    "ekf": ekf.psi,
+                    "complementary": comp.psi,
+                    "gyro_dr": psi_gyro,
+                }[method]
                 err_ang = float(wrap_angle(home_ang - cur_est))
                 taper = min(1.0, est_dist / 1.5)
                 turn_cmd = float(np.clip(2.0 * taper * err_ang, -0.8, 0.8))
@@ -326,6 +441,10 @@ def run_gps_blackout_return_scenario(seed: int) -> dict:
 
             if method == "neckcompass":
                 nc_nav.step_with_compass(omega_meas, v_meas, DT, mag_heading_rad=mag_meas)
+            elif method == "ekf_gated":
+                pg = ekf_g.update(omega_meas, DT, mag_meas)
+                dr_xy["ekf_gated"][0] += v_meas * math.cos(pg) * DT
+                dr_xy["ekf_gated"][1] += v_meas * math.sin(pg) * DT
             elif method == "ekf":
                 pe = ekf.update(omega_meas, DT, mag_meas)
                 dr_xy["ekf"][0] += v_meas * math.cos(pe) * DT
@@ -391,29 +510,23 @@ def measure_compute_and_memory() -> dict:
         _ = math.atan2(-ey, -ex)
     py_ekf_us = (time.perf_counter() - t0) * 1e6 / n_iters
 
-    # Query C99 selftest binary via WSL if present
-    c99_ram_bytes = 316
-    c99_rodata_lut_bytes = 260
-    c99_step_us = 0.93
-    selftest_bin = ROOT / "csrc" / "build" / "neckcompass_selftest"
-    if selftest_bin.exists():
-        try:
-            proc = subprocess.run(
-                ["wsl.exe", "bash", "-lc", "cd /mnt/d/neckcompass/csrc && ./build/neckcompass_selftest"],
-                capture_output=True,
-                text=True,
-                timeout=15,
-                check=False,
-            )
-            for line in proc.stdout.splitlines():
-                if "Combined E-PG + CPU4 + PFL3 step latency:" in line:
-                    part = line.split("latency:")[1].split("us")[0].strip()
-                    c99_step_us = float(part)
-                if "total=" in line and "B (< 2048 B)" in line:
-                    part = line.split("total=")[1].split("B")[0].strip()
-                    c99_ram_bytes = int(part)
-        except Exception:
-            pass
+    # C99: build and run the self-test locally (it prints sizeof() and a timed loop)
+    c99_ram_bytes = None
+    c99_step_us = None
+    make = shutil.which("make")
+    if make is not None:
+        proc = subprocess.run(
+            [make, "-C", str(ROOT / "csrc"), "all"], capture_output=True, text=True, check=False
+        )
+        selftest_bin = ROOT / "csrc" / "build" / "neckcompass_selftest"
+        if proc.returncode == 0 and selftest_bin.exists():
+            run = subprocess.run([str(selftest_bin)], capture_output=True, text=True, timeout=60, check=False)
+            for line in run.stdout.splitlines():
+                if "step latency:" in line:
+                    c99_step_us = float(line.split("latency:")[1].split("us")[0].strip())
+                if "total=" in line and "Memory footprint" in line:
+                    c99_ram_bytes = int(line.split("total=")[1].split("B")[0].strip())
+    c99_rodata_lut_bytes = 260  # 65-entry int16 sine table + 65-entry atan table (2 x 130 B)
 
     return {
         "python_neckcompass_step_us": round(py_nc_us, 2),
@@ -422,8 +535,9 @@ def measure_compute_and_memory() -> dict:
         "python_ekf_alloc_bytes": int(py_ekf_bytes),
         "c99_q15_ram_bytes": c99_ram_bytes,
         "c99_q15_lut_rodata_bytes": c99_rodata_lut_bytes,
-        "c99_q15_total_memory_bytes": c99_ram_bytes + c99_rodata_lut_bytes,
-        "c99_q15_step_us": round(c99_step_us, 3),
+        "c99_q15_total_memory_bytes": None if c99_ram_bytes is None else c99_ram_bytes + c99_rodata_lut_bytes,
+        "c99_q15_step_us": None if c99_step_us is None else round(c99_step_us, 3),
+        "c99_q15_step_us_note": "desktop x86-64, -O2; not measured on MCU hardware",
     }
 
 
@@ -449,7 +563,7 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     fig.subplots_adjust(left=0.048, right=0.985, top=0.81, bottom=0.14, wspace=0.24)
 
     fig.suptitle(
-        "NeckCompass v1.0.0 — Drosophila Central Complex Ring Attractor vs. Classical IMU/Mag Filters",
+        f"NeckCompass v{__version__} — Drosophila Central Complex Ring Attractor vs. Classical IMU/Mag Filters",
         fontsize=15.0,
         fontweight="bold",
         color="#0F172A",
@@ -458,7 +572,7 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     fig.text(
         0.5,
         0.895,
-        "5-seed head-to-head @ 50 Hz  |  MEMS gyro bias (~0.9 deg/s + RW) + 3.0 deg mag noise  |  Zero-float C99 Q15 core: 316 B RAM, < 1 us/step",
+        f"5-seed head-to-head @ 50 Hz  |  MEMS gyro bias (~0.9 deg/s + RW) + 3.0 deg mag noise  |  Zero-float C99 Q15 core: {summary['compute_and_memory']['c99_q15_ram_bytes']} B RAM",
         ha="center",
         fontsize=10.2,
         color="#475569",
@@ -466,6 +580,7 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
 
     colors = {
         "neckcompass": "#0284C7",
+        "ekf_gated": "#059669",
         "ekf": "#D97706",
         "complementary": "#7C3AED",
         "gyro_dr": "#64748B",
@@ -476,11 +591,12 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     ax0.set_facecolor("#FFFFFF")
     groups = ["Clean Gaussian\nRMSE (deg)", "Spiky Hull/Motor\nRMSE (deg)", "Spiky Hull/Motor\nP95 Error (deg)"]
     x = np.arange(len(groups))
-    width = 0.24
+    width = 0.2
 
     methods_a = [
         ("neckcompass", "NeckCompass (E-PG 16w)"),
-        ("ekf", "2-State Circular EKF"),
+        ("ekf_gated", "EKF + 3-sigma gate"),
+        ("ekf", "EKF (no gating)"),
         ("complementary", "Complementary IMU+Mag"),
     ]
     sa = summary["scenario_a_clean_gaussian"]
@@ -497,7 +613,7 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
             sb[m_key]["rmse_deg"]["std"],
             sb[m_key]["p95_deg"]["std"],
         ]
-        offset = (idx - 1) * width
+        offset = (idx - 1.5) * width
         bars = ax0.bar(
             x + offset,
             means,
@@ -530,11 +646,11 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     ax0.set_title("A. Clean Gaussian vs. 70°–150° Magnetic Spikes", fontsize=11.2, fontweight="bold", color="#0F172A", pad=10)
     ax0.grid(axis="y", which="both", linestyle="--", alpha=0.45, color="#CBD5E1", zorder=0)
     ax0.legend(loc="upper left", frameon=True, facecolor="#F8FAFC", edgecolor="#CBD5E1", fontsize=8.2)
-    ekf_clean = sa["ekf"]["rmse_deg"]["mean"]
-    nc_clean = sa["neckcompass"]["rmse_deg"]["mean"]
+    ekf_spiky = sb["ekf_gated"]["rmse_deg"]["mean"]
+    nc_spiky = sb["neckcompass"]["rmse_deg"]["mean"]
     ax0.annotate(
-        f"Honest baseline:\nEKF wins pure Gaussian\n({ekf_clean:.2f}° vs {nc_clean:.2f}°)",
-        xy=(0.0, ekf_clean * 1.08),
+        f"Honest baseline:\ngated EKF matches or wins\n({ekf_spiky:.2f}° vs {nc_spiky:.2f}° spiky)",
+        xy=(1.0 - 0.1, ekf_spiky * 1.08),
         xytext=(-0.44, 11.5),
         fontsize=7.9,
         color="#92400E",
@@ -551,7 +667,8 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
         if t0 <= 120.0:
             ax1.axvspan(t0, min(120.0, t0 + dur), color="#FEE2E2", alpha=0.85, zorder=1)
 
-    ax1.plot(t_arr, np.abs(trace_b["err_ekf"]), color=colors["ekf"], lw=1.35, alpha=0.92, label="2-State Circular EKF", zorder=3)
+    ax1.plot(t_arr, np.abs(trace_b["err_ekf"]), color=colors["ekf"], lw=1.35, alpha=0.92, label="EKF (no gating)", zorder=3)
+    ax1.plot(t_arr, np.abs(trace_b["err_ekf_gated"]), color=colors["ekf_gated"], lw=1.35, alpha=0.92, label="EKF + 3-sigma gate", zorder=3)
     ax1.plot(t_arr, np.abs(trace_b["err_comp"]), color=colors["complementary"], lw=1.25, alpha=0.85, label="Complementary IMU+Mag", zorder=2)
     ax1.plot(t_arr, np.abs(trace_b["err_nc"]), color=colors["neckcompass"], lw=2.1, label="NeckCompass (E-PG 16w)", zorder=4)
 
@@ -561,7 +678,7 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     ax1.set_ylim(0.0, 82.0)
     ax1.set_xlabel("Time (s)", fontsize=10.0, color="#1E293B", fontweight="bold")
     ax1.set_ylabel("|Heading Error| (deg)", fontsize=10.0, color="#1E293B", fontweight="bold")
-    ax1.set_title("B. Attractor Spike Rejection vs. EKF Bias Corruption", fontsize=11.2, fontweight="bold", color="#0F172A", pad=10)
+    ax1.set_title("B. Spike Rejection (seed 101, first 120 s)", fontsize=11.2, fontweight="bold", color="#0F172A", pad=10)
     ax1.grid(True, linestyle="--", alpha=0.45, color="#CBD5E1", zorder=0)
     ax1.legend(loc="upper right", frameon=True, facecolor="#F8FAFC", edgecolor="#CBD5E1", fontsize=8.1)
 
@@ -582,7 +699,8 @@ def render_hero_chart(summary: dict, trace_b: dict, events_b: list, scen_c_seed0
     sc_summary = summary["scenario_c_gps_blackout_return"]
     ret_order = [
         ("gyro_dr", "Gyro DR", 1.15, "--"),
-        ("ekf", "2-State EKF", 1.4, "-."),
+        ("ekf", "EKF (no gating)", 1.4, "-."),
+        ("ekf_gated", "EKF + gate", 1.4, "-"),
         ("complementary", "Complementary", 1.4, "-"),
         ("neckcompass", "NeckCompass (CPU4+PFL3)", 2.3, "-"),
     ]
@@ -613,9 +731,11 @@ def main() -> None:
     scen_a_runs = [run_heading_scenario(s, spiky=False) for s in SEEDS]
     scen_b_runs = [run_heading_scenario(s, spiky=True) for s in SEEDS]
     scen_c_runs = [run_gps_blackout_return_scenario(s) for s in SEEDS]
+    # Scenario D: compass starts 90 deg wrong (clean magnetometer); error measured from t = 15 s
+    scen_d_runs = [run_heading_scenario(s, spiky=False, duration_s=60.0, init_offset_deg=90.0) for s in SEEDS]
     perf = measure_compute_and_memory()
 
-    methods = ["neckcompass", "ekf", "complementary", "gyro_dr"]
+    methods = [m for m in HEADING_METHODS if m in scen_a_runs[0]["metrics"]]
     scen_a_summary = {
         m: {
             "rmse_deg": _agg([r["metrics"][m]["rmse_deg"] for r in scen_a_runs]),
@@ -631,23 +751,27 @@ def main() -> None:
         }
         for m in methods
     }
+    scen_d_summary = {
+        m: {"rmse_deg": _agg([r["metrics"][m]["rmse_deg"] for r in scen_d_runs])} for m in methods
+    }
     scen_c_summary = {
         m: {
             "miss_m": _agg([r["results"][m]["miss_m"] for r in scen_c_runs]),
             "miss_pct_of_path": _agg([r["results"][m]["miss_pct_of_path"] for r in scen_c_runs]),
             "total_path_m": _agg([r["results"][m]["total_path_m"] for r in scen_c_runs]),
         }
-        for m in methods
+        for m in NAV_METHODS
     }
 
     summary = {
         "package": "neckcompass",
-        "version": "1.0.0",
+        "version": __version__,
         "seeds": SEEDS,
         "sample_rate_hz": int(round(1.0 / DT)),
         "scenario_a_clean_gaussian": scen_a_summary,
         "scenario_b_ferromagnetic_spikes": scen_b_summary,
         "scenario_c_gps_blackout_return": scen_c_summary,
+        "scenario_d_recovery_from_90deg_upset": scen_d_summary,
         "compute_and_memory": perf,
     }
 

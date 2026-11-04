@@ -153,18 +153,20 @@ static void nc_shape_epg_wedges(nc_compass_t *comp, nc_bam_t center_bam) {
     }
 }
 
-/* Cooperative dendritic coincidence gate in Q15 [0..32767]; 0 outside ~45 deg */
-static int16_t nc_basin_gate_q15(nc_bam_t cue_bam, nc_bam_t pred_bam) {
+/* Cooperative dendritic coincidence gate in Q15 [0..32767]: (1 - r^2)^2 with
+ * r = (1 - cos d) / gate_dist, so the gate is 0.5 at r = 0.541 and 0 at r >= 1. */
+static int16_t nc_basin_gate_q15(const nc_compass_t *comp, nc_bam_t cue_bam, nc_bam_t pred_bam) {
     int32_t cos_d = (int32_t)nc_cos_q15(nc_bam_sub(cue_bam, pred_bam));
-    int32_t dist = NC_Q15_ONE - cos_d; /* 0 at 0 deg, 9600 at ~45 deg, 49150 at 120 deg */
-    if (dist >= 9600) {
+    int32_t dist = NC_Q15_ONE - cos_d;
+    int32_t edge = (comp->gate_dist_q15 > 0) ? (int32_t)comp->gate_dist_q15 : 1;
+    if (dist >= edge) {
         return 0;
     }
     if (dist <= 0) {
         return NC_Q15_ONE;
     }
     {
-        int32_t r_q15 = (dist * NC_Q15_ONE) / 9600;
+        int32_t r_q15 = (dist * NC_Q15_ONE) / edge;
         int32_t r2_q15 = (r_q15 * r_q15) >> 15;
         int32_t one_minus = NC_Q15_ONE - r2_q15;
         return (int16_t)((one_minus * one_minus) >> 15);
@@ -208,21 +210,96 @@ void nc_compass_init(nc_compass_t *comp) {
     comp->sun_gain_q8 = 819;   /* ~3.20 s^-1 */
     comp->bias_rate_q8 = 140;  /* ~0.55 s^-2 */
     comp->last_mag_gate_q15 = 0;
+    comp->offbasin_c_q15 = 0;
+    comp->offbasin_s_q15 = 0;
+    comp->offbasin_ms = 0;
+    comp->reanchor_ms = 10000u;
     comp->initialized = 0;
-    comp->reserved[0] = 0;
-    comp->reserved[1] = 0;
-    comp->reserved[2] = 0;
+    nc_compass_set_cue_noise(comp, 300);
+}
+
+void nc_compass_set_cue_noise(nc_compass_t *comp, int32_t noise_cdeg) {
+    int32_t half_cdeg, dist_half, edge;
+    if (comp == NULL) {
+        return;
+    }
+    if (noise_cdeg < 1) {
+        noise_cdeg = 1;
+    }
+    half_cdeg = 400 + noise_cdeg;
+    if (half_cdeg > 6000) {
+        half_cdeg = 6000; /* keep the basin well inside +/-90 deg */
+    }
+    dist_half = NC_Q15_ONE - (int32_t)nc_cos_q15(nc_cdeg_to_bam(half_cdeg));
+    /* gate = 0.5 where (1 - r^2)^2 = 0.5 -> r = 0.5412 */
+    edge = (dist_half * 10000) / 5412;
+    if (edge < 8) {
+        edge = 8;
+    }
+    if (edge > NC_Q15_ONE) {
+        edge = NC_Q15_ONE;
+    }
+    comp->gate_dist_q15 = (int16_t)edge;
+}
+
+void nc_compass_set_reanchor_ms(nc_compass_t *comp, uint16_t reanchor_ms) {
+    if (comp == NULL) {
+        return;
+    }
+    comp->reanchor_ms = reanchor_ms;
+    comp->offbasin_ms = 0;
+}
+
+static void nc_compass_seed(nc_compass_t *comp, nc_bam_t heading_bam) {
+    nc_shape_epg_wedges(comp, heading_bam);
+    comp->phase_sub_bam = ((int32_t)(uint16_t)heading_bam) << 8;
+    comp->last_mag_gate_q15 = 0;
+    comp->offbasin_c_q15 = 0;
+    comp->offbasin_s_q15 = 0;
+    comp->offbasin_ms = 0;
+    comp->initialized = 1;
 }
 
 void nc_compass_reset(nc_compass_t *comp, nc_bam_t heading_bam) {
     if (comp == NULL) {
         return;
     }
-    nc_shape_epg_wedges(comp, heading_bam);
-    comp->phase_sub_bam = ((int32_t)(uint16_t)heading_bam) << 8;
+    nc_compass_seed(comp, heading_bam);
     comp->pen_bias_bam_s = 0;
-    comp->last_mag_gate_q15 = 0;
-    comp->initialized = 1;
+}
+
+/* Track a consistent off-basin cue; returns 1 (and re-seeds the bump) once it has
+ * persisted for reanchor_ms. Short ferromagnetic spikes never get that far. */
+static int nc_compass_track_offbasin(nc_compass_t *comp, nc_bam_t cue_bam, nc_bam_t pred_bam, uint32_t dt_ms) {
+    nc_bam_t innov = nc_bam_sub(cue_bam, pred_bam);
+    int32_t c = (int32_t)nc_cos_q15(innov);
+    int32_t s = (int32_t)nc_sin_q15(innov);
+    int64_t r2;
+    if (comp->offbasin_ms == 0u) {
+        comp->offbasin_c_q15 = (int16_t)c;
+        comp->offbasin_s_q15 = (int16_t)s;
+    } else {
+        /* first-order low-pass, tau = 1 s */
+        int32_t a_q15 = (dt_ms >= 1000u) ? NC_Q15_ONE : (int32_t)((dt_ms * 32767u) / 1000u);
+        comp->offbasin_c_q15 = (int16_t)(comp->offbasin_c_q15 + ((a_q15 * (c - comp->offbasin_c_q15)) >> 15));
+        comp->offbasin_s_q15 = (int16_t)(comp->offbasin_s_q15 + ((a_q15 * (s - comp->offbasin_s_q15)) >> 15));
+    }
+    r2 = (int64_t)comp->offbasin_c_q15 * comp->offbasin_c_q15 + (int64_t)comp->offbasin_s_q15 * comp->offbasin_s_q15;
+    /* coherence >= 0.8  <=>  r2 >= 0.64 * 2^30 */
+    if (r2 < 687194767LL) {
+        comp->offbasin_ms = 0;
+        return 0;
+    }
+    {
+        uint32_t t = (uint32_t)comp->offbasin_ms + dt_ms;
+        comp->offbasin_ms = (uint16_t)((t > 65535u) ? 65535u : t);
+    }
+    if (comp->offbasin_ms >= comp->reanchor_ms) {
+        nc_bam_t mean_innov = nc_atan2_bam(comp->offbasin_s_q15, comp->offbasin_c_q15);
+        nc_compass_seed(comp, nc_bam_add(pred_bam, mean_innov));
+        return 1;
+    }
+    return 0;
 }
 
 nc_bam_t nc_compass_heading_bam(const nc_compass_t *comp) {
@@ -294,7 +371,7 @@ nc_bam_t nc_compass_update(
     /* 2. R-neuron multi-cue injection gated by active E-PG attractor basin */
     comp->last_mag_gate_q15 = 0;
     if (sun_valid && s_conf > 0 && dt_ms > 0u) {
-        int16_t gate = nc_basin_gate_q15(sun_bam, pred_bam);
+        int16_t gate = nc_basin_gate_q15(comp, sun_bam, pred_bam);
         int64_t w_q15 = ((int64_t)comp->sun_gain_q8 * (int64_t)s_conf * (int64_t)gate * (int64_t)dt_ms)
                         / (256LL * 32767LL * 1000LL);
         if (w_q15 > 0) {
@@ -305,9 +382,16 @@ nc_bam_t nc_compass_update(
     }
 
     if (mag_valid && m_conf > 0 && dt_ms > 0u) {
-        int16_t gate = nc_basin_gate_q15(mag_bam, pred_bam);
+        int16_t gate = nc_basin_gate_q15(comp, mag_bam, pred_bam);
         int64_t w_q15;
         comp->last_mag_gate_q15 = gate;
+        if (comp->reanchor_ms > 0u && gate < 1638 && !(sun_valid && s_conf > 0)) {
+            if (nc_compass_track_offbasin(comp, mag_bam, pred_bam, dt_ms)) {
+                return nc_compass_heading_bam(comp);
+            }
+        } else {
+            comp->offbasin_ms = 0;
+        }
         w_q15 = ((int64_t)comp->mag_gain_q8 * (int64_t)m_conf * (int64_t)gate * (int64_t)dt_ms)
                 / (256LL * 32767LL * 1000LL);
         if (w_q15 > 0) {

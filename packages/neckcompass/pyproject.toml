@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neckcompass"
-version = "1.0.0"
+version = "1.1.0"
 description = "NeckCompass: Drosophila Central Complex ring-attractor compass and GPS-denied path integrator with natural ferromagnetic spike rejection"
 readme = "README.md"
 requires-python = ">=3.9"

@@ -2,6 +2,7 @@
 
 from .path_integrator import FanBodyNavigator
 from .ring_attractor import (
+    basin_sigma_for_noise,
     CompassDiagnostics,
     PlasticLandmarkRing,
     RingCompass,
@@ -9,10 +10,11 @@ from .ring_attractor import (
     wrap_angle,
 )
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 __all__ = [
     "__version__",
+    "basin_sigma_for_noise",
     "CompassDiagnostics",
     "FanBodyNavigator",
     "PlasticLandmarkRing",

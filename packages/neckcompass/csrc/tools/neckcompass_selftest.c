@@ -8,6 +8,7 @@
  *   4. 120 deg ferromagnetic spike rejection & MEMS gyro bias anchoring
  *   5. Multi-leg GPS-denied outbound + PFL3 homebound return (< 5% of path length)
  *   6. Execution latency (< 10 us per combined compass + navigator + steering step)
+ *   7. Re-anchoring after a real heading upset (and no re-anchor on a 2 s spike)
  *
  * SPDX-License-Identifier: MIT
  */
@@ -26,7 +27,7 @@ static int test_memory_footprint(void) {
     size_t comp_bytes = sizeof(nc_compass_t);
     size_t nav_bytes = sizeof(nc_navigator_t);
     size_t total_ram = comp_bytes + nav_bytes;
-    printf("[1/6] Memory footprint: nc_compass_t=%lu B, nc_navigator_t=%lu B, total=%lu B (< 2048 B) ... ",
+    printf("[1/7] Memory footprint: nc_compass_t=%lu B, nc_navigator_t=%lu B, total=%lu B (< 2048 B) ... ",
            (unsigned long)comp_bytes, (unsigned long)nav_bytes, (unsigned long)total_ram);
     if (total_ram >= 2048u) {
         printf("FAIL\n");
@@ -57,11 +58,11 @@ static int test_lut_trig_and_wrap(void) {
     near_neg = nc_cdeg_to_bam(-17900);
     wrapped_step = nc_bam_add(near_pos, nc_cdeg_to_bam(200));
     if (abs_i32(nc_bam_to_cdeg(nc_bam_sub(wrapped_step, near_neg))) > 5) {
-        printf("[2/6] LUT trig & wrap-around ... FAIL (wrap mismatch)\n");
+        printf("[2/7] LUT trig & wrap-around ... FAIL (wrap mismatch)\n");
         return 1;
     }
 
-    printf("[2/6] LUT sin/cos/atan2 & +/-180 deg wrap: max_err=%d.%02d deg ... ",
+    printf("[2/7] LUT sin/cos/atan2 & +/-180 deg wrap: max_err=%d.%02d deg ... ",
            (int)(max_err_cdeg / 100), (int)(max_err_cdeg % 100));
     if (max_err_cdeg > 30) {
         printf("FAIL\n");
@@ -93,7 +94,7 @@ static int test_full_360_integration(void) {
     }
     err_cw_cdeg = abs_i32(nc_bam_to_cdeg(nc_bam_sub(nc_compass_heading_bam(&comp), start_bam)));
 
-    printf("[3/6] 360-deg Q15 integration (across +/-180 seam): CCW_err=%d.%02d deg, CW_err=%d.%02d deg (< 3.00 deg) ... ",
+    printf("[3/7] 360-deg Q15 integration (across +/-180 seam): CCW_err=%d.%02d deg, CW_err=%d.%02d deg (< 3.00 deg) ... ",
            (int)(err_ccw_cdeg / 100), (int)(err_ccw_cdeg % 100),
            (int)(err_cw_cdeg / 100), (int)(err_cw_cdeg % 100));
     if (err_ccw_cdeg >= 300 || err_cw_cdeg >= 300) {
@@ -131,7 +132,7 @@ static int test_spike_rejection_and_bias_anchoring(void) {
     }
     anchored_err_cdeg = abs_i32(nc_bam_to_cdeg(nc_bam_sub(nc_compass_heading_bam(&comp), true_bam)));
 
-    printf("[4/6] 120-deg spike rejection & bias anchor: spike_err=%d.%02d deg, 20s_bias_err=%d.%02d deg ... ",
+    printf("[4/7] 120-deg spike rejection & bias anchor: spike_err=%d.%02d deg, 20s_bias_err=%d.%02d deg ... ",
            (int)(max_spike_err_cdeg / 100), (int)(max_spike_err_cdeg % 100),
            (int)(anchored_err_cdeg / 100), (int)(anchored_err_cdeg % 100));
     if (max_spike_err_cdeg > 100 || anchored_err_cdeg > 200) {
@@ -235,7 +236,7 @@ static int test_gps_denied_return_to_origin(void) {
         pct_x100 = (uint32_t)(((uint64_t)final_miss_mm * 10000ULL) / (total_path_mm > 0 ? total_path_mm : 1ULL));
     }
 
-    printf("[5/6] Outbound + blind CPU4/PFL3 return: miss=%u.%03u m / %lu.%01lu m path (%u.%02u%% < 5.00%%) ... ",
+    printf("[5/7] Outbound + blind CPU4/PFL3 return: miss=%u.%03u m / %lu.%01lu m path (%u.%02u%% < 5.00%%) ... ",
            (unsigned)(final_miss_mm / 1000u), (unsigned)(final_miss_mm % 1000u),
            (unsigned long)(total_path_mm / 1000ULL), (unsigned long)((total_path_mm % 1000ULL) / 100ULL),
            (unsigned)(pct_x100 / 100u), (unsigned)(pct_x100 % 100u));
@@ -271,9 +272,50 @@ static int test_update_latency(void) {
     elapsed_ns = ((uint64_t)(t1 - t0) * 1000000000ULL) / (uint64_t)CLOCKS_PER_SEC;
     ns_per_update = elapsed_ns / 100000ULL;
 
-    printf("[6/6] Combined E-PG + CPU4 + PFL3 step latency: %lu.%03lu us (< 10.000 us) ... ",
+    printf("[6/7] Combined E-PG + CPU4 + PFL3 step latency: %lu.%03lu us (< 10.000 us) ... ",
            (unsigned long)(ns_per_update / 1000ULL), (unsigned long)(ns_per_update % 1000ULL));
     if (ns_per_update >= 10000ULL) {
+        printf("FAIL\n");
+        return 1;
+    }
+    printf("PASS\n");
+    return 0;
+}
+
+/* Deterministic +/-3 deg triangle-ish pseudo-noise (no RNG, no floats). */
+static int32_t pseudo_noise_cdeg(uint32_t k) {
+    uint32_t h = k * 2654435761u;
+    return (int32_t)((h >> 16) % 601u) - 300;
+}
+
+static int test_reanchor_after_upset(void) {
+    nc_compass_t comp;
+    uint32_t k;
+    int32_t err_after_spike, err_after_upset;
+
+    /* (a) A 2 s, 110-deg off-basin spike must NOT re-anchor the compass. */
+    nc_compass_init(&comp);
+    nc_compass_reset(&comp, nc_cdeg_to_bam(0));
+    for (k = 0; k < 100u; ++k) { /* 2 s at 50 Hz */
+        nc_compass_update(&comp, 0, 20u, nc_cdeg_to_bam(11000 + pseudo_noise_cdeg(k)), 1u, NC_Q15_ONE, 0, 0u, 0);
+    }
+    for (k = 0; k < 100u; ++k) {
+        nc_compass_update(&comp, 0, 20u, nc_cdeg_to_bam(pseudo_noise_cdeg(k + 100u)), 1u, NC_Q15_ONE, 0, 0u, 0);
+    }
+    err_after_spike = abs_i32(nc_bam_to_cdeg(nc_compass_heading_bam(&comp)));
+
+    /* (b) A consistent 110-deg offset for 11 s (noisy) is a real upset: re-anchor. */
+    nc_compass_init(&comp);
+    nc_compass_reset(&comp, nc_cdeg_to_bam(0));
+    for (k = 0; k < 550u; ++k) {
+        nc_compass_update(&comp, 0, 20u, nc_cdeg_to_bam(11000 + pseudo_noise_cdeg(k)), 1u, NC_Q15_ONE, 0, 0u, 0);
+    }
+    err_after_upset = abs_i32(nc_bam_to_cdeg(nc_bam_sub(nc_compass_heading_bam(&comp), nc_cdeg_to_bam(11000))));
+
+    printf("[7/7] Re-anchor: after 2 s spike err=%d.%02d deg (< 1), after 11 s upset err=%d.%02d deg (< 2) ... ",
+           (int)(err_after_spike / 100), (int)(err_after_spike % 100),
+           (int)(err_after_upset / 100), (int)(err_after_upset % 100));
+    if (err_after_spike >= 100 || err_after_upset >= 200) {
         printf("FAIL\n");
         return 1;
     }
@@ -290,9 +332,10 @@ int main(void) {
     failures += test_spike_rejection_and_bias_anchoring();
     failures += test_gps_denied_return_to_origin();
     failures += test_update_latency();
+    failures += test_reanchor_after_upset();
 
     if (failures == 0) {
-        printf("=== ALL 6/6 C99 SELF-TESTS PASSED ===\n");
+        printf("=== ALL 7/7 C99 SELF-TESTS PASSED ===\n");
         return 0;
     }
     printf("=== %d C99 SELF-TEST(S) FAILED ===\n", failures);
