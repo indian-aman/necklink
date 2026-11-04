@@ -1,0 +1,240 @@
+{
+  "package": "necksense",
+  "version": "1.0.0",
+  "seeds": [
+    42,
+    43,
+    44,
+    45,
+    46
+  ],
+  "benchmark_wall_seconds": 38.2,
+  "task1_retrieval": {
+    "n_database": 5000,
+    "n_queries": 400,
+    "d_inputs": 64,
+    "equal_active_code_k": {
+      "16": {
+        "active_k": 16,
+        "flyhash_n_kc": 320,
+        "flyhash_tag_bytes": 40,
+        "flyhash_sparse_idx_bytes": 32,
+        "flyhash_float_muls": 0,
+        "simhash_float_muls": 1024,
+        "flyhash_recall10_mean": 0.1829,
+        "flyhash_recall10_std": 0.0053,
+        "simhash_recall10_mean": 0.0948,
+        "simhash_recall10_std": 0.0038,
+        "flyhash_query_us": 186.43,
+        "simhash_query_us": 72.93
+      },
+      "32": {
+        "active_k": 32,
+        "flyhash_n_kc": 640,
+        "flyhash_tag_bytes": 80,
+        "flyhash_sparse_idx_bytes": 64,
+        "flyhash_float_muls": 0,
+        "simhash_float_muls": 2048,
+        "flyhash_recall10_mean": 0.2341,
+        "flyhash_recall10_std": 0.0023,
+        "simhash_recall10_mean": 0.1348,
+        "simhash_recall10_std": 0.0046,
+        "flyhash_query_us": 280.26,
+        "simhash_query_us": 63.58
+      },
+      "64": {
+        "active_k": 64,
+        "flyhash_n_kc": 1280,
+        "flyhash_tag_bytes": 160,
+        "flyhash_sparse_idx_bytes": 128,
+        "flyhash_float_muls": 0,
+        "simhash_float_muls": 4096,
+        "flyhash_recall10_mean": 0.2961,
+        "flyhash_recall10_std": 0.0053,
+        "simhash_recall10_mean": 0.1681,
+        "simhash_recall10_std": 0.0046,
+        "flyhash_query_us": 493.99,
+        "simhash_query_us": 65.58
+      },
+      "128": {
+        "active_k": 128,
+        "flyhash_n_kc": 2560,
+        "flyhash_tag_bytes": 320,
+        "flyhash_sparse_idx_bytes": 256,
+        "flyhash_float_muls": 0,
+        "simhash_float_muls": 8192,
+        "flyhash_recall10_mean": 0.3614,
+        "flyhash_recall10_std": 0.0025,
+        "simhash_recall10_mean": 0.2242,
+        "simhash_recall10_std": 0.0024,
+        "flyhash_query_us": 841.87,
+        "simhash_query_us": 77.16
+      }
+    },
+    "equal_raw_bit_budget": {
+      "512": {
+        "m_bits": 512,
+        "tag_bytes": 64,
+        "flyhash_active_k": 26,
+        "flyhash_float_muls": 0,
+        "flyhash_proj_ram_bytes": 0,
+        "simhash_float_muls": 32768,
+        "simhash_proj_ram_bytes": 131072,
+        "flyhash_recall10_mean": 0.2131,
+        "flyhash_recall10_std": 0.0023,
+        "simhash_recall10_mean": 0.4074,
+        "simhash_recall10_std": 0.0076,
+        "flyhash_query_us": 204.38,
+        "simhash_query_us": 221.46,
+        "flyhash_hash_us": 26.14,
+        "simhash_hash_us": 7.05
+      },
+      "1024": {
+        "m_bits": 1024,
+        "tag_bytes": 128,
+        "flyhash_active_k": 51,
+        "flyhash_float_muls": 0,
+        "flyhash_proj_ram_bytes": 0,
+        "simhash_float_muls": 65536,
+        "simhash_proj_ram_bytes": 262144,
+        "flyhash_recall10_mean": 0.2754,
+        "flyhash_recall10_std": 0.0075,
+        "simhash_recall10_mean": 0.5065,
+        "simhash_recall10_std": 0.0054,
+        "flyhash_query_us": 372.18,
+        "simhash_query_us": 375.96,
+        "flyhash_hash_us": 49.67,
+        "simhash_hash_us": 16.41
+      },
+      "2048": {
+        "m_bits": 2048,
+        "tag_bytes": 256,
+        "flyhash_active_k": 102,
+        "flyhash_float_muls": 0,
+        "flyhash_proj_ram_bytes": 0,
+        "simhash_float_muls": 131072,
+        "simhash_proj_ram_bytes": 524288,
+        "flyhash_recall10_mean": 0.3405,
+        "flyhash_recall10_std": 0.0065,
+        "simhash_recall10_mean": 0.5974,
+        "simhash_recall10_std": 0.0059,
+        "flyhash_query_us": 782.91,
+        "simhash_query_us": 677.61,
+        "flyhash_hash_us": 143.56,
+        "simhash_hash_us": 28.92
+      }
+    }
+  },
+  "task2_multigas_plumes": {
+    "n_sensors": 8,
+    "n_gases": 6,
+    "calibration_shots_per_gas": 3,
+    "test_plumes_per_regime": 300,
+    "regimes": {
+      "clean_1x": {
+        "necksense": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "necksense_1shot": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "l2_knn": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "zscore_centroid": {
+          "mean": 1.0,
+          "std": 0.0
+        }
+      },
+      "swing_0.1x_25x_no_drift": {
+        "necksense": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "necksense_1shot": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "l2_knn": {
+          "mean": 1.0,
+          "std": 0.0
+        },
+        "zscore_centroid": {
+          "mean": 0.8993,
+          "std": 0.0285
+        }
+      },
+      "weak_0.1x_0.5x_with_drift": {
+        "necksense": {
+          "mean": 0.9933,
+          "std": 0.0073
+        },
+        "necksense_1shot": {
+          "mean": 0.9947,
+          "std": 0.0062
+        },
+        "l2_knn": {
+          "mean": 0.334,
+          "std": 0.0467
+        },
+        "zscore_centroid": {
+          "mean": 0.3013,
+          "std": 0.0441
+        }
+      },
+      "full_0.1x_25x_with_drift": {
+        "necksense": {
+          "mean": 0.9947,
+          "std": 0.0045
+        },
+        "necksense_1shot": {
+          "mean": 0.9947,
+          "std": 0.0045
+        },
+        "l2_knn": {
+          "mean": 0.7647,
+          "std": 0.0412
+        },
+        "zscore_centroid": {
+          "mean": 0.7273,
+          "std": 0.0321
+        }
+      }
+    }
+  },
+  "task3_streaming_anomaly": {
+    "d_inputs": 16,
+    "n_normal_modes": 20,
+    "eval_steps": 2500,
+    "methods": {
+      "necksense_mbon": {
+        "auroc_mean": 0.9658,
+        "auroc_std": 0.0048,
+        "us_per_sample_mean": 118.18,
+        "us_per_sample_std": 5.01,
+        "vectorized_stream_us_per_sample": 71.18
+      },
+      "online_halfspace": {
+        "auroc_mean": 0.5902,
+        "auroc_std": 0.0346,
+        "us_per_sample_mean": 48.78,
+        "us_per_sample_std": 3.07
+      },
+      "online_mahalanobis": {
+        "auroc_mean": 0.8453,
+        "auroc_std": 0.0209,
+        "us_per_sample_mean": 19.74,
+        "us_per_sample_std": 2.23
+      },
+      "rolling_zscore": {
+        "auroc_mean": 0.6349,
+        "auroc_std": 0.04,
+        "us_per_sample_mean": 11.4,
+        "us_per_sample_std": 0.9
+      }
+    }
+  }
+}

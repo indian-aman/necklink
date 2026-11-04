@@ -1,0 +1,25 @@
+# Python build & test caches
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# C99 build outputs
+csrc/build/
+csrc/tools/necksense_selftest
+csrc/tools/necksense_parity_dump
+*.o
+*.exe
+*.out
+*.so
+*.dll
+
+# Local tooling caches
+.codegraph/
+.DS_Store
+Thumbs.db
