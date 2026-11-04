@@ -1,0 +1,584 @@
+{
+  "all_three_physical_boards_online": true,
+  "wifi_router_connected": false,
+  "topology": {
+    "node_0": {
+      "port": "COM9",
+      "node": 0,
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "ch": 11,
+      "drop": 0,
+      "enc": 1,
+      "slots": 0,
+      "peers": 2,
+      "preauth_drops": 0,
+      "auth_drops": 0,
+      "crc_drops": 0,
+      "raw_forged": 0,
+      "relayed": 0,
+      "mac": "<node-0-esp32-mac>",
+      "heap": 69136,
+      "neighbors": [
+        {
+          "node": 1,
+          "mac": "<node-1-esp8266-mac>",
+          "rssi": -27,
+          "snr": 69,
+          "pkts": 118,
+          "age_ms": 211
+        },
+        {
+          "node": 2,
+          "mac": "<node-2-esp32-mac>",
+          "rssi": -51,
+          "snr": 45,
+          "pkts": 37,
+          "age_ms": 339
+        }
+      ]
+    },
+    "node_1": {
+      "port": "COM13",
+      "node": 1,
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 1,
+      "mtu": 250,
+      "ch": 11,
+      "drop": 0,
+      "enc": 1,
+      "slots": 1,
+      "peers": 1,
+      "preauth_drops": 0,
+      "auth_drops": 0,
+      "crc_drops": 0,
+      "raw_forged": 0,
+      "relayed": 0,
+      "mac": "<node-1-esp8266-mac>",
+      "heap": 22112,
+      "neighbors": [
+        {
+          "node": 0,
+          "mac": "<node-0-esp32-mac>",
+          "rssi": -50,
+          "snr": 45,
+          "pkts": 1313,
+          "age_ms": 518
+        },
+        {
+          "node": 2,
+          "mac": "<node-2-esp32-mac>",
+          "rssi": -50,
+          "snr": 45,
+          "pkts": 433,
+          "age_ms": 776
+        }
+      ]
+    },
+    "node_2": {
+      "port": "COM12",
+      "node": 2,
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "ch": 11,
+      "drop": 0,
+      "enc": 1,
+      "slots": 0,
+      "peers": 2,
+      "preauth_drops": 0,
+      "auth_drops": 0,
+      "crc_drops": 0,
+      "raw_forged": 0,
+      "relayed": 0,
+      "mac": "<node-2-esp32-mac>",
+      "heap": 69008,
+      "neighbors": [
+        {
+          "node": 1,
+          "mac": "<node-1-esp8266-mac>",
+          "rssi": -38,
+          "snr": 58,
+          "pkts": 15,
+          "age_ms": 13
+        },
+        {
+          "node": 0,
+          "mac": "<node-0-esp32-mac>",
+          "rssi": -55,
+          "snr": 41,
+          "pkts": 14,
+          "age_ms": 685
+        }
+      ]
+    }
+  },
+  "pairwise_links": [
+    {
+      "link": "Node0(COM9)->Node2(COM12) [16384B]",
+      "bytes": 16384,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 16384,
+        "median_ms": 8.87,
+        "median_mbps": 14.775,
+        "max_mbps": 15.737,
+        "max_l2": 1470
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 16384,
+        "median_ms": 10.72,
+        "median_mbps": 12.226,
+        "max_mbps": 13.996,
+        "max_l2": 1010
+      }
+    },
+    {
+      "link": "Node2(COM12)->Node0(COM9) [16384B]",
+      "bytes": 16384,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 16384,
+        "median_ms": 15.97,
+        "median_mbps": 8.208,
+        "max_mbps": 8.392,
+        "max_l2": 1470
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 16384,
+        "median_ms": 14.09,
+        "median_mbps": 9.306,
+        "max_mbps": 9.879,
+        "max_l2": 1010
+      }
+    },
+    {
+      "link": "Node1(COM13)->Node0(COM9) [8192B]",
+      "bytes": 8192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 20.72,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 9.04,
+        "median_mbps": 7.252,
+        "max_mbps": 7.82,
+        "max_l2": 1010
+      }
+    },
+    {
+      "link": "Node1(COM13)->Node2(COM12) [8192B]",
+      "bytes": 8192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 23.44,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 26.65,
+        "median_mbps": 2.46,
+        "max_mbps": 8.751,
+        "max_l2": 242
+      }
+    },
+    {
+      "link": "Node0(COM9)->Node1(COM13) [8192B]",
+      "bytes": 8192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 4.51,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 14.73,
+        "median_mbps": 4.45,
+        "max_mbps": 4.591,
+        "max_l2": 242
+      }
+    },
+    {
+      "link": "Node2(COM12)->Node1(COM13) [8192B]",
+      "bytes": 8192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 5.06,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 14.11,
+        "median_mbps": 4.646,
+        "max_mbps": 4.901,
+        "max_l2": 242
+      }
+    }
+  ],
+  "nodemcu_to_esp32_payloads": [
+    {
+      "bytes": 4,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 4,
+        "median_ms": 3.13,
+        "median_mbps": 0.01,
+        "max_mbps": 0.018,
+        "max_l2": 28
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 4,
+        "median_ms": 3.38,
+        "median_mbps": 0.009,
+        "max_mbps": 0.01,
+        "max_l2": 197
+      }
+    },
+    {
+      "bytes": 64,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 64,
+        "median_ms": 1.98,
+        "median_mbps": 0.259,
+        "max_mbps": 0.276,
+        "max_l2": 88
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 64,
+        "median_ms": 3.18,
+        "median_mbps": 0.161,
+        "max_mbps": 0.162,
+        "max_l2": 197
+      }
+    },
+    {
+      "bytes": 192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 192,
+        "median_ms": 2.37,
+        "median_mbps": 0.648,
+        "max_mbps": 0.724,
+        "max_l2": 216
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 192,
+        "median_ms": 3.76,
+        "median_mbps": 0.408,
+        "max_mbps": 0.467,
+        "max_l2": 242
+      }
+    },
+    {
+      "bytes": 1024,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 226,
+        "median_ms": 3.61,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 1024,
+        "median_ms": 3.62,
+        "median_mbps": 2.263,
+        "max_mbps": 2.926,
+        "max_l2": 242
+      }
+    },
+    {
+      "bytes": 4096,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 678,
+        "median_ms": 12.21,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 4096,
+        "median_ms": 4.81,
+        "median_mbps": 6.81,
+        "max_mbps": 8.594,
+        "max_l2": 242
+      }
+    },
+    {
+      "bytes": 8192,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 23.47,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 38.07,
+        "median_mbps": 1.721,
+        "max_mbps": 1.94,
+        "max_l2": 242
+      }
+    }
+  ],
+  "nodemcu_to_esp32_loss": [
+    {
+      "loss_pct": 0,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 29.7,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 31.26,
+        "median_mbps": 2.097,
+        "max_mbps": 2.169,
+        "max_l2": 242
+      }
+    },
+    {
+      "loss_pct": 10,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 25.75,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 63.41,
+        "median_mbps": 1.034,
+        "max_mbps": 1.926,
+        "max_l2": 242
+      }
+    },
+    {
+      "loss_pct": 25,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 23.08,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 26.74,
+        "median_mbps": 2.45,
+        "max_mbps": 2.975,
+        "max_l2": 242
+      }
+    },
+    {
+      "loss_pct": 35,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 25.47,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 65.73,
+        "median_mbps": 0.997,
+        "max_mbps": 1.917,
+        "max_l2": 242
+      }
+    }
+  ],
+  "three_board_linear_relay": [
+    {
+      "route": "COM13 (NodeMCU) -> COM9 (ESP32 Relay) -> COM12 (ESP32 Hub)",
+      "bytes": 8192,
+      "loss_pct": 0,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 26.7,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "raw_relayed": 131,
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 49.54,
+        "median_mbps": 1.323,
+        "max_mbps": 1.67,
+        "max_l2": 242
+      },
+      "nltp_relayed": 223
+    },
+    {
+      "route": "COM13 (NodeMCU) -> COM9 (ESP32 Relay) -> COM12 (ESP32 Hub)",
+      "bytes": 8192,
+      "loss_pct": 15,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 34.35,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 250
+      },
+      "raw_relayed": 128,
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 61.47,
+        "median_mbps": 1.066,
+        "max_mbps": 1.118,
+        "max_l2": 242
+      },
+      "nltp_relayed": 252
+    },
+    {
+      "route": "COM9 (ESP32) -> COM13 (NodeMCU Relay) -> COM12 (ESP32 Hub)",
+      "bytes": 8192,
+      "loss_pct": 0,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1356,
+        "median_ms": 8.29,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470
+      },
+      "raw_relayed": 21,
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 26.88,
+        "median_mbps": 2.439,
+        "max_mbps": 2.95,
+        "max_l2": 242
+      },
+      "nltp_relayed": 167
+    },
+    {
+      "route": "COM9 (ESP32) -> COM13 (NodeMCU Relay) -> COM12 (ESP32 Hub)",
+      "bytes": 8192,
+      "loss_pct": 15,
+      "raw": {
+        "trials": 3,
+        "delivery_pct": 0.0,
+        "avg_rcvd": 1280.7,
+        "median_ms": 8.67,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470
+      },
+      "raw_relayed": 21,
+      "nltp": {
+        "trials": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd": 8192,
+        "median_ms": 122.04,
+        "median_mbps": 0.537,
+        "max_mbps": 0.782,
+        "max_l2": 242
+      },
+      "nltp_relayed": 277
+    }
+  ],
+  "simultaneous_2sender_to_hub": {
+    "loss_0pct": {
+      "raw_both_streams_intact_pct": 0.0,
+      "nltp_both_streams_sha256_pct": 100.0,
+      "nltp_median_wall_ms": 364.99,
+      "hub_active_slots": 2
+    },
+    "loss_10pct": {
+      "raw_both_streams_intact_pct": 0.0,
+      "nltp_both_streams_sha256_pct": 100.0,
+      "nltp_median_wall_ms": 380.46,
+      "hub_active_slots": 2
+    }
+  }
+}

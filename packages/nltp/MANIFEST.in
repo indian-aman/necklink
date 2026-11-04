@@ -7,10 +7,12 @@ recursive-include necklink *.py
 prune arduino
 prune assets
 prune backup
+prune bench_kcp
 prune csrc
 prune deliverables
 prune docs
 prune esp32
+prune esp32_mesh
 prune examples
 prune experiments
 prune java

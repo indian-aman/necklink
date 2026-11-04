@@ -1,0 +1,3578 @@
+{
+  "repo_version": "NLTP 1.3.2 (commit 7f05c5a)",
+  "wifi_router_connected": false,
+  "hardware": {
+    "COM9": {
+      "online": true,
+      "node_id": 0,
+      "mac": "<node-0-esp32-mac>",
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "channel": 11,
+      "heap": 119660
+    },
+    "COM11": {
+      "online": false,
+      "expected_node_id": 1,
+      "reason": "COM11 did not return valid STAT"
+    },
+    "COM12": {
+      "online": true,
+      "node_id": 2,
+      "mac": "<node-2-esp32-mac>",
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "channel": 11,
+      "heap": 119616
+    }
+  },
+  "mesh_topology": {
+    "node_0": {
+      "node": 0,
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "ch": 11,
+      "lr": 0,
+      "rate": 4,
+      "txpwr_qdbm": 58,
+      "txpwr_dbm": 14.5,
+      "drop": 0,
+      "enc": 1,
+      "slots": 0,
+      "peers": 1,
+      "evict": 0,
+      "preauth_drops": 0,
+      "auth_drops": 0,
+      "crc_drops": 0,
+      "raw_forged": 0,
+      "relayed": 0,
+      "mac": "<node-0-esp32-mac>",
+      "heap": 119324,
+      "neighbors": [
+        {
+          "node": 2,
+          "mac": "<node-2-esp32-mac>",
+          "rssi": -47,
+          "noise": -97,
+          "snr": 50,
+          "pkts": 55,
+          "age_ms": 2
+        }
+      ]
+    },
+    "node_2": {
+      "node": 2,
+      "wifi_sta": 0,
+      "ip": "0.0.0.0",
+      "enow_v": 2,
+      "mtu": 1470,
+      "ch": 11,
+      "lr": 0,
+      "rate": 4,
+      "txpwr_qdbm": 59,
+      "txpwr_dbm": 14.8,
+      "drop": 0,
+      "enc": 1,
+      "slots": 0,
+      "peers": 1,
+      "evict": 0,
+      "preauth_drops": 0,
+      "auth_drops": 0,
+      "crc_drops": 0,
+      "raw_forged": 0,
+      "relayed": 0,
+      "mac": "<node-2-esp32-mac>",
+      "heap": 119192,
+      "neighbors": [
+        {
+          "node": 0,
+          "mac": "<node-0-esp32-mac>",
+          "rssi": -56,
+          "noise": -96,
+          "snr": 40,
+          "pkts": 53,
+          "age_ms": 558
+        }
+      ]
+    }
+  },
+  "cat1_txpwr_sweep": [
+    {
+      "qdbm": 78,
+      "label": "+19.5 dBm (Max)",
+      "rssi_dbm": -54,
+      "snr_db": 42,
+      "raw_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 17.34,
+        "median_mbps": 7.559,
+        "max_mbps": 12.906,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 26.82,
+            "mbps": 4.888,
+            "raw_wire_mbps": 4.888,
+            "max_l2": 1470,
+            "rssi": -59
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 17.34,
+            "mbps": 7.559,
+            "raw_wire_mbps": 7.559,
+            "max_l2": 1470,
+            "rssi": -64
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 10.16,
+            "mbps": 12.906,
+            "raw_wire_mbps": 12.906,
+            "max_l2": 1470,
+            "rssi": -58
+          }
+        ]
+      },
+      "nltp_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 15.01,
+        "median_mbps": 8.735,
+        "max_mbps": 14.954,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 15.01,
+            "mbps": 8.735,
+            "max_l2": 1010,
+            "pkts_tx": 20,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.77,
+            "mbps": 14.954,
+            "max_l2": 1010,
+            "pkts_tx": 44,
+            "rssi": -57,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 109.05,
+            "mbps": 1.202,
+            "max_l2": 1010,
+            "pkts_tx": 64,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "qdbm": 60,
+      "label": "+15.0 dBm",
+      "rssi_dbm": -50,
+      "snr_db": 46,
+      "raw_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 9.06,
+        "median_mbps": 14.466,
+        "max_mbps": 15.731,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.19,
+            "mbps": 14.258,
+            "raw_wire_mbps": 14.258,
+            "max_l2": 1470,
+            "rssi": -57
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.33,
+            "mbps": 15.731,
+            "raw_wire_mbps": 15.731,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.06,
+            "mbps": 14.466,
+            "raw_wire_mbps": 14.466,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 71.84,
+        "median_mbps": 1.824,
+        "max_mbps": 2.023,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 85.26,
+            "mbps": 1.537,
+            "max_l2": 1010,
+            "pkts_tx": 84,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 71.84,
+            "mbps": 1.824,
+            "max_l2": 1010,
+            "pkts_tx": 104,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 64.79,
+            "mbps": 2.023,
+            "max_l2": 1010,
+            "pkts_tx": 125,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "qdbm": 44,
+      "label": "+11.0 dBm",
+      "rssi_dbm": -51,
+      "snr_db": 45,
+      "raw_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 9.06,
+        "median_mbps": 14.462,
+        "max_mbps": 14.832,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.84,
+            "mbps": 14.832,
+            "raw_wire_mbps": 14.832,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.73,
+            "mbps": 13.475,
+            "raw_wire_mbps": 13.475,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.06,
+            "mbps": 14.462,
+            "raw_wire_mbps": 14.462,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 49.08,
+        "median_mbps": 2.67,
+        "max_mbps": 3.134,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 58.31,
+            "mbps": 2.248,
+            "max_l2": 1010,
+            "pkts_tx": 147,
+            "rssi": -57,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 49.08,
+            "mbps": 2.67,
+            "max_l2": 1010,
+            "pkts_tx": 169,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 41.83,
+            "mbps": 3.134,
+            "max_l2": 1010,
+            "pkts_tx": 191,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "qdbm": 28,
+      "label": "+7.0 dBm",
+      "rssi_dbm": -55,
+      "snr_db": 41,
+      "raw_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.73,
+        "median_mbps": 15.005,
+        "max_mbps": 15.663,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.37,
+            "mbps": 15.663,
+            "raw_wire_mbps": 15.663,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.73,
+            "mbps": 15.005,
+            "raw_wire_mbps": 15.005,
+            "max_l2": 1470,
+            "rssi": -57
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.17,
+            "mbps": 14.29,
+            "raw_wire_mbps": 14.29,
+            "max_l2": 1470,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 38.35,
+        "median_mbps": 3.418,
+        "max_mbps": 3.685,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 38.35,
+            "mbps": 3.418,
+            "max_l2": 1010,
+            "pkts_tx": 215,
+            "rssi": -57,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 51.63,
+            "mbps": 2.539,
+            "max_l2": 1010,
+            "pkts_tx": 239,
+            "rssi": -57,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 35.57,
+            "mbps": 3.685,
+            "max_l2": 1010,
+            "pkts_tx": 264,
+            "rssi": -57,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "qdbm": 8,
+      "label": "+2.0 dBm (Min)",
+      "rssi_dbm": -55,
+      "snr_db": 41,
+      "raw_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.63,
+        "median_mbps": 15.188,
+        "max_mbps": 16.17,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.11,
+            "mbps": 16.17,
+            "raw_wire_mbps": 16.17,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.63,
+            "mbps": 15.188,
+            "raw_wire_mbps": 15.188,
+            "max_l2": 1470,
+            "rssi": -57
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.69,
+            "mbps": 15.078,
+            "raw_wire_mbps": 15.078,
+            "max_l2": 1470,
+            "rssi": -57
+          }
+        ]
+      },
+      "nltp_v2_16k": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 25.96,
+        "median_mbps": 5.049,
+        "max_mbps": 5.384,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 38.97,
+            "mbps": 3.364,
+            "max_l2": 1010,
+            "pkts_tx": 291,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 25.96,
+            "mbps": 5.049,
+            "max_l2": 1010,
+            "pkts_tx": 315,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 24.35,
+            "mbps": 5.384,
+            "max_l2": 1010,
+            "pkts_tx": 339,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cat2_payload_sweep": [
+    {
+      "bytes": 4,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4,
+        "median_ms": 3.06,
+        "median_mbps": 0.01,
+        "max_mbps": 0.01,
+        "max_l2": 28,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 3.06,
+            "mbps": 0.01,
+            "raw_wire_mbps": 0.01,
+            "max_l2": 28,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 10.25,
+            "mbps": 0.003,
+            "raw_wire_mbps": 0.003,
+            "max_l2": 28,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 3.05,
+            "mbps": 0.01,
+            "raw_wire_mbps": 0.01,
+            "max_l2": 28,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4,
+        "median_ms": 3.17,
+        "median_mbps": 0.01,
+        "max_mbps": 0.012,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 3.17,
+            "mbps": 0.01,
+            "max_l2": 1010,
+            "pkts_tx": 342,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 3.26,
+            "mbps": 0.01,
+            "max_l2": 1010,
+            "pkts_tx": 345,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 2.57,
+            "mbps": 0.012,
+            "max_l2": 1010,
+            "pkts_tx": 348,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4,
+        "median_ms": 2.72,
+        "median_mbps": 0.012,
+        "max_mbps": 0.015,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 4.76,
+            "mbps": 0.007,
+            "max_l2": 1010,
+            "pkts_tx": 351,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 2.12,
+            "mbps": 0.015,
+            "max_l2": 1010,
+            "pkts_tx": 354,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4,
+            "total_bytes": 4,
+            "ms": 2.72,
+            "mbps": 0.012,
+            "max_l2": 1010,
+            "pkts_tx": 357,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 64,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 64,
+        "median_ms": 3.05,
+        "median_mbps": 0.168,
+        "max_mbps": 0.238,
+        "max_l2": 88,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 3.05,
+            "mbps": 0.168,
+            "raw_wire_mbps": 0.168,
+            "max_l2": 88,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 3.5,
+            "mbps": 0.146,
+            "raw_wire_mbps": 0.146,
+            "max_l2": 88,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.15,
+            "mbps": 0.238,
+            "raw_wire_mbps": 0.238,
+            "max_l2": 88,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 64,
+        "median_ms": 2.62,
+        "median_mbps": 0.195,
+        "max_mbps": 0.202,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.87,
+            "mbps": 0.178,
+            "max_l2": 1010,
+            "pkts_tx": 360,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.62,
+            "mbps": 0.195,
+            "max_l2": 1010,
+            "pkts_tx": 363,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.53,
+            "mbps": 0.202,
+            "max_l2": 1010,
+            "pkts_tx": 366,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 64,
+        "median_ms": 2.75,
+        "median_mbps": 0.186,
+        "max_mbps": 0.209,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 3.12,
+            "mbps": 0.164,
+            "max_l2": 1010,
+            "pkts_tx": 369,
+            "rssi": -57,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.75,
+            "mbps": 0.186,
+            "max_l2": 1010,
+            "pkts_tx": 372,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 64,
+            "total_bytes": 64,
+            "ms": 2.45,
+            "mbps": 0.209,
+            "max_l2": 1010,
+            "pkts_tx": 375,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 250,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 250,
+        "median_ms": 2.92,
+        "median_mbps": 0.685,
+        "max_mbps": 0.742,
+        "max_l2": 274,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 2.69,
+            "mbps": 0.742,
+            "raw_wire_mbps": 0.742,
+            "max_l2": 274,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 2.92,
+            "mbps": 0.685,
+            "raw_wire_mbps": 0.685,
+            "max_l2": 274,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 7.37,
+            "mbps": 0.271,
+            "raw_wire_mbps": 0.271,
+            "max_l2": 274,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 250,
+        "median_ms": 2.82,
+        "median_mbps": 0.708,
+        "max_mbps": 0.718,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 2.79,
+            "mbps": 0.718,
+            "max_l2": 1010,
+            "pkts_tx": 378,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 2.82,
+            "mbps": 0.708,
+            "max_l2": 1010,
+            "pkts_tx": 381,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 2.84,
+            "mbps": 0.703,
+            "max_l2": 1010,
+            "pkts_tx": 384,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 250,
+        "median_ms": 4.72,
+        "median_mbps": 0.423,
+        "max_mbps": 0.597,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 3.35,
+            "mbps": 0.597,
+            "max_l2": 1010,
+            "pkts_tx": 387,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 14.57,
+            "mbps": 0.137,
+            "max_l2": 1010,
+            "pkts_tx": 390,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 250,
+            "total_bytes": 250,
+            "ms": 4.72,
+            "mbps": 0.423,
+            "max_l2": 1010,
+            "pkts_tx": 393,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 1024,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1024,
+        "median_ms": 3.27,
+        "median_mbps": 2.509,
+        "max_mbps": 2.631,
+        "max_l2": 1048,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 3.11,
+            "mbps": 2.631,
+            "raw_wire_mbps": 2.631,
+            "max_l2": 1048,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 3.27,
+            "mbps": 2.509,
+            "raw_wire_mbps": 2.509,
+            "max_l2": 1048,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 6.07,
+            "mbps": 1.349,
+            "raw_wire_mbps": 1.349,
+            "max_l2": 1048,
+            "rssi": -54
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1024,
+        "median_ms": 3.53,
+        "median_mbps": 2.32,
+        "max_mbps": 2.712,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 8.01,
+            "mbps": 1.023,
+            "max_l2": 1010,
+            "pkts_tx": 397,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 3.53,
+            "mbps": 2.32,
+            "max_l2": 1010,
+            "pkts_tx": 401,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 3.02,
+            "mbps": 2.712,
+            "max_l2": 1010,
+            "pkts_tx": 405,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1024,
+        "median_ms": 3.0,
+        "median_mbps": 2.728,
+        "max_mbps": 3.639,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 3.0,
+            "mbps": 2.728,
+            "max_l2": 1010,
+            "pkts_tx": 409,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 2.25,
+            "mbps": 3.639,
+            "max_l2": 1010,
+            "pkts_tx": 413,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1024,
+            "total_bytes": 1024,
+            "ms": 4.29,
+            "mbps": 1.908,
+            "max_l2": 1010,
+            "pkts_tx": 417,
+            "rssi": -54,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 1446,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1446,
+        "median_ms": 3.29,
+        "median_mbps": 3.517,
+        "max_mbps": 3.745,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 3.09,
+            "mbps": 3.745,
+            "raw_wire_mbps": 3.745,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 7.56,
+            "mbps": 1.53,
+            "raw_wire_mbps": 1.53,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 3.29,
+            "mbps": 3.517,
+            "raw_wire_mbps": 3.517,
+            "max_l2": 1470,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1446,
+        "median_ms": 3.39,
+        "median_mbps": 3.409,
+        "max_mbps": 3.864,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 2.99,
+            "mbps": 3.864,
+            "max_l2": 1010,
+            "pkts_tx": 421,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 3.87,
+            "mbps": 2.993,
+            "max_l2": 1010,
+            "pkts_tx": 425,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 3.39,
+            "mbps": 3.409,
+            "max_l2": 1010,
+            "pkts_tx": 429,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 1446,
+        "median_ms": 4.37,
+        "median_mbps": 2.645,
+        "max_mbps": 4.304,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 4.85,
+            "mbps": 2.385,
+            "max_l2": 1010,
+            "pkts_tx": 433,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 2.69,
+            "mbps": 4.304,
+            "max_l2": 1010,
+            "pkts_tx": 437,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 1446,
+            "total_bytes": 1446,
+            "ms": 4.37,
+            "mbps": 2.645,
+            "max_l2": 1010,
+            "pkts_tx": 441,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 4096,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 5.06,
+        "median_mbps": 6.472,
+        "max_mbps": 7.652,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 5.3,
+            "mbps": 6.183,
+            "raw_wire_mbps": 6.183,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 5.06,
+            "mbps": 6.472,
+            "raw_wire_mbps": 6.472,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 4.28,
+            "mbps": 7.652,
+            "raw_wire_mbps": 7.652,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 3.06,
+        "median_mbps": 10.719,
+        "max_mbps": 14.185,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 3.12,
+            "mbps": 10.492,
+            "max_l2": 1010,
+            "pkts_tx": 449,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 3.06,
+            "mbps": 10.719,
+            "max_l2": 1010,
+            "pkts_tx": 457,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 2.31,
+            "mbps": 14.185,
+            "max_l2": 1010,
+            "pkts_tx": 465,
+            "rssi": -54,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 3.24,
+        "median_mbps": 10.126,
+        "max_mbps": 12.051,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 2.72,
+            "mbps": 12.051,
+            "max_l2": 1010,
+            "pkts_tx": 473,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 5.09,
+            "mbps": 6.44,
+            "max_l2": 1010,
+            "pkts_tx": 481,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 3.24,
+            "mbps": 10.126,
+            "max_l2": 1010,
+            "pkts_tx": 489,
+            "rssi": -56,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 16384,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.65,
+        "median_mbps": 15.156,
+        "max_mbps": 16.114,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.86,
+            "mbps": 13.297,
+            "raw_wire_mbps": 13.297,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.65,
+            "mbps": 15.156,
+            "raw_wire_mbps": 15.156,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.13,
+            "mbps": 16.114,
+            "raw_wire_mbps": 16.114,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 19.59,
+        "median_mbps": 6.689,
+        "max_mbps": 6.754,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 19.59,
+            "mbps": 6.689,
+            "max_l2": 1010,
+            "pkts_tx": 517,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 26.03,
+            "mbps": 5.035,
+            "max_l2": 1010,
+            "pkts_tx": 542,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 19.41,
+            "mbps": 6.754,
+            "max_l2": 1010,
+            "pkts_tx": 567,
+            "rssi": -56,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 19.42,
+        "median_mbps": 6.748,
+        "max_mbps": 7.684,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 19.42,
+            "mbps": 6.748,
+            "max_l2": 1010,
+            "pkts_tx": 591,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 22.33,
+            "mbps": 5.87,
+            "max_l2": 1010,
+            "pkts_tx": 616,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 17.06,
+            "mbps": 7.684,
+            "max_l2": 1010,
+            "pkts_tx": 641,
+            "rssi": -56,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "bytes": 32768,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 15.46,
+        "median_mbps": 16.958,
+        "max_mbps": 18.508,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 21.55,
+            "mbps": 12.163,
+            "raw_wire_mbps": 12.163,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 14.16,
+            "mbps": 18.508,
+            "raw_wire_mbps": 18.508,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 15.46,
+            "mbps": 16.958,
+            "raw_wire_mbps": 16.958,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_aead": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 14.77,
+        "median_mbps": 17.747,
+        "max_mbps": 18.345,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 14.29,
+            "mbps": 18.345,
+            "max_l2": 1010,
+            "pkts_tx": 686,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 36.22,
+            "mbps": 7.238,
+            "max_l2": 1010,
+            "pkts_tx": 727,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 14.77,
+            "mbps": 17.747,
+            "max_l2": 1010,
+            "pkts_tx": 769,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_v2_crc32": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 39.79,
+        "median_mbps": 6.589,
+        "max_mbps": 15.333,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 39.79,
+            "mbps": 6.589,
+            "max_l2": 1010,
+            "pkts_tx": 811,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 17.1,
+            "mbps": 15.333,
+            "max_l2": 1010,
+            "pkts_tx": 848,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 43.96,
+            "mbps": 5.963,
+            "max_l2": 1010,
+            "pkts_tx": 894,
+            "rssi": -56,
+            "stray_injected": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cat3_phy_rates": [
+    {
+      "rate_code": 0,
+      "rate_name": "802.11b 1M",
+      "bulk_bytes": 4096,
+      "raw_v2_4b_ms": 4.11,
+      "nltp_v2_4b_ms": 13.19,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 40.85,
+        "median_mbps": 0.802,
+        "max_mbps": 0.809,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 40.52,
+            "mbps": 0.809,
+            "raw_wire_mbps": 0.809,
+            "max_l2": 1470,
+            "rssi": -48
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 40.85,
+            "mbps": 0.802,
+            "raw_wire_mbps": 0.802,
+            "max_l2": 1470,
+            "rssi": -48
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 41.57,
+            "mbps": 0.788,
+            "raw_wire_mbps": 0.788,
+            "max_l2": 1470,
+            "rssi": -47
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 72.83,
+        "median_mbps": 0.45,
+        "max_mbps": 0.544,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 76.04,
+            "mbps": 0.431,
+            "max_l2": 1010,
+            "pkts_tx": 913,
+            "rssi": -48,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 72.83,
+            "mbps": 0.45,
+            "max_l2": 1010,
+            "pkts_tx": 923,
+            "rssi": -49,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 60.18,
+            "mbps": 0.544,
+            "max_l2": 1010,
+            "pkts_tx": 933,
+            "rssi": -48,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 1,
+      "rate_name": "802.11b 11M",
+      "bulk_bytes": 16384,
+      "raw_v2_4b_ms": 3.05,
+      "nltp_v2_4b_ms": 3.15,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 19.68,
+        "median_mbps": 6.661,
+        "max_mbps": 6.732,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 19.68,
+            "mbps": 6.661,
+            "raw_wire_mbps": 6.661,
+            "max_l2": 1470,
+            "rssi": -48
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 19.47,
+            "mbps": 6.732,
+            "raw_wire_mbps": 6.732,
+            "max_l2": 1470,
+            "rssi": -48
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 31.51,
+            "mbps": 4.16,
+            "raw_wire_mbps": 4.16,
+            "max_l2": 1470,
+            "rssi": -48
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 16.48,
+        "median_mbps": 7.955,
+        "max_mbps": 8.224,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 20.11,
+            "mbps": 6.518,
+            "max_l2": 1010,
+            "pkts_tx": 970,
+            "rssi": -48,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 15.94,
+            "mbps": 8.224,
+            "max_l2": 1010,
+            "pkts_tx": 996,
+            "rssi": -49,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 16.48,
+            "mbps": 7.955,
+            "max_l2": 1010,
+            "pkts_tx": 1020,
+            "rssi": -48,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 2,
+      "rate_name": "802.11n MCS4 (39M)",
+      "bulk_bytes": 32768,
+      "raw_v2_4b_ms": 2.8,
+      "nltp_v2_4b_ms": 8.27,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 17.44,
+        "median_mbps": 15.034,
+        "max_mbps": 16.904,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 15.51,
+            "mbps": 16.904,
+            "raw_wire_mbps": 16.904,
+            "max_l2": 1470,
+            "rssi": -51
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 17.44,
+            "mbps": 15.034,
+            "raw_wire_mbps": 15.034,
+            "max_l2": 1470,
+            "rssi": -51
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 18.94,
+            "mbps": 13.844,
+            "raw_wire_mbps": 13.844,
+            "max_l2": 1470,
+            "rssi": -52
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 45.07,
+        "median_mbps": 5.817,
+        "max_mbps": 14.897,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 17.6,
+            "mbps": 14.897,
+            "max_l2": 1010,
+            "pkts_tx": 1083,
+            "rssi": -51,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 46.27,
+            "mbps": 5.665,
+            "max_l2": 1010,
+            "pkts_tx": 1133,
+            "rssi": -51,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 45.07,
+            "mbps": 5.817,
+            "max_l2": 1010,
+            "pkts_tx": 1178,
+            "rssi": -51,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 3,
+      "rate_name": "802.11n MCS7 (65M)",
+      "bulk_bytes": 32768,
+      "raw_v2_4b_ms": 2.66,
+      "nltp_v2_4b_ms": 3.65,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 13.77,
+        "median_mbps": 19.035,
+        "max_mbps": 19.071,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 13.77,
+            "mbps": 19.035,
+            "raw_wire_mbps": 19.035,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 13.75,
+            "mbps": 19.071,
+            "raw_wire_mbps": 19.071,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 13.8,
+            "mbps": 18.992,
+            "raw_wire_mbps": 18.992,
+            "max_l2": 1470,
+            "rssi": -54
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 36.85,
+        "median_mbps": 7.114,
+        "max_mbps": 17.243,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 15.2,
+            "mbps": 17.243,
+            "max_l2": 1010,
+            "pkts_tx": 1241,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 52.05,
+            "mbps": 5.036,
+            "max_l2": 1010,
+            "pkts_tx": 1289,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 36.85,
+            "mbps": 7.114,
+            "max_l2": 1010,
+            "pkts_tx": 1330,
+            "rssi": -56,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 4,
+      "rate_name": "AUTO (RSSI Adaptive)",
+      "bulk_bytes": 32768,
+      "raw_v2_4b_ms": 2.88,
+      "nltp_v2_4b_ms": 3.67,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 13.94,
+        "median_mbps": 18.802,
+        "max_mbps": 20.528,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 13.94,
+            "mbps": 18.802,
+            "raw_wire_mbps": 18.802,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 12.77,
+            "mbps": 20.528,
+            "raw_wire_mbps": 20.528,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 14.06,
+            "mbps": 18.638,
+            "raw_wire_mbps": 18.638,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 32768,
+        "median_ms": 36.46,
+        "median_mbps": 7.191,
+        "max_mbps": 16.16,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 16.22,
+            "mbps": 16.16,
+            "max_l2": 1010,
+            "pkts_tx": 1394,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 36.46,
+            "mbps": 7.191,
+            "max_l2": 1010,
+            "pkts_tx": 1442,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 32768,
+            "total_bytes": 32768,
+            "ms": 49.72,
+            "mbps": 5.272,
+            "max_l2": 1010,
+            "pkts_tx": 1487,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 5,
+      "rate_name": "Espressif LR 250K",
+      "bulk_bytes": 4096,
+      "raw_v2_4b_ms": 8.52,
+      "nltp_v2_4b_ms": 25.05,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 164.01,
+        "median_mbps": 0.2,
+        "max_mbps": 0.203,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 161.23,
+            "mbps": 0.203,
+            "raw_wire_mbps": 0.203,
+            "max_l2": 1470,
+            "rssi": -48
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 214.12,
+            "mbps": 0.153,
+            "raw_wire_mbps": 0.153,
+            "max_l2": 1470,
+            "rssi": -47
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 164.01,
+            "mbps": 0.2,
+            "raw_wire_mbps": 0.2,
+            "max_l2": 1470,
+            "rssi": -48
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 329.46,
+        "median_mbps": 0.099,
+        "max_mbps": 0.115,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 283.79,
+            "mbps": 0.115,
+            "max_l2": 1010,
+            "pkts_tx": 1510,
+            "rssi": -47,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 520.63,
+            "mbps": 0.063,
+            "max_l2": 1010,
+            "pkts_tx": 1520,
+            "rssi": -47,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 329.46,
+            "mbps": 0.099,
+            "max_l2": 1010,
+            "pkts_tx": 1528,
+            "rssi": -47,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "rate_code": 6,
+      "rate_name": "Espressif LR 500K",
+      "bulk_bytes": 4096,
+      "raw_v2_4b_ms": 6.08,
+      "nltp_v2_4b_ms": 13.98,
+      "raw_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 77.49,
+        "median_mbps": 0.423,
+        "max_mbps": 0.425,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 77.49,
+            "mbps": 0.423,
+            "raw_wire_mbps": 0.423,
+            "max_l2": 1470,
+            "rssi": -49
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 111.99,
+            "mbps": 0.293,
+            "raw_wire_mbps": 0.293,
+            "max_l2": 1470,
+            "rssi": -47
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 77.05,
+            "mbps": 0.425,
+            "raw_wire_mbps": 0.425,
+            "max_l2": 1470,
+            "rssi": -49
+          }
+        ]
+      },
+      "nltp_v2_bulk": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 4096,
+        "median_ms": 125.5,
+        "median_mbps": 0.261,
+        "max_mbps": 0.262,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 125.5,
+            "mbps": 0.261,
+            "max_l2": 1010,
+            "pkts_tx": 1545,
+            "rssi": -47,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 125.17,
+            "mbps": 0.262,
+            "max_l2": 1010,
+            "pkts_tx": 1553,
+            "rssi": -47,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 4096,
+            "total_bytes": 4096,
+            "ms": 139.73,
+            "mbps": 0.235,
+            "max_l2": 1010,
+            "pkts_tx": 1562,
+            "rssi": -48,
+            "stray_injected": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cat4_packet_loss": [
+    {
+      "loss_pct": 0,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.68,
+        "median_mbps": 15.109,
+        "max_mbps": 16.499,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 7.94,
+            "mbps": 16.499,
+            "raw_wire_mbps": 16.499,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.19,
+            "mbps": 14.264,
+            "raw_wire_mbps": 14.264,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.68,
+            "mbps": 15.109,
+            "raw_wire_mbps": 15.109,
+            "max_l2": 1470,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.26,
+        "median_mbps": 15.876,
+        "max_mbps": 15.915,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.26,
+            "mbps": 15.876,
+            "max_l2": 1010,
+            "pkts_tx": 1588,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.24,
+            "mbps": 15.915,
+            "max_l2": 1010,
+            "pkts_tx": 1614,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.9,
+            "mbps": 13.245,
+            "max_l2": 1010,
+            "pkts_tx": 1638,
+            "rssi": -54,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "loss_pct": 5,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.75,
+        "median_mbps": 14.981,
+        "max_mbps": 17.53,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 16.32,
+            "mbps": 8.032,
+            "raw_wire_mbps": 8.032,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.75,
+            "mbps": 14.981,
+            "raw_wire_mbps": 14.981,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 7.48,
+            "mbps": 17.53,
+            "raw_wire_mbps": 17.53,
+            "max_l2": 1470,
+            "rssi": -54
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 8.81,
+        "median_mbps": 14.871,
+        "max_mbps": 15.406,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.81,
+            "mbps": 14.871,
+            "max_l2": 1010,
+            "pkts_tx": 1662,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 18.01,
+            "mbps": 7.278,
+            "max_l2": 1010,
+            "pkts_tx": 1686,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.51,
+            "mbps": 15.406,
+            "max_l2": 1010,
+            "pkts_tx": 1712,
+            "rssi": -54,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "loss_pct": 10,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 0,
+        "delivery_pct": 0.0,
+        "avg_rcvd_bytes": 15260.7,
+        "median_ms": 14.6,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 15906,
+            "total_bytes": 16384,
+            "ms": 63.3,
+            "mbps": 0.0,
+            "raw_wire_mbps": 2.071,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 14938,
+            "total_bytes": 16384,
+            "ms": 14.6,
+            "mbps": 0.0,
+            "raw_wire_mbps": 8.981,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 14938,
+            "total_bytes": 16384,
+            "ms": 9.09,
+            "mbps": 0.0,
+            "raw_wire_mbps": 14.413,
+            "max_l2": 1470,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 9.05,
+        "median_mbps": 14.486,
+        "max_mbps": 15.348,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.05,
+            "mbps": 14.486,
+            "max_l2": 1010,
+            "pkts_tx": 1738,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.54,
+            "mbps": 15.348,
+            "max_l2": 1010,
+            "pkts_tx": 1767,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 9.34,
+            "mbps": 14.039,
+            "max_l2": 1010,
+            "pkts_tx": 1794,
+            "rssi": -54,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "loss_pct": 15,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 0,
+        "delivery_pct": 0.0,
+        "avg_rcvd_bytes": 13974,
+        "median_ms": 8.26,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 9.57,
+            "mbps": 0.0,
+            "raw_wire_mbps": 13.7,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 14938,
+            "total_bytes": 16384,
+            "ms": 8.26,
+            "mbps": 0.0,
+            "raw_wire_mbps": 15.866,
+            "max_l2": 1470,
+            "rssi": -55
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 7.66,
+            "mbps": 0.0,
+            "raw_wire_mbps": 17.105,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 51.44,
+        "median_mbps": 2.548,
+        "max_mbps": 15.346,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 8.54,
+            "mbps": 15.346,
+            "max_l2": 1010,
+            "pkts_tx": 1819,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 51.44,
+            "mbps": 2.548,
+            "max_l2": 1010,
+            "pkts_tx": 1847,
+            "rssi": -55,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 59.33,
+            "mbps": 2.209,
+            "max_l2": 1010,
+            "pkts_tx": 1876,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "loss_pct": 25,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 0,
+        "delivery_pct": 0.0,
+        "avg_rcvd_bytes": 10118,
+        "median_ms": 8.98,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 9154,
+            "total_bytes": 16384,
+            "ms": 10.58,
+            "mbps": 0.0,
+            "raw_wire_mbps": 12.39,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 8.01,
+            "mbps": 0.0,
+            "raw_wire_mbps": 16.366,
+            "max_l2": 1470,
+            "rssi": -57
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 7708,
+            "total_bytes": 16384,
+            "ms": 8.98,
+            "mbps": 0.0,
+            "raw_wire_mbps": 14.591,
+            "max_l2": 1470,
+            "rssi": -55
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 27.39,
+        "median_mbps": 4.786,
+        "max_mbps": 5.66,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 27.39,
+            "mbps": 4.786,
+            "max_l2": 1010,
+            "pkts_tx": 1906,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 23.16,
+            "mbps": 5.66,
+            "max_l2": 1010,
+            "pkts_tx": 1933,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 36.88,
+            "mbps": 3.554,
+            "max_l2": 1010,
+            "pkts_tx": 1966,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    },
+    {
+      "loss_pct": 35,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 0,
+        "delivery_pct": 0.0,
+        "avg_rcvd_bytes": 10922.7,
+        "median_ms": 11.23,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 7230,
+            "total_bytes": 16384,
+            "ms": 63.2,
+            "mbps": 0.0,
+            "raw_wire_mbps": 2.074,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 12046,
+            "total_bytes": 16384,
+            "ms": 11.23,
+            "mbps": 0.0,
+            "raw_wire_mbps": 11.67,
+            "max_l2": 1470,
+            "rssi": -56
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 8.27,
+            "mbps": 0.0,
+            "raw_wire_mbps": 15.849,
+            "max_l2": 1470,
+            "rssi": -56
+          }
+        ]
+      },
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 57.82,
+        "median_mbps": 2.267,
+        "max_mbps": 3.387,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 38.7,
+            "mbps": 3.387,
+            "max_l2": 1010,
+            "pkts_tx": 1998,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 73.54,
+            "mbps": 1.782,
+            "max_l2": 1010,
+            "pkts_tx": 2033,
+            "rssi": -56,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 57.82,
+            "mbps": 2.267,
+            "max_l2": 1010,
+            "pkts_tx": 2065,
+            "rssi": -55,
+            "stray_injected": 0
+          }
+        ]
+      }
+    }
+  ],
+  "cat5_two_hop_relay": [
+    {
+      "topology": "2-Hop Over-the-Air Hairpin Relay (COM9 -> COM12 [RF Hop 1] -> COM9 [RF Hop 2])",
+      "loss_pct": 0,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 26.54,
+        "median_mbps": 4.939,
+        "max_mbps": 6.361,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 81.98,
+            "mbps": 1.599,
+            "raw_wire_mbps": 1.599,
+            "max_l2": 1470,
+            "rssi": -52
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 26.54,
+            "mbps": 4.939,
+            "raw_wire_mbps": 4.939,
+            "max_l2": 1470,
+            "rssi": -52
+          },
+          {
+            "ok": 1,
+            "ack": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 20.6,
+            "mbps": 6.361,
+            "raw_wire_mbps": 6.361,
+            "max_l2": 1470,
+            "rssi": -53
+          }
+        ]
+      },
+      "raw_relayed_frames": 39,
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 41.23,
+        "median_mbps": 3.179,
+        "max_mbps": 3.901,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 33.6,
+            "mbps": 3.901,
+            "max_l2": 1010,
+            "pkts_tx": 2097,
+            "rssi": -52,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 52.84,
+            "mbps": 2.48,
+            "max_l2": 1010,
+            "pkts_tx": 2132,
+            "rssi": -52,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 41.23,
+            "mbps": 3.179,
+            "max_l2": 1010,
+            "pkts_tx": 2162,
+            "rssi": -52,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_relayed_frames": 97
+    },
+    {
+      "topology": "2-Hop Over-the-Air Hairpin Relay (COM9 -> COM12 [RF Hop 1] -> COM9 [RF Hop 2])",
+      "loss_pct": 15,
+      "raw_v2": {
+        "trials": 3,
+        "pass_count": 0,
+        "delivery_pct": 0.0,
+        "avg_rcvd_bytes": 13974,
+        "median_ms": 23.17,
+        "median_mbps": 0.0,
+        "max_mbps": 0.0,
+        "max_l2": 1470,
+        "raw": [
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 29.05,
+            "mbps": 0.0,
+            "raw_wire_mbps": 4.511,
+            "max_l2": 1470,
+            "rssi": -54
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 13492,
+            "total_bytes": 16384,
+            "ms": 20.66,
+            "mbps": 0.0,
+            "raw_wire_mbps": 6.343,
+            "max_l2": 1470,
+            "rssi": -52
+          },
+          {
+            "ok": 0,
+            "ack": 1,
+            "rcvd_bytes": 14938,
+            "total_bytes": 16384,
+            "ms": 23.17,
+            "mbps": 0.0,
+            "raw_wire_mbps": 5.656,
+            "max_l2": 1470,
+            "rssi": -52
+          }
+        ]
+      },
+      "raw_relayed_frames": 39,
+      "nltp_v2": {
+        "trials": 3,
+        "pass_count": 3,
+        "delivery_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "median_ms": 88.25,
+        "median_mbps": 1.485,
+        "max_mbps": 4.292,
+        "max_l2": 1010,
+        "raw": [
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 88.25,
+            "mbps": 1.485,
+            "max_l2": 1010,
+            "pkts_tx": 2196,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 147.94,
+            "mbps": 0.886,
+            "max_l2": 1010,
+            "pkts_tx": 2236,
+            "rssi": -54,
+            "stray_injected": 0
+          },
+          {
+            "ok": 1,
+            "tx_verified": 1,
+            "sha_ok": 1,
+            "rcvd_bytes": 16384,
+            "total_bytes": 16384,
+            "ms": 30.54,
+            "mbps": 4.292,
+            "max_l2": 1010,
+            "pkts_tx": 2268,
+            "rssi": -53,
+            "stray_injected": 0
+          }
+        ]
+      },
+      "nltp_relayed_frames": 106
+    }
+  ],
+  "cat6_stress_and_security": {
+    "full_duplex_32k_x2": {
+      "loss_0pct": {
+        "raw_v2_both_intact_pct": 100.0,
+        "raw_v2_median_mbps": 3.181,
+        "raw_v2_rounds": [
+          {
+            "both_intact": 1,
+            "a_rcvd": 32768,
+            "b_rcvd": 32768,
+            "wall_ms": 153.62,
+            "combined_mbps": 3.413
+          },
+          {
+            "both_intact": 1,
+            "a_rcvd": 32768,
+            "b_rcvd": 32768,
+            "wall_ms": 164.09,
+            "combined_mbps": 3.195
+          },
+          {
+            "both_intact": 1,
+            "a_rcvd": 32768,
+            "b_rcvd": 32768,
+            "wall_ms": 164.8,
+            "combined_mbps": 3.181
+          },
+          {
+            "both_intact": 1,
+            "a_rcvd": 32768,
+            "b_rcvd": 32768,
+            "wall_ms": 165.92,
+            "combined_mbps": 3.16
+          },
+          {
+            "both_intact": 1,
+            "a_rcvd": 32768,
+            "b_rcvd": 32768,
+            "wall_ms": 178.98,
+            "combined_mbps": 2.929
+          }
+        ],
+        "nltp_v2_both_sha_ok_pct": 100.0,
+        "nltp_v2_median_mbps": 3.489,
+        "nltp_v2_median_ms": 150.26,
+        "nltp_v2_rounds": [
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 103.44,
+            "combined_mbps": 5.069
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 119.87,
+            "combined_mbps": 4.374
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 214.02,
+            "combined_mbps": 2.45
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 150.26,
+            "combined_mbps": 3.489
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 188.9,
+            "combined_mbps": 2.775
+          }
+        ]
+      },
+      "loss_10pct": {
+        "raw_v2_both_intact_pct": 0.0,
+        "raw_v2_median_mbps": 0.0,
+        "raw_v2_rounds": [
+          {
+            "both_intact": 0,
+            "a_rcvd": 29876,
+            "b_rcvd": 29876,
+            "wall_ms": 148.49,
+            "combined_mbps": 0.0
+          },
+          {
+            "both_intact": 0,
+            "a_rcvd": 31322,
+            "b_rcvd": 26984,
+            "wall_ms": 151.16,
+            "combined_mbps": 0.0
+          },
+          {
+            "both_intact": 0,
+            "a_rcvd": 28430,
+            "b_rcvd": 28430,
+            "wall_ms": 157.23,
+            "combined_mbps": 0.0
+          },
+          {
+            "both_intact": 0,
+            "a_rcvd": 28430,
+            "b_rcvd": 28430,
+            "wall_ms": 587.92,
+            "combined_mbps": 0.0
+          },
+          {
+            "both_intact": 0,
+            "a_rcvd": 22646,
+            "b_rcvd": 29876,
+            "wall_ms": 165.49,
+            "combined_mbps": 0.0
+          }
+        ],
+        "nltp_v2_both_sha_ok_pct": 100.0,
+        "nltp_v2_median_mbps": 3.05,
+        "nltp_v2_median_ms": 171.9,
+        "nltp_v2_rounds": [
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 171.9,
+            "combined_mbps": 3.05
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 258.93,
+            "combined_mbps": 2.025
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 161.51,
+            "combined_mbps": 3.246
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 215.99,
+            "combined_mbps": 2.427
+          },
+          {
+            "both_sha_ok": 1,
+            "wall_ms": 140.88,
+            "combined_mbps": 3.722
+          }
+        ]
+      }
+    },
+    "soak_50x8kb": {
+      "streams": 50,
+      "bytes_per_stream": 8192,
+      "total_bytes": 409600,
+      "verified_streams": 50,
+      "wall_seconds": 13.16,
+      "median_stream_ms": 14.74,
+      "heap_tx_before": 83120,
+      "heap_tx_after": 83124,
+      "heap_tx_delta": 4,
+      "heap_rx_before": 84372,
+      "heap_rx_after": 84372,
+      "heap_rx_delta": 0
+    },
+    "deep_sleep_wakes_20x": {
+      "wakes": 20,
+      "verified_wakes": 20,
+      "median_ms": 4.34
+    },
+    "v132_stray_conn_id_antistall": {
+      "trials": 3,
+      "stream_survived_pct": 100.0,
+      "stray_shards_injected_per_trial": 3,
+      "median_ms_at_1m": 290.61,
+      "raw": [
+        {
+          "ok": 1,
+          "tx_verified": 1,
+          "sha_ok": 1,
+          "rcvd_bytes": 16384,
+          "total_bytes": 16384,
+          "ms": 70.66,
+          "mbps": 1.855,
+          "max_l2": 1010,
+          "pkts_tx": 37,
+          "rssi": -49,
+          "stray_injected": 3
+        },
+        {
+          "ok": 1,
+          "tx_verified": 1,
+          "sha_ok": 1,
+          "rcvd_bytes": 16384,
+          "total_bytes": 16384,
+          "ms": 1158.97,
+          "mbps": 0.113,
+          "max_l2": 1010,
+          "pkts_tx": 101,
+          "rssi": -50,
+          "stray_injected": 5
+        },
+        {
+          "ok": 1,
+          "tx_verified": 1,
+          "sha_ok": 1,
+          "rcvd_bytes": 16384,
+          "total_bytes": 16384,
+          "ms": 290.61,
+          "mbps": 0.451,
+          "max_l2": 1010,
+          "pkts_tx": 129,
+          "rssi": -49,
+          "stray_injected": 4
+        }
+      ]
+    },
+    "v132_adversarial_fuzz_200": {
+      "unknown_sender_100_frames": {
+        "raw_v2_forged_sent": 20,
+        "raw_v2_forged_accepted": 20,
+        "nltp_forged_sent": 80,
+        "nltp_stateless_preauth_drops": 80,
+        "nltp_slots_allocated": 0
+      },
+      "known_slot_100_frames": {
+        "raw_v2_forged_sent": 20,
+        "raw_v2_forged_accepted": 20,
+        "nltp_forged_and_replay_sent": 80,
+        "nltp_endpoint_auth_drops": 80,
+        "post_flood_16kb_sha_ok": 1,
+        "post_flood_16kb_mbps": 0.893
+      }
+    }
+  },
+  "c99_3node_30sensor_sim": {
+    "returncode": 0,
+    "passed": true,
+    "output": "key: base64 key (generate_nltp_key format) used as-is      PASS  000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f\nkey: passphrase trimmed and hashed like Python             PASS  0d978f36f81f07b3fedabbaf5fd5fafdf6b9a31f78fda65a04d534ceb540e6d0\nplaintext transfer, 200 KB                                 PASS  \nencrypted transfer, 200 KB                                 PASS  auth_drops=0\nencrypted transfer with 10% loss                           PASS  \ntampering: 5% bit-flipped packets rejected, file intact    PASS  tampered packets rejected=12\nreplay: every 7th packet re-sent, all rejected             PASS  replays rejected=32\nwrong key: nothing accepted, transfer does not complete    PASS  accepted=0 rejected=668\ndowngrade: unencrypted sender refused by encrypted receiver PASS  rejected=671\ncancelled stream: sid=2 resets incomplete sid=1 cleanly    PASS  sid=2 verified=1\ndeep-sleep re-wake: new conn_id resets incomplete bridge rx PASS  peer_cid=0x7777 verified=1\nesp-now v1 (192B shard <=250B) -> v2 (960B) rx under 15% loss PASS  max_pkt=242B (<=250B) gens=22 sha_ok=1\nforged plaintext packet mid-transfer is ignored            PASS  forged=1 peer_cid=0x1313 sha_ok=1\nstale packet from previous session (valid AEAD) ignored    PASS  peer_cid=0x4243 sha_ok=1\n\nALL PASSED (0 failures)\n[encrypted hub, 2 slots]\n  A. 30 sensors in turn: 30/30 transfers acknowledged; hub ESP-NOW peer table 3/20\n  B. 60 KB transfer under a flood of 44 forged frames: acknowledged after 0.1 s; hub peer table 3/20, slots 2\n  C. 2 sensors mid-transfer + a 3rd arrives: sensor1=1 sensor2=1 sensor3=1 (all done by 0.4 s)\nESP-NOW SIM PASSED\n[plaintext hub, 2 slots]\n  A. 30 sensors in turn: 30/30 transfers acknowledged; hub ESP-NOW peer table 3/20\n  B. 60 KB transfer under a flood of 53 forged frames: acknowledged after 0.1 s; hub peer table 3/20, slots 2\n  C. 2 sensors mid-transfer + a 3rd arrives: sensor1=1 sensor2=1 sensor3=1 (all done by 0.4 s)\nESP-NOW SIM PASSED"
+  }
+}

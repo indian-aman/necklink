@@ -1,9 +1,6 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-> **Version note.** Every NLTP component in this repository is **1.3.2**. That version is not yet
-> published as a release, so the instructions below install it from a clone of this repository.
-> The older v1.2.0 GitHub release assets (Arduino zip, JS tarball, Java JAR) and `pip install pynltp`
-> (1.3.1 on PyPI) still work, but lack the v1.3.2 receive-stall fix and the ESP-NOW transport fixes.
+> **Version note.** Every NLTP component in this repository is **1.3.2**, and **`pynltp 1.3.2` is published on PyPI** (`pip install --upgrade pynltp`). For the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java/Android `1.3.2` SDKs, build or install from a clone of this repository as shown below.
 
 ```bash
 git clone https://github.com/indian-aman/necklink.git
@@ -15,9 +12,9 @@ cd necklink/packages/nltp
 Installs the Python library (`import nltp`, `import pynltp`, `import necklink`) and the `nltp` CLI:
 
 ```bash
+pip install --upgrade pynltp
+# or from a local clone:
 pip install .
-# or without cloning:
-pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
 ```
 
 Verify:
