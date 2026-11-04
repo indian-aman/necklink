@@ -102,7 +102,12 @@ jobs:
           mvn -q -B package -DskipTests
           javac --release 11 -cp target/nltp-1.3.2.jar -d target/test-classes src/test/java/io/necklink/nltp/*.java
           java -cp "target/nltp-1.3.2.jar:target/test-classes" io.necklink.nltp.NLTPSelfTest
-      - name: Cross-language interop (C <-> Python 72, Python/C/JS/Java 210)
+      - name: Cross-language interop (C <-> Python 72, Python/C/JS/Java 216)
         run: |
           python scripts/c_interop_test.py
           python scripts/multilang_interop_test.py
+      - name: Real-project examples (vessel/shore demo, shore dashboard, ESP32 sensor -> gateway -> shore sketches)
+        run: |
+          python examples/python/05_vessel_shore_link.py demo --loss 0.15
+          node examples/javascript/shore_dashboard.mjs --demo
+          python scripts/esp32_sketch_e2e_test.py

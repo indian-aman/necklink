@@ -188,6 +188,7 @@ public final class NLTPClient extends NLTPSocketBase {
         return seq;
     }
 
+
     private TransferReceipt buildReceipt(NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer, boolean ok) {
         double endS = (xfer.completedAt != null) ? xfer.completedAt : NLTPEndpoint.monoNowS();
         double elapsed = Math.max(1e-6, endS - xfer.startedAt);

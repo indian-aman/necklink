@@ -19,7 +19,7 @@ static const uint8_t WIFI_CHANNEL = 11;
 static const char   *SHARED_PSK   = "replace-with-your-shared-secret";
 
 // Replace with your bridge or peer's STA MAC address (or leave FF:FF:FF:FF:FF:FF until first RX)
-static const uint8_t PEER_MAC[6]  = {0xEC, 0x64, 0xC9, 0x9B, 0xA2, 0xBC};
+static const uint8_t PEER_MAC[6]  = {0x24, 0x0A, 0xC4, 0x00, 0x00, 0x01};  // placeholder: your peer's MAC
 
 NLTPESPNowNode nltp;
 static uint32_t lastSendMs = 0;

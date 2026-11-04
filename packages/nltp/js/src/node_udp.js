@@ -324,6 +324,19 @@ class NLTPSocketBase {
     return { host: a.address, port: a.port, family: a.family };
   }
 
+  /**
+   * Resolves true once reflex `seq` is acknowledged, false on timeout (or with a peer older than
+   * v1.3.2). Keep the socket open until then: closing it stops the retransmissions.
+   */
+  async waitReflexAck(seq, timeoutMs = 3000) {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      if (this.engine.reflexAcked(seq)) return true;
+      await new Promise((r) => setTimeout(r, 2));
+    }
+    return false;
+  }
+
   recv(timeoutMs = 5000) {
     return this.engine.waitInbox(timeoutMs);
   }
@@ -536,6 +549,12 @@ export class NLTPServer extends NLTPSocketBase {
     return this._readyPromise;
   }
 
+  /** Urgent reflex (e.g. an E-stop) to a connected client; retransmitted until acknowledged. */
+  async sendReflex(clientAddr, urgentMsg) {
+    const raw = typeof urgentMsg === 'string' ? new TextEncoder().encode(urgentMsg) : urgentMsg;
+    return this.engine.sendReflex(clientAddr, raw);
+  }
+
   async sendBytes(clientAddr, data, { filename = '', timeoutMs = 15000 } = {}) {
     await this.ready();
     const kind = filename ? 'file' : 'bytes';
@@ -674,6 +693,7 @@ export class NLTPClient extends NLTPSocketBase {
     const raw = typeof urgentMsg === 'string' ? utf8Encode(urgentMsg) : toUint8Array(urgentMsg);
     return this.engine.sendReflex(this.serverAddr, raw);
   }
+
 }
 
 export async function discoverWanEndpoint({ stunServers = DEFAULT_PUBLIC_STUN_SERVERS, timeoutMs = 2500 } = {}) {

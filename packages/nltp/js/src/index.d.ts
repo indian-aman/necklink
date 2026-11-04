@@ -20,6 +20,7 @@ export const PT_REFLEX_MSG: number;
 export const PT_NEURAL_STATE: number;
 export const PT_PING: number;
 export const PT_PONG: number;
+export const PT_REFLEX_ACK: number;
 
 export interface PeerAddress {
   host: string;
@@ -135,6 +136,13 @@ export class NLTPEndpoint {
   });
   startTransfer(peer: PeerAddress | [string, number] | string, data: Uint8Array | string, opts?: { kind?: string; filename?: string; nowS?: number | null }): any;
   sendReflex(peer: PeerAddress | [string, number] | string, msg: Uint8Array | string, opts?: { crypticTwin?: boolean; nowS?: number | null }): number;
+  /** True once the receiver acknowledged reflex `seq` (peers older than v1.3.2 never acknowledge). */
+  reflexAcked(seq: number): boolean;
+  /** Reflexes still being retransmitted while waiting for an acknowledgement. */
+  reflexPending(): number;
+  reflexRetransmits: number;
+  reflexAcksRx: number;
+  reflexExpired: number;
   sendPing(peer: PeerAddress | [string, number] | string, nowS?: number | null): void;
   stepTx(nowS?: number | null): void;
   step(nowS?: number | null): void;
@@ -169,6 +177,8 @@ export class NLTPServer {
   discoverWan(opts?: { stunServers?: [string, number][]; timeoutMs?: number }): Promise<StunDiscoveryResult>;
   punchP2p(peerWanAddr: PeerAddress | [string, number], opts?: { timeoutMs?: number; prePunchTtl?: number }): Promise<boolean>;
   close(): Promise<void>;
+  waitReflexAck(seq: number, timeoutMs?: number): Promise<boolean>;
+  sendReflex(clientAddr: PeerAddress, urgentMsg: string | Uint8Array): Promise<number>;
 }
 
 export interface NLTPClientOptions extends NLTPServerOptions {
@@ -195,6 +205,7 @@ export class NLTPClient {
   discoverWan(opts?: { stunServers?: [string, number][]; timeoutMs?: number }): Promise<StunDiscoveryResult>;
   punchP2p(peerWanAddr: PeerAddress | [string, number], opts?: { timeoutMs?: number; prePunchTtl?: number }): Promise<boolean>;
   close(): Promise<void>;
+  waitReflexAck(seq: number, timeoutMs?: number): Promise<boolean>;
 }
 
 export class NLTPRelayHub {

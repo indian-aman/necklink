@@ -114,6 +114,8 @@ public final class NLTPCli {
                         if (maxItems > 0 && count >= maxItems) break;
                     }
                 }
+                // Keep answering briefly so late retransmissions (reflexes, final FECs) still get their ACK
+                Thread.sleep(500L);
             }
             return;
         }
@@ -146,10 +148,15 @@ public final class NLTPCli {
             int port = Integer.parseInt(args[2]);
             String text = args.length > 3 ? args[3] : "ESTOP";
             String psk = getOpt(args, "--psk", null);
-            try (NLTPClient cli = NLTPClient.builder().server(host, port).psk(psk).build()) {
-                cli.sendReflex(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                Thread.sleep(30L);
-                System.out.println("RESULT {\"ok\":true}");
+            double loss = Double.parseDouble(getOpt(args, "--loss", "0"));
+            boolean acked;
+            try (NLTPClient cli = NLTPClient.builder().server(host, port).psk(psk).lossDropSim(loss).build()) {
+                int seq = cli.sendReflex(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                acked = cli.waitReflexAck(seq, 3000L);
+                System.out.println("RESULT {\"ok\":" + acked + ",\"acked\":" + acked + "}");
+            }
+            if (!acked) {
+                System.exit(1);
             }
             return;
         }

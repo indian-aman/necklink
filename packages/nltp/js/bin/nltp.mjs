@@ -104,6 +104,8 @@ Commands:
           if (maxItems > 0 && count >= maxItems) break;
         }
       }
+      // Keep answering briefly so late retransmissions (reflexes, final FECs) still get their ACK
+      await new Promise((r) => setTimeout(r, 500));
     } finally {
       await srv.close();
     }
@@ -141,12 +143,13 @@ Commands:
     const port = Number(argv[2]);
     const text = argv[3] ?? 'ESTOP';
     const psk = getOpt(argv, '--psk', null);
-    const cli = await NLTPClient.connect({ host, port, psk });
+    const loss = Number(getOpt(argv, '--loss', '0'));
+    const cli = await NLTPClient.connect({ host, port, psk, lossDropSim: loss });
     try {
-      await cli.sendReflex(text);
-      await new Promise((r) => setTimeout(r, 30));
-      console.log(`RESULT ${JSON.stringify({ ok: true, reflex: text })}`);
-      return 0;
+      const seq = await cli.sendReflex(text);
+      const acked = await cli.waitReflexAck(seq, 3000);
+      console.log(`RESULT ${JSON.stringify({ ok: acked, acked, reflex: text })}`);
+      return acked ? 0 : 1;
     } finally {
       await cli.close();
     }

@@ -19,6 +19,7 @@ import {
   PT_PING,
   PT_PONG,
   PT_PROPRIOCEPTIVE_ACK,
+  PT_REFLEX_ACK,
   PT_REFLEX_MSG,
   PT_STREAM_FIN_ACK,
   PT_STREAM_META,
@@ -38,6 +39,13 @@ import {
   writeU16LE,
   writeU32LE,
 } from './wire.js';
+
+// Reliable reflex lane (v1.3.2): retransmit until PT_REFLEX_ACK, receivers de-duplicate by (connId, seq)
+const REFLEX_ACK_TIMEOUT_S = 3.0;
+const REFLEX_RETX_MIN_S = 0.015;
+const REFLEX_RETX_FIRST_MAX_S = 0.06;
+const REFLEX_RETX_MAX_S = 0.25;
+const REFLEX_SEEN_MAX = 8192;
 
 export function normalizePeerKey(peer) {
   if (typeof peer === 'string') return peer;
@@ -597,7 +605,12 @@ export class NLTPEndpoint {
 
     this._nextStreamId = 1;
     this._reflexSeq = 0;
-    this._seenReflexIds = new Set();
+    this._seenReflexIds = new Set(); // insertion-ordered; trimmed to REFLEX_SEEN_MAX
+    this._reflexPending = new Map(); // seq -> { peer, payload, nextS, intervalS, deadlineS }
+    this._reflexAcked = new Set();
+    this.reflexRetransmits = 0;
+    this.reflexAcksRx = 0;
+    this.reflexExpired = 0;
 
     this.connRoutes = new Map();       // peerConnId -> peer
     this.outbound = new Map();         // streamId -> OutboundTransfer
@@ -771,7 +784,38 @@ export class NLTPEndpoint {
     if (crypticTwin || this.peerLossEma > 0.05) {
       this._emit(PT_REFLEX_MSG, peer, payload, 0x02, nowS);
     }
+    const tNow = nowS === null ? this._nowS() : nowS;
+    const intervalS = Math.min(REFLEX_RETX_FIRST_MAX_S, Math.max(REFLEX_RETX_MIN_S, (1.25 * this.srttMs) / 1000.0));
+    this._reflexPending.set(this._reflexSeq, {
+      peer, payload, nextS: tNow + intervalS, intervalS, deadlineS: tNow + REFLEX_ACK_TIMEOUT_S,
+    });
     return this._reflexSeq;
+  }
+
+  /** True once the receiver acknowledged reflex `seq` (peers older than v1.3.2 never acknowledge). */
+  reflexAcked(seq) {
+    return this._reflexAcked.has(seq >>> 0);
+  }
+
+  /** Number of reflexes still being retransmitted while waiting for an acknowledgement. */
+  reflexPending() {
+    return this._reflexPending.size;
+  }
+
+  _serviceReflexes(tNow) {
+    for (const [seq, item] of this._reflexPending) {
+      if (tNow >= item.deadlineS) {
+        this._reflexPending.delete(seq);
+        this.reflexExpired += 1;
+        continue;
+      }
+      if (tNow >= item.nextS) {
+        this._emit(PT_REFLEX_MSG, item.peer, item.payload, 0x02, tNow);
+        this.reflexRetransmits += 1;
+        item.intervalS = Math.min(REFLEX_RETX_MAX_S, item.intervalS * 1.5);
+        item.nextS = tNow + item.intervalS;
+      }
+    }
   }
 
   _proactiveShards(xfer, gen) {
@@ -805,6 +849,10 @@ export class NLTPEndpoint {
     const tNow = nowS === null ? this._nowS() : nowS;
     const rtoS = Math.max(0.055, Math.min(2.0, (this.srttMs / 1000.0) * 1.85));
     const inflightGuardS = Math.max(0.035, (this.srttMs / 1000.0) * 1.4);
+
+    if (this._reflexPending.size > 0) {
+      this._serviceReflexes(tNow);
+    }
 
     if (this._pendingAcks.size > 0) {
       const pending = Array.from(this._pendingAcks.entries());
@@ -1015,6 +1063,9 @@ export class NLTPEndpoint {
       const key = `${peerConnId}:${rSeq}`;
       if (!this._seenReflexIds.has(key)) {
         this._seenReflexIds.add(key);
+        if (this._seenReflexIds.size > REFLEX_SEEN_MAX) {
+          this._seenReflexIds.delete(this._seenReflexIds.values().next().value);
+        }
         const msg = payload.slice(6, 6 + mLen);
         this._pushInbox(new ReceivedItem({
           connId: peerConnId,
@@ -1023,6 +1074,22 @@ export class NLTPEndpoint {
           kind: 'reflex',
           data: msg,
         }));
+      }
+      // Acknowledge every copy: the sender retransmits until one ACK gets through
+      const ack = new Uint8Array(4);
+      writeU32LE(ack, 0, rSeq);
+      this._emit(PT_REFLEX_ACK, peer, ack, 0x02, tNow);
+      return;
+    }
+
+    if (pktType === PT_REFLEX_ACK && payload.length >= 4) {
+      const aSeq = readU32LE(payload, 0);
+      if (this._reflexPending.delete(aSeq)) {
+        this.reflexAcksRx += 1;
+        this._reflexAcked.add(aSeq);
+        if (this._reflexAcked.size > REFLEX_SEEN_MAX) {
+          this._reflexAcked.delete(this._reflexAcked.values().next().value);
+        }
       }
       return;
     }

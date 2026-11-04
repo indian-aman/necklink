@@ -265,6 +265,26 @@ public abstract class NLTPSocketBase implements AutoCloseable {
         }
     }
 
+    /**
+     * Blocks until reflex {@code seq} is acknowledged; false on timeout (or with a peer older than v1.3.2).
+     * Keep the socket open until then: closing it stops the retransmissions.
+     */
+    public boolean waitReflexAck(int seq, long timeoutMs) throws InterruptedException {
+        long deadline = System.nanoTime() + timeoutMs * 1_000_000L;
+        while (System.nanoTime() < deadline) {
+            lock.lock();
+            try {
+                if (engine.reflexAcked(seq)) {
+                    return true;
+                }
+            } finally {
+                lock.unlock();
+            }
+            Thread.sleep(2L);
+        }
+        return false;
+    }
+
     public NLTPEndpoint<InetSocketAddress> engine() {
         return engine;
     }

@@ -30,6 +30,7 @@ export const PT_REFLEX_MSG = 0x06;
 export const PT_NEURAL_STATE = 0x07;
 export const PT_PING = 0x08;
 export const PT_PONG = 0x09;
+export const PT_REFLEX_ACK = 0x0a; // receiver -> sender: u32 reflex seq (reliable reflex lane, v1.3.2)
 
 // Relay & STUN constants
 export const RELAY_MAGIC_0 = 0x4e; // 'N'

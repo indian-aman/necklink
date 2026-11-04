@@ -10,8 +10,10 @@ Verifies:
   3. 6 cross-language Zero-Knowledge NLTPRelayHub CGNAT traversals (Python, JS, and Java hubs)
      under 10% packet loss.
   4. 4 cross-language out-of-line `send_reflex` urgent frame deliveries (Python, JS, Java).
+  5. 6 cross-language reliable-reflex runs at 15% loss each way: 5 reflexes per pair, each must be
+     delivered exactly once and acknowledged (v1.3.2 reliable reflex lane).
 
-Total: 210 live cross-language protocol verifications.
+Total: 216 live cross-language protocol verifications.
 """
 from __future__ import annotations
 
@@ -327,6 +329,67 @@ def run_reflex_pair(sender: str, receiver: str, port: int, psk: str) -> Dict:
     }
 
 
+def run_reflex_loss_pair(sender: str, receiver: str, port: int, psk: str, n: int = 5, loss: float = 0.15) -> Dict:
+    """Reliable reflex lane under loss: `n` reflexes, each delivered exactly once and acknowledged."""
+    msgs = [f"ESTOP_{sender.upper()}_{receiver.upper()}_{i}" for i in range(n)]
+    t0 = time.perf_counter()
+    acks = 0
+
+    def cli_send(lang: str, msg: str) -> bool:
+        base = [NODE_BIN, JS_CLI] if lang == "js" else [JAVA_BIN, "-jar", JAVA_JAR]
+        proc = subprocess.run(
+            [*base, "send-reflex", "127.0.0.1", str(port), msg, "--psk", psk, "--loss", str(loss)],
+            capture_output=True, text=True, timeout=30,
+        )
+        return '"acked":true' in proc.stdout.replace(" ", "")
+
+    if receiver == "py":
+        with NLTPServer(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as srv:
+            for m in msgs:
+                acks += cli_send(sender, m)
+            got = []
+            while True:
+                item = srv.recv(timeout=1.0)
+                if item is None:
+                    break
+                if item.kind == "reflex":
+                    got.append(item.data.decode("utf-8"))
+        ok = sorted(got) == sorted(msgs) and acks == n
+    else:
+        base = [NODE_BIN, JS_CLI] if receiver == "js" else [JAVA_BIN, "-jar", JAVA_JAR]
+        rx_proc = subprocess.Popen(
+            [*base, "serve", "--host", "127.0.0.1", "--port", str(port), "--psk", psk,
+             "--max-items", str(n), "--loss", str(loss)],
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
+        )
+        _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
+        if sender == "py":
+            with NLTPClient(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as cli:
+                for m in msgs:
+                    acks += cli.wait_reflex_ack(cli.send_reflex(m), timeout=3.0)
+        else:
+            for m in msgs:
+                acks += cli_send(sender, m)
+        try:
+            out, _ = rx_proc.communicate(timeout=15.0)
+        except subprocess.TimeoutExpired:
+            rx_proc.kill()
+            out, _ = rx_proc.communicate()
+        ok = out.count("RECEIVED kind=reflex") == n and acks == n
+
+    return {
+        "category": "reflex-loss",
+        "sender": sender,
+        "receiver": receiver,
+        "loss_pct": int(loss * 100),
+        "size": n,
+        "key_mode": "b64-key",
+        "acked": acks,
+        "ok": bool(ok),
+        "elapsed_s": round(time.perf_counter() - t0, 4),
+    }
+
+
 def main() -> None:
     work_dir = ROOT / "results" / "_tmp_multilang_interop"
     if work_dir.exists():
@@ -341,7 +404,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 1. Full 4x4 Matrix: 16 pairs x 3 key modes x 2 sizes x 2 losses = 192
         # ------------------------------------------------------------------
-        print("=== Part 1/4: Full 4x4 Language Matrix (py, c, js, java) — 192 Live Transfers ===", flush=True)
+        print("=== Part 1/5: Full 4x4 Language Matrix (py, c, js, java) — 192 Live Transfers ===", flush=True)
         files = {}
         for sz in (1000, 65536, 262144):
             fp = work_dir / f"payload_{sz}.bin"
@@ -359,7 +422,7 @@ def main() -> None:
                             rows.append(res)
                             status = "OK  " if res["ok"] else "FAIL"
                             print(
-                                f"  [{len(rows):>3}/210] {res['key_mode']:>10}  {s:>4} -> {r:<4}  "
+                                f"  [{len(rows):>3}/216] {res['key_mode']:>10}  {s:>4} -> {r:<4}  "
                                 f"{sz:>7} B  loss {loss:>2}%  {status}  {res['elapsed_s']:.3f}s",
                                 flush=True,
                             )
@@ -369,7 +432,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 2. 256 KB Encrypted Lossy Stress (15% loss) across 8 cross-lang pairs
         # ------------------------------------------------------------------
-        print("\n=== Part 2/4: 256 KB Encrypted Multi-Window Stress @ 15% Loss (8 Cross-Language Pairs) ===", flush=True)
+        print("\n=== Part 2/5: 256 KB Encrypted Multi-Window Stress @ 15% Loss (8 Cross-Language Pairs) ===", flush=True)
         stress_pairs = [
             ("py", "js"), ("js", "java"), ("java", "c"), ("c", "py"),
             ("py", "java"), ("java", "js"), ("js", "c"), ("c", "java"),
@@ -380,7 +443,7 @@ def main() -> None:
             res["category"] = "stress_256k"
             rows.append(res)
             print(
-                f"  [{len(rows):>3}/210]   256KB-enc  {s:>4} -> {r:<4}  "
+                f"  [{len(rows):>3}/216]   256KB-enc  {s:>4} -> {r:<4}  "
                 f"262144 B  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s",
                 flush=True,
             )
@@ -390,7 +453,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 3. Cross-Language Zero-Knowledge NLTPRelayHub CGNAT Traversal (10% loss)
         # ------------------------------------------------------------------
-        print("\n=== Part 3/4: Cross-Language Zero-Knowledge NLTPRelayHub @ 10% Loss (Python / JS / Java Hubs) ===", flush=True)
+        print("\n=== Part 3/5: Cross-Language Zero-Knowledge NLTPRelayHub @ 10% Loss (Python / JS / Java Hubs) ===", flush=True)
         # 3a. Python NLTPRelayHub
         with NLTPRelayHub(("0.0.0.0", 0)) as py_hub:
             hub_port = py_hub.getsockname()[1]
@@ -402,7 +465,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "py"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/210]  py-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/216]  py-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"Python RelayHub failure: {res}")
 
@@ -423,7 +486,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "js"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/210]  js-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/216]  js-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"JS RelayHub failure: {res}")
         finally:
@@ -447,7 +510,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "java"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/210] java-relay  {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/216] java-relay  {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"Java RelayHub failure: {res}")
         finally:
@@ -457,14 +520,23 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 4. Cross-Language Out-of-Line Reflex Messages
         # ------------------------------------------------------------------
-        print("\n=== Part 4/4: Cross-Language Out-of-Line Reflex Verification ===", flush=True)
+        print("\n=== Part 4/5: Cross-Language Out-of-Line Reflex Verification ===", flush=True)
         for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py")):
             port += 1
             res = run_reflex_pair(s, r, port, b64_key)
             rows.append(res)
-            print(f"  [{len(rows):>3}/210]    reflex   {s:>4} -> {r:<4}      {res['size']:>2} B  loss  0%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+            print(f"  [{len(rows):>3}/216]    reflex   {s:>4} -> {r:<4}      {res['size']:>2} B  loss  0%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
             if not res["ok"]:
                 raise RuntimeError(f"Reflex interop failure: {res}")
+
+        print("\n=== Part 5/5: Reliable Reflex Lane @ 15% Loss (5 reflexes per pair, delivered once + acked) ===", flush=True)
+        for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py"), ("js", "java"), ("java", "js")):
+            port += 1
+            res = run_reflex_loss_pair(s, r, port, b64_key)
+            rows.append(res)
+            print(f"  [{len(rows):>3}/216] reflex x5  {s:>4} -> {r:<4}  acked {res['acked']}/5  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+            if not res["ok"]:
+                raise RuntimeError(f"Reliable reflex interop failure: {res}")
 
     finally:
         if work_dir.exists():

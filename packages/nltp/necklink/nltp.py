@@ -71,6 +71,13 @@ PT_REFLEX_MSG = 0x06
 PT_NEURAL_STATE = 0x07
 PT_PING = 0x08
 PT_PONG = 0x09
+PT_REFLEX_ACK = 0x0A  # receiver -> sender: u32 reflex seq (reliable reflex lane, v1.3.2)
+
+REFLEX_ACK_TIMEOUT_S = 3.0      # keep retransmitting an unacknowledged reflex for this long
+REFLEX_RETX_MIN_S = 0.015
+REFLEX_RETX_FIRST_MAX_S = 0.06  # first retransmit within 60 ms even before an RTT sample exists
+REFLEX_RETX_MAX_S = 0.25
+REFLEX_SEEN_MAX = 8192          # remembered (conn_id, seq) pairs for duplicate suppression
 
 FLAG_ENCRYPTED = 0x80
 
@@ -635,7 +642,14 @@ class NLTPEndpoint:
 
         self._next_stream_id: int = 1
         self._reflex_seq: int = 0
-        self._seen_reflex_ids: set[Tuple[int, int]] = set()
+        # Bounded duplicate filter (insertion-ordered dict used as an LRU set)
+        self._seen_reflex_ids: Dict[Tuple[int, int], None] = {}
+        # Unacknowledged reflexes: seq -> [peer, payload, next_retx_s, interval_s, deadline_s]
+        self._reflex_pending: Dict[int, list] = {}
+        self._reflex_acked: Dict[int, None] = {}
+        self.reflex_retransmits = 0
+        self.reflex_acks_rx = 0
+        self.reflex_expired = 0
         self._current_tx_now_s: Optional[float] = None
 
         # Connection Migration table: peer_conn_id -> latest verified (ip, port)
@@ -770,7 +784,34 @@ class NLTPEndpoint:
         self._emit(PT_REFLEX_MSG, peer, payload, flags=0x02, now_s=now_s)
         if cryptic_twin or self.peer_loss_ema > 0.05:
             self._emit(PT_REFLEX_MSG, peer, payload, flags=0x02, now_s=now_s)
+        # Reliable lane: retransmit until the receiver's PT_REFLEX_ACK arrives (or the deadline passes).
+        # Receivers de-duplicate by (conn_id, seq), so retransmissions are delivered once.
+        t_now = time.perf_counter() if now_s is None else now_s
+        interval = min(REFLEX_RETX_FIRST_MAX_S, max(REFLEX_RETX_MIN_S, 1.25 * self.srtt_ms / 1000.0))
+        self._reflex_pending[self._reflex_seq] = [peer, payload, t_now + interval, interval, t_now + REFLEX_ACK_TIMEOUT_S]
         return self._reflex_seq
+
+    def reflex_acked(self, seq: int) -> bool:
+        """True once the receiver has acknowledged reflex `seq` (peers older than v1.3.2 never acknowledge)."""
+        return seq in self._reflex_acked
+
+    def reflex_pending(self) -> int:
+        """Number of reflexes still being retransmitted while waiting for an acknowledgement."""
+        return len(self._reflex_pending)
+
+    def _service_reflexes(self, t_now: float) -> None:
+        for seq in list(self._reflex_pending):
+            item = self._reflex_pending[seq]
+            peer, payload, next_s, interval, deadline = item
+            if t_now >= deadline:
+                del self._reflex_pending[seq]
+                self.reflex_expired += 1
+                continue
+            if t_now >= next_s:
+                self._emit(PT_REFLEX_MSG, peer, payload, flags=0x02, now_s=t_now)
+                self.reflex_retransmits += 1
+                item[3] = min(REFLEX_RETX_MAX_S, interval * 1.5)
+                item[2] = t_now + item[3]
 
     def send_telemetry(self, peer: Address, values: Any, *, profile: str = "sensor_plateau", now_s: Optional[float] = None) -> int:
         """Streams live sensor/AI values over the embedded zero-retransmission NeckLink lane."""
@@ -843,6 +884,10 @@ class NLTPEndpoint:
         t_now = time.perf_counter() if now_s is None else now_s
         rto_s = max(0.055, min(2.0, (self.srtt_ms / 1000.0) * 1.85))
         inflight_guard_s = max(0.035, (self.srtt_ms / 1000.0) * 1.40)
+
+        # 0a. Retransmit unacknowledged reflexes (reliable reflex lane)
+        if self._reflex_pending:
+            self._service_reflexes(t_now)
 
         # 0. Flush any consolidated Proprioceptive ACKs accumulated during the latest UDP burst
         if self._pending_acks:
@@ -1002,11 +1047,24 @@ class NLTPEndpoint:
             r_seq, m_len = struct.unpack_from("<IH", payload, 0)
             key = (peer_conn_id, r_seq)
             if key not in self._seen_reflex_ids:
-                self._seen_reflex_ids.add(key)
+                self._seen_reflex_ids[key] = None
+                if len(self._seen_reflex_ids) > REFLEX_SEEN_MAX:
+                    self._seen_reflex_ids.pop(next(iter(self._seen_reflex_ids)))
                 msg = payload[6 : 6 + m_len]
                 self.completed_inbox.append(
                     ReceivedItem(conn_id=peer_conn_id, peer_addr=peer, stream_id=0, kind="reflex", data=msg)
                 )
+            # Acknowledge every copy (the sender keeps retransmitting until one ACK gets through)
+            self._emit(PT_REFLEX_ACK, peer, struct.pack("<I", r_seq), flags=0x02, now_s=t_now)
+            return
+
+        if pkt_type == PT_REFLEX_ACK and len(payload) >= 4:
+            (a_seq,) = struct.unpack_from("<I", payload, 0)
+            if self._reflex_pending.pop(a_seq, None) is not None:
+                self.reflex_acks_rx += 1
+                self._reflex_acked[a_seq] = None
+                if len(self._reflex_acked) > REFLEX_SEEN_MAX:
+                    self._reflex_acked.pop(next(iter(self._reflex_acked)))
             return
 
         if pkt_type == PT_NEURAL_STATE:
@@ -1241,6 +1299,17 @@ class NLTPEndpoint:
 
 class _NLTPSocketBase:
     """Common Internet UDP I/O loop supporting DNS, IPv4/IPv6, live STUN, P2P hole-punching & RelayHub."""
+
+    def wait_reflex_ack(self, seq: int, timeout: float = 3.0) -> bool:
+        """Block until reflex `seq` is acknowledged; False on timeout (or with a peer older than v1.3.2).
+        Keep the socket open until then: closing it stops the retransmissions."""
+        deadline = time.perf_counter() + timeout
+        while time.perf_counter() < deadline:
+            with self._lock:
+                if self.engine.reflex_acked(seq):
+                    return True
+            time.sleep(0.002)
+        return False
 
     _sock: socket.socket
     engine: NLTPEndpoint
@@ -1516,12 +1585,13 @@ class NLTPServer(_NLTPSocketBase):
     def recv(self, timeout: float = 5.0) -> Optional[ReceivedItem]:
         """Blocks up to `timeout` seconds for the next completed file, message, JSON, or reflex alert."""
         deadline = time.perf_counter() + timeout
-        while time.perf_counter() < deadline:
+        while True:  # checks at least once, so recv(timeout=0) is a non-blocking poll
             with self._lock:
                 if self.engine.completed_inbox:
                     return self.engine.completed_inbox.pop(0)
+            if time.perf_counter() >= deadline:
+                return None
             time.sleep(0.002)
-        return None
 
     def poll_telemetry(self) -> Dict[Address, Any]:
         with self._lock:
@@ -1530,6 +1600,13 @@ class NLTPServer(_NLTPSocketBase):
     def poll_telemetry_tick(self, peer: Optional[Address] = None) -> Dict[Address, Any]:
         with self._lock:
             return self.engine.poll_telemetry_tick(peer)
+
+    def send_reflex(self, client_addr: Address, urgent_msg: Union[str, bytes]) -> int:
+        """Urgent reflex (e.g. an E-stop) to a connected client; retransmitted until acknowledged.
+        Pair with `wait_reflex_ack(seq)` to confirm delivery."""
+        b = urgent_msg.encode("utf-8") if isinstance(urgent_msg, str) else urgent_msg
+        with self._lock:
+            return self.engine.send_reflex(client_addr, b)
 
     def send_bytes(self, client_addr: Address, data: bytes, timeout: float = 15.0) -> bool:
         with self._lock:
@@ -1685,10 +1762,12 @@ class NLTPClient(_NLTPSocketBase):
         return self._transfer_receipt(xfer, ok)
 
     def send_reflex(self, urgent_msg: Union[str, bytes]) -> int:
-        """Instant Giant-Fiber reflex message: 0 head-of-line blocking even during heavy file uploads!"""
+        """Urgent reflex message: bypasses the file queue (no head-of-line blocking) and is retransmitted
+        until the receiver acknowledges it (or ~3 s pass). Returns the reflex sequence number."""
         b = urgent_msg.encode("utf-8") if isinstance(urgent_msg, str) else urgent_msg
         with self._lock:
             return self.engine.send_reflex(self.server_addr, b)
+
 
     def send_telemetry(self, values: Any, *, profile: str = "sensor_plateau") -> int:
         with self._lock:
@@ -1696,12 +1775,13 @@ class NLTPClient(_NLTPSocketBase):
 
     def recv(self, timeout: float = 5.0) -> Optional[ReceivedItem]:
         deadline = time.perf_counter() + timeout
-        while time.perf_counter() < deadline:
+        while True:  # checks at least once, so recv(timeout=0) is a non-blocking poll
             with self._lock:
                 if self.engine.completed_inbox:
                     return self.engine.completed_inbox.pop(0)
+            if time.perf_counter() >= deadline:
+                return None
             time.sleep(0.002)
-        return None
 
     def _wait_transfer(self, xfer: OutboundTransfer, timeout: float) -> bool:
         deadline = time.perf_counter() + timeout

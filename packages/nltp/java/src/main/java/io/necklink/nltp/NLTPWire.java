@@ -37,6 +37,8 @@ public final class NLTPWire {
     public static final int PT_NEURAL_STATE = 0x07;
     public static final int PT_PING = 0x08;
     public static final int PT_PONG = 0x09;
+    /** Receiver to sender: u32 reflex seq (reliable reflex lane, v1.3.2). */
+    public static final int PT_REFLEX_ACK = 0x0A;
 
     public static final byte RELAY_MAGIC_0 = 0x4E; // 'N'
     public static final byte RELAY_MAGIC_1 = 0x52; // 'R'

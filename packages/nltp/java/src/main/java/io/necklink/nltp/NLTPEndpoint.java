@@ -6,7 +6,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -327,7 +329,34 @@ public final class NLTPEndpoint<P> {
     private final Map<P, Double> keepaliveTargets = new LinkedHashMap<>();
     private int nextStreamId = 1;
     private int reflexSeq = 0;
-    private final Set<String> seenReflexIds = new HashSet<>();
+    // Reliable reflex lane (v1.3.2): retransmit until PT_REFLEX_ACK; receivers de-duplicate by (connId, seq)
+    private static final double REFLEX_ACK_TIMEOUT_S = 3.0;
+    private static final double REFLEX_RETX_MIN_S = 0.015;
+    private static final double REFLEX_RETX_FIRST_MAX_S = 0.06;
+    private static final double REFLEX_RETX_MAX_S = 0.25;
+    private static final int REFLEX_SEEN_MAX = 8192;
+    private final Set<String> seenReflexIds = new LinkedHashSet<>();
+    private final Map<Integer, PendingReflex<P>> reflexPending = new LinkedHashMap<>();
+    private final Set<Integer> reflexAckedSeqs = new LinkedHashSet<>();
+    private long reflexRetransmits = 0;
+    private long reflexAcksRx = 0;
+    private long reflexExpired = 0;
+
+    private static final class PendingReflex<P> {
+        final P peer;
+        final byte[] payload;
+        double nextS;
+        double intervalS;
+        final double deadlineS;
+
+        PendingReflex(P peer, byte[] payload, double nextS, double intervalS, double deadlineS) {
+            this.peer = peer;
+            this.payload = payload;
+            this.nextS = nextS;
+            this.intervalS = intervalS;
+            this.deadlineS = deadlineS;
+        }
+    }
 
     private final Map<Integer, P> connRoutes = new HashMap<>();
     private final Map<Integer, OutboundTransfer<P>> outbound = new LinkedHashMap<>();
@@ -517,7 +546,57 @@ public final class NLTPEndpoint<P> {
         if (crypticTwin || peerLossEma > 0.05) {
             emit(NLTPWire.PT_REFLEX_MSG, peer, payload, 0x02, tNow);
         }
+        double intervalS = Math.min(REFLEX_RETX_FIRST_MAX_S, Math.max(REFLEX_RETX_MIN_S, 1.25 * srttMs / 1000.0));
+        reflexPending.put(reflexSeq, new PendingReflex<>(peer, payload, tNow + intervalS, intervalS, tNow + REFLEX_ACK_TIMEOUT_S));
         return reflexSeq;
+    }
+
+    /** True once the receiver acknowledged reflex {@code seq} (peers older than v1.3.2 never acknowledge). */
+    public boolean reflexAcked(int seq) {
+        return reflexAckedSeqs.contains(seq);
+    }
+
+    /** Number of reflexes still being retransmitted while waiting for an acknowledgement. */
+    public int reflexPending() {
+        return reflexPending.size();
+    }
+
+    public long reflexRetransmits() {
+        return reflexRetransmits;
+    }
+
+    public long reflexAcksRx() {
+        return reflexAcksRx;
+    }
+
+    public long reflexExpired() {
+        return reflexExpired;
+    }
+
+    private void serviceReflexes(double tNow) {
+        Iterator<Map.Entry<Integer, PendingReflex<P>>> it = reflexPending.entrySet().iterator();
+        while (it.hasNext()) {
+            PendingReflex<P> r = it.next().getValue();
+            if (tNow >= r.deadlineS) {
+                it.remove();
+                reflexExpired++;
+                continue;
+            }
+            if (tNow >= r.nextS) {
+                emit(NLTPWire.PT_REFLEX_MSG, r.peer, r.payload, 0x02, tNow);
+                reflexRetransmits++;
+                r.intervalS = Math.min(REFLEX_RETX_MAX_S, r.intervalS * 1.5);
+                r.nextS = tNow + r.intervalS;
+            }
+        }
+    }
+
+    private static <T> void trimOldest(Set<T> set, int max) {
+        Iterator<T> it = set.iterator();
+        while (set.size() > max && it.hasNext()) {
+            it.next();
+            it.remove();
+        }
     }
 
     private int proactiveShards(OutboundTransfer<P> xfer, TxGeneration gen) {
@@ -550,6 +629,10 @@ public final class NLTPEndpoint<P> {
     public void stepTx(double tNow) {
         double rtoS = Math.max(0.055, Math.min(2.0, (srttMs / 1000.0) * 1.85));
         double inflightGuardS = Math.max(0.035, (srttMs / 1000.0) * 1.40);
+
+        if (!reflexPending.isEmpty()) {
+            serviceReflexes(tNow);
+        }
 
         if (!pendingAcks.isEmpty()) {
             List<Map.Entry<String, PendingAck>> copy = new ArrayList<>(pendingAcks.entrySet());
@@ -732,8 +815,23 @@ public final class NLTPEndpoint<P> {
             int mLen = Math.min(NLTPWire.readU16LE(payload, 4), payload.length - 6);
             String key = peerConnId + ":" + Integer.toUnsignedString(rSeq);
             if (seenReflexIds.add(key)) {
+                trimOldest(seenReflexIds, REFLEX_SEEN_MAX);
                 byte[] msg = Arrays.copyOfRange(payload, 6, 6 + mLen);
                 completedInbox.offer(new ReceivedItem<>(peerConnId, peer, 0, "reflex", msg, "", null, "", true));
+            }
+            // Acknowledge every copy: the sender retransmits until one ACK gets through
+            byte[] ack = new byte[4];
+            NLTPWire.writeU32LE(ack, 0, rSeq);
+            emit(NLTPWire.PT_REFLEX_ACK, peer, ack, 0x02, tNow);
+            return;
+        }
+
+        if (pktType == NLTPWire.PT_REFLEX_ACK && payload.length >= 4) {
+            int aSeq = NLTPWire.readU32LE(payload, 0);
+            if (reflexPending.remove(aSeq) != null) {
+                reflexAcksRx++;
+                reflexAckedSeqs.add(aSeq);
+                trimOldest(reflexAckedSeqs, REFLEX_SEEN_MAX);
             }
             return;
         }

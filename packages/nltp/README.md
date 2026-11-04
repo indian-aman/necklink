@@ -10,7 +10,7 @@
 
 [![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
 [![Version](https://img.shields.io/badge/version-1.3.2%20(this%20repo)-0EA5E9?style=flat-square)](#changelog)
-[![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-210%2F210%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
+[![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-216%2F216%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%201.3.2-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NLTP/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
@@ -39,7 +39,7 @@ Standard `TCP` and `QUIC` stall on bursty wireless fades, while raw microcontrol
 
 - **Survives `20%` Packet Loss & Bursty Fades**: Systematic `GF(2^8)` Cauchy forward error correction (8-shard generations + incremental Gauss-Jordan decoding) reconstructs lost packets without waiting for round-trip retransmission timeouts.
 - **1-RTT Bottleneck Pacing**: Adaptive BBR-style delivery-rate and packet-train probing learns link capacity in a single round trip without overflowing router queues.
-- **One Wire Format Across 5 Platforms (`ESP32` / C99 ↔ Python ↔ JavaScript/TS ↔ Java)**: Zero-malloc ANSI C99 (`~65 KB` RAM on `ESP32`) talks two-way (`tx` + `rx` on one UDP port) directly to Python, Node.js/Browser, and Java/Android endpoints, verified by `ChaCha20-Poly1305` (256-bit AEAD), `RFC 6479` replay protection, and end-to-end `SHA-256` receipts (`210/210` cross-language pairings verified).
+- **One Wire Format Across 5 Platforms (`ESP32` / C99 ↔ Python ↔ JavaScript/TS ↔ Java)**: Zero-malloc ANSI C99 (`~65 KB` RAM on `ESP32`) talks two-way (`tx` + `rx` on one UDP port) directly to Python, Node.js/Browser, and Java/Android endpoints, verified by `ChaCha20-Poly1305` (256-bit AEAD), `RFC 6479` replay protection, and end-to-end `SHA-256` receipts (`216/216` cross-language checks verified).
 - **Built-In NAT & Carrier CGNAT Traversal**: `RFC 5389` STUN discovery, low-TTL (`TTL=2`) direct UDP hole-punching, keepalives, and automatic 3-second fallback to a zero-knowledge 1-port UDP relay (`NLTPRelayHub`).
 
 ```mermaid
@@ -66,7 +66,7 @@ pip install pynltp                                                              
 > [!NOTE]
 > 1.3.2 is not published yet. PyPI's 1.3.1 and the v1.2.0 release assets (JS tarball, Java JAR, Arduino zip) work, but lack the 1.3.2 C/ESP32 receive-stall fix and the ESP-NOW transport fixes. Each section below shows how to install 1.3.2 from this repository; [`docs/INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md) has the details.
 
-Send an out-of-line urgent command (`send_reflex`) and a `SHA-256`-verified encrypted file in 10 lines:
+Send an urgent command (`send_reflex`, confirmed with `wait_reflex_ack`) and a `SHA-256`-verified encrypted file in 10 lines:
 
 ```python
 from nltp import NLTPServer, NLTPClient, generate_nltp_key
@@ -75,7 +75,8 @@ key = generate_nltp_key()  # 256-bit ChaCha20-Poly1305 key
 
 with NLTPServer(("0.0.0.0", 9000), save_dir="./inbox", psk=key) as srv:
     with NLTPClient(("127.0.0.1", 9000), psk=key, max_tx_kbps=10_000) as cli:
-        cli.send_reflex("ESTOP_CHECK")                 # Bypasses file queue (0 HOL blocking)
+        seq = cli.send_reflex("ESTOP_CHECK")           # Bypasses the file queue; resent until acked
+        assert cli.wait_reflex_ack(seq, timeout=3.0)   # True once the server confirmed it
         receipt = cli.send_file("mission_log.bin")     # Cauchy FEC + SHA-256 verified
         assert receipt["verified_sha256"] is True
 ```
@@ -138,7 +139,7 @@ try (NLTPServer srv = NLTPServer.builder().bind("0.0.0.0", 9000).psk(key).saveDi
 
 ### 4. Arduino IDE & PlatformIO (`ESP32`)
 
-- **Arduino IDE (`.ZIP`)**: zip the library folder (`cd packages/nltp/arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP`) → **Sketch → Include Library → Add .ZIP Library...** → open **File → Examples → NLTP** (`ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`, `ESP32_Relay_CGNAT_Node`, `ESPNowV2Interop`).
+- **Arduino IDE (`.ZIP`)**: zip the library folder (`cd packages/nltp/arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP`) → **Sketch → Include Library → Add .ZIP Library...** → open **File → Examples → NLTP** (`ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`, `ESP32_Relay_CGNAT_Node`, `ESPNowV2Interop`, and the real-project pair `ESP32_ESPNow_Sensor_Node` + `ESP32_ESPNow_Gateway`).
 - **PlatformIO (`platformio.ini`)**, pointing at your clone:
   ```ini
   lib_deps =
@@ -347,11 +348,12 @@ The NLTP column is measured through `scripts/radio_emulator.py`. The other colum
 
 ### 4. Cross-Language (`Python ↔ C99 ↔ JavaScript ↔ Java`) & Dual-NAT / CGNAT Verification
 
-- **`210/210` 4-Language Wire & Encryption Interoperability ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py) / [`results/multilang_interop_test.json`](results/multilang_interop_test.json))**:
+- **`216/216` 4-Language Wire & Encryption Interoperability ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py) / [`results/multilang_interop_test.json`](results/multilang_interop_test.json))**:
   - **`192/192` Full 4×4 Directional Matrix**: Every `sender → receiver` pair across **Python**, **ANSI C99**, **JavaScript (Node.js ESM/CJS)**, and **Java (JDK 11+ NIO)** across plaintext, 256-bit Base64 keys, and passphrases at `0%` and `15%` packet loss (`1 KB` short `k=1` generation and `64 KB` multi-generation FEC).
   - **`8/8` `256 KB` Lossy Cross-Language Stress**: Heterogeneous encrypted multi-window streams (`py↔js`, `js↔java`, `java↔c`, `c↔py`) at `15%` packet loss.
   - **`6/6` Cross-Language Zero-Knowledge `NLTPRelayHub`**: Python, JavaScript, and Java relay hubs forwarding encrypted `64 KB` streams across heterogeneous language pairs at `10%` loss.
   - **`4/4` Cross-Language Urgent `send_reflex`**: Out-of-line encrypted `ESTOP` delivery across `Python ↔ JS` and `Python ↔ Java`.
+  - **`6/6` Reliable Reflex Lane at `15%` loss**: 5 reflexes per pair across `py↔js`, `py↔java`, `js↔java` (both directions), each delivered exactly once and acknowledged.
 - **`14/14` C99 + `9/9` JS + `7/7` Java Security & FEC Self-Tests** (plus the C ESP-NOW hub simulation, `make -C csrc espnow-sim`): Verified cross-SDK key derivation parity, bit-flipped packet rejection + `GF(2^8)` erasure recovery, `RFC 6479` replay rejection, wrong-key rejection, and plaintext-downgrade rejection.
 - **`18/18` Dual-NAT & Symmetric-CGNAT Suite ([`scripts/virtual_nat_test.py`](scripts/virtual_nat_test.py))**: `1 MB` encrypted transfers across two separate Linux NAT routers (`40 ms` RTT + `5%` loss on each last mile):
   - Direct STUN + low-TTL UDP hole-punching (`C↔C` and `C↔Python`): **`9/9` direct P2P** (`1.22–2.26 s`).
@@ -383,12 +385,12 @@ The NLTP column is measured through `scripts/radio_emulator.py`. The other colum
 | [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python package & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPRelayHub`, STUN/hole-punch, `ChaCha20-Poly1305` AEAD, `nltp` CLI) |
 | [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + Browser/WebRTC `NLTPEndpoint` + Node UDP `NLTPServer`/`NLTPClient`/`NLTPRelayHub` + `nltp-js` CLI) |
 | [`java/`](java/) | Zero-dependency Pure Java 11+ / Android SDK (`io.necklink:nltp`, Maven `pom.xml` + Gradle, portable `ChaCha20-Poly1305`, NIO UDP + `NLTPCli` executable JAR) |
-| [`arduino/NLTP/`](arduino/NLTP/) | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) and `NLTPESPNowNode` (ESP-NOW), with 4 example sketches |
-| [`examples/`](examples/) | Runnable Python (`examples/python/`), JavaScript (`examples/javascript/`), and Java (`examples/java/`) examples |
+| [`arduino/NLTP/`](arduino/NLTP/) | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) and `NLTPESPNowNode` (ESP-NOW), with 6 example sketches |
+| [`examples/`](examples/) | Runnable Python, JavaScript and Java examples, including the [real-project examples](examples/README.md#0-real-project-examples-start-here) (vessel ↔ shore link with confirmed E-stop, shore web dashboard, ESP32 sensor → ESP-NOW gateway → shore) |
 | [`csrc/`](csrc/) | Portable zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_wire.h`), ESP-NOW transport (`nltp_espnow.h`), POSIX CLI, `14/14` self-tests and the ESP-NOW radio simulation (`tools/espnow_sim/`) |
 | [`esp32/`](esp32/) | PlatformIO `ESP32` hardware firmware (`Arduino-ESP32`), verified bidirectional over encrypted Wi-Fi and emulated radio profiles |
 | [`esp32_mesh/`](esp32_mesh/) | ESP-NOW mesh, hub and interop firmware used for the ESP-NOW hardware results |
-| [`scripts/`](scripts/) | Live field-trial kit ([`field_test.py`](scripts/field_test.py)), `210/210` 4-language interop ([`multilang_interop_test.py`](scripts/multilang_interop_test.py)), `72/72` C↔Python interop, `18/18` dual-NAT suite, and `netem` harnesses |
+| [`scripts/`](scripts/) | Live field-trial kit ([`field_test.py`](scripts/field_test.py)), `216/216` 4-language interop ([`multilang_interop_test.py`](scripts/multilang_interop_test.py)), `72/72` C↔Python interop, ESP32 example-sketch end-to-end test ([`esp32_sketch_e2e_test.py`](scripts/esp32_sketch_e2e_test.py)), `18/18` dual-NAT suite, and `netem` harnesses |
 | [`tests/`](tests/) | `pytest` unit and integration suite (`23` tests; torch, aioquic and Internet-dependent tests skip when unavailable) |
 | [`docs/`](docs/) | Installation & PyPI publishing guide ([`INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md)) and GitHub Actions CI workflow ([`github-ci.yml`](docs/github-ci.yml)) |
 
@@ -411,6 +413,14 @@ python scripts/field_test.py client --host <SHORE_IP> --port 9700 --psk "<KEY>" 
 ## Changelog
 
 **1.3.2** (all components: Python, C, Arduino, JavaScript, Java)
+- *New (Python, JS, Java): reliable reflex lane.* Reflexes (e.g. an E-stop) used to be sent twice and never confirmed. Now:
+  - The receiver acknowledges every copy (new packet type `0x0A`, `PT_REFLEX_ACK`) and delivers each reflex once.
+  - The sender retransmits until acknowledged: first retry after 15–60 ms, backing off to 250 ms, giving up after 3 s.
+  - New calls: `wait_reflex_ack(seq)` / `waitReflexAck` on clients and servers, and `NLTPServer.send_reflex(client_addr, msg)` so a shore server can stop a vessel.
+  - Measured on localhost with simulated loss: 300/300 reflexes delivered at 15% and at 30% loss each way, in each of Python, JS and Java.
+  - Compatible with 1.3.1 peers: they ignore the ACK, so delivery behaves as before and `wait_reflex_ack` returns `False`. The C core does not send or receive reflexes.
+- *Fix (Python):* `recv(timeout=0)` now polls once instead of always returning `None`.
+- *Examples:* three real-project examples with self-tests that CI runs ([`examples/README.md`](examples/README.md#0-real-project-examples-start-here)): vessel ↔ shore link, Node shore dashboard, and the ESP32 sensor → ESP-NOW gateway → shore sketches. The sketches are tested end to end on the simulated radio against a real Python server.
 - *Fix (C / Arduino receiver):* since 1.2.1, a single packet from another `conn_id` reset an unfinished receive, and the sender could never repair it. That packet could be one forged plaintext packet, or one delayed or replayed encrypted packet from the sender's previous session. A different `conn_id` may now take over only after 1 s of silence, or once the current stream is complete, so ESP32 deep-sleep re-wake still works. Self-tests 13–14 cover both cases.
 - *Fix (`nltp_espnow.h` hub):*
   - unknown senders are authenticated before they get a slot or a peer-table entry;

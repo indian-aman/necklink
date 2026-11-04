@@ -62,6 +62,19 @@ public final class NLTPServer extends NLTPSocketBase {
         startWorker("nltp-java-server");
     }
 
+    /** Urgent reflex (e.g. an E-stop) to a connected client; retransmitted until acknowledged. */
+    public int sendReflex(InetSocketAddress clientAddr, byte[] urgentBytes) {
+        int seq;
+        lock.lock();
+        try {
+            seq = engine.sendReflex(clientAddr, urgentBytes, true, NLTPEndpoint.monoNowS());
+        } finally {
+            lock.unlock();
+        }
+        selector.wakeup();
+        return seq;
+    }
+
     public boolean sendBytes(InetSocketAddress clientAddr, byte[] data, long timeoutMs) {
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();

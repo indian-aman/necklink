@@ -3,6 +3,9 @@
 #include <stdbool.h>
 #include "esp_err.h"
 #include "esp_wifi.h"
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define ESP_NOW_MAX_DATA_LEN_V2 1470
 #define ESP_NOW_MAX_TOTAL_PEER_NUM 20
 typedef struct { int rssi; int noise_floor; } wifi_pkt_rx_ctrl_t;
@@ -21,3 +24,6 @@ esp_err_t esp_now_del_peer(const uint8_t *mac);
 bool esp_now_is_peer_exist(const uint8_t *mac);
 esp_err_t esp_now_set_peer_rate_config(const uint8_t *mac, esp_now_rate_config_t *cfg);
 esp_err_t esp_now_send(const uint8_t *mac, const uint8_t *data, size_t len);
+#ifdef __cplusplus
+}
+#endif
