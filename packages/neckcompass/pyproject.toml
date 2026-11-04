@@ -1,0 +1,65 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "neckcompass"
+version = "1.0.0"
+description = "NeckCompass: Drosophila Central Complex ring-attractor compass and GPS-denied path integrator with natural ferromagnetic spike rejection"
+readme = "README.md"
+requires-python = ">=3.9"
+license = {text = "MIT"}
+authors = [
+  {name = "Amandeep Singh Bains"}
+]
+keywords = [
+  "neckcompass",
+  "necklink",
+  "ring-attractor",
+  "central-complex",
+  "drosophila",
+  "compass",
+  "ahrs",
+  "magnetometer",
+  "imu",
+  "path-integration",
+  "gps-denied",
+  "robotics",
+  "usv",
+  "auv",
+  "esp32",
+]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: C",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Topic :: Scientific/Engineering :: Artificial Intelligence",
+  "Topic :: Scientific/Engineering :: Bio-Informatics",
+  "Topic :: System :: Hardware :: Hardware Drivers",
+]
+dependencies = [
+  "numpy>=1.24",
+]
+
+[project.urls]
+Homepage = "https://github.com/indian-aman/neckcompass"
+Repository = "https://github.com/indian-aman/neckcompass"
+Releases = "https://github.com/indian-aman/neckcompass/releases"
+Issues = "https://github.com/indian-aman/neckcompass/issues"
+Documentation = "https://github.com/indian-aman/neckcompass#readme"
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "matplotlib>=3.7", "build>=1.0", "twine>=5.0"]
+
+[project.scripts]
+neckcompass = "neckcompass.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["neckcompass*"]

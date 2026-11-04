@@ -1,0 +1,10 @@
+include LICENSE
+include README.md
+include pyproject.toml
+recursive-include neckcompass *.py
+recursive-include csrc *.h *.c Makefile
+prune assets
+prune csrc/build
+prune results
+prune scripts
+prune tests

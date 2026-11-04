@@ -1,0 +1,19 @@
+# Python caches & build outputs
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
+
+# C99 build outputs
+csrc/build/
+*.o
+*.exe
+*.out
+
+# Local graph / editor caches
+.codegraph/
+.vscode/
+.idea/
