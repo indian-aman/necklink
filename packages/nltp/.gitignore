@@ -27,6 +27,7 @@ java/*.class
 
 # ESP32 PlatformIO build & Wi-Fi credentials
 esp32/.pio/
+esp32_mesh/.pio/
 esp32/include/secrets.h
 esp32/*.log
 

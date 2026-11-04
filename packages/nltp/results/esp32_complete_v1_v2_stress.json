@@ -1,0 +1,834 @@
+{
+  "timestamp_utc": "2026-11-04T15:51:35Z",
+  "hardware": {
+    "COM9": {
+      "chip": "ESP32-D0WDQ6",
+      "role": "C99 nltp_espnow_hub_t + Raw v1/v2 + Fuzzer + SLIP",
+      "mac": "ec:64:c9:9b:a2:bc",
+      "espnow_v": 2,
+      "mtu": 1470
+    },
+    "COM12": {
+      "chip": "ESP32-D0WD-V3",
+      "role": "Arduino NLTPESPNowNode + Raw v1/v2",
+      "mac": "f0:24:f9:0d:e8:34",
+      "espnow_v": 2,
+      "mtu": 1470
+    }
+  },
+  "cat1_4way_protocol_matrix_0pct_loss": [
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 4,
+      "rcvd_bytes": 4,
+      "pkts": "1/1",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 2.46,
+      "mbps": 0.013,
+      "raw_wire_mbps": 0.013,
+      "max_tx_l2_bytes": 16
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 4,
+      "rcvd_bytes": 4,
+      "pkts": "1/1",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 3.18,
+      "mbps": 0.01,
+      "raw_wire_mbps": 0.01,
+      "max_tx_l2_bytes": 16
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 4,
+      "rcvd_bytes": 4,
+      "intact": true,
+      "ms": 6.4,
+      "mbps": 0.005,
+      "max_tx_l2_bytes": 198,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 4,
+      "rcvd_bytes": 4,
+      "intact": true,
+      "ms": 5.29,
+      "mbps": 0.006,
+      "max_tx_l2_bytes": 198,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 193,
+      "rcvd_bytes": 193,
+      "pkts": "1/1",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 3.12,
+      "mbps": 0.495,
+      "raw_wire_mbps": 0.495,
+      "max_tx_l2_bytes": 205
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 193,
+      "rcvd_bytes": 193,
+      "pkts": "1/1",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 3.14,
+      "mbps": 0.491,
+      "raw_wire_mbps": 0.491,
+      "max_tx_l2_bytes": 205
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 193,
+      "rcvd_bytes": 193,
+      "intact": true,
+      "ms": 6.29,
+      "mbps": 0.245,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 193,
+      "rcvd_bytes": 193,
+      "intact": true,
+      "ms": 8.24,
+      "mbps": 0.187,
+      "max_tx_l2_bytes": 243,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 1024,
+      "rcvd_bytes": 1024,
+      "pkts": "5/5",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 6.55,
+      "mbps": 1.25,
+      "raw_wire_mbps": 1.25,
+      "max_tx_l2_bytes": 250
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 1024,
+      "rcvd_bytes": 1024,
+      "pkts": "1/1",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 4.26,
+      "mbps": 1.924,
+      "raw_wire_mbps": 1.924,
+      "max_tx_l2_bytes": 1036
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 1024,
+      "rcvd_bytes": 1024,
+      "intact": true,
+      "ms": 9.88,
+      "mbps": 0.829,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 1024,
+      "rcvd_bytes": 1024,
+      "intact": true,
+      "ms": 13.9,
+      "mbps": 0.59,
+      "max_tx_l2_bytes": 1010,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 4096,
+      "rcvd_bytes": 4096,
+      "pkts": "18/18",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 20.0,
+      "mbps": 1.638,
+      "raw_wire_mbps": 1.638,
+      "max_tx_l2_bytes": 250
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 4096,
+      "rcvd_bytes": 4096,
+      "pkts": "3/3",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 10.15,
+      "mbps": 3.228,
+      "raw_wire_mbps": 3.228,
+      "max_tx_l2_bytes": 1470
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 4096,
+      "rcvd_bytes": 4096,
+      "intact": true,
+      "ms": 51.68,
+      "mbps": 0.634,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 4096,
+      "rcvd_bytes": 4096,
+      "intact": true,
+      "ms": 11.73,
+      "mbps": 2.795,
+      "max_tx_l2_bytes": 1010,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "pkts": "69/69",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 41.3,
+      "mbps": 3.174,
+      "raw_wire_mbps": 3.174,
+      "max_tx_l2_bytes": 250
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "pkts": "12/12",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 20.11,
+      "mbps": 6.519,
+      "raw_wire_mbps": 6.519,
+      "max_tx_l2_bytes": 1470
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "intact": true,
+      "ms": 160.57,
+      "mbps": 0.816,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "intact": true,
+      "ms": 42.16,
+      "mbps": 3.109,
+      "max_tx_l2_bytes": 1010,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "Raw_ESPNow_v1",
+      "bytes": 32768,
+      "rcvd_bytes": 32768,
+      "pkts": "138/138",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 72.07,
+      "mbps": 3.637,
+      "raw_wire_mbps": 3.637,
+      "max_tx_l2_bytes": 250
+    },
+    {
+      "protocol": "Raw_ESPNow_v2",
+      "bytes": 32768,
+      "rcvd_bytes": 32768,
+      "pkts": "23/23",
+      "intact": true,
+      "ack_rcvd": true,
+      "ms": 34.96,
+      "mbps": 7.498,
+      "raw_wire_mbps": 7.498,
+      "max_tx_l2_bytes": 1470
+    },
+    {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 32768,
+      "rcvd_bytes": 32768,
+      "intact": true,
+      "ms": 206.25,
+      "mbps": 1.271,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -52
+    },
+    {
+      "protocol": "NLTP_ESPNow_v2",
+      "bytes": 32768,
+      "rcvd_bytes": 32768,
+      "intact": true,
+      "ms": 116.16,
+      "mbps": 2.257,
+      "max_tx_l2_bytes": 1010,
+      "rssi_dbm": -53
+    }
+  ],
+  "cat2_7mode_phy_rate_sweep": [
+    {
+      "rate_id": 0,
+      "rate_name": "802.11b_1M",
+      "call_4B_ms": {
+        "raw_v1": 10.53,
+        "raw_v2": 5.39,
+        "nltp_v1": 10.98,
+        "nltp_v2": 10.02
+      },
+      "bulk_bytes": 4096,
+      "bulk_mbps": {
+        "raw_v1": 0.568,
+        "raw_v2": 0.742,
+        "nltp_v1": 0.316,
+        "nltp_v2": 0.391
+      },
+      "bulk_ms": {
+        "raw_v1": 57.74,
+        "raw_v2": 44.13,
+        "nltp_v1": 103.68,
+        "nltp_v2": 83.7
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 1,
+      "rate_name": "802.11b_11M",
+      "call_4B_ms": {
+        "raw_v1": 5.39,
+        "raw_v2": 3.43,
+        "nltp_v1": 7.51,
+        "nltp_v2": 6.34
+      },
+      "bulk_bytes": 16384,
+      "bulk_mbps": {
+        "raw_v1": 1.836,
+        "raw_v2": 6.803,
+        "nltp_v1": 1.425,
+        "nltp_v2": 2.147
+      },
+      "bulk_ms": {
+        "raw_v1": 71.4,
+        "raw_v2": 19.27,
+        "nltp_v1": 92.0,
+        "nltp_v2": 61.05
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 2,
+      "rate_name": "HT20_MCS4",
+      "call_4B_ms": {
+        "raw_v1": 5.54,
+        "raw_v2": 3.43,
+        "nltp_v1": 5.33,
+        "nltp_v2": 5.28
+      },
+      "bulk_bytes": 32768,
+      "bulk_mbps": {
+        "raw_v1": 5.329,
+        "raw_v2": 14.269,
+        "nltp_v1": 2.095,
+        "nltp_v2": 2.81
+      },
+      "bulk_ms": {
+        "raw_v1": 49.19,
+        "raw_v2": 18.37,
+        "nltp_v1": 125.11,
+        "nltp_v2": 93.27
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 3,
+      "rate_name": "HT20_MCS7",
+      "call_4B_ms": {
+        "raw_v1": 3.72,
+        "raw_v2": 3.3,
+        "nltp_v1": 21.98,
+        "nltp_v2": 5.3
+      },
+      "bulk_bytes": 32768,
+      "bulk_mbps": {
+        "raw_v1": 2.539,
+        "raw_v2": 9.642,
+        "nltp_v1": 1.657,
+        "nltp_v2": 2.876
+      },
+      "bulk_ms": {
+        "raw_v1": 103.25,
+        "raw_v2": 27.19,
+        "nltp_v1": 158.16,
+        "nltp_v2": 91.16
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 4,
+      "rate_name": "AUTO_RSSI",
+      "call_4B_ms": {
+        "raw_v1": 10.22,
+        "raw_v2": 9.17,
+        "nltp_v1": 6.33,
+        "nltp_v2": 5.29
+      },
+      "bulk_bytes": 32768,
+      "bulk_mbps": {
+        "raw_v1": 2.697,
+        "raw_v2": 12.837,
+        "nltp_v1": 1.423,
+        "nltp_v2": 3.397
+      },
+      "bulk_ms": {
+        "raw_v1": 97.21,
+        "raw_v2": 20.42,
+        "nltp_v1": 184.26,
+        "nltp_v2": 77.17
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 5,
+      "rate_name": "LR_250K",
+      "call_4B_ms": {
+        "raw_v1": 9.84,
+        "raw_v2": 10.07,
+        "nltp_v1": 29.98,
+        "nltp_v2": 26.99
+      },
+      "bulk_bytes": 4096,
+      "bulk_mbps": {
+        "raw_v1": 0.161,
+        "raw_v2": 0.217,
+        "nltp_v1": 0.087,
+        "nltp_v2": 0.099
+      },
+      "bulk_ms": {
+        "raw_v1": 203.82,
+        "raw_v2": 150.75,
+        "nltp_v1": 377.68,
+        "nltp_v2": 331.69
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    },
+    {
+      "rate_id": 6,
+      "rate_name": "LR_500K",
+      "call_4B_ms": {
+        "raw_v1": 10.23,
+        "raw_v2": 6.44,
+        "nltp_v1": 20.98,
+        "nltp_v2": 18.0
+      },
+      "bulk_bytes": 4096,
+      "bulk_mbps": {
+        "raw_v1": 0.309,
+        "raw_v2": 0.427,
+        "nltp_v1": 0.167,
+        "nltp_v2": 0.184
+      },
+      "bulk_ms": {
+        "raw_v1": 106.19,
+        "raw_v2": 76.76,
+        "nltp_v1": 195.73,
+        "nltp_v2": 177.74
+      },
+      "bulk_intact": {
+        "raw_v1": true,
+        "raw_v2": true,
+        "nltp_v1": true,
+        "nltp_v2": true
+      }
+    }
+  ],
+  "cat3_packet_loss_sweep_16kb": [
+    {
+      "drop_pct": 0,
+      "trials": 3,
+      "raw_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 27.09,
+        "effective_goodput_mbps": 4.872
+      },
+      "raw_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 9.0,
+        "effective_goodput_mbps": 14.719
+      },
+      "nltp_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 66.46,
+        "effective_goodput_mbps": 1.977,
+        "max_tx_l2": 242
+      },
+      "nltp_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 47.53,
+        "effective_goodput_mbps": 2.758,
+        "max_tx_l2": 1010
+      }
+    },
+    {
+      "drop_pct": 5,
+      "trials": 3,
+      "raw_v1": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 15591,
+        "avg_ms": 28.37,
+        "effective_goodput_mbps": 0.0
+      },
+      "raw_v2": {
+        "delivery_rate": "2/3",
+        "intact_pct": 66.7,
+        "avg_rcvd_bytes": 15412,
+        "avg_ms": 9.26,
+        "effective_goodput_mbps": 8.99
+      },
+      "nltp_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 77.77,
+        "effective_goodput_mbps": 1.687,
+        "max_tx_l2": 242
+      },
+      "nltp_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 55.17,
+        "effective_goodput_mbps": 2.52,
+        "max_tx_l2": 1010
+      }
+    },
+    {
+      "drop_pct": 15,
+      "trials": 3,
+      "raw_v1": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 13699,
+        "avg_ms": 49.63,
+        "effective_goodput_mbps": 0.0
+      },
+      "raw_v2": {
+        "delivery_rate": "1/3",
+        "intact_pct": 33.3,
+        "avg_rcvd_bytes": 14926,
+        "avg_ms": 14.54,
+        "effective_goodput_mbps": 3.548
+      },
+      "nltp_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 102.06,
+        "effective_goodput_mbps": 1.297,
+        "max_tx_l2": 242
+      },
+      "nltp_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 68.45,
+        "effective_goodput_mbps": 2.013,
+        "max_tx_l2": 1010
+      }
+    },
+    {
+      "drop_pct": 25,
+      "trials": 3,
+      "raw_v1": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 12906,
+        "avg_ms": 60.9,
+        "effective_goodput_mbps": 0.0
+      },
+      "raw_v2": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 13353,
+        "avg_ms": 24.21,
+        "effective_goodput_mbps": 0.0
+      },
+      "nltp_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 198.93,
+        "effective_goodput_mbps": 0.858,
+        "max_tx_l2": 242
+      },
+      "nltp_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 81.05,
+        "effective_goodput_mbps": 1.644,
+        "max_tx_l2": 1010
+      }
+    },
+    {
+      "drop_pct": 35,
+      "trials": 3,
+      "raw_v1": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 10618,
+        "avg_ms": 74.35,
+        "effective_goodput_mbps": 0.0
+      },
+      "raw_v2": {
+        "delivery_rate": "0/3",
+        "intact_pct": 0.0,
+        "avg_rcvd_bytes": 7521,
+        "avg_ms": 32.61,
+        "effective_goodput_mbps": 0.0
+      },
+      "nltp_v1": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 308.94,
+        "effective_goodput_mbps": 0.437,
+        "max_tx_l2": 242
+      },
+      "nltp_v2": {
+        "delivery_rate": "3/3",
+        "intact_pct": 100.0,
+        "avg_rcvd_bytes": 16384,
+        "avg_ms": 112.73,
+        "effective_goodput_mbps": 1.235,
+        "max_tx_l2": 1010
+      }
+    }
+  ],
+  "cat4_interop_matrix": {
+    "arduino_v1_242B_to_c99_hub_v2_auto": {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "intact": true,
+      "ms": 89.0,
+      "mbps": 1.473,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -53
+    },
+    "c99_hub_v1_242B_to_arduino_v2_auto": {
+      "protocol": "NLTP_ESPNow_v1",
+      "bytes": 16384,
+      "rcvd_bytes": 16384,
+      "intact": true,
+      "ms": 101.0,
+      "mbps": 1.298,
+      "max_tx_l2_bytes": 242,
+      "rssi_dbm": -55
+    },
+    "strict_250B_v1_hardware_cap": {
+      "oversized_1010B_v2_rejected": true,
+      "oversized_mtu_drops": 14,
+      "v1_242B_16KB_verified": {
+        "protocol": "NLTP_ESPNow_v1",
+        "bytes": 16384,
+        "rcvd_bytes": 16384,
+        "intact": true,
+        "ms": 106.86,
+        "mbps": 1.227,
+        "max_tx_l2_bytes": 242,
+        "rssi_dbm": -56
+      },
+      "post_v1_mtu_drops": 0
+    },
+    "plaintext_crc32_v1_and_v2": {
+      "v1_222B": {
+        "protocol": "NLTP_ESPNow_v1",
+        "bytes": 16384,
+        "rcvd_bytes": 16384,
+        "intact": true,
+        "ms": 82.97,
+        "mbps": 1.58,
+        "max_tx_l2_bytes": 222,
+        "rssi_dbm": -53
+      },
+      "v2_990B": {
+        "protocol": "NLTP_ESPNow_v2",
+        "bytes": 16384,
+        "rcvd_bytes": 16384,
+        "intact": true,
+        "ms": 39.08,
+        "mbps": 3.354,
+        "max_tx_l2_bytes": 990,
+        "rssi_dbm": -53
+      }
+    },
+    "python_slip_espnow_v1_and_v2_bidirectional": [
+      {
+        "mode": "ESPNow_v2_960B",
+        "shard_bytes": 960,
+        "bytes_each_way": 4096,
+        "py_to_esp_ms": 682.17,
+        "esp_to_py_ms": 604.12,
+        "max_tx_l2_bytes": 1010,
+        "max_rx_l2_bytes": 1010,
+        "bit_exact_both_ways": true
+      },
+      {
+        "mode": "ESPNow_v1_192B_Strict250B",
+        "shard_bytes": 192,
+        "bytes_each_way": 4096,
+        "py_to_esp_ms": 600.46,
+        "esp_to_py_ms": 631.15,
+        "max_tx_l2_bytes": 242,
+        "max_rx_l2_bytes": 242,
+        "bit_exact_both_ways": true
+      }
+    ]
+  },
+  "cat5_stress_and_security_torture": {
+    "full_duplex_32kb_collision_rounds": [
+      {
+        "round": 1,
+        "loss_pct": 0,
+        "wall_ms": 235.51,
+        "ard_to_hub_ms": 79.15,
+        "hub_to_ard_ms": 175.95,
+        "aggregate_duplex_mbps": 2.226,
+        "both_sha256_ok": true
+      },
+      {
+        "round": 2,
+        "loss_pct": 0,
+        "wall_ms": 251.37,
+        "ard_to_hub_ms": 92.09,
+        "hub_to_ard_ms": 193.95,
+        "aggregate_duplex_mbps": 2.086,
+        "both_sha256_ok": true
+      },
+      {
+        "round": 3,
+        "loss_pct": 0,
+        "wall_ms": 216.49,
+        "ard_to_hub_ms": 77.26,
+        "hub_to_ard_ms": 167.82,
+        "aggregate_duplex_mbps": 2.422,
+        "both_sha256_ok": true
+      },
+      {
+        "round": 4,
+        "loss_pct": 0,
+        "wall_ms": 301.61,
+        "ard_to_hub_ms": 272.15,
+        "hub_to_ard_ms": 239.86,
+        "aggregate_duplex_mbps": 1.738,
+        "both_sha256_ok": true
+      },
+      {
+        "round": 5,
+        "loss_pct": 10,
+        "wall_ms": 250.52,
+        "ard_to_hub_ms": 104.17,
+        "hub_to_ard_ms": 192.83,
+        "aggregate_duplex_mbps": 2.093,
+        "both_sha256_ok": true
+      }
+    ],
+    "rapid_fire_50_streams_soak": {
+      "streams_verified": 50,
+      "v1_25_streams_ms": {
+        "p50": 8.02,
+        "p95": 27.71,
+        "max": 29.72
+      },
+      "v2_25_streams_ms": {
+        "p50": 6.32,
+        "p95": 14.74,
+        "max": 17.73
+      },
+      "com9_heap_before": 94764,
+      "com9_heap_after": 94764,
+      "com9_heap_delta_bytes": 0,
+      "com12_heap_before": 108864,
+      "com12_heap_after": 108864,
+      "com12_heap_delta_bytes": 0
+    },
+    "deep_sleep_20x_conn_id_churn": {
+      "wakes_verified": 20,
+      "unique_conn_ids": 20,
+      "p50_ms": 5.39,
+      "p95_ms": 8.39,
+      "max_ms": 9.35
+    },
+    "mid_stream_cancel_preemption_5x": {
+      "preemptions_verified": 5,
+      "urgent_4B_ms": [
+        6.22,
+        8.22,
+        10.24,
+        7.99,
+        6.24
+      ]
+    },
+    "adversarial_radio_fuzz_120_frames": {
+      "malicious_frames_transmitted": 120,
+      "receiver_auth_drops_increment": 80,
+      "concurrent_16kb_sha256_ok": true,
+      "concurrent_16kb_ms": 44.55
+    }
+  }
+}

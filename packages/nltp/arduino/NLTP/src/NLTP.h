@@ -15,6 +15,9 @@
 
 #include "nltp_core.h"
 #include "nltp_net.h"
+#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+#include "nltp_espnow.h"
+#endif
 
 class NLTPWiFiNode {
 public:
@@ -29,6 +32,7 @@ public:
           _relayAcked(false),
           _lastRelayRegMs(0),
           _lastReportedRxSid(0),
+          _lastReportedRxCid(0),
           _fileReady(false) {
         memset(_roomTag, 0, sizeof(_roomTag));
     }
@@ -163,8 +167,10 @@ public:
 
         nltp_poll(_ep);
 
-        if (_ep->rx.completed && _ep->rx.stream_id != _lastReportedRxSid) {
+        if (_ep->rx.completed &&
+            (_ep->rx.stream_id != _lastReportedRxSid || _ep->rx.peer_cid != _lastReportedRxCid)) {
             _lastReportedRxSid = _ep->rx.stream_id;
+            _lastReportedRxCid = _ep->rx.peer_cid;
             _fileReady = true;
         }
     }
@@ -200,6 +206,7 @@ private:
     uint32_t _lastRelayRegMs;
 
     uint32_t _lastReportedRxSid;
+    uint32_t _lastReportedRxCid;
     bool _fileReady;
 
     bool _alloc(uint32_t rxCapBytes) {
@@ -261,5 +268,105 @@ private:
 
     static uint32_t _nowThunk(void *) { return millis(); }
 };
+
+#if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
+/*
+ * NLTPESPNowNode — Zero-wrapper ESP-NOW v2 (1,470 B MTU) Arduino C++ wrapper.
+ * Wire-interoperable byte-for-byte with C99 `nltp_espnow_node_t`, `nltp_espnow_hub_t`,
+ * and bridged Python `pynltp` / C `nltp_cli` endpoints.
+ */
+class NLTPESPNowNode {
+public:
+    NLTPESPNowNode()
+        : _node(nullptr),
+          _rxBuf(nullptr),
+          _rxCap(0),
+          _lastReportedSid(0),
+          _lastReportedCid(0),
+          _fileReady(false) {}
+
+    ~NLTPESPNowNode() {
+        if (_node) free(_node);
+        if (_rxBuf) free(_rxBuf);
+    }
+
+    bool begin(uint8_t channel = 11,
+               const char *psk = nullptr,
+               nltp_espnow_rate_t rateMode = NLTP_ESPNOW_RATE_AUTO,
+               uint32_t rxCapBytes = 32u * 1024u,
+               uint32_t maxKbps = 20000u) {
+        if (!_node) {
+            _node = (nltp_espnow_node_t *)malloc(sizeof(nltp_espnow_node_t));
+            if (!_node) return false;
+        }
+        if (!_rxBuf || _rxCap != rxCapBytes) {
+            if (_rxBuf) free(_rxBuf);
+            _rxBuf = (uint8_t *)malloc(rxCapBytes);
+            if (!_rxBuf) return false;
+            _rxCap = rxCapBytes;
+        }
+        _lastReportedSid = 0;
+        _lastReportedCid = 0;
+        _fileReady = false;
+        return nltp_espnow_node_init(_node, channel, rateMode, psk, _rxBuf, _rxCap, maxKbps) == ESP_OK;
+    }
+
+    void setPeerMac(const uint8_t mac[6]) {
+        if (_node) nltp_espnow_node_set_peer(_node, mac);
+    }
+
+    void setRateMode(nltp_espnow_rate_t rateMode) {
+        if (_node) nltp_espnow_node_set_rate(_node, rateMode);
+    }
+
+    void setEspNowV1Mode(bool enableV1) {
+        if (_node) nltp_espnow_node_set_v1_mode(_node, enableV1 ? 1 : 0);
+    }
+
+    bool isEspNowV1Mode() const {
+        return _node ? (_node->v1_mode != 0u) : false;
+    }
+
+    bool sendBytes(const uint8_t *data, uint32_t len, const char *filename = "payload.bin") {
+        if (!_node || !_node->has_peer) return false;
+        if (_node->ep.tx.active && !_node->ep.tx.completed) return false;
+        return nltp_send_buffer(&_node->ep, data, len, filename) != 0u;
+    }
+
+    void poll() {
+        if (!_node) return;
+        nltp_espnow_node_poll(_node);
+        if (_node->ep.rx.completed &&
+            (_node->ep.rx.stream_id != _lastReportedSid || _node->ep.rx.peer_cid != _lastReportedCid)) {
+            _lastReportedSid = _node->ep.rx.stream_id;
+            _lastReportedCid = _node->ep.rx.peer_cid;
+            _fileReady = true;
+        }
+    }
+
+    bool hasReceivedFile() const { return _fileReady; }
+    const uint8_t *receivedData() const { return _rxBuf; }
+    uint32_t receivedLength() const { return _node ? nltp_rx_len(&_node->ep) : 0u; }
+    const char *receivedFilename() const { return _node ? _node->ep.rx.filename : ""; }
+    bool isReceivedShaOk() const { return _node ? (nltp_rx_sha_ok(&_node->ep) != 0) : false; }
+    int8_t lastRssi() const { return _node ? _node->last_rssi : -100; }
+    uint32_t espNowVersion() const { return g_nltp_espnow_bus.espnow_version; }
+
+    void clearReceived() { _fileReady = false; }
+
+    bool isSendComplete() const { return _node ? (nltp_tx_done(&_node->ep) != 0) : true; }
+    bool isSendVerified() const { return _node ? (nltp_tx_verified(&_node->ep) != 0) : false; }
+    nltp_endpoint_t *endpoint() { return _node ? &_node->ep : nullptr; }
+    nltp_espnow_node_t *rawNode() { return _node; }
+
+private:
+    nltp_espnow_node_t *_node;
+    uint8_t *_rxBuf;
+    uint32_t _rxCap;
+    uint32_t _lastReportedSid;
+    uint32_t _lastReportedCid;
+    bool _fileReady;
+};
+#endif /* ESP32 */
 
 #endif /* NLTP_ARDUINO_H */

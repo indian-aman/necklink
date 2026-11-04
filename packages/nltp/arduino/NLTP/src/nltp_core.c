@@ -104,19 +104,19 @@ static void emit(nltp_endpoint_t *ep, uint8_t type, size_t payload_len) {
     ep->last_tx_ms = now(ep);
 }
 
-/* Generation geometry, identical to Python _TxGeneration chunking. */
-static uint32_t total_gens_for(uint32_t len) {
-    uint32_t gen_bytes = NLTP_GEN_K * NLTP_SHARD_BYTES;
+/* Generation geometry, identical to Python _TxGeneration chunking (supports runtime shard_bytes). */
+static uint32_t total_gens_for(uint32_t len, uint16_t sb) {
+    uint32_t gen_bytes = (uint32_t)NLTP_GEN_K * (uint32_t)sb;
     return len == 0 ? 1u : (len + gen_bytes - 1u) / gen_bytes;
 }
 
-static void gen_geometry(uint32_t len, uint32_t g, uint8_t *k_out, uint16_t *rw_out) {
-    uint32_t start = g * NLTP_GEN_K * NLTP_SHARD_BYTES;
+static void gen_geometry(uint32_t len, uint16_t sb, uint32_t g, uint8_t *k_out, uint16_t *rw_out) {
+    uint32_t start = g * (uint32_t)NLTP_GEN_K * (uint32_t)sb;
     uint32_t rem = len > start ? len - start : 0u;
-    uint32_t k = rem == 0 ? 1u : (rem + NLTP_SHARD_BYTES - 1u) / NLTP_SHARD_BYTES;
+    uint32_t k = rem == 0 ? 1u : (rem + (uint32_t)sb - 1u) / (uint32_t)sb;
     if (k > NLTP_GEN_K) k = NLTP_GEN_K;
     *k_out = (uint8_t)k;
-    *rw_out = (uint16_t)(2u + (k >= 2u ? NLTP_SHARD_BYTES : rem));
+    *rw_out = (uint16_t)(2u + (k >= 2u ? (uint32_t)sb : rem));
 }
 
 /* ---------------------------------------------------------------------------
@@ -356,6 +356,7 @@ void nltp_init(nltp_endpoint_t *ep, uint32_t conn_id, uint32_t max_kbps,
     ep->conn_id = conn_id | 1u;
     ep->srtt_ms = 150u;
     ep->min_rtt_ms = U32_INF;
+    ep->tx_shard_bytes = NLTP_SHARD_BYTES;
     ep->next_stream_id = 1;
     ep->last_tx_ms = now_ms(user);
     ep->paced = max_kbps > 0;
@@ -371,6 +372,12 @@ void nltp_init(nltp_endpoint_t *ep, uint32_t conn_id, uint32_t max_kbps,
 void nltp_set_rx_buffer(nltp_endpoint_t *ep, uint8_t *buf, uint32_t cap) {
     ep->rx.out = buf;
     ep->rx.out_cap = cap;
+}
+
+void nltp_set_shard_bytes(nltp_endpoint_t *ep, uint16_t shard_bytes) {
+    if (shard_bytes < 16u) shard_bytes = 16u;
+    if (shard_bytes > NLTP_SHARD_BYTES) shard_bytes = NLTP_SHARD_BYTES;
+    ep->tx_shard_bytes = shard_bytes;
 }
 
 void nltp_set_key(nltp_endpoint_t *ep, const uint8_t key32[32]) {
@@ -439,19 +446,21 @@ void nltp_key_from_psk(const char *psk, uint8_t out_key32[32]) {
 static nltp_txgen_t *tx_slot(nltp_tx_t *tx, uint32_t g) {
     nltp_txgen_t *s = &tx->win[g % NLTP_TX_WINDOW];
     if (!s->valid || s->gen_id != g) {
+        uint16_t sb = tx->shard_bytes ? tx->shard_bytes : (uint16_t)NLTP_SHARD_BYTES;
         memset(s, 0, sizeof(*s));
         s->valid = 1;
         s->gen_id = g;
         s->proactive_target = -1;
-        gen_geometry(tx->len, g, &s->k, &s->row_width);
+        gen_geometry(tx->len, sb, g, &s->k, &s->row_width);
     }
     return s;
 }
 
 static void tx_fill_row(const nltp_tx_t *tx, uint32_t g, uint8_t i, uint16_t row_width, uint8_t *out) {
-    uint32_t off = g * NLTP_GEN_K * NLTP_SHARD_BYTES + (uint32_t)i * NLTP_SHARD_BYTES;
+    uint32_t sb = tx->shard_bytes ? (uint32_t)tx->shard_bytes : (uint32_t)NLTP_SHARD_BYTES;
+    uint32_t off = g * (uint32_t)NLTP_GEN_K * sb + (uint32_t)i * sb;
     uint32_t clen = 0;
-    if (off < tx->len) clen = umin32(NLTP_SHARD_BYTES, tx->len - off);
+    if (off < tx->len) clen = umin32(sb, tx->len - off);
     out[0] = (uint8_t)(clen & 0xFFu);
     out[1] = (uint8_t)(clen >> 8);
     if (clen) memcpy(out + 2, tx->data + off, clen);
@@ -512,7 +521,8 @@ static int16_t proactive_shards(const nltp_endpoint_t *ep, const nltp_txgen_t *s
     uint32_t p = fec_loss_pm(ep);
     uint32_t n = p >= 30u ? ((uint32_t)s->k * p * 11u + 9999u) / 10000u : 0u;
     if (p >= 5u && ep->paced) {
-        uint32_t gen_bytes = (uint32_t)s->k * NLTP_SHARD_BYTES;
+        uint32_t sb = ep->tx.shard_bytes ? (uint32_t)ep->tx.shard_bytes : (uint32_t)NLTP_SHARD_BYTES;
+        uint32_t gen_bytes = (uint32_t)s->k * sb;
         uint32_t bdp = (uint32_t)((uint64_t)ep->rate.rate_kbps * ep->srtt_ms / 8u);
         uint32_t tail_gens = umax32(1u, (bdp + gen_bytes - 1u) / gen_bytes);
         if (s->gen_id + tail_gens >= ep->tx.total_gens) n = umax32(n + 1u, p >= 100u ? 2u : 1u);
@@ -544,8 +554,9 @@ uint32_t nltp_send_buffer(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len
     memset(tx, 0, sizeof(*tx));
     tx->data = data;
     tx->len = len;
+    tx->shard_bytes = ep->tx_shard_bytes ? ep->tx_shard_bytes : (uint16_t)NLTP_SHARD_BYTES;
     tx->stream_id = ep->next_stream_id++;
-    tx->total_gens = total_gens_for(len);
+    tx->total_gens = total_gens_for(len, tx->shard_bytes);
     tx->active = 1;
     tx->started_ms = t;
     nltp_sha256_hex(data, len, sha);
@@ -558,7 +569,7 @@ uint32_t nltp_send_buffer(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len
     if (ep->paced) {
         rate_start_stream(&ep->rate, tx->stream_id, t);
         if (ep->rate.mode == 0) {  /* cold start: one burst, then pace; warm: pace at the learned rate */
-            uint32_t burst = umin32(NLTP_COLD_BURST_BYTES, len + 2u * NLTP_SHARD_BYTES);
+            uint32_t burst = umin32(NLTP_COLD_BURST_BYTES, len + 2u * (uint32_t)tx->shard_bytes);
             ep->pacer.bonus = umax32(ep->pacer.bonus, burst);
             ep->pacer.tokens = 0;
         }
@@ -840,10 +851,14 @@ static void rx_send_ack(nltp_endpoint_t *ep) {
 
 static void rx_deliver(nltp_rx_t *rx, nltp_rxslot_t *s) {
     uint8_t i;
+    uint32_t sb = rx->peer_shard_bytes ? (uint32_t)rx->peer_shard_bytes : (uint32_t)NLTP_SHARD_BYTES;
+    uint32_t gk = rx->peer_gen_k ? (uint32_t)rx->peer_gen_k : (uint32_t)NLTP_GEN_K;
     for (i = 0; i < s->k; ++i) {
         const uint8_t *row = s->rows[s->pivot_of_col[i]];
         uint32_t clen = (uint32_t)row[0] | ((uint32_t)row[1] << 8);
-        uint32_t off = (uint32_t)s->gen_id * NLTP_GEN_K * NLTP_SHARD_BYTES + (uint32_t)i * NLTP_SHARD_BYTES;
+        uint32_t off = (s->gen_id == 0 && s->k == 1u)
+                           ? 0u
+                           : ((uint32_t)s->gen_id * gk * sb + (uint32_t)i * sb);
         if (clen > (uint32_t)s->row_width - 2u) clen = (uint32_t)s->row_width - 2u;
         if (rx->out && off + clen <= rx->out_cap) memcpy(rx->out + off, row + 2, clen);
     }
@@ -903,10 +918,10 @@ static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, ui
     /* No receive buffer yet: ignore (unacknowledged, so the sender repairs it later) rather than mark
        generations solved whose data could not be stored */
     if (!rx->out) return;
-    if (!rx->active || (rx->completed && sid != rx->stream_id) || (rx->peer_cid != peer_cid && rx->completed)) {
+    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id || peer_cid != rx->peer_cid) {
-        return;  /* one inbound stream at a time */
+    } else if (sid != rx->stream_id) {
+        return;  /* stale packet from an earlier cancelled stream */
     }
     if (rx->completed) {
         send_fin(ep);
@@ -926,6 +941,10 @@ static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, ui
         rx->arr_n0 = rx->shards_rcvd;
     }
     if (g >= NLTP_RX_MAX_GENS) return;
+    if (k >= 2u) {
+        rx->peer_shard_bytes = (uint16_t)(rw - 2u);
+        if (g == 0u || k > rx->peer_gen_k) rx->peer_gen_k = k;
+    }
 
     if (!bit_get(rx->solved, g)) {
         for (i = 0; i < NLTP_RX_SLOTS; ++i) {
@@ -975,14 +994,22 @@ static void rx_on_shard(nltp_endpoint_t *ep, uint32_t peer_cid, uint8_t type, ui
         } else {
             cauchy_row((uint8_t)(idx - k), k, coeff);
         }
-        newly_solved = rx_add_row(s, coeff, shard);
-        if (newly_solved) {
-            rx_deliver(rx, s);
-            bit_set(rx->solved, g);
+        (void)rx_add_row(s, coeff, shard);
+    }
+    for (i = 0; i < NLTP_RX_SLOTS; ++i) {
+        nltp_rxslot_t *cs = &rx->slots[i];
+        if (cs->gen_id >= 0 && cs->rank == cs->k &&
+            ((cs->gen_id == 0 && cs->k == 1u) || rx->peer_shard_bytes != 0u)) {
+            uint32_t cg = (uint32_t)cs->gen_id;
+            rx_deliver(rx, cs);
+            bit_set(rx->solved, cg);
             rx->n_solved++;
-            s->gen_id = -1;
-            while (rx->base_gen < NLTP_RX_MAX_GENS && bit_get(rx->solved, rx->base_gen)) rx->base_gen++;
+            cs->gen_id = -1;
+            newly_solved = 1;
         }
+    }
+    if (newly_solved) {
+        while (rx->base_gen < NLTP_RX_MAX_GENS && bit_get(rx->solved, rx->base_gen)) rx->base_gen++;
     }
 
     rx->ack_echo_ts = pkt_ts;
@@ -999,9 +1026,9 @@ static void rx_on_meta(nltp_endpoint_t *ep, uint32_t peer_cid, uint32_t pkt_ts, 
     nltp_rx_t *rx = &ep->rx;
     const char *js = (const char *)pl;
     uint32_t sid = json_u32(js, len, "stream_id");
-    if (!rx->active || (rx->completed && sid != rx->stream_id) || (rx->peer_cid != peer_cid && rx->completed)) {
+    if (!rx->active || peer_cid != rx->peer_cid || sid > rx->stream_id || (rx->completed && sid != rx->stream_id)) {
         rx_reset_stream(rx, peer_cid, sid);
-    } else if (sid != rx->stream_id || peer_cid != rx->peer_cid) {
+    } else if (sid != rx->stream_id) {
         return;
     }
     if (rx->completed) {
