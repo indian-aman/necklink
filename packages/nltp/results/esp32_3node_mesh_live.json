@@ -1,0 +1,402 @@
+{
+  "timestamp": "2026-11-04T19:46:08+0530",
+  "online_nodes": {
+    "0": {
+      "port": "COM9",
+      "mac": "EC:64:C9:9B:A2:BC",
+      "wifi_connected": false,
+      "ip": "0.0.0.0",
+      "channel": 11,
+      "free_heap_bytes": 100452
+    },
+    "2": {
+      "port": "COM12",
+      "mac": "F0:24:F9:0D:E8:34",
+      "wifi_connected": false,
+      "ip": "0.0.0.0",
+      "channel": 11,
+      "free_heap_bytes": 101768
+    }
+  },
+  "offline_nodes": {
+    "1": "COM11: COM11 (node 1) did not reach READY. Tail: []"
+  },
+  "neighbor_matrix": {
+    "0": {
+      "2": {
+        "mac": "f0:24:f9:0d:e8:34",
+        "rssi_dbm": -65,
+        "noise_dbm": -97,
+        "snr_db": 32,
+        "pkts": 18,
+        "age_ms": 60
+      }
+    },
+    "2": {
+      "0": {
+        "mac": "ec:64:c9:9b:a2:bc",
+        "rssi_dbm": -71,
+        "noise_dbm": -96,
+        "snr_db": 25,
+        "pkts": 6,
+        "age_ms": 338
+      }
+    }
+  },
+  "range_txpower_sweep": [
+    {
+      "phy_mode": "MCS7_72Mbps",
+      "tx_power": "+19.5 dBm (Max)",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 4.02,
+      "min_rtt_ms": 3.07,
+      "rx_rssi_dbm": -69.2,
+      "tx_rssi_dbm": -71.2,
+      "link_margin_db": 2.8,
+      "estimated_coverage": "Marginal (< 4 m, needs relay hop)"
+    },
+    {
+      "phy_mode": "MCS7_72Mbps",
+      "tx_power": "+13.0 dBm",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 3.87,
+      "min_rtt_ms": 3.07,
+      "rx_rssi_dbm": -71.3,
+      "tx_rssi_dbm": -72.0,
+      "link_margin_db": 0.7,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "MCS7_72Mbps",
+      "tx_power": "+7.0 dBm",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 3.9,
+      "min_rtt_ms": 3.07,
+      "rx_rssi_dbm": -72.1,
+      "tx_rssi_dbm": -73.1,
+      "link_margin_db": -0.1,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "MCS7_72Mbps",
+      "tx_power": "+2.0 dBm (Min)",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 4.45,
+      "min_rtt_ms": 3.07,
+      "rx_rssi_dbm": -72.1,
+      "tx_rssi_dbm": -73.0,
+      "link_margin_db": -0.1,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "1M_DSSS",
+      "tx_power": "+19.5 dBm (Max)",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 11.41,
+      "min_rtt_ms": 9.04,
+      "rx_rssi_dbm": -64.1,
+      "tx_rssi_dbm": -64.8,
+      "link_margin_db": 30.9,
+      "estimated_coverage": "1-2 rooms (~8-15 m through 1 wall)"
+    },
+    {
+      "phy_mode": "1M_DSSS",
+      "tx_power": "+13.0 dBm",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 9.81,
+      "min_rtt_ms": 8.88,
+      "rx_rssi_dbm": -66.1,
+      "tx_rssi_dbm": -65.4,
+      "link_margin_db": 28.9,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "1M_DSSS",
+      "tx_power": "+7.0 dBm",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 13.44,
+      "min_rtt_ms": 9.07,
+      "rx_rssi_dbm": -69.1,
+      "tx_rssi_dbm": -71.2,
+      "link_margin_db": 25.9,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "1M_DSSS",
+      "tx_power": "+2.0 dBm (Min)",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 10.88,
+      "min_rtt_ms": 9.05,
+      "rx_rssi_dbm": -69.2,
+      "tx_rssi_dbm": -71.1,
+      "link_margin_db": 25.8,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "LR_250kbps",
+      "tx_power": "+19.5 dBm (Max)",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 34.54,
+      "min_rtt_ms": 26.03,
+      "rx_rssi_dbm": -63.2,
+      "tx_rssi_dbm": -64.4,
+      "link_margin_db": 38.8,
+      "estimated_coverage": "2-3 rooms (~15-25 m through 2 walls)"
+    },
+    {
+      "phy_mode": "LR_250kbps",
+      "tx_power": "+13.0 dBm",
+      "pdr_pct": 100.0,
+      "avg_rtt_ms": 52.86,
+      "min_rtt_ms": 26.07,
+      "rx_rssi_dbm": -66.0,
+      "tx_rssi_dbm": -65.7,
+      "link_margin_db": 36.0,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "LR_250kbps",
+      "tx_power": "+7.0 dBm",
+      "pdr_pct": 75.0,
+      "avg_rtt_ms": 243.47,
+      "min_rtt_ms": 26.07,
+      "rx_rssi_dbm": -70.2,
+      "tx_rssi_dbm": -71.6,
+      "link_margin_db": 31.8,
+      "estimated_coverage": "Attenuated bench test"
+    },
+    {
+      "phy_mode": "LR_250kbps",
+      "tx_power": "+2.0 dBm (Min)",
+      "pdr_pct": 72.5,
+      "avg_rtt_ms": 268.38,
+      "min_rtt_ms": 27.07,
+      "rx_rssi_dbm": -70.9,
+      "tx_rssi_dbm": -72.5,
+      "link_margin_db": 31.1,
+      "estimated_coverage": "Attenuated bench test"
+    }
+  ],
+  "protocol_speed_comparison": [
+    {
+      "protocol": "NLTP-NOW + LR 250kbps (4B Call, AEAD+SHA256)",
+      "size_bytes": 4,
+      "ok": "5/5",
+      "median_ms": 32.73,
+      "median_mbps": 0.0
+    },
+    {
+      "protocol": "NLTP-NOW MCS7 72Mbps (4B Call, AEAD+SHA256)",
+      "size_bytes": 4,
+      "ok": "5/5",
+      "median_ms": 6.94,
+      "median_mbps": 0.0
+    },
+    {
+      "protocol": "NLTP-NOW (LR 250kbps, Encrypted+FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 374.26,
+      "median_mbps": 0.088
+    },
+    {
+      "protocol": "NLTP-NOW (LR 250kbps, Encrypted+FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 1263.57,
+      "median_mbps": 0.104
+    },
+    {
+      "protocol": "NLTP-NOW (LR 250kbps, Encrypted+FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 3109.7,
+      "median_mbps": 0.084
+    },
+    {
+      "protocol": "NLTP-NOW (1M Long-Range, Encrypted+FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 102.37,
+      "median_mbps": 0.32
+    },
+    {
+      "protocol": "NLTP-NOW (1M Long-Range, Encrypted+FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 308.66,
+      "median_mbps": 0.425
+    },
+    {
+      "protocol": "NLTP-NOW (1M Long-Range, Encrypted+FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 570.72,
+      "median_mbps": 0.459
+    },
+    {
+      "protocol": "NLTP-NOW (11M Indoor, Encrypted+FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 21.38,
+      "median_mbps": 1.533
+    },
+    {
+      "protocol": "NLTP-NOW (11M Indoor, Encrypted+FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 126.85,
+      "median_mbps": 1.033
+    },
+    {
+      "protocol": "NLTP-NOW (11M Indoor, Encrypted+FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 149.95,
+      "median_mbps": 1.748
+    },
+    {
+      "protocol": "NLTP-NOW (MCS7 72M, Encrypted+FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 18.54,
+      "median_mbps": 1.767
+    },
+    {
+      "protocol": "NLTP-NOW (MCS7 72M, Encrypted+FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 53.76,
+      "median_mbps": 2.438
+    },
+    {
+      "protocol": "NLTP-NOW (MCS7 72M, Encrypted+FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 101.64,
+      "median_mbps": 2.579
+    },
+    {
+      "protocol": "NLTP-NOW (Auto RSSI-Rate, Encrypted+FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 12.5,
+      "median_mbps": 2.622
+    },
+    {
+      "protocol": "NLTP-NOW (Auto RSSI-Rate, Encrypted+FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 41.83,
+      "median_mbps": 3.134
+    },
+    {
+      "protocol": "NLTP-NOW (Auto RSSI-Rate, Encrypted+FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 78.73,
+      "median_mbps": 3.33
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (1M Default, No FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 50.01,
+      "median_mbps": 0.655
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (1M Default, No FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 188.07,
+      "median_mbps": 0.697
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (1M Default, No FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 371.85,
+      "median_mbps": 0.705
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (MCS7 72M, No FEC)",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 14.02,
+      "median_mbps": 2.337
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (MCS7 72M, No FEC)",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 15.12,
+      "median_mbps": 8.666
+    },
+    {
+      "protocol": "Raw ESP-NOW v2 (MCS7 72M, No FEC)",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 43.85,
+      "median_mbps": 5.979
+    },
+    {
+      "protocol": "Standard NLTP over Private SoftAP UDP",
+      "size_bytes": 4096,
+      "ok": "3/3",
+      "median_ms": 101.47,
+      "median_mbps": 0.323,
+      "softap_assoc_ms": 1905.7
+    },
+    {
+      "protocol": "Standard NLTP over Private SoftAP UDP",
+      "size_bytes": 16384,
+      "ok": "3/3",
+      "median_ms": 91.92,
+      "median_mbps": 1.426,
+      "softap_assoc_ms": 1905.7
+    },
+    {
+      "protocol": "Standard NLTP over Private SoftAP UDP",
+      "size_bytes": 32768,
+      "ok": "3/3",
+      "median_ms": 171.05,
+      "median_mbps": 1.533,
+      "softap_assoc_ms": 1905.7
+    }
+  ],
+  "wall_loss_resilience": [
+    {
+      "loss_pct": 0,
+      "raw_espnow_intact_files": "2/3",
+      "raw_espnow_avg_bytes_rcvd_pct": 98.9,
+      "nltp_now_intact_sha256_files": "3/3",
+      "nltp_now_median_ms": 155.92,
+      "nltp_now_median_mbps": 1.681
+    },
+    {
+      "loss_pct": 5,
+      "raw_espnow_intact_files": "0/3",
+      "raw_espnow_avg_bytes_rcvd_pct": 91.2,
+      "nltp_now_intact_sha256_files": "3/3",
+      "nltp_now_median_ms": 130.8,
+      "nltp_now_median_mbps": 2.004
+    },
+    {
+      "loss_pct": 12,
+      "raw_espnow_intact_files": "0/3",
+      "raw_espnow_avg_bytes_rcvd_pct": 86.8,
+      "nltp_now_intact_sha256_files": "3/3",
+      "nltp_now_median_ms": 129.9,
+      "nltp_now_median_mbps": 2.018
+    },
+    {
+      "loss_pct": 20,
+      "raw_espnow_intact_files": "0/3",
+      "raw_espnow_avg_bytes_rcvd_pct": 80.9,
+      "nltp_now_intact_sha256_files": "3/3",
+      "nltp_now_median_ms": 123.96,
+      "nltp_now_median_mbps": 2.115
+    }
+  ],
+  "laptop_gateway_bridge": []
+}
