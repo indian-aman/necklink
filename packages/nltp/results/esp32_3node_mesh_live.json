@@ -2,16 +2,16 @@
   "timestamp": "2026-11-04T19:46:08+0530",
   "online_nodes": {
     "0": {
-      "port": "COM9",
-      "mac": "EC:64:C9:9B:A2:BC",
+      "port": "board_A",
+      "mac": "<board-A-mac>",
       "wifi_connected": false,
       "ip": "0.0.0.0",
       "channel": 11,
       "free_heap_bytes": 100452
     },
     "2": {
-      "port": "COM12",
-      "mac": "F0:24:F9:0D:E8:34",
+      "port": "board_B",
+      "mac": "<board-B-mac>",
       "wifi_connected": false,
       "ip": "0.0.0.0",
       "channel": 11,
@@ -19,12 +19,12 @@
     }
   },
   "offline_nodes": {
-    "1": "COM11: COM11 (node 1) did not reach READY. Tail: []"
+    "1": "board_C: board_C (node 1) did not reach READY. Tail: []"
   },
   "neighbor_matrix": {
     "0": {
       "2": {
-        "mac": "f0:24:f9:0d:e8:34",
+        "mac": "<board-B-mac>",
         "rssi_dbm": -65,
         "noise_dbm": -97,
         "snr_db": 32,
@@ -34,7 +34,7 @@
     },
     "2": {
       "0": {
-        "mac": "ec:64:c9:9b:a2:bc",
+        "mac": "<board-A-mac>",
         "rssi_dbm": -71,
         "noise_dbm": -96,
         "snr_db": 25,

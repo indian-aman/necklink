@@ -38,7 +38,8 @@ NECKLINK_SUITE_CATALOG: List[Dict[str, str]] = [
         "pypi": "necksense",
         "repo": "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
         "region": "Antennal Lobe & Mushroom Body",
-        "summary": "Olsen-Wilson 100x concentration-invariant adaptation, 5% WTA sparse FlyHash & 1-shot anomaly/valence memory (Py + Q16.16 C99)",
+        "summary": "Concentration-invariant normalisation, multiplication-free FlyHash, 1-shot novelty (0.994 AUROC in 4 KB) & classification (Py + Q16.16 C99)",
+        "install": 'pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"',
     },
     {
         "id": "compass",
@@ -46,7 +47,7 @@ NECKLINK_SUITE_CATALOG: List[Dict[str, str]] = [
         "pypi": "neckcompass",
         "repo": "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
         "region": "Central Complex (E-PG / CPU4 / PFL3)",
-        "summary": "Topological 16-wedge ring-attractor compass (10.2x lower ferromagnetic spike error than EKF) & GPS-denied homing (Py + Q15 C99)",
+        "summary": "16-wedge ring-attractor compass (spike rejection on par with a gated EKF, recovers from 90 deg upsets) & GPS-denied homing (Py + Q15 C99)",
     },
     {
         "id": "sight",
@@ -54,7 +55,7 @@ NECKLINK_SUITE_CATALOG: List[Dict[str, str]] = [
         "pypi": "necksight",
         "repo": "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
         "region": "Optic Lobe (R1-R6 / T4-T5 / LPLC2)",
-        "summary": "Log glare cancellation, 3-arm Reichardt/Barlow-Levick EMDs & 4-quadrant looming collision reflex (0.9988 AUROC, >12k FPS C99)",
+        "summary": "Glare cancellation, T4/T5 motion detectors & 4-quadrant looming reflex with gyro derotation (0.9988 AUROC on synthetic data; Py + C99)",
     },
     {
         "id": "cord",
@@ -62,7 +63,7 @@ NECKLINK_SUITE_CATALOG: List[Dict[str, str]] = [
         "pypi": "neckcord",
         "repo": "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
         "region": "Ventral Nerve Cord (BANC / MANC)",
-        "summary": "4-byte CRC-4 descending command codec, self-healing 6-limb CPG & 42 ms shunting thruster fault reallocator (Py + Q15 C99)",
+        "summary": "4-byte command frame, self-healing 6-limb CPG & fault-tolerant thruster allocator with recovery probing (Py + Q15 C99)",
     },
 ]
 
@@ -84,7 +85,7 @@ def load_organ(organ_alias: str) -> Any:
     except ImportError as exc:
         raise ImportError(
             f"NeckLink organ '{organ_alias}' requires `{pkg}`. "
-            f"Install it via `pip install {pkg}` or install the full suite via `pip install necklink`."
+            f"Install it via `pip install {pkg}` (or from https://github.com/indian-aman/necklink/tree/main/packages/{pkg})."
         ) from exc
 
 

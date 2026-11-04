@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * NLTP v1.2 Java CLI ({@code java -jar nltp-1.2.0.jar ...}).
+ * NLTP v1.2 Java CLI ({@code java -jar nltp-1.3.2.jar ...}).
  *
  * Supports both user commands ({@code gen-key}, {@code stun}, {@code relay}, {@code serve}, {@code send-file})
  * and cross-language interop driver commands ({@code send}, {@code recv}) matching {@code nltp_cli}.

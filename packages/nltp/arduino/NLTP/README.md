@@ -1,4 +1,4 @@
-# NLTP Arduino Library (`v1.2.0`)
+# NLTP Arduino Library (`v1.3.2`)
 
 Drop-in Arduino IDE and PlatformIO library wrapping the zero-float, zero-heap-churn ANSI C99 NLTP v1.2 core (`nltp_core.c`, `nltp_net.c`, `nltp_sha256.c`, `nltp_wire.h`).
 
@@ -6,7 +6,7 @@ Drop-in Arduino IDE and PlatformIO library wrapping the zero-float, zero-heap-ch
 
 ## Install in Arduino IDE
 
-1. Click **Sketch → Include Library → Add .ZIP Library...** and choose `NLTP-Arduino-1.2.0.zip`.
+1. Zip this folder (`cd packages/nltp/arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP`), then click **Sketch → Include Library → Add .ZIP Library...** and choose the zip.
 2. Include `<NLTP.h>` in your sketch:
 
 ```cpp

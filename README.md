@@ -38,7 +38,7 @@ NeckLink is the brand; each product translates one subsystem of the fruit-fly ne
 
 | Product | Fly circuit | What it does | Package |
 | :--- | :--- | :--- | :--- |
-| **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** | Cervical connective | Loss-healing telemetry, `GF(2^8)` Cauchy FEC file transport, `ChaCha20-Poly1305` encryption and 4G CGNAT traversal across Python, C99, JS/TS, Java and ESP32 (`210/210` cross-language links verified) | [`pynltp`](https://pypi.org/project/pynltp/) |
+| **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** | Cervical connective | Loss-healing `GF(2^8)` Cauchy FEC file transport with `ChaCha20-Poly1305` encryption over UDP (incl. 4G CGNAT traversal) or ESP-NOW between ESP32s, across Python, C99, JS/TS, Java and Arduino (`210/210` cross-language links verified) | [`pynltp`](https://pypi.org/project/pynltp/) |
 | **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** | Central complex (`E-PG` / `CPU4`) | Ring-attractor compass that rejects `70°–150°` magnetometer spikes as well as a 3σ-gated EKF (`0.44°` vs `0.41°` RMSE), re-anchors after a 90° heading upset where the gated EKF stays stuck, and homes without GNSS (`324 B` RAM in C99) | [`neckcompass`](https://pypi.org/project/neckcompass/) |
 | **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** | Optic lobe (`T4/T5` + `LPLC2`) | Glare-adapted motion detection and a four-quadrant looming reflex: `0.9988` AUROC on synthetic clutter vs `0.875` for compensated pyramidal Lucas-Kanade, gyro derotation so obstacles are still caught during fast turns, ~12,000 FPS at 32×32 in C99 (desktop) | [`necksight`](https://pypi.org/project/necksight/) |
 | **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** | Ventral nerve cord (`BANC` / `MANC`) | 4-byte motor command frame, self-healing six-leg gait generator, and a fault-tolerant thruster allocator that isolates a failed thruster in ~`42 ms` (on par with pseudo-inverse + threshold FDI) and can return it to service (`322 B` in C99) | [`neckcord`](https://pypi.org/project/neckcord/) |
@@ -54,8 +54,9 @@ Each product's README has its full benchmarks, its API and a "when not to use it
 >   - NeckSight: missed up to half of obstacles during fast turns.
 >   - NeckSight: did not import on Python 3.9.
 > - Improvements: NeckCord recovery probing, and sparser NeckSense novelty codes.
+> - NLTP 1.3.2 fixes a C/ESP32 receiver bug from 1.2.1 (one stray or replayed packet could stall a transfer for good) and hardens the new ESP-NOW hub (peer-table exhaustion, unauthenticated slot takeover, an 8-slot default too large for an ESP32).
 >
-> The PyPI releases are still 1.0.0. Until 1.1.0 is published, install from this repository (below) to get the fixes. Each package's changelog has the details.
+> The PyPI releases are still 1.0.0 (and `pynltp` 1.3.1). Until the new versions are published, install from this repository (below) to get the fixes. Each package's changelog has the details.
 
 ---
 

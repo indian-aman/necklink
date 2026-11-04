@@ -191,7 +191,7 @@ def cmd_products(_args: argparse.Namespace) -> int:
         print(
             f"  [{item['name']:11s}] ({item['pypi']:11s} -> {ver:13s}) | {item['region']}\n"
             f"                {item['summary']}\n"
-            f"                Repo: {item['repo']}  |  Install: pip install {item['pypi']}"
+            f"                Repo: {item['repo']}  |  Install: {item.get('install', 'pip install ' + item['pypi'])}"
         )
     print("  [Umbrella   ] pip install necklink  -> installs all 5 modules")
     return 0

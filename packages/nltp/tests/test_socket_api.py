@@ -10,7 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import numpy as np
-import torch
+import pytest
+
+torch = pytest.importorskip("torch", reason="optional: tensor tests need torch (pip install torch)")
 
 from necklink import AsyncNeckSocket, NeckSocket, NeckUDPServer
 from necklink.cli import main as cli_main

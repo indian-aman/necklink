@@ -148,6 +148,20 @@ def test_nltp_multiplexed_telemetry_self_healing() -> None:
     assert nrmse_pct < 38.0
 
 
+def _ipv6_available() -> bool:
+    import socket
+
+    try:
+        socket.socket(socket.AF_INET6, socket.SOCK_DGRAM).close()
+        return True
+    except OSError:
+        return False
+
+
+@pytest.mark.skipif(
+    __import__("importlib").util.find_spec("aioquic") is None, reason="optional: QUIC tests need aioquic"
+)
+@pytest.mark.skipif(not _ipv6_available(), reason="aioquic's server always opens an IPv6 socket")
 def test_necklink_over_quic_tls13_streams_and_rfc9221_datagrams(tmp_path: Path) -> None:
     """Tests real IETF QUIC (`aioquic` TLS 1.3) reliable file streams + RFC 9221 NeckLink datagrams."""
 

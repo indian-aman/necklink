@@ -37,6 +37,21 @@ if str(REPO_NLTP) not in sys.path:
 
 from necklink.nltp import NLTPEndpoint  # noqa: E402
 
+
+def _redact_macs(text: str) -> str:
+    """Replace board MAC addresses with stable labels before results are saved (they are committed)."""
+    import re as _re
+    seen: dict = {}
+
+    def _sub(m: "_re.Match") -> str:
+        mac = m.group(0).lower()
+        if mac == "ff:ff:ff:ff:ff:ff":
+            return m.group(0)
+        seen.setdefault(mac, "<board-%s-mac>" % chr(ord("A") + len(seen)))
+        return seen[mac]
+
+    return _re.sub(r"\b(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b", _sub, text)
+
 SLIP_END = 0xC0
 SLIP_ESC = 0xDB
 SLIP_ESC_END = 0xDC
@@ -485,7 +500,7 @@ def run_all() -> Dict[str, Any]:
 
         out_path = REPO_NLTP / "results" / "esp32_v2_interop_live.json"
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(json.dumps(results, indent=2), encoding="utf-8")
+        out_path.write_text(_redact_macs(json.dumps(results, indent=2)), encoding="utf-8")
         print(f"\nALL 4 ESP-NOW v2 INTEROP SUITES PASSED! Saved -> {out_path}")
         return results
     finally:

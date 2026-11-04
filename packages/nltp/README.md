@@ -2,16 +2,16 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NLTP (`pynltp` v1.3.1)
+# NLTP (`pynltp` v1.3.2)
 
-**Loss-resilient, ChaCha20-Poly1305 encrypted UDP file, telemetry and reflex transport with `GF(2^8)` Cauchy FEC and 4G CGNAT traversal, in Python, zero-heap ANSI C99, JavaScript/TypeScript, Java and Arduino/ESP32.**
+**Loss-resilient, ChaCha20-Poly1305 encrypted file, telemetry and reflex transport with `GF(2^8)` Cauchy FEC: over UDP (including 4G CGNAT traversal) or directly over ESP-NOW between ESP32s, in Python, zero-heap ANSI C99, JavaScript/TypeScript, Java and Arduino/ESP32.**
 
 *The wire protocol of [**NeckLink**](https://github.com/indian-aman/necklink), modelled on the fruit-fly cervical connective: the neck bottleneck that carries every command between brain and body.*
 
 [![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9)](https://pypi.org/project/pynltp/)
-[![Release](https://img.shields.io/badge/release-v1.3.1-0EA5E9?style=flat-square)](https://github.com/indian-aman/necklink/releases/tag/v1.3.1)
+[![Version](https://img.shields.io/badge/version-1.3.2%20(this%20repo)-0EA5E9?style=flat-square)](#changelog)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-210%2F210%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
-[![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%20v1.2.0-00979D?style=flat-square&logo=arduino&logoColor=white)](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)
+[![Arduino / ESP32](https://img.shields.io/badge/Arduino%20%2F%20ESP32-library%201.3.2-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NLTP/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**NLTP Wire Protocol**](#why-nltp) ·
@@ -19,6 +19,7 @@
 [**JavaScript / TS**](#2-javascript--typescript-nodejs--browser--webrtc) ·
 [**Java 11+ / Android**](#3-java-11--android-ionecklinknltp) ·
 [**Arduino / ESP32**](#4-arduino-ide--platformio-esp32) ·
+[**ESP-NOW**](#7-nltp-over-esp-now-esp32-to-esp32-no-router) ·
 [**Benchmarks**](#-post-upgrade-benchmarks--hardware-verification) ·
 [**All NeckLink products**](https://github.com/indian-aman/necklink#products)
 
@@ -58,10 +59,12 @@ flowchart LR
 Install on Windows, Linux, or macOS via `pip`:
 
 ```bash
-pip install pynltp
-# Or directly from GitHub:
-pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
+pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"   # 1.3.2 (this repo)
+pip install pynltp                                                                           # 1.3.1 on PyPI
 ```
+
+> [!NOTE]
+> 1.3.2 is not published yet. PyPI's 1.3.1 and the v1.2.0 release assets (JS tarball, Java JAR, Arduino zip) work, but lack the 1.3.2 C/ESP32 receive-stall fix and the ESP-NOW transport fixes. Each section below shows how to install 1.3.2 from this repository; [`docs/INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md) has the details.
 
 Send an out-of-line urgent command (`send_reflex`) and a `SHA-256`-verified encrypted file in 10 lines:
 
@@ -93,7 +96,7 @@ nltp send-file --host <SERVER_IP> --port 9000 --psk "<KEY>" --file firmware.bin
 Zero external dependencies (`ESM` + `CommonJS` + `.d.ts` TypeScript types + `nltp/core` for WebRTC / WebTransport):
 
 ```bash
-npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz
+npm install /path/to/necklink/packages/nltp/js      # 1.3.2 from a clone of this repository
 ```
 
 ```javascript
@@ -115,7 +118,7 @@ await srv.close();
 
 ### 3. Java 11+ & Android (`io.necklink:nltp`)
 
-Zero external dependencies — includes portable constant-time `RFC 8439` `ChaCha20-Poly1305` and non-blocking NIO `DatagramChannel` (`--release 11`). Download **[`nltp-java-1.2.0.jar`](https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-java-1.2.0.jar)** or build via Maven/Gradle (`java/`):
+Zero external dependencies — includes portable constant-time `RFC 8439` `ChaCha20-Poly1305` and non-blocking NIO `DatagramChannel` (`--release 11`). Build with `mvn -f java/pom.xml package` (→ `java/target/nltp-1.3.2.jar`) or Gradle:
 
 ```java
 import io.necklink.nltp.*;
@@ -135,12 +138,13 @@ try (NLTPServer srv = NLTPServer.builder().bind("0.0.0.0", 9000).psk(key).saveDi
 
 ### 4. Arduino IDE & PlatformIO (`ESP32`)
 
-- **Arduino IDE (1-Click `.ZIP`)**: Download **[`NLTP-Arduino-1.2.0.zip`](https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip)** → **Sketch → Include Library → Add .ZIP Library...** → open **File → Examples → NLTP** (`ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`, or `ESP32_Relay_CGNAT_Node`).
-- **PlatformIO (`platformio.ini`)**:
+- **Arduino IDE (`.ZIP`)**: zip the library folder (`cd packages/nltp/arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP`) → **Sketch → Include Library → Add .ZIP Library...** → open **File → Examples → NLTP** (`ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`, `ESP32_Relay_CGNAT_Node`, `ESPNowV2Interop`).
+- **PlatformIO (`platformio.ini`)**, pointing at your clone:
   ```ini
   lib_deps =
-      https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip
+      symlink://../necklink/packages/nltp/arduino/NLTP
   ```
+- `NLTPWiFiNode` (UDP) works on any Arduino-ESP32 core; `NLTPESPNowNode` (ESP-NOW) needs core 3.x (ESP-IDF 5.x).
 
 Minimal two-way encrypted `ESP32` sketch (`#include <NLTP.h>`):
 
@@ -191,10 +195,11 @@ nltp send-file --relay <RELAY_IP>:9000 --room buoy-01 --psk "<KEY>" --file senso
 
 ### 6. Portable Zero-Heap ANSI C99 Core (`csrc/`)
 
-Compiles cleanly under `-std=c99 -Wall -Wextra -pedantic -Werror` with **zero `malloc`** and **zero floating-point operations**:
+The core (`nltp_core`, `nltp_net`, `nltp_sha256`, `nltp_wire.h`) compiles cleanly under `-std=c99 -Wall -Wextra -pedantic -Werror` with **zero `malloc`** and **zero floating-point operations**. (The optional ESP-NOW helper `nltp_espnow.h` allocates a receive buffer only if you don't pass one.)
 
 ```bash
-make -C csrc all test
+make -C csrc all test          # 14 self-tests: crypto, FEC, loss, tampering, replay, stream takeover, ESP-NOW v1 sizes
+make -C csrc espnow-sim        # ESP-NOW hub on a simulated radio (no ESP32 needed)
 python scripts/c_interop_test.py
 ```
 
@@ -210,9 +215,61 @@ Direct STUN hole-punching with automatic 3-second relay fallback from the C CLI:
 
 ---
 
+### 7. NLTP over ESP-NOW (ESP32 to ESP32, no router)
+
+`csrc/nltp_espnow.h` (C, ESP-IDF 5.x) and `NLTPESPNowNode` (Arduino, core 3.x) carry unmodified NLTP datagrams inside ESP-NOW frames. That gives ESP-NOW what it lacks on its own: multi-KB files, FEC repair, SHA-256 verification and ChaCha20-Poly1305 encryption. The same bytes can be bridged to Python, C or a relay room.
+
+- **ESP-NOW v2 (1,470 B frames):** full 960 B shards; an encrypted shard is 1,010 B on air.
+- **ESP-NOW v1 (250 B frames):** call `setEspNowV1Mode(true)` (Arduino) / `nltp_espnow_node_set_v1_mode()` (C) to send 192 B shards (242 B frames). Receivers detect the sender's shard size automatically. A C sender in this mode was verified against the Python, C, JS and Java receivers (48/48 transfers, 0–15% loss, 1 KB–300 KB).
+
+```cpp
+#include <NLTP.h>   // Arduino-ESP32 core 3.x
+
+NLTPESPNowNode node;
+const uint8_t hubMac[6] = {0x24, 0x0A, 0xC4, 0x00, 0x00, 0x01};
+uint8_t batch[4096];
+
+void setup() {
+  node.begin(1 /* Wi-Fi channel */, "shared-256bit-key-or-passphrase");
+  // node.setEspNowV1Mode(true);  // only if a peer is limited to 250 B ESP-NOW v1 frames
+  node.setPeerMac(hubMac);
+}
+
+void loop() {
+  node.poll();
+  // node.sendBytes(batch, sizeof(batch), "batch.bin");  -> FEC-protected, SHA-256-verified delivery
+}
+```
+
+**Multi-sensor hub (C, `nltp_espnow_hub_t`).** One gateway receives from several ESP32s, one slot per sender MAC:
+- Unknown senders must present an authentic frame before they get a slot, so forged frames cannot take one.
+- A slot that is mid-transfer is never evicted.
+- Idle slots free their ESP-NOW peer entry. ESP-NOW allows only 20 peers in total; NLTP manages the ones it adds.
+- **Memory:** each slot embeds a full endpoint.
+  - Default build: 2 slots, ~133 KB (`NLTP_RX_SLOTS=8`).
+  - Hardware-tested build: `-DNLTP_RX_SLOTS=2 -DNLTP_RX_MAX_GENS=64` → ~20 KB per slot.
+  - A compile-time check rejects hubs larger than `NLTP_ESPNOW_HUB_MAX_BYTES` (160 KB).
+- For plaintext hubs, also set `allow_cb`: a CRC check only filters corruption, not forgery.
+
+**Measured on two ESP32 boards** ([`results/esp32_complete_v1_v2_stress.json`](results/esp32_complete_v1_v2_stress.json)). This is a 16 KB transfer with frames dropped on purpose at the receiver (3 trials per cell). The "raw ESP-NOW" sender has no retransmission or FEC, only ESP-NOW's own link-layer ACK, so it shows what you get without a transport on top:
+
+| Dropped frames | Raw ESP-NOW v1 | Raw ESP-NOW v2 | **NLTP over ESP-NOW v1** | **NLTP over ESP-NOW v2** |
+| :---: | :---: | :---: | :---: | :---: |
+| 0% | 3/3, 4.87 Mbps | 3/3, 14.72 Mbps | 3/3, 1.98 Mbps | 3/3, 2.76 Mbps |
+| 5% | 0/3 | 2/3 | **3/3**, 1.69 Mbps | **3/3**, 2.52 Mbps |
+| 15% | 0/3 | 1/3 | **3/3**, 1.30 Mbps | **3/3**, 2.01 Mbps |
+| 25% | 0/3 | 0/3 | **3/3**, 0.86 Mbps | **3/3**, 1.64 Mbps |
+| 35% | 0/3 | 0/3 | **3/3**, 0.44 Mbps | **3/3**, 1.24 Mbps |
+
+- **Clean link:** raw ESP-NOW is 2–5× faster, so use it if you can live with lost data.
+- **Lossy link:** NLTP delivers every file intact.
+- **Tested version:** these runs used the v1.2.3 code. The 1.3.2 hub changes (slot/peer handling) passed the host simulation but have not been re-run on hardware yet.
+
+---
+
 ## 📊 Post-Upgrade Benchmarks & Hardware Verification
 
-All results below reflect the final **v1.2.0** codebase measured on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss/rate limits in both directions, `iptables` wire-byte accounting including dropped packets) and real `ESP32-D0WDQ6` hardware.
+Results below were measured on the **v1.2.0** codebase (the transport logic they exercise is unchanged in 1.3.2) on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss/rate limits in both directions, `iptables` wire-byte accounting including dropped packets) and real `ESP32-D0WDQ6` hardware.
 
 ### 1. `1 MB` File / Firmware Transfer vs. 8 Competing Protocols
 
@@ -265,13 +322,15 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
 
 #### B. Speeds by Link Condition (`58–60 KB` Verified File Transfer on `ESP32`, `48/48` Encrypted)
 
+The NLTP column is measured through `scripts/radio_emulator.py`. The other columns were not measured on these links; for ESP-NOW under frame loss, see the [ESP-NOW section](#7-nltp-over-esp-now-esp32-to-esp32-no-router).
+
 | Link Condition | **`NLTP v1.2` (Encrypted)** | **ESP-NOW Default** *(1 Mbps)* | **ESP-NOW Tuned `MCS7`** *(72 Mbps)* | **`TCP`** *(lwIP)* |
 | :--- | :--- | :--- | :--- | :--- |
 | **Clean Desk Wi-Fi** (`0%` loss) | `2.57–3.04 Mbps` (`0.16–0.19 s`) | `0.38–0.55 Mbps` (`0.90–1.28 s`) | **`5.79–25.82 Mbps` (`0.02–0.08 s`)** | `2.33 Mbps` (`0.21 s`) |
-| **Far Wi-Fi** (`5 Mbit`, `5%` loss) | **`1.90–1.98 Mbps` (`0.24–0.25 s`, `12/12` ok)** | `FAIL` *(missing chunks, no FEC)* | `FAIL` *(weak `-72 dBm` range + no FEC)* | Degrades sharply |
-| **Weak 4G** (`2 Mbit`, `9–13%` loss) | **`0.56–0.75 Mbps` (`0.63–0.85 s`, `12/12` ok)** | *Cannot cross 4G / routers* | *Cannot cross 4G / routers* | Stalls on fades |
-| **Marine Radio** (`1 Mbit`, `6–18%` loss) | **`0.31–0.53 Mbps` (`0.89–1.53 s`, `12/12` ok)** | *Cannot cross IP radio* | *Cannot cross IP radio* | Stalls on fades |
-| **Severe Loss** (`1 Mbit`, `20.8%` loss) | **`0.17–0.28 Mbps` (`1.68–2.80 s`, `12/12` ok)** | `FAIL` *(0% intact file delivery)* | `FAIL` *(0% intact file delivery)* | Times out |
+| **Far Wi-Fi** (`5 Mbit`, `5%` loss) | **`1.90–1.98 Mbps` (`0.24–0.25 s`, `12/12` ok)** | *not measured on this link* | *not measured on this link* | *not measured* |
+| **Weak 4G** (`2 Mbit`, `9–13%` loss) | **`0.56–0.75 Mbps` (`0.63–0.85 s`, `12/12` ok)** | *Cannot cross 4G / routers* | *Cannot cross 4G / routers* | *not measured* |
+| **Marine Radio** (`1 Mbit`, `6–18%` loss) | **`0.31–0.53 Mbps` (`0.89–1.53 s`, `12/12` ok)** | *Cannot cross IP radio* | *Cannot cross IP radio* | *not measured* |
+| **Severe Loss** (`1 Mbit`, `20.8%` loss) | **`0.17–0.28 Mbps` (`1.68–2.80 s`, `12/12` ok)** | *not measured on this link* | *not measured on this link* | *not measured* |
 
 #### C. `ESP-NOW` vs. `NLTP v1.2` Capability Matrix
 
@@ -281,7 +340,7 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
 | **Internet / 4G / Satellite** | **No** — local 2.4 GHz hop only (~100–400 m; cannot cross routers or SIMs) | **Yes** — works over Wi-Fi routers, `4G`/`5G` CGNAT, satellite, and marine IP radios |
 | **Direct Laptop / Cloud Link** | **No** — ESP-to-ESP only (needs an extra USB bridge ESP32 on PC) | **Yes** — `ESP32` talks directly to any Python laptop or Linux cloud server |
 | **Payload Size & Loss Recovery** | `250 B` (v1) / `1,470 B` (v2) per packet; **no file chunking or FEC** | **Multi-MB files & batches**; `GF(2^8)` Cauchy FEC + `SHA-256` survives **`20%` loss** |
-| **Encryption & Peer Limit** | `AES-128 CCMP`, capped at **6–17 encrypted peers** (`20` total MAC peers) | **`ChaCha20-Poly1305` (256-bit)** + `RFC 6479` replay window; **no peer-table cap** |
+| **Encryption & Peer Limit** | `AES-128 CCMP`, capped at **6–17 encrypted peers** (`20` total MAC peers) | **`ChaCha20-Poly1305` (256-bit)** + `RFC 6479` replay window; no peer cap over UDP (over ESP-NOW it shares the 20-peer table, which NLTP manages) |
 | **Deep-Sleep Coin-Cell Use** | **Wins (`~1–3 ms` wake-and-tx, no Wi-Fi router handshake)** | Higher power — requires an active Wi-Fi / cellular IP session (`~65 KB` RAM) |
 
 ---
@@ -293,7 +352,7 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
   - **`8/8` `256 KB` Lossy Cross-Language Stress**: Heterogeneous encrypted multi-window streams (`py↔js`, `js↔java`, `java↔c`, `c↔py`) at `15%` packet loss.
   - **`6/6` Cross-Language Zero-Knowledge `NLTPRelayHub`**: Python, JavaScript, and Java relay hubs forwarding encrypted `64 KB` streams across heterogeneous language pairs at `10%` loss.
   - **`4/4` Cross-Language Urgent `send_reflex`**: Out-of-line encrypted `ESTOP` delivery across `Python ↔ JS` and `Python ↔ Java`.
-- **`9/9` C99 + `9/9` JS + `7/7` Java Security & FEC Self-Tests**: Verified cross-SDK key derivation parity, bit-flipped packet rejection + `GF(2^8)` erasure recovery, `RFC 6479` replay rejection, wrong-key rejection, and plaintext-downgrade rejection.
+- **`14/14` C99 + `9/9` JS + `7/7` Java Security & FEC Self-Tests** (plus the C ESP-NOW hub simulation, `make -C csrc espnow-sim`): Verified cross-SDK key derivation parity, bit-flipped packet rejection + `GF(2^8)` erasure recovery, `RFC 6479` replay rejection, wrong-key rejection, and plaintext-downgrade rejection.
 - **`18/18` Dual-NAT & Symmetric-CGNAT Suite ([`scripts/virtual_nat_test.py`](scripts/virtual_nat_test.py))**: `1 MB` encrypted transfers across two separate Linux NAT routers (`40 ms` RTT + `5%` loss on each last mile):
   - Direct STUN + low-TTL UDP hole-punching (`C↔C` and `C↔Python`): **`9/9` direct P2P** (`1.22–2.26 s`).
   - Zero-knowledge `NLTPRelayHub`: **`3/3`** (`1.31–2.19 s`).
@@ -324,12 +383,13 @@ Measured side-by-side on `ESP32-D0WDQ6` (`2.4 GHz` Ch 11, `-47 dBm`, `ESP-NOW v2
 | [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python package & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPRelayHub`, STUN/hole-punch, `ChaCha20-Poly1305` AEAD, `nltp` CLI) |
 | [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + Browser/WebRTC `NLTPEndpoint` + Node UDP `NLTPServer`/`NLTPClient`/`NLTPRelayHub` + `nltp-js` CLI) |
 | [`java/`](java/) | Zero-dependency Pure Java 11+ / Android SDK (`io.necklink:nltp`, Maven `pom.xml` + Gradle, portable `ChaCha20-Poly1305`, NIO UDP + `NLTPCli` executable JAR) |
-| [`arduino/NLTP/`](arduino/NLTP/) | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`) with 3 ready-to-flash `ESP32` `.ino` sketches |
+| [`arduino/NLTP/`](arduino/NLTP/) | Drop-in Arduino IDE (`.zip`) & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) and `NLTPESPNowNode` (ESP-NOW), with 4 example sketches |
 | [`examples/`](examples/) | Runnable Python (`examples/python/`), JavaScript (`examples/javascript/`), and Java (`examples/java/`) examples |
-| [`csrc/`](csrc/) | Portable zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_wire.h`), POSIX CLI, and `9/9` security self-test |
+| [`csrc/`](csrc/) | Portable zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_wire.h`), ESP-NOW transport (`nltp_espnow.h`), POSIX CLI, `14/14` self-tests and the ESP-NOW radio simulation (`tools/espnow_sim/`) |
 | [`esp32/`](esp32/) | PlatformIO `ESP32` hardware firmware (`Arduino-ESP32`), verified bidirectional over encrypted Wi-Fi and emulated radio profiles |
+| [`esp32_mesh/`](esp32_mesh/) | ESP-NOW mesh, hub and interop firmware used for the ESP-NOW hardware results |
 | [`scripts/`](scripts/) | Live field-trial kit ([`field_test.py`](scripts/field_test.py)), `210/210` 4-language interop ([`multilang_interop_test.py`](scripts/multilang_interop_test.py)), `72/72` C↔Python interop, `18/18` dual-NAT suite, and `netem` harnesses |
-| [`tests/`](tests/) | `pytest` unit and integration suite (`20` tests) |
+| [`tests/`](tests/) | `pytest` unit and integration suite (`23` tests; torch, aioquic and Internet-dependent tests skip when unavailable) |
 | [`docs/`](docs/) | Installation & PyPI publishing guide ([`INSTALL_AND_PYPI.md`](docs/INSTALL_AND_PYPI.md)) and GitHub Actions CI workflow ([`github-ci.yml`](docs/github-ci.yml)) |
 
 ---
@@ -345,6 +405,26 @@ python scripts/field_test.py server --port 9700 --psk "<KEY>"
 # Vessel / field host:
 python scripts/field_test.py client --host <SHORE_IP> --port 9700 --psk "<KEY>" --sizes 64k,256k,1m --runs 5
 ```
+
+---
+
+## Changelog
+
+**1.3.2** (all components: Python, C, Arduino, JavaScript, Java)
+- *Fix (C / Arduino receiver):* since 1.2.1, a single packet from another `conn_id` reset an unfinished receive, and the sender could never repair it. That packet could be one forged plaintext packet, or one delayed or replayed encrypted packet from the sender's previous session. A different `conn_id` may now take over only after 1 s of silence, or once the current stream is complete, so ESP32 deep-sleep re-wake still works. Self-tests 13–14 cover both cases.
+- *Fix (`nltp_espnow.h` hub):*
+  - unknown senders are authenticated before they get a slot or a peer-table entry;
+  - slots that are mid-transfer are never evicted;
+  - idle slots release their ESP-NOW peer, and NLTP evicts its own least-recently-used peers when the 20-entry table is full. Before this, a hub stopped answering after ~20 distinct senders.
+  - The in-flight counter is now atomic.
+  - The default hub size dropped from 8 slots (~533 KB, more than an ESP32 has) to 2, with a compile-time size check.
+  - New host simulation: `make -C csrc espnow-sim`.
+- *Fix (Arduino):* `NLTP.h` compiles again on Arduino-ESP32 core 2.x; `NLTPESPNowNode` is only built on core 3.x.
+- *Versions:* Python, Arduino, JS and Java all at 1.3.2 (previously 1.3.1 / 1.2.3 / 1.2.0 / 1.2.0).
+- *Docs:* ESP-NOW section, unmeasured ESP-NOW "FAIL" cells removed, board MAC addresses redacted from results.
+- *Tests:* torch, aioquic and IPv6-dependent tests now skip instead of failing.
+
+**1.2.1 – 1.2.3** (C / Arduino only): ESP-NOW v1/v2 transport (`nltp_espnow.h`, `NLTPESPNowNode`), runtime shard size with automatic detection on receive, ESP-NOW mesh firmware and hardware stress results.
 
 ---
 

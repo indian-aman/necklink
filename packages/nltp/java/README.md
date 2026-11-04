@@ -14,7 +14,7 @@ Zero-external-dependency **Java 11+ / Android API 26+** implementation of the **
 
 ## Maven / Gradle Coordinates & Standalone JAR
 
-A pre-compiled zero-dependency library + CLI JAR (`--release 11`) is available on the [GitHub v1.2.0 Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0) (`nltp-java-1.2.0.jar`), or build from source with Maven, Gradle, or plain `javac`:
+Build the zero-dependency library + CLI JAR (`--release 11`, version 1.3.2) from source with Maven, Gradle, or plain `javac` (the older `nltp-java-1.2.0.jar` on the [v1.2.0 release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0) still works but predates 1.3.2):
 
 ```bash
 # Maven
@@ -86,9 +86,9 @@ NLTPEndpoint<String> ep = new NLTPEndpoint<>(
 ## CLI (`NLTPCli`)
 
 ```bash
-java -jar nltp-java-1.2.0.jar gen-key
-java -jar nltp-java-1.2.0.jar stun
-java -jar nltp-java-1.2.0.jar relay --host 0.0.0.0 --port 9000
-java -jar nltp-java-1.2.0.jar serve --host 0.0.0.0 --port 9000 --psk "<KEY>" --save-dir ./inbox
-java -jar nltp-java-1.2.0.jar send-file --host 127.0.0.1 --port 9000 --psk "<KEY>" --file firmware.bin
+java -jar target/nltp-1.3.2.jar gen-key
+java -jar target/nltp-1.3.2.jar stun
+java -jar target/nltp-1.3.2.jar relay --host 0.0.0.0 --port 9000
+java -jar target/nltp-1.3.2.jar serve --host 0.0.0.0 --port 9000 --psk "<KEY>" --save-dir ./inbox
+java -jar target/nltp-1.3.2.jar send-file --host 127.0.0.1 --port 9000 --psk "<KEY>" --file firmware.bin
 ```

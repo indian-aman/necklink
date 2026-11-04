@@ -32,6 +32,21 @@ if str(ROOT) not in sys.path:
 from necklink import NLTPClient, generate_nltp_key  # noqa: E402
 
 
+def _redact_macs(text: str) -> str:
+    """Replace board MAC addresses with stable labels before results are saved (they are committed)."""
+    import re as _re
+    seen: dict = {}
+
+    def _sub(m: "_re.Match") -> str:
+        mac = m.group(0).lower()
+        if mac == "ff:ff:ff:ff:ff:ff":
+            return m.group(0)
+        seen.setdefault(mac, "<board-%s-mac>" % chr(ord("A") + len(seen)))
+        return seen[mac]
+
+    return _re.sub(r"\b(?:[0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}\b", _sub, text)
+
+
 class MeshBoard:
     def __init__(self, port: str, node_id: int) -> None:
         self.port = port
@@ -502,7 +517,7 @@ def main() -> None:
 
     out_path = Path(args.out)
     out_path.parent.mkdir(parents=True, exist_ok=True)
-    out_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    out_path.write_text(_redact_macs(json.dumps(report, indent=2)), encoding="utf-8")
     print(f"\nSaved complete live hardware report -> {out_path}")
 
 

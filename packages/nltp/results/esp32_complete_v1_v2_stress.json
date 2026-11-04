@@ -1,17 +1,17 @@
 {
   "timestamp_utc": "2026-11-04T15:51:35Z",
   "hardware": {
-    "COM9": {
+    "board_A": {
       "chip": "ESP32-D0WDQ6",
       "role": "C99 nltp_espnow_hub_t + Raw v1/v2 + Fuzzer + SLIP",
-      "mac": "ec:64:c9:9b:a2:bc",
+      "mac": "<board-A-mac>",
       "espnow_v": 2,
       "mtu": 1470
     },
-    "COM12": {
+    "board_B": {
       "chip": "ESP32-D0WD-V3",
       "role": "Arduino NLTPESPNowNode + Raw v1/v2",
-      "mac": "f0:24:f9:0d:e8:34",
+      "mac": "<board-B-mac>",
       "espnow_v": 2,
       "mtu": 1470
     }

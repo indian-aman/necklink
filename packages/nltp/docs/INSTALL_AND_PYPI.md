@@ -1,22 +1,26 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-## 1. Python (`pip install pynltp`)
-
-Install the Python library (`import nltp`, `import pynltp`, and `import necklink`) plus the `nltp` / `pynltp` CLI commands on any laptop or Linux server:
+> **Version note.** Every NLTP component in this repository is **1.3.2**. That version is not yet
+> published as a release, so the instructions below install it from a clone of this repository.
+> The older v1.2.0 GitHub release assets (Arduino zip, JS tarball, Java JAR) and `pip install pynltp`
+> (1.3.1 on PyPI) still work, but lack the v1.3.2 receive-stall fix and the ESP-NOW transport fixes.
 
 ```bash
-pip install pynltp
+git clone https://github.com/indian-aman/necklink.git
+cd necklink/packages/nltp
 ```
 
-Or install directly from GitHub / the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
+## 1. Python (`pynltp`)
+
+Installs the Python library (`import nltp`, `import pynltp`, `import necklink`) and the `nltp` CLI:
 
 ```bash
+pip install .
+# or without cloning:
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
-# or prebuilt wheel:
-pip install https://github.com/indian-aman/necklink/releases/download/v1.2.0/pynltp-1.2.0-py3-none-any.whl
 ```
 
-Verify installation:
+Verify:
 
 ```bash
 nltp gen-key
@@ -25,20 +29,24 @@ python -c "import nltp; print('NLTP version:', nltp.__version__)"
 
 ---
 
-## 2. Install in Arduino IDE (`ESP32` / Wi-Fi Microcontrollers)
+## 2. Arduino IDE (`ESP32` / Wi-Fi microcontrollers)
 
-1. Download **`NLTP-Arduino-1.2.0.zip`** from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0).
-2. Open **Arduino IDE** → **Sketch → Include Library → Add .ZIP Library...** → select `NLTP-Arduino-1.2.0.zip`.
-3. Open **File → Examples → NLTP** to flash any of the three ready-made sketches:
-   - `ESP32_Encrypted_Receiver`
-   - `ESP32_Marine_Buoy_Sender`
-   - `ESP32_Relay_CGNAT_Node`
+1. Zip the library folder:
+   ```bash
+   cd arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP
+   ```
+2. In **Arduino IDE** → **Sketch → Include Library → Add .ZIP Library...** → select `NLTP-Arduino-1.3.2.zip`.
+3. Open **File → Examples → NLTP**: `ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`,
+   `ESP32_Relay_CGNAT_Node`, and `ESPNowV2Interop`.
+
+`NLTPWiFiNode` (UDP) works on any Arduino-ESP32 core. `NLTPESPNowNode` (NLTP over ESP-NOW) needs
+Arduino-ESP32 core 3.x (ESP-IDF 5.x); on older cores it is simply not compiled.
 
 ---
 
-## 3. Install in PlatformIO (`platformio.ini`)
+## 3. PlatformIO (`platformio.ini`)
 
-Add the repository (or release `.zip`) directly under `lib_deps`:
+Point `lib_deps` at the library folder of your clone:
 
 ```ini
 [env:esp32dev]
@@ -46,47 +54,42 @@ platform = espressif32
 board = esp32dev
 framework = arduino
 lib_deps =
-    https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip
+    symlink://../necklink/packages/nltp/arduino/NLTP
 ```
 
 ---
 
-## 4. Install in JavaScript / TypeScript (Node.js 18+, Deno, Bun, Browser)
+## 4. JavaScript / TypeScript (Node.js 18+, Deno, Bun, Browser)
 
-Install the zero-dependency ESM + CommonJS + `.d.ts` package directly from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
+Zero-dependency ESM + CommonJS + `.d.ts` package:
 
 ```bash
-npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz
+npm install ./js             # from packages/nltp, or: npm install /path/to/necklink/packages/nltp/js
 ```
 
-Verify installation:
+Verify:
 
 ```bash
 npx nltp-js gen-key
 node -e "import('nltp').then(m => console.log('Generated key:', m.generateNltpKey()))"
 ```
 
-For Browser / WebRTC / WebTransport environments without `node:dgram`, import `nltp/core` (`NLTPEndpoint`, `packNltpFrame`, `unpackNltpFrame`, `AEADCipherContext`). See [`js/README.md`](../js/README.md) for full details.
+For Browser / WebRTC / WebTransport environments without `node:dgram`, import `nltp/core` (`NLTPEndpoint`, `packNltpFrame`, `unpackNltpFrame`, `AEADCipherContext`). See [`js/README.md`](../js/README.md).
 
 ---
 
-## 5. Install in Java 11+ / Android (`io.necklink:nltp`)
+## 5. Java 11+ / Android (`io.necklink:nltp`)
 
-Download the standalone zero-dependency library + CLI JAR (**`nltp-java-1.2.0.jar`**, compiled with `--release 11`) from the [v1.2.0 GitHub Release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0):
-
-```bash
-java -jar nltp-java-1.2.0.jar gen-key
-```
-
-Or build and install into your local Maven repository (`~/.m2`) or Gradle build:
+Build the zero-dependency library + CLI JAR (`--release 11`):
 
 ```bash
+mvn -f java/pom.xml clean package        # -> java/target/nltp-1.3.2.jar
+java -jar java/target/nltp-1.3.2.jar gen-key
+# or install into ~/.m2 for your own Maven/Gradle build:
 mvn -f java/pom.xml clean install
-# or
-gradle -p java test jar
 ```
 
-See [`java/README.md`](../java/README.md) for full builder and `NLTPEndpoint<P>` documentation.
+See [`java/README.md`](../java/README.md) for the builder and `NLTPEndpoint<P>` documentation.
 
 ---
 

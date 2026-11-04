@@ -34,9 +34,9 @@ NODE_BIN = os.environ.get("NODE_BIN") or shutil.which("node") or "node"
 JS_CLI = str(ROOT / "js" / "bin" / "nltp.mjs")
 
 JAVA_BIN = os.environ.get("JAVA_BIN") or shutil.which("java") or "java"
-_DEFAULT_JAR = ROOT / "deliverables" / "nltp-java-1.2.0.jar"
-if not _DEFAULT_JAR.exists():
-    _DEFAULT_JAR = ROOT / "java" / "target" / "nltp-1.2.0.jar"
+# Newest JAR built by `mvn -f java/pom.xml package` (java/target/nltp-<version>.jar); override with NLTP_JAVA_JAR
+_JARS = sorted((ROOT / "java" / "target").glob("nltp-*.jar"), key=lambda p: p.stat().st_mtime)
+_DEFAULT_JAR = _JARS[-1] if _JARS else ROOT / "java" / "target" / "nltp.jar"
 JAVA_JAR = os.environ.get("NLTP_JAVA_JAR") or str(_DEFAULT_JAR)
 
 

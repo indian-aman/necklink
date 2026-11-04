@@ -2,7 +2,7 @@
  * ESP32_Encrypted_Receiver.ino — Minimal Arduino sketch receiving encrypted files from Python.
  *
  * Install in Arduino IDE:
- *   Sketch -> Include Library -> Add .ZIP Library... -> select `NLTP-Arduino-1.2.0.zip`
+ *   Sketch -> Include Library -> Add .ZIP Library... -> select `NLTP-Arduino-1.3.2.zip` (zip of the arduino/NLTP folder)
  *
  * Test from your laptop with Python:
  *   python examples/python/04_talk_to_arduino_esp32.py send --esp-ip <ESP32_IP> --port 9700 --psk "my-marine-secret-2026"

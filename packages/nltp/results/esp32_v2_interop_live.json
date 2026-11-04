@@ -1,16 +1,16 @@
 {
   "timestamp_utc": "2026-11-04T15:09:20Z",
   "boards": {
-    "COM9": {
+    "board_A": {
       "role": "bridge_c99",
-      "mac": "ec:64:c9:9b:a2:bc",
+      "mac": "<board-A-mac>",
       "espnow_version": 2,
       "mtu": 1470,
       "free_heap_bytes": 96348
     },
-    "COM12": {
+    "board_B": {
       "role": "arduino_node",
-      "mac": "f0:24:f9:0d:e8:34",
+      "mac": "<board-B-mac>",
       "espnow_version": 2,
       "mtu": 1470,
       "free_heap_bytes": 101296
