@@ -329,7 +329,7 @@ static void nltp_espnow_rx_isr_cb(const esp_now_recv_info_t *info, const uint8_t
     if (len < (int)NLTP_HEADER_BYTES ||
         data[0] != NLTP_MAGIC_0 ||
         data[1] != NLTP_MAGIC_1 ||
-        (((uint8_t)data[2] >> 4) != NLTP_VERSION)) {
+        (((uint8_t)data[2] >> 4) != NLTP_VERSION && ((uint8_t)data[2] >> 4) != NLTP_SESSION_VERSION)) {
         if (g_nltp_espnow_bus.non_nltp_rx_cb) {
             g_nltp_espnow_bus.non_nltp_rx_cb(info, data, len);
         }
@@ -586,15 +586,18 @@ typedef struct {
     void *user;
 } nltp_espnow_hub_t;
 
-/* Stateless check that `pkt` is a well-formed NLTP frame for this hub: with a key, a valid
- * ChaCha20-Poly1305 tag (no decryption, no replay state); without a key, a valid CRC32 (which only
- * filters corruption -- plaintext hubs should also set an allow-list callback). */
+/* Stateless check that `pkt` may open a slot for an unknown sender: with a key, only a session HELLO
+ * (NLTP 1.4) with a valid ChaCha20-Poly1305 tag under the long-term key -- a new sender always starts with
+ * one, and no other frame can be authenticated before a session exists; without a key, a valid CRC32
+ * (which only filters corruption -- plaintext hubs should also set an allow-list callback). */
 static inline int nltp_espnow_frame_ok(const uint8_t *pkt, size_t len, int encrypted, const uint8_t key32[32]) {
     if (encrypted) {
         uint8_t type, flags;
         uint32_t cid, ts;
         size_t pt_len;
-        return nltp_unpack_encrypted_frame(pkt, len, key32, NULL, &type, &flags, &cid, &ts, NULL, &pt_len);
+        if (len < NLTP_ENC_HEADER_BYTES || pkt[2] != (uint8_t)((NLTP_SESSION_VERSION << 4) | NLTP_PT_HELLO)) return 0;
+        return nltp_unpack_encrypted_frame_v(pkt, len, key32, NLTP_SESSION_VERSION, NULL, &type, &flags, &cid, &ts,
+                                             NULL, &pt_len);
     }
     if (len < NLTP_HEADER_BYTES || (pkt[3] & NLTP_FLAG_ENCRYPTED)) return 0;
     {
@@ -607,6 +610,10 @@ static inline int nltp_espnow_frame_ok(const uint8_t *pkt, size_t len, int encry
         return crc == nltp_read_u32_le(pkt + 8);
     }
 }
+
+#ifndef NLTP_ESPNOW_SLOT_GRACE_MS
+#define NLTP_ESPNOW_SLOT_GRACE_MS 1000u  /* a slot with authenticated traffic this recently is not recycled */
+#endif
 
 /* A slot is busy while it is receiving or sending an unfinished transfer; busy slots are never evicted. */
 static inline int nltp_espnow_slot_busy(const nltp_espnow_slot_t *slot) {
@@ -671,8 +678,10 @@ static inline nltp_espnow_slot_t *nltp_espnow_hub_get_or_create_slot(nltp_espnow
         }
         if (!hub->slots[i].in_use && free_idx < 0) {
             free_idx = (int)i;
-        } else if (hub->slots[i].in_use && !nltp_espnow_slot_busy(&hub->slots[i])) {
-            /* only idle slots may be recycled: never drop a transfer in progress */
+        } else if (hub->slots[i].in_use && !nltp_espnow_slot_busy(&hub->slots[i]) &&
+                   (now_ms - hub->slots[i].last_active_ms) >= NLTP_ESPNOW_SLOT_GRACE_MS) {
+            /* only idle slots may be recycled: never drop a transfer in progress, nor a sender that was
+               active within the grace period (e.g. between its session handshake and its first data) */
             uint32_t age = now_ms - hub->slots[i].last_active_ms;
             if (oldest_idx < 0 || age >= oldest_age) {
                 oldest_age = age;

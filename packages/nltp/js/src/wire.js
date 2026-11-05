@@ -74,14 +74,13 @@ export function toUint8Array(data) {
 }
 
 export function randomBytes(len) {
+  // Keys, session nonces and conn_ids must be unpredictable: never fall back to Math.random().
+  // Standard Web Crypto (globalThis.crypto) is built into Node 19+ and Web Crypto runtimes; the Node UDP module installs it on Node 18.
+  if (!globalThis.crypto || typeof globalThis.crypto.getRandomValues !== 'function') {
+    throw new Error('nltp: no secure random source (globalThis.crypto.getRandomValues is missing)');
+  }
   const out = new Uint8Array(len);
-  if (globalThis.crypto && typeof globalThis.crypto.getRandomValues === 'function') {
-    globalThis.crypto.getRandomValues(out);
-    return out;
-  }
-  for (let i = 0; i < len; i++) {
-    out[i] = (Math.random() * 256) | 0;
-  }
+  globalThis.crypto.getRandomValues(out);
   return out;
 }
 

@@ -1,5 +1,5 @@
 /*
- * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.3.2).
+ * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.4.0).
  *
  * Hardware-tested on ESP32 (D0WDQ6 / D0WD-V3; UDP and ESP-NOW). UDP mode uses
  * Arduino's standard <WiFiUdp.h> interface (other Wi-Fi boards are not yet
@@ -16,6 +16,33 @@
 
 #include "nltp_core.h"
 #include "nltp_net.h"
+#if defined(ESP_PLATFORM) || defined(ESP32)
+#include "esp_random.h"
+#endif
+
+/* Hardware random numbers for session IDs and (where the C core has no default) session nonces.
+ * ESP32 and ESP8266 use their hardware RNG; RP2040 (arduino-pico) uses rp2040.hwrand32(). Other boards
+ * have no secure source here: they can run unencrypted, or call nltp_set_random() on the endpoint. */
+static inline uint32_t nltpRandom32() {
+#if defined(ESP_PLATFORM) || defined(ESP32)
+    return esp_random();
+#elif defined(ESP8266)
+    return RANDOM_REG32;
+#elif defined(ARDUINO_ARCH_RP2040)
+    return rp2040.hwrand32();
+#else
+    return (uint32_t)micros() ^ ((uint32_t)analogRead(0) << 16) ^ 0xA5A55A5Au;   /* not secure */
+#endif
+}
+
+#if defined(ARDUINO_ARCH_RP2040)
+static void nltpRandomFill(void *, uint8_t *out, size_t len) {
+    for (size_t i = 0; i < len; i += 4) {
+        uint32_t r = rp2040.hwrand32();
+        for (size_t j = 0; j < 4 && i + j < len; ++j) out[i + j] = (uint8_t)(r >> (8 * j));
+    }
+}
+#endif
 /* NLTP over ESP-NOW needs ESP-IDF 5.x (Arduino-ESP32 core 3.x). On older cores the UDP classes
  * below still work; NLTPESPNowNode is simply not available. */
 #if defined(ESP_PLATFORM) || defined(ARDUINO_ARCH_ESP32) || defined(ESP32)
@@ -55,6 +82,10 @@ public:
      *   rxCapBytes : Max received file size buffered in RAM (default 32 KB).
      *   maxKbps    : Pacing ceiling in kbps (default 20000 = 20 Mbps; actual rate adapts below ceiling).
      */
+    /* Boards without a hardware RNG known to NLTP (not ESP32 / ESP8266 / RP2040): supply a secure random
+     * source (e.g. a TRNG or crypto chip) before begin(), or encrypted begin() returns false. */
+    void setRandomSource(nltp_random_fn fn) { _userRng = fn; }
+
     bool begin(uint16_t localPort,
                const char *psk = nullptr,
                uint32_t rxCapBytes = 32u * 1024u,
@@ -63,10 +94,18 @@ public:
         if (!_udp.begin(localPort)) return false;
 
         _relayMode = false;
-        uint32_t cid = ((uint32_t)micros() ^ 0xA5A55A5Au) | 1u;
-        nltp_init(_ep, cid, maxKbps, &_sendThunk, &_nowThunk, this);
+        /* Random session ID from the hardware RNG (1.3.x used the boot clock, so reboots could repeat it). */
+        uint32_t cid = nltpRandom32() | 1u;
+        if (_userRng) _userRng(nullptr, (uint8_t *)&cid, sizeof(cid));
+        nltp_init(_ep, cid | 1u, maxKbps, &_sendThunk, &_nowThunk, this);
+#if defined(ARDUINO_ARCH_RP2040)
+        nltp_set_random(_ep, &nltpRandomFill);
+#endif
+        if (_userRng) nltp_set_random(_ep, _userRng);
         nltp_set_rx_buffer(_ep, _rxBuf, _rxCap);
         _applyPsk(psk);
+        /* Encryption needs a secure random source for session nonces: refuse rather than run without one. */
+        if (_ep->encrypted && !_ep->rng) return false;
         return true;
     }
 
@@ -198,6 +237,7 @@ public:
 private:
     WiFiUDP _udp;
     nltp_endpoint_t *_ep;
+    nltp_random_fn _userRng = nullptr;
     uint8_t *_rxBuf;
     uint32_t _rxCap;
 

@@ -39,9 +39,9 @@ jobs:
         run: |
           mkdir -p java/target/classes java/target/test-classes
           javac --release 11 -Xlint:all -Werror -d java/target/classes java/src/main/java/io/necklink/nltp/*.java
-          jar --create --file java/target/nltp-1.3.2.jar --main-class io.necklink.nltp.NLTPCli -C java/target/classes .
-          javac --release 11 -Xlint:all -Werror -cp java/target/nltp-1.3.2.jar -d java/target/test-classes java/src/test/java/io/necklink/nltp/*.java
-          java -cp "java/target/nltp-1.3.2.jar:java/target/test-classes" io.necklink.nltp.NLTPSelfTest
+          jar --create --file java/target/nltp-1.4.0.jar --main-class io.necklink.nltp.NLTPCli -C java/target/classes .
+          javac --release 11 -Xlint:all -Werror -cp java/target/nltp-1.4.0.jar -d java/target/test-classes java/src/test/java/io/necklink/nltp/*.java
+          java -cp "java/target/nltp-1.4.0.jar:java/target/test-classes" io.necklink.nltp.NLTPSelfTest
 
       - name: Run JavaScript / TypeScript SDK test suite
         run: |

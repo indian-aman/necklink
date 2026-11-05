@@ -65,7 +65,7 @@ except ImportError:  # Optional dependency (`pip install aioquic`)
     connect_necklink_quic = None  # type: ignore[assignment]
     generate_ephemeral_quic_cert = None  # type: ignore[assignment]
 
-__version__ = "1.3.2"
+__version__ = "1.4.0"
 
 
 def __getattr__(name: str):

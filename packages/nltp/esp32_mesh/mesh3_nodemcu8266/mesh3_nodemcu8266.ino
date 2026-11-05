@@ -229,18 +229,21 @@ static void ICACHE_FLASH_ATTR on_espnow_recv(uint8_t *mac, uint8_t *data, uint8_
     g_q_head = next;
 }
 
+/* A new sender must first present an authentic NLTP 1.4 session HELLO (sealed with the long-term key);
+ * no other frame can be authenticated before a session exists. Plaintext mode accepts any NLTP frame. */
 static bool stateless_frame_ok(const uint8_t *raw, size_t len) {
     if (len < NLTP_HEADER_BYTES || raw[0] != NLTP_MAGIC_0 || raw[1] != NLTP_MAGIC_1) return false;
-    if ((raw[2] >> 4) != NLTP_VERSION) return false;
     if (g_ep.encrypted) {
-        if (!(raw[3] & NLTP_FLAG_ENCRYPTED) || len < NLTP_ENC_HEADER_BYTES + NLTP_AEAD_TAG_BYTES) return false;
+        if (len < NLTP_ENC_HEADER_BYTES + NLTP_AEAD_TAG_BYTES ||
+            raw[2] != (uint8_t)((NLTP_SESSION_VERSION << 4) | NLTP_PT_HELLO)) return false;
         uint8_t dec_tmp[256];
         uint8_t pt, fl;
         uint32_t cid, ts;
         size_t plen = 0;
-        return nltp_unpack_encrypted_frame(raw, len, g_ep.key, NULL, &pt, &fl, &cid, &ts, dec_tmp, &plen) != 0;
+        return nltp_unpack_encrypted_frame_v(raw, len, g_ep.key, NLTP_SESSION_VERSION, NULL, &pt, &fl, &cid, &ts,
+                                             dec_tmp, &plen) != 0;
     }
-    return true;
+    return (raw[2] >> 4) == NLTP_VERSION;
 }
 
 static void process_rx_item(const struct rxq_item_s &it) {

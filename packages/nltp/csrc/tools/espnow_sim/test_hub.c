@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
     /* C. Two sensors mid-transfer, then a third arrives (hub has 2 slots). */
     if (strchr(only, 'C')) {
         uint8_t m2[6] = {0x30, 0xAE, 0xA4, 0, 0, 0xC2}, m3[6] = {0x30, 0xAE, 0xA4, 0, 0, 0xC3};
-        int v1 = 0, v2 = 0, v3 = 0;
+        int v1 = 0, v2 = 0, v3 = 0, d1 = -1, d2 = -1, d3 = -1;
         for (t = 0; t < 46000; ++t) tick(0);   /* let earlier slots expire */
         m[5] = 0xC1; radio_set_mac(1, m); radio_set_mac(2, m2); radio_set_mac(3, m3);
         g_cur = 1; node1_init(hub_mac, enc); node1_send(60000);
@@ -95,10 +95,13 @@ int main(int argc, char **argv) {
         for (t = 0; t < 20000; ++t) {
             tick(7);
             v1 = node1_verified(); v2 = node2_verified(); v3 = node3_verified();
+            if (v1 && d1 < 0) d1 = t;
+            if (v2 && d2 < 0) d2 = t;
+            if (v3 && d3 < 0) d3 = t;
             if (v1 && v2 && v3) break;
         }
-        printf("  C. 2 sensors mid-transfer + a 3rd arrives: sensor1=%d sensor2=%d sensor3=%d (all done by %.1f s)\n",
-               v1, v2, v3, t / 1000.0);
+        printf("  C. 2 sensors mid-transfer + a 3rd arrives: sensor1=%d sensor2=%d sensor3=%d (done at %.2f / %.2f / %.2f s)\n",
+               v1, v2, v3, d1 / 1000.0, d2 / 1000.0, d3 / 1000.0);
         failures += !(v1 && v2 && v3);
     }
     printf("%s\n", failures ? "ESP-NOW SIM FAILED" : "ESP-NOW SIM PASSED");

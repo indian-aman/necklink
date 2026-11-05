@@ -5,9 +5,14 @@
 #include "nltp_core.h"
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "nltp_sha256.h"
+
+#if defined(ESP_PLATFORM)
+#include "esp_random.h"
+#endif
 
 #define U32_INF 0xFFFFFFFFu
 #define ACK_EVERY_SHARDS 8u
@@ -88,12 +93,226 @@ static uint8_t *payload_buf(nltp_endpoint_t *ep) {
     return ep->pkt + (ep->encrypted ? NLTP_ENC_HEADER_BYTES : NLTP_HEADER_BYTES);
 }
 
+/* ---------------------------------------------------------------------------
+ * Encrypted sessions (NLTP 1.4, wire version 2) — same protocol as necklink/session.py:
+ *   HELLO {n_i} and HELLO_ACK {n_i || n_r} are sealed with the long-term key K;
+ *   prk = HMAC(K, "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r)),
+ *   k_i2r = HMAC(prk, "i2r"), k_r2i = HMAC(prk, "r2i").
+ * Recorded traffic fails after a restart (the responder adds a fresh n_r to every session) and per-session
+ * keys make counter restarts and conn_id collisions harmless.
+ * ------------------------------------------------------------------------- */
+
+#define HS_FIRST_RETX_MS 120u
+#define HS_MAX_RETX_MS 500u
+#define HS_GIVE_UP_MS 10000u
+#define SESS_TAKEOVER_MS 1000u   /* a new HELLO replaces the live session only after this much silence */
+#define SESS_REKEY_MS 3000u      /* re-handshake when the peer of an unfinished send has been silent this long */
+#define HINT_INTERVAL_MS 250u
+#define HS_FRAME_MAX (NLTP_ENC_HEADER_BYTES + 32u + NLTP_AEAD_TAG_BYTES)
+
+#if defined(ESP_PLATFORM)
+static void default_random(void *user, uint8_t *out, size_t len) {
+    (void)user;
+    esp_fill_random(out, len);
+}
+#elif defined(ESP8266)
+/* ESP8266 hardware RNG register (RANDOM_REG32 in the Arduino core, read by ESP.random()). */
+static void default_random(void *user, uint8_t *out, size_t len) {
+    size_t i;
+    (void)user;
+    for (i = 0; i < len; ++i) out[i] = (uint8_t)(*(volatile uint32_t *)0x3FF20E44u);
+}
+#elif defined(__unix__) || defined(__linux__) || defined(__APPLE__)
+static void default_random(void *user, uint8_t *out, size_t len) {
+    FILE *f = fopen("/dev/urandom", "rb");
+    size_t got = f ? fread(out, 1, len, f) : 0u;
+    (void)user;
+    if (f) fclose(f);
+    if (got != len) abort();   /* no secure randomness: refuse to continue rather than reuse nonces */
+}
+#else
+#define NLTP_NO_DEFAULT_RANDOM 1
+#endif
+
+static int random_bytes(nltp_endpoint_t *ep, uint8_t *out, size_t len) {
+    if (!ep->rng) return 0;
+    ep->rng(ep->user, out, len);
+    return 1;
+}
+
+static void sess_derive(nltp_endpoint_t *ep, nltp_session_t *s, const uint8_t n_i[16], const uint8_t n_r[16],
+                        uint32_t cid_i, uint32_t cid_r) {
+    uint8_t msg[16u + 16u + 16u + 8u], prk[32], k_i2r[32], k_r2i[32];
+    memcpy(msg, "NLTP-1.4 session", 16u);
+    memcpy(msg + 16, n_i, 16u);
+    memcpy(msg + 32, n_r, 16u);
+    nltp_write_u32_le(msg + 48, cid_i);
+    nltp_write_u32_le(msg + 52, cid_r);
+    nltp_hmac_sha256(ep->key, 32u, msg, sizeof(msg), prk);
+    nltp_hmac_sha256(prk, 32u, (const uint8_t *)"i2r", 3u, k_i2r);
+    nltp_hmac_sha256(prk, 32u, (const uint8_t *)"r2i", 3u, k_r2i);
+    memcpy(s->k_tx, s->role == 'i' ? k_i2r : k_r2i, 32u);
+    memcpy(s->k_rx, s->role == 'i' ? k_r2i : k_i2r, 32u);
+    s->used = 1;
+    s->tx_seq = 0;
+    nltp_replay_init(&s->replay);
+    s->est_ms = s->last_rx_ms = now(ep);
+}
+
+/* Seals a handshake frame with the long-term key and a random 64-bit counter; returns its length. */
+static size_t hs_pack(nltp_endpoint_t *ep, uint8_t *out, uint8_t type, const uint8_t *body, size_t blen) {
+    uint8_t r[8];
+    uint64_t seq;
+    if (!random_bytes(ep, r, 8u)) return 0;
+    seq = nltp_read_u64_le(r) | 1u;
+    return nltp_pack_encrypted_frame_v(out, ep->key, NLTP_SESSION_VERSION, type, 0, ep->conn_id, seq, now(ep), body, blen);
+}
+
+static void raw_send(nltp_endpoint_t *ep, const uint8_t *pkt, size_t n) {
+    ep->send(ep->user, pkt, n);
+    ep->pkts_tx++;
+    ep->bytes_tx += (uint32_t)n;
+    ep->last_tx_ms = now(ep);
+}
+
+static void hs_send_hello(nltp_endpoint_t *ep) {
+    uint8_t f[HS_FRAME_MAX];
+    size_t n = hs_pack(ep, f, NLTP_PT_HELLO, ep->pend_n_i, 16u);
+    if (n) {
+        raw_send(ep, f, n);
+        ep->hellos_tx++;
+    }
+}
+
+static void hs_start(nltp_endpoint_t *ep) {
+    uint32_t t = now(ep);
+    if (!random_bytes(ep, ep->pend_n_i, 16u)) return;   /* no random source: fail closed */
+    ep->pend = 1;
+    ep->pend_interval_ms = HS_FIRST_RETX_MS;
+    ep->pend_next_ms = t + HS_FIRST_RETX_MS;
+    ep->pend_deadline_ms = t + HS_GIVE_UP_MS;
+    hs_send_hello(ep);
+}
+
+/* 1 when frames can be sealed for the peer; otherwise starts a handshake (if none is running). */
+static int sess_ready(nltp_endpoint_t *ep) {
+    if (!ep->encrypted || ep->sess[0].used) return 1;
+    if (!ep->pend) hs_start(ep);
+    return 0;
+}
+
+static void sess_install(nltp_endpoint_t *ep, const nltp_session_t *ns, int live) {
+    if (live) {
+        ep->sess[1] = ep->sess[0];
+        ep->sess[0] = *ns;
+    } else {
+        ep->sess[1] = *ns;
+    }
+    ep->sessions_up++;
+}
+
+static void sess_on_hello(nltp_endpoint_t *ep, uint32_t cid_i, const uint8_t n_i[16]) {
+    nltp_session_t ns;
+    uint8_t body[32], n_r[16];
+    size_t n;
+    int i, live;
+    for (i = 0; i < 2; ++i) {
+        nltp_session_t *s = &ep->sess[i];
+        if (s->used && s->role == 'r' && s->peer_cid == cid_i && s->has_ack && memcmp(s->n_i, n_i, 16u) == 0) {
+            raw_send(ep, s->ack, sizeof(s->ack));   /* retransmitted HELLO: same answer */
+            return;
+        }
+    }
+    if (ep->pend) {
+        if (memcmp(ep->pend_n_i, n_i, 16u) < 0) return;   /* simultaneous open: our HELLO wins */
+        ep->pend = 0;
+    }
+    if (!random_bytes(ep, n_r, 16u)) return;
+    memset(&ns, 0, sizeof(ns));
+    ns.role = 'r';
+    ns.peer_cid = cid_i;
+    memcpy(ns.n_i, n_i, 16u);
+    sess_derive(ep, &ns, n_i, n_r, cid_i, ep->conn_id);
+    memcpy(body, n_i, 16u);
+    memcpy(body + 16, n_r, 16u);
+    n = hs_pack(ep, ns.ack, NLTP_PT_HELLO_ACK, body, 32u);
+    if (n != sizeof(ns.ack)) return;
+    ns.has_ack = 1;
+    live = !ep->sess[0].used || (now(ep) - ep->sess[0].last_rx_ms) >= SESS_TAKEOVER_MS;
+    sess_install(ep, &ns, live);
+    raw_send(ep, ns.ack, sizeof(ns.ack));
+}
+
+static void sess_on_ack(nltp_endpoint_t *ep, uint32_t cid_r, const uint8_t n_i[16], const uint8_t n_r[16]) {
+    nltp_session_t ns;
+    if (!ep->pend || memcmp(ep->pend_n_i, n_i, 16u) != 0) return;   /* stale or replayed ACK */
+    ep->pend = 0;
+    memset(&ns, 0, sizeof(ns));
+    ns.role = 'i';
+    ns.peer_cid = cid_r;
+    memcpy(ns.n_i, n_i, 16u);
+    sess_derive(ep, &ns, n_i, n_r, ep->conn_id, cid_r);
+    sess_install(ep, &ns, 1);
+}
+
+/* A peer seals frames for a session we do not have (we restarted): say so, so it re-keys in one round
+   trip. Unauthenticated by necessity; it echoes the frame's conn_id and counter so the peer only reacts to
+   frames it really sent, and a forged hint costs at most one extra handshake. */
+static void sess_send_no_session(nltp_endpoint_t *ep, uint32_t cid, uint64_t seq) {
+    uint8_t f[NLTP_ENC_HEADER_BYTES + 16u];
+    uint32_t t = now(ep);
+    if (ep->hint_tx_ms != 0u && t - ep->hint_tx_ms < HINT_INTERVAL_MS) return;
+    ep->hint_tx_ms = t | 1u;
+    f[0] = NLTP_MAGIC_0;
+    f[1] = NLTP_MAGIC_1;
+    f[2] = (uint8_t)((NLTP_SESSION_VERSION << 4) | NLTP_PT_NO_SESSION);
+    f[3] = NLTP_FLAG_ENCRYPTED;
+    nltp_write_u32_le(f + 4, ep->conn_id);
+    nltp_write_u64_le(f + 8, 0u);
+    nltp_write_u32_le(f + 16, t);
+    nltp_write_u32_le(f + 20, cid);
+    nltp_write_u64_le(f + 24, seq);
+    nltp_write_u32_le(f + 32, 0u);
+    raw_send(ep, f, sizeof(f));
+}
+
+static void sess_on_no_session(nltp_endpoint_t *ep, const uint8_t *raw, size_t len) {
+    uint32_t t = now(ep);
+    uint64_t echo_seq;
+    if (len < NLTP_ENC_HEADER_BYTES + 12u || !ep->sess[0].used || ep->pend) return;
+    echo_seq = nltp_read_u64_le(raw + NLTP_ENC_HEADER_BYTES + 4);
+    if (nltp_read_u32_le(raw + NLTP_ENC_HEADER_BYTES) != ep->conn_id || echo_seq == 0u || echo_seq > ep->sess[0].tx_seq) return;
+    if (ep->hint_rx_ms != 0u && t - ep->hint_rx_ms < HINT_INTERVAL_MS) return;
+    ep->hint_rx_ms = t | 1u;
+    ep->rekeys_from_hint++;
+    hs_start(ep);
+}
+
+static void sess_poll(nltp_endpoint_t *ep) {
+    uint32_t t = now(ep);
+    if (!ep->encrypted) return;
+    if (ep->pend) {
+        if ((int32_t)(t - ep->pend_deadline_ms) >= 0) {
+            ep->pend = 0;
+        } else if ((int32_t)(t - ep->pend_next_ms) >= 0) {
+            hs_send_hello(ep);
+            ep->pend_interval_ms = umin32(HS_MAX_RETX_MS, ep->pend_interval_ms * 3u / 2u);
+            ep->pend_next_ms = t + ep->pend_interval_ms;
+        }
+    } else if (ep->sess[0].used && ep->tx.active && !ep->tx.completed &&
+               t - ep->sess[0].last_rx_ms > SESS_REKEY_MS && t - ep->sess[0].est_ms > SESS_REKEY_MS) {
+        hs_start(ep);
+    }
+}
+
 static void emit(nltp_endpoint_t *ep, uint8_t type, size_t payload_len) {
     /* the payload is already in place at payload_buf(ep); encryption works in place */
     size_t n;
     if (ep->encrypted) {
-        n = nltp_pack_encrypted_frame(ep->pkt, ep->key, type, 0, ep->conn_id, ++ep->tx_seq, now(ep),
-                                      ep->pkt + NLTP_ENC_HEADER_BYTES, payload_len);
+        nltp_session_t *s = &ep->sess[0];
+        if (!sess_ready(ep)) return;   /* handshake running; senders retry */
+        n = nltp_pack_encrypted_frame_v(ep->pkt, s->k_tx, NLTP_SESSION_VERSION, type, 0, ep->conn_id, ++s->tx_seq,
+                                        now(ep), ep->pkt + NLTP_ENC_HEADER_BYTES, payload_len);
     } else {
         nltp_pack_header(ep->pkt, type, 0, ep->conn_id, now(ep), ep->pkt + NLTP_HEADER_BYTES, payload_len);
         n = NLTP_HEADER_BYTES + payload_len;
@@ -367,6 +586,13 @@ void nltp_init(nltp_endpoint_t *ep, uint32_t conn_id, uint32_t max_kbps,
     }
     for (i = 0; i < NLTP_RX_SLOTS; ++i) ep->rx.slots[i].gen_id = -1;
     ep->rx.max_gen_seen = -1;
+#ifndef NLTP_NO_DEFAULT_RANDOM
+    ep->rng = default_random;
+#endif
+}
+
+void nltp_set_random(nltp_endpoint_t *ep, nltp_random_fn rng) {
+    ep->rng = rng;
 }
 
 void nltp_set_rx_buffer(nltp_endpoint_t *ep, uint8_t *buf, uint32_t cap) {
@@ -384,7 +610,8 @@ void nltp_set_key(nltp_endpoint_t *ep, const uint8_t key32[32]) {
     ep->encrypted = key32 != 0;
     if (key32) memcpy(ep->key, key32, 32);
     else memset(ep->key, 0, 32);
-    ep->tx_seq = 0;
+    memset(ep->sess, 0, sizeof(ep->sess));   /* a new key starts new sessions */
+    ep->pend = 0;
     ep->replay_valid = 0;
 }
 
@@ -583,6 +810,7 @@ static void tx_poll(nltp_endpoint_t *ep) {
     uint32_t t = now(ep), g, end, eff_win, rto, guard, p;
     int exhausted = 0;
     if (!tx->active || tx->completed) return;
+    if (!sess_ready(ep)) return;   /* encrypted: wait for the session handshake before sending */
 
     rto = umin32(2000u, umax32(55u, ep->srtt_ms * 185u / 100u));
     guard = umax32(35u, ep->srtt_ms * 140u / 100u);
@@ -1074,34 +1302,60 @@ void nltp_on_datagram(nltp_endpoint_t *ep, const uint8_t *raw, size_t len) {
     ep->pkts_rx++;
     ep->bytes_rx += (uint32_t)len;
     if (len < NLTP_HEADER_BYTES || raw[0] != NLTP_MAGIC_0 || raw[1] != NLTP_MAGIC_1) return;
-    if ((raw[2] >> 4) != NLTP_VERSION) return;
+    if (!ep->encrypted && (raw[2] >> 4) != NLTP_VERSION) return;   /* encrypted frames are version 2 */
 
     if (ep->encrypted) {
-        /* Strict like Python: with a key set, only authentic, fresh encrypted frames are accepted. A frame
-           from a new peer conn_id is checked against a fresh replay window that is adopted only if the frame
-           authenticates, so a forged packet cannot reset the current peer's window. */
-        nltp_replay_window_t fresh, *win;
-        uint8_t flags;
+        /* Strict like Python: with a key set, only authentic, fresh frames of a session are accepted. */
+        uint8_t flags, ptype = raw[2] & 0x0Fu;
         uint32_t peer_cid;
+        uint64_t seq;
+        int i, hit = -1, known = 0;
         if (!(raw[3] & NLTP_FLAG_ENCRYPTED) || len < NLTP_ENC_HEADER_BYTES + NLTP_AEAD_TAG_BYTES) {
             ep->auth_drops++;
             return;
         }
-        peer_cid = nltp_read_u32_le(raw + 4);
-        if (ep->replay_valid && ep->replay_cid == peer_cid) {
-            win = &ep->replay;
-        } else {
-            nltp_replay_init(&fresh);
-            win = &fresh;
-        }
-        if (!nltp_unpack_encrypted_frame(raw, len, ep->key, win, &type, &flags, &cid, &ts, ep->dec, &plen)) {
+        if ((raw[2] >> 4) != NLTP_SESSION_VERSION) {   /* 1.3.x frame sealed with the long-term key */
+            ep->legacy_drops++;
             ep->auth_drops++;
             return;
         }
-        if (win == &fresh) {
-            ep->replay = fresh;
-            ep->replay_cid = peer_cid;
-            ep->replay_valid = 1;
+        peer_cid = nltp_read_u32_le(raw + 4);
+        seq = nltp_read_u64_le(raw + 8);
+        if (ptype == NLTP_PT_NO_SESSION) {
+            sess_on_no_session(ep, raw, len);
+            return;
+        }
+        if (ptype == NLTP_PT_HELLO || ptype == NLTP_PT_HELLO_ACK) {
+            if (!nltp_unpack_encrypted_frame_v(raw, len, ep->key, NLTP_SESSION_VERSION, 0, &type, &flags, &cid, &ts,
+                                               ep->dec, &plen)) {
+                ep->auth_drops++;
+                return;
+            }
+            ep->valid_rx++;   /* authenticated with the long-term key: the app may follow this address */
+            if (ptype == NLTP_PT_HELLO && plen >= 16u) sess_on_hello(ep, cid, ep->dec);
+            if (ptype == NLTP_PT_HELLO_ACK && plen >= 32u) sess_on_ack(ep, cid, ep->dec, ep->dec + 16);
+            return;
+        }
+        for (i = 0; i < 2; ++i) {
+            nltp_session_t *s = &ep->sess[i];
+            if (!s->used || s->peer_cid != peer_cid) continue;
+            known = 1;
+            if (nltp_unpack_encrypted_frame_v(raw, len, s->k_rx, NLTP_SESSION_VERSION, &s->replay, &type, &flags, &cid,
+                                              &ts, ep->dec, &plen)) {
+                hit = i;
+                break;
+            }
+        }
+        if (hit < 0) {
+            if (!known) sess_send_no_session(ep, peer_cid, seq);
+            ep->auth_drops++;
+            return;
+        }
+        ep->sess[hit].last_rx_ms = now(ep);
+        if (hit == 1) {   /* authenticated traffic proves the candidate: it becomes the live session */
+            nltp_session_t tmp = ep->sess[0];
+            ep->sess[0] = ep->sess[1];
+            ep->sess[1] = tmp;
         }
         pl = ep->dec;
     } else {
@@ -1165,6 +1419,7 @@ void nltp_send_ping(nltp_endpoint_t *ep) {
 }
 
 void nltp_poll(nltp_endpoint_t *ep) {
+    sess_poll(ep);
     if (ep->rx.ack_pending && !ep->rx.completed) rx_send_ack(ep);
     tx_poll(ep);
     if (ep->keepalive_ms && now(ep) - ep->last_tx_ms >= ep->keepalive_ms) nltp_send_ping(ep);

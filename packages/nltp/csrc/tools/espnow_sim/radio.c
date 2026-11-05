@@ -26,6 +26,20 @@ int g_drop_pct = 0;
 static uint32_t rng = 0x12345678u;
 
 uint32_t esp_random(void) { rng ^= rng << 13; rng ^= rng >> 17; rng ^= rng << 5; return rng; }
+/* Host stand-in for the ESP32 hardware RNG; seeded from /dev/urandom so session nonces differ per run. */
+void esp_fill_random(void *buf, size_t len) {
+    static int seeded;
+    uint8_t *p = (uint8_t *)buf;
+    size_t i;
+    if (!seeded) {
+        FILE *f = fopen("/dev/urandom", "rb");
+        uint32_t s = 0;
+        if (f) { if (fread(&s, sizeof(s), 1, f) != 1) s = 0; fclose(f); }
+        rng ^= s | 1u;
+        seeded = 1;
+    }
+    for (i = 0; i < len; ++i) p[i] = (uint8_t)esp_random();
+}
 int64_t esp_timer_get_time(void) { return g_us; }
 void esp_rom_delay_us(uint32_t us) { g_us += us; }
 

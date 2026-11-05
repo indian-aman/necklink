@@ -62,6 +62,8 @@ extern "C" {
 #define NLTP_COLD_BURST_BYTES (32u * 1024u)
 
 typedef void (*nltp_send_fn)(void *user, const uint8_t *pkt, size_t len);
+/* Fills `out` with `len` cryptographically secure random bytes (session nonces, handshake counters). */
+typedef void (*nltp_random_fn)(void *user, uint8_t *out, size_t len);
 typedef uint32_t (*nltp_now_ms_fn)(void *user);  /* monotonic milliseconds, may wrap */
 
 /* --- sender state ------------------------------------------------------- */
@@ -165,6 +167,20 @@ typedef struct {
     nltp_rxslot_t slots[NLTP_RX_SLOTS];
 } nltp_rx_t;
 
+/* --- encrypted session (NLTP 1.4) ----------------------------------------- */
+
+/* One end of a session: keys derived from both sides' fresh 16-byte nonces (see nltp_core.c). */
+typedef struct {
+    uint8_t used, role, has_ack;    /* role: 'i' (we sent the HELLO) or 'r' */
+    uint32_t peer_cid;
+    uint8_t n_i[16];
+    uint8_t k_tx[32], k_rx[32];
+    uint64_t tx_seq;
+    nltp_replay_window_t replay;
+    uint32_t est_ms, last_rx_ms;
+    uint8_t ack[20u + 32u + 16u];   /* responder: our HELLO_ACK, re-sent if the HELLO is retransmitted */
+} nltp_session_t;
+
 /* --- endpoint ------------------------------------------------------------ */
 
 typedef struct {
@@ -187,13 +203,18 @@ typedef struct {
     /* frames that passed CRC / authentication: an app may follow a peer's new address (roaming, NAT
        rebinding) only when this increased for the datagram it just fed in */
     uint32_t valid_rx;
-    /* encryption */
+    /* encryption (NLTP 1.4): key = long-term key; frames use per-session keys from a 1-RTT handshake.
+       sess[0] is the live session (it seals our frames), sess[1] a candidate that becomes live once
+       authenticated traffic arrives under it, so a replayed HELLO cannot replace the live session. */
     uint8_t encrypted;
     uint8_t key[32];
-    uint64_t tx_seq;
-    nltp_replay_window_t replay;
-    uint32_t replay_cid;
-    uint8_t replay_valid;
+    nltp_random_fn rng;
+    nltp_session_t sess[2];
+    uint8_t pend, pend_n_i[16];      /* our HELLO waiting for its HELLO_ACK */
+    uint32_t pend_next_ms, pend_interval_ms, pend_deadline_ms;
+    uint32_t hint_tx_ms, hint_rx_ms;
+    uint32_t hellos_tx, sessions_up, rekeys_from_hint, legacy_drops;
+    uint8_t replay_valid;            /* unused since 1.4 (kept so older firmware still compiles) */
     uint8_t pkt[NLTP_PKT_MAX + 64u];
     uint8_t dec[NLTP_PKT_MAX + 64u];
 } nltp_endpoint_t;
@@ -209,6 +230,11 @@ void nltp_set_shard_bytes(nltp_endpoint_t *ep, uint16_t shard_bytes);
    a 43/44-char URL-safe base64 key (generate_nltp_key) is used as-is, any other passphrase is hashed. */
 void nltp_set_key(nltp_endpoint_t *ep, const uint8_t key32[32]);
 void nltp_key_from_psk(const char *psk, uint8_t out_key32[32]);
+
+/* Secure random source for session nonces. nltp_init picks one automatically on ESP-IDF / Arduino-ESP32
+   (esp_fill_random), ESP8266 (os_get_random) and Linux/macOS (/dev/urandom); on other platforms call this
+   (e.g. with a hardware TRNG). Without a random source an encrypted endpoint does not send anything. */
+void nltp_set_random(nltp_endpoint_t *ep, nltp_random_fn rng);
 
 /* Starts sending `data` (kept by reference). Returns the stream id, or 0 if a send is still active. */
 uint32_t nltp_send_buffer(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len, const char *filename);

@@ -147,7 +147,7 @@ Commands:
     const cli = await NLTPClient.connect({ host, port, psk, lossDropSim: loss });
     try {
       const seq = await cli.sendReflex(text);
-      const acked = await cli.waitReflexAck(seq, 3000);
+      const acked = await cli.waitReflexAck(seq, 5000);
       console.log(`RESULT ${JSON.stringify({ ok: acked, acked, reflex: text })}`);
       return acked ? 0 : 1;
     } finally {

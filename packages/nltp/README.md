@@ -2,12 +2,12 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NLTP (`pynltp` v1.3.2)
+# NLTP (`pynltp` v1.4.0)
 
 **Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
 
 [![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
-[![Version](https://img.shields.io/badge/version-1.3.2-0EA5E9?style=flat-square)](#8-changelog)
+[![Version](https://img.shields.io/badge/version-1.4.0-0EA5E9?style=flat-square)](#8-changelog)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-216%2F216%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 + ESP8266 Mesh](https://img.shields.io/badge/ESP32%20%2B%20ESP8266%20ESP--NOW-100%25%20SHA--256%20%40%2035%25%20loss-00979D?style=flat-square&logo=espressif&logoColor=white)](#6-benchmarks--hardware-verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
@@ -41,7 +41,7 @@
 **NLTP unifies embedded boards, laptops, and servers under one unmodified `"NL"` binary wire format:**
 
 - **Forward Error Correction (`GF(2^8)` Cauchy Reed-Solomon)**: Reconstructs lost packets algebraically inside 8-shard generations without waiting for per-packet retransmission timeouts — delivering `100%` `SHA-256`-verified payloads across `0–35%` packet loss.
-- **256-Bit Authenticated Encryption (`ChaCha20-Poly1305`)**: Built-in `RFC 8439` AEAD with 20-byte header authentication, `RFC 6479` 64-packet anti-replay window, and end-to-end `SHA-256` stream receipts (`216/216` cross-language tests passed).
+- **256-Bit Authenticated Encryption (`ChaCha20-Poly1305`) with Per-Session Keys**: Built-in `RFC 8439` AEAD with 20-byte header authentication and an `RFC 6479` 64-packet anti-replay window. Since `1.4`, a 1-RTT handshake gives every session fresh keys from both sides' random values, so recorded traffic is rejected even after a restart (see [2.4](#24-encrypted-sessions--security-model-v14) for what this does and does not protect). End-to-end `SHA-256` stream receipts (`216/216` cross-language tests passed).
 - **Priority Out-of-Band Command Lane (`send_reflex`)**: Urgent control frames (`STOP`, `RESET`, `PING_ACTUATOR`) bypass bulk file transfers with zero head-of-line blocking and retransmit until explicitly acknowledged (`PT_REFLEX_ACK`).
 - **One Protocol Across 5 Runtimes & 2 Physical Transports**: Identical wire bytes run over **UDP/IP** (including built-in `RFC 5389` STUN hole-punching and zero-knowledge 1-port CGNAT relay) and directly inside **IEEE 802.11 ESP-NOW** frames on `ESP32` and `ESP8266`.
 
@@ -74,10 +74,10 @@ Every NLTP packet — whether carried inside a UDP datagram, a CGNAT relay envel
 
 | Mode | Header Size | Wire Layout | Integrity & Replay Protection |
 | :--- | :--- | :--- | :--- |
-| **Encrypted (`FLAG_ENCRYPTED`)** | `20 B` + `16 B` tag | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `ts_ms` (`4 B`) \| `seq64` (`8 B`) \| `ciphertext` \| `poly1305_tag` (`16 B`) | 256-bit `ChaCha20-Poly1305` (`RFC 8439`) with header AAD + `RFC 6479` 64-packet sliding anti-replay bitmap |
+| **Encrypted (`FLAG_ENCRYPTED`, version nibble `2`)** | `20 B` + `16 B` tag | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `seq64` (`8 B`) \| `ts_ms` (`4 B`) \| `ciphertext` \| `poly1305_tag` (`16 B`) | 256-bit `ChaCha20-Poly1305` (`RFC 8439`) under per-session keys, header as AAD, nonce = `conn_id` \|\| `seq64`, + `RFC 6479` 64-packet sliding anti-replay bitmap |
 | **Plaintext** | `16 B` | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `ts_ms` (`4 B`) \| `crc32` (`4 B`) \| `payload` | IEEE `CRC-32` over header + payload (rejects RF corruption; encryption endpoints reject plaintext downgrades) |
 
-Key derivation is identical across Python, C99, JS, Java, and Arduino: a 32-byte raw/Base64 key is used directly (`nltp gen-key`), while any human passphrase is hashed with `SHA-256` into a 256-bit key.
+Key derivation is identical across Python, C99, JS, Java, and Arduino: a 32-byte raw/Base64 key is used directly (`nltp gen-key`), while any human passphrase is hashed once with `SHA-256` into a 256-bit key. **Use `nltp gen-key`:** a single SHA-256 is fast to brute-force, so a weak passphrase can be guessed offline from one captured packet.
 
 ### 2.2 `GF(2^8)` Cauchy FEC & Automatic Shard Sizing
 
@@ -96,7 +96,26 @@ Calling `send_reflex()` / `sendReflex()` emits a standalone encrypted control pa
 - **Zero head-of-line blocking**: Delivered immediately even while a multi-megabyte file transfer is repairing lost shards.
 - **Confirmed exactly-once delivery**: Retransmitted with exponential backoff (`15–60 ms` initial, up to `250 ms`, `3 s` budget) until `PT_REFLEX_ACK` arrives; receivers deduplicate by `(conn_id, seq)`.
 
-### 2.4 NAT, Firewall & 4G/5G CGNAT Traversal
+### 2.4 Encrypted Sessions & Security Model (`v1.4`)
+
+In `1.3.x` every frame was sealed directly with the long-term key, using the nonce `conn_id || counter`, where the counter restarted at 1 whenever a program started. Two consequences: **recorded traffic was accepted again after the receiver restarted** (its replay window lived only in memory), and **two sessions with the same `conn_id` reused nonces**. Arduino Wi-Fi nodes picked `conn_id` from the boot clock, which made repeats likely. Since `1.4`, every session gets its own keys:
+
+```text
+initiator -> responder   HELLO      { n_i (16 B) }              sealed with the long-term key K
+responder -> initiator   HELLO_ACK  { n_i (16 B) || n_r (16 B) } sealed with K
+prk   = HMAC-SHA256(K,   "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r))
+k_i2r = HMAC-SHA256(prk, "i2r")      k_r2i = HMAC-SHA256(prk, "r2i")
+```
+
+- **Replay after restart is rejected**: the responder adds a fresh random `n_r` to every session, so frames recorded in an earlier session never authenticate again (demonstrated in `tests/test_session_security.py` and C self-test 15).
+- **Nonce reuse is gone**: counters restart at 1 per session, but every session has new keys, so equal `conn_id`s or reboots no longer repeat keystreams (C self-test 16).
+- **Restarts recover in about one round trip**: a receiver that gets a frame for a session it does not have replies with a small, rate-limited `NO_SESSION` hint, and the sender re-keys at once. The hint is unauthenticated, so a forged one costs at most an extra handshake.
+- **Replayed `HELLO`s cannot knock out a live session**: each peer keeps the live session plus one candidate, and a candidate only takes over once real traffic arrives under it.
+- **Random sources**: Python `os.urandom`, Java `SecureRandom`, JS `crypto.getRandomValues` (it refuses to fall back to `Math.random`), C/Arduino `esp_fill_random` (ESP32), the hardware RNG register (ESP8266), `/dev/urandom` (Linux/macOS), or `rp2040.hwrand32()` under `ARDUINO_ARCH_RP2040` *(untested on RP2040 hardware)*. On other boards call `nltp_set_random()`; without a random source an encrypted endpoint does not send.
+
+**What this does not protect against** (it would need public-key cryptography): a leaked key decrypts recorded sessions (**no forward secrecy**); **every holder of the shared key is trusted**, so dumping one device's flash exposes the whole fleet; an on-path attacker can still drop or delay packets; the relay sees who talks to whom, when and how much. The protocol has **not been independently reviewed**, and an NLTP E-stop must never be the only way to stop a machine. Encrypted `1.4` and `1.3.x` endpoints do not interoperate (plaintext mode still does), so upgrade every device together.
+
+### 2.5 NAT, Firewall & 4G/5G CGNAT Traversal
 
 - **Live Socket STUN (`RFC 5389`)**: `discover_wan()` queries public STUN servers from the active NLTP socket to detect Endpoint-Independent vs. Symmetric CGNAT without port races.
 - **Low-TTL UDP Hole-Punching (`punch_p2p`)**: Opens local NAT pinholes (`TTL=2`) before full-TTL authenticated `PING`/`PONG` probing.
@@ -144,9 +163,9 @@ flowchart TB
 1. **Zero L2 Wrapper Overhead**: `nltp_espnow.h` places the raw `"NL"` datagram directly inside the IEEE 802.11 vendor action payload with zero extra headers. A gateway can either verify-and-forward complete files (`NLTPESPNowNode` → `NLTPWiFiNode`) or forward raw `"NL"` packets byte-for-byte into a UDP socket or `NLTPRelayHub`.
 2. **Cross-Chip `ESP8266 ↔ ESP32` Compatibility**: An `ESP8266` (`80 KB` total SRAM) built with `NLTP_SHARD_BYTES=192`, `NLTP_RX_SLOTS=3`, `NLTP_TX_WINDOW=8` and `NLTP_RX_MAX_GENS=128` (the tested settings) transmits `242 B` encrypted shards that any `ESP32` v2 hub (`1,470 B` MTU) decodes natively alongside `1,010 B` v2 shards from other `ESP32` peers.
 3. **Hardened Multi-Peer Hub (`nltp_espnow_hub_t`)**:
-   - **Pre-Auth Slot Gate**: Unknown sender MACs must pass `ChaCha20-Poly1305` (or `allow_cb` + `CRC-32`) verification *before* any RAM slot or ESP-NOW peer entry is allocated — spoofed MAC floods allocate `0` slots.
+   - **Pre-Auth Slot Gate**: Unknown sender MACs must present a session `HELLO` with a valid `ChaCha20-Poly1305` tag under the shared key (or pass `allow_cb` + `CRC-32` in plaintext mode) *before* any RAM slot or ESP-NOW peer entry is allocated — spoofed MAC floods allocate `0` slots. A slot with authenticated traffic in the last second is never recycled, so a sender between its handshake and its first data keeps its slot.
    - **Automatic 20-Peer Hardware Table Management**: ESP-NOW hardware supports at most 20 total peers (`6–17` encrypted). NLTP encrypts at the payload layer with 256-bit `ChaCha20-Poly1305` and LRU-evicts idle peer entries automatically, so a single hub can talk to an unlimited population of intermittent field sensors.
-   - **Mid-Stream Takeover Guard (`v1.3.2`)**: An active receive stream cannot be reset by a delayed replay or stray `conn_id` packet unless the stream finishes or goes silent for `>= 1,000 ms`, keeping deep-sleep wake re-connections fast (`4.34 ms` median) without mid-transfer stalls.
+   - **Mid-Stream Takeover Guard (`v1.3.2`)**: An active receive stream cannot be reset by a delayed replay or stray `conn_id` packet unless the stream finishes or goes silent for `>= 1,000 ms`, keeping deep-sleep wake re-connections fast (`4.34 ms` median, measured on `1.3.2`; an encrypted `1.4` wake adds one handshake round trip) without mid-transfer stalls.
 
 ---
 
@@ -154,14 +173,14 @@ flowchart TB
 
 ### 4.1 Python (`pynltp` / `import nltp` + `nltp` CLI)
 
-**How it works:** Runs on Python 3.9+ (Windows, Linux, macOS, Raspberry Pi) using only `numpy` and `cryptography` (with a pure-Python `ChaCha20-Poly1305` fallback). `NLTPServer` and `NLTPClient` manage a background non-blocking UDP selector thread for 1-RTT packet pacing, FEC encoding/decoding, keepalives, and reflex acknowledgements.
+**How it works:** Runs on Python 3.9+ (Windows, Linux, macOS, Raspberry Pi) using only `numpy` and `cryptography`. `NLTPServer` and `NLTPClient` manage a background non-blocking UDP selector thread for 1-RTT packet pacing, FEC encoding/decoding, keepalives, and reflex acknowledgements.
 
 ```bash
-# Install v1.3.2 directly from PyPI:
-pip install --upgrade pynltp
-
-# Or install directly from GitHub source:
+# 1.4.0 (with the session handshake) from GitHub source:
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
+
+# PyPI still has 1.3.2 (no session handshake; its encrypted mode cannot talk to 1.4 devices):
+# pip install --upgrade pynltp
 ```
 
 **Basic Python Connection (Server + Client on LAN or Internet):**
@@ -276,7 +295,7 @@ const received = await endpoint.waitInbox(5000);
 **How it works:** Pure Java 11 (`--release 11`) with **zero external Maven/Gradle dependencies**. Uses a non-blocking `java.nio.channels.DatagramChannel` + `Selector` background loop, portable constant-time `RFC 8439` `ChaCha20-Poly1305`, and thread-safe queues.
 
 ```bash
-mvn -f packages/nltp/java/pom.xml package   # Produces packages/nltp/java/target/nltp-1.3.2.jar
+mvn -f packages/nltp/java/pom.xml package   # Produces packages/nltp/java/target/nltp-1.4.0.jar
 ```
 
 **Basic Java Connection:**
@@ -328,7 +347,7 @@ public class Example {
 
 **1. Gradle & Manifest Setup:**
 
-Copy `nltp-1.3.2.jar` into `app/libs/` and add to `app/build.gradle.kts`:
+Copy `nltp-1.4.0.jar` into `app/libs/` and add to `app/build.gradle.kts`:
 
 ```kotlin
 android {
@@ -340,7 +359,7 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/nltp-1.3.2.jar"))
+    implementation(files("libs/nltp-1.4.0.jar"))
 }
 ```
 
@@ -498,7 +517,7 @@ if (espNow.hasReceivedFile() && espNow.isReceivedShaOk() && wifiUdp.isSendComple
 
 ## 5. Protocol Comparison: NLTP vs. MQTT vs. Raw ESP-NOW vs. TCP / QUIC
 
-| Capability | **NLTP (`v1.3.2`)** | **MQTT (over TCP/TLS)** | **Raw ESP-NOW (`v1` / `v2`)** | **TCP BBR / QUIC** |
+| Capability | **NLTP (`v1.4.0`)** | **MQTT (over TCP/TLS)** | **Raw ESP-NOW (`v1` / `v2`)** | **TCP BBR / QUIC** |
 | :--- | :--- | :--- | :--- | :--- |
 | **Underlying Transport** | UDP/IP, CGNAT Relay, L2 ESP-NOW, or custom byte callbacks | TCP/IP (or QUIC in niche brokers) | IEEE 802.11 L2 vendor action frames only | TCP/IP or UDP/IP (`QUIC`) |
 | **Central Broker Needed?** | **No** — direct P2P, hub, or optional 1-port relay | **Yes** — requires an MQTT broker (Mosquitto, EMQX, AWS IoT) | **No** — direct peer MAC to MAC | **No** — direct client/server |
@@ -669,6 +688,15 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 ---
 
 ## 8. Changelog
+
+**`1.4.0`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)* — **security release; encrypted mode is not compatible with `1.3.x`**
+- **Per-session keys (fixes replay and nonce reuse)**: encrypted endpoints run a 1-RTT `HELLO` / `HELLO_ACK` handshake (`0x0B` / `0x0C`, wire version `2`) and seal every frame with keys derived from both sides' fresh random values ([2.4](#24-encrypted-sessions--security-model-v14)). Before this, recorded encrypted traffic was accepted again after the receiver restarted, and sessions that repeated a `conn_id` reused nonces under the shared key.
+- **Restart recovery**: a receiver that has no session for a sender replies with a rate-limited `NO_SESSION` hint (`0x0D`) so the sender re-keys in about one round trip; senders also re-key after `3 s` of silence while they still owe data. Frames sent during a handshake are queued (up to 64 per peer) instead of dropped, and `close()` waits up to `1 s` for an unfinished handshake so they still go out.
+- **Random session IDs and nonces**: Arduino `NLTPWiFiNode` now takes its `conn_id` from the hardware RNG (it used the boot clock); the C core gained `nltp_set_random()` with automatic sources on ESP32, ESP8266, and Linux/macOS (plus `rp2040.hwrand32()` under `ARDUINO_ARCH_RP2040` in `NLTP.h`, untested on RP2040 hardware), and refuses to send encrypted frames without one; JS no longer falls back to `Math.random()`.
+- **ESP-NOW hub**: unknown senders must present a valid `HELLO`; slots with traffic in the last second are not recycled (a sender between its handshake and its first data was being evicted).
+- **Fix (Python, JS, Java)**: after a receiver restarted at the same address, a new transfer to it ignored every ACK because it expected the old `conn_id`; it now accepts the restarted receiver.
+- **Tests**: `tests/test_session_security.py` (replay after restart, same-`conn_id` sessions, restart recovery, legacy and wrong-key rejection, replayed `HELLO`s, simultaneous open, close-time handshake linger); C self-tests 15–16; all 216 interop checks and the ESP32 sketch and ESP-NOW simulations run with sessions.
+- **Not re-measured**: the hardware and `netem` benchmarks in section 6 were run on `1.3.2` and earlier. Sessions add one handshake round trip when a session starts and do not change the per-packet format size.
 
 **`1.3.2`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)*
 - **Confirmed Priority Reflex Lane (`PT_REFLEX_ACK`, `0x0A`)**: `send_reflex` / `sendReflex` now retransmits (`15–250 ms` backoff, `3 s` window) until acknowledged, deduplicates by `(conn_id, seq)`, and adds `wait_reflex_ack` / `waitReflexAck` plus server-to-client `NLTPServer.send_reflex(client_addr, msg)` (`300/300` verified at `15%` and `30%` bidirectional loss across Python, JS, and Java).

@@ -403,6 +403,24 @@ public abstract class NLTPSocketBase implements AutoCloseable {
 
     @Override
     public void close() {
+        // Frames sent just before close() may still wait for a session handshake: give it up to 1 s.
+        long lingerEnd = System.nanoTime() + 1_000_000_000L;
+        while (running && System.nanoTime() < lingerEnd) {
+            int queued;
+            lock.lock();
+            try {
+                queued = engine.sessionQueuedFrames();
+            } finally {
+                lock.unlock();
+            }
+            if (queued == 0) break;
+            try {
+                Thread.sleep(5L);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
         running = false;
         if (selector != null) {
             selector.wakeup();

@@ -34,6 +34,10 @@
 #define NLTP_PT_NEURAL_STATE        0x07u
 #define NLTP_PT_PING                0x08u
 #define NLTP_PT_PONG                0x09u
+#define NLTP_PT_HELLO               0x0Bu  /* NLTP 1.4 session handshake (wire version 2) */
+#define NLTP_PT_HELLO_ACK           0x0Cu
+#define NLTP_PT_NO_SESSION          0x0Du  /* unauthenticated restart hint, see nltp_core.c */
+#define NLTP_SESSION_VERSION        2u     /* version nibble of every encrypted frame since NLTP 1.4 */
 
 /* -------------------------------------------------------------------------
  * Little-Endian Unaligned-Safe Load/Store Helpers
@@ -400,9 +404,10 @@ static inline size_t nltp_pack_header(
  * (`out_pkt` must have capacity >= `NLTP_ENC_HEADER_BYTES + payload_len + NLTP_AEAD_TAG_BYTES`).
  * Matches Python `pack_nltp_frame(..., aead=AEADCipherContext(key32))` byte-for-byte!
  */
-static inline size_t nltp_pack_encrypted_frame(
+static inline size_t nltp_pack_encrypted_frame_v(
     uint8_t *out_pkt,
     const uint8_t key32[32],
+    uint8_t version,
     uint8_t pkt_type,
     uint8_t flags,
     uint32_t conn_id,
@@ -414,7 +419,7 @@ static inline size_t nltp_pack_encrypted_frame(
     uint8_t nonce12[12];
     out_pkt[0] = NLTP_MAGIC_0;
     out_pkt[1] = NLTP_MAGIC_1;
-    out_pkt[2] = (uint8_t)(((NLTP_VERSION & 0x0Fu) << 4) | (pkt_type & 0x0Fu));
+    out_pkt[2] = (uint8_t)(((version & 0x0Fu) << 4) | (pkt_type & 0x0Fu));
     out_pkt[3] = (uint8_t)((flags & 0x7Fu) | NLTP_FLAG_ENCRYPTED);
     nltp_write_u32_le(out_pkt + 4, conn_id);
     nltp_write_u64_le(out_pkt + 8, seq64);
@@ -438,14 +443,32 @@ static inline size_t nltp_pack_encrypted_frame(
     return NLTP_ENC_HEADER_BYTES + plaintext_len + NLTP_AEAD_TAG_BYTES;
 }
 
+/* NLTP 1.3.x frame sealed directly with a key (wire version 1). NLTP 1.4 endpoints seal data frames with
+   per-session keys at version NLTP_SESSION_VERSION and reject version-1 encrypted frames. */
+static inline size_t nltp_pack_encrypted_frame(
+    uint8_t *out_pkt,
+    const uint8_t key32[32],
+    uint8_t pkt_type,
+    uint8_t flags,
+    uint32_t conn_id,
+    uint64_t seq64,
+    uint32_t ts_ms,
+    const uint8_t *plaintext,
+    size_t plaintext_len
+) {
+    return nltp_pack_encrypted_frame_v(out_pkt, key32, NLTP_VERSION, pkt_type, flags, conn_id, seq64, ts_ms,
+                                       plaintext, plaintext_len);
+}
+
 /*
  * Verifies Poly1305 MAC + RFC 6479 64-bit replay window in constant time BEFORE touching `out_pt`.
  * Returns 1 on authentic fresh packet (`*out_pt_len` set), or 0 if forged/tampered/replayed/downgraded.
  */
-static inline int nltp_unpack_encrypted_frame(
+static inline int nltp_unpack_encrypted_frame_v(
     const uint8_t *raw_pkt,
     size_t raw_len,
     const uint8_t key32[32],
+    uint8_t version,
     nltp_replay_window_t *replay_win,
     uint8_t *out_pkt_type,
     uint8_t *out_flags,
@@ -458,7 +481,7 @@ static inline int nltp_unpack_encrypted_frame(
     if (raw_pkt[0] != NLTP_MAGIC_0 || raw_pkt[1] != NLTP_MAGIC_1) return 0;
     uint8_t ver_type = raw_pkt[2];
     uint8_t flags = raw_pkt[3];
-    if ((ver_type >> 4) != NLTP_VERSION) return 0;
+    if ((ver_type >> 4) != version) return 0;
     if ((flags & NLTP_FLAG_ENCRYPTED) == 0u) return 0;
 
     uint32_t cid = nltp_read_u32_le(raw_pkt + 4);
@@ -499,6 +522,22 @@ static inline int nltp_unpack_encrypted_frame(
     *out_ts_ms = ts_ms;
     *out_pt_len = ct_len;
     return 1;
+}
+
+static inline int nltp_unpack_encrypted_frame(
+    const uint8_t *raw_pkt,
+    size_t raw_len,
+    const uint8_t key32[32],
+    nltp_replay_window_t *replay_win,
+    uint8_t *out_pkt_type,
+    uint8_t *out_flags,
+    uint32_t *out_conn_id,
+    uint32_t *out_ts_ms,
+    uint8_t *out_pt,
+    size_t *out_pt_len
+) {
+    return nltp_unpack_encrypted_frame_v(raw_pkt, raw_len, key32, NLTP_VERSION, replay_win, out_pkt_type, out_flags,
+                                         out_conn_id, out_ts_ms, out_pt, out_pt_len);
 }
 
 #endif /* NLTP_WIRE_H */

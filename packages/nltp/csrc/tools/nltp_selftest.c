@@ -37,6 +37,12 @@ static uint8_t file_tx[200 * 1024];
 static uint8_t file_rx[256 * 1024];
 static int failures = 0;
 
+/* What an eavesdropper on the A -> B path records (tests 15-16). */
+#define REC_MAX 600
+static uint8_t rec[REC_MAX][PMAX];
+static uint16_t rec_len[REC_MAX];
+static int rec_n, rec_on;
+
 static uint32_t clock_cb(void *user) {
     (void)user;
     return g_clock;
@@ -56,6 +62,10 @@ static void send_cb(void *user, const uint8_t *pkt, size_t len) {
     uint8_t copy[PMAX];
     l->sent++;
     if (len > l->max_len) l->max_len = (uint16_t)len;
+    if (rec_on && l == &link_a && rec_n < REC_MAX && len <= PMAX) {
+        memcpy(rec[rec_n], pkt, len);
+        rec_len[rec_n++] = (uint16_t)len;
+    }
     if (l->drop_pct && rand() % 100 < l->drop_pct) return;
     memcpy(copy, pkt, len);
     if (l->tamper_pct && rand() % 100 < l->tamper_pct) copy[len / 2] ^= 0x01;  /* one flipped bit */
@@ -387,6 +397,53 @@ int main(void) {
         snprintf(detail, sizeof(detail), "peer_cid=0x%x sha_ok=%d", (unsigned)ep_b.rx.peer_cid,
                  nltp_rx_sha_ok(&ep_b));
         check(ok, "stale packet from previous session (valid AEAD) ignored", detail);
+    }
+
+    /* 15. NLTP 1.4: a recorded session replayed into a restarted receiver delivers nothing. In 1.3.x the
+       receiver forgot its replay window on restart, so the same recording was accepted a second time. */
+    {
+        int r, done;
+        rec_n = 0;
+        rec_on = 1;
+        done = run_transfer(key, key, 0, 0, 0, 20000);
+        rec_on = 0;
+        nltp_init(&ep_b, 0x2222, 20000, send_cb, clock_cb, &link_b);   /* receiver restarts */
+        nltp_set_key(&ep_b, key);
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+        memset(file_rx, 0, sizeof(file_tx));
+        for (r = 0; r < rec_n; ++r) {
+            g_clock++;
+            nltp_on_datagram(&ep_b, rec[r], rec_len[r]);
+            nltp_poll(&ep_b);
+        }
+        ok = done && rec_n > 100 && ep_b.rx.shards_rcvd == 0u && !nltp_rx_done(&ep_b);
+        snprintf(detail, sizeof(detail), "recorded=%d accepted_shards=%u", rec_n, (unsigned)ep_b.rx.shards_rcvd);
+        check(ok, "1.4: recorded session replayed after restart: rejected", detail);
+    }
+
+    /* 16. NLTP 1.4: two sessions with the same conn_id and counter (a reboot) use different keys. In 1.3.x
+       both sealed with the long-term key and nonce conn_id||counter, so their keystreams were identical. */
+    {
+        uint8_t first[2][PMAX];
+        uint16_t first_len[2] = {0, 0};
+        int run, r;
+        for (run = 0; run < 2; ++run) {
+            rec_n = 0;
+            rec_on = 1;
+            ok = run_transfer(key, key, 0, 0, 0, 20000);
+            rec_on = 0;
+            for (r = 0; r < rec_n; ++r) {
+                if ((rec[r][2] & 0x0Fu) == NLTP_PT_DATA_SHARD) {
+                    memcpy(first[run], rec[r], rec_len[r]);
+                    first_len[run] = rec_len[r];
+                    break;
+                }
+            }
+        }
+        ok = ok && first_len[0] > 40u && first_len[0] == first_len[1] &&
+             memcmp(first[0], first[1], NLTP_ENC_HEADER_BYTES - 4u) == 0 &&             /* same conn_id + counter */
+             memcmp(first[0] + NLTP_ENC_HEADER_BYTES, first[1] + NLTP_ENC_HEADER_BYTES, 32u) != 0;
+        check(ok, "1.4: same conn_id + counter after reboot: new keys", "first data frames differ");
     }
 
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");

@@ -97,3 +97,27 @@ void nltp_sha256_hex(const uint8_t *data, size_t len, char out_hex65[65]) {
     }
     out_hex65[64] = '\0';
 }
+
+void nltp_hmac_sha256(const uint8_t *key, size_t key_len, const uint8_t *msg, size_t msg_len, uint8_t out32[32]) {
+    nltp_sha256_t ctx;
+    uint8_t k[64], pad[64], inner[32];
+    size_t i;
+    memset(k, 0, sizeof(k));
+    if (key_len > 64u) {
+        nltp_sha256_init(&ctx);
+        nltp_sha256_update(&ctx, key, key_len);
+        nltp_sha256_final(&ctx, k);
+    } else if (key_len > 0u) {
+        memcpy(k, key, key_len);
+    }
+    for (i = 0; i < 64u; ++i) pad[i] = (uint8_t)(k[i] ^ 0x36u);
+    nltp_sha256_init(&ctx);
+    nltp_sha256_update(&ctx, pad, 64u);
+    nltp_sha256_update(&ctx, msg, msg_len);
+    nltp_sha256_final(&ctx, inner);
+    for (i = 0; i < 64u; ++i) pad[i] = (uint8_t)(k[i] ^ 0x5Cu);
+    nltp_sha256_init(&ctx);
+    nltp_sha256_update(&ctx, pad, 64u);
+    nltp_sha256_update(&ctx, inner, 32u);
+    nltp_sha256_final(&ctx, out32);
+}

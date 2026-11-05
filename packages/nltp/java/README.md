@@ -1,9 +1,9 @@
-# NLTP v1.3.2 — Pure Java 11+ SDK (`io.necklink:nltp`)
+# NLTP v1.4.0 — Pure Java 11+ SDK (`io.necklink:nltp`)
 
-Zero-external-dependency **Java 11+** implementation of the **NeckLink Transport Protocol (`NLTP v1.3.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **JavaScript/TypeScript**, and **Arduino / `ESP32` / `ESP8266`** stacks.
+Zero-external-dependency **Java 11+** implementation of the **NeckLink Transport Protocol (`NLTP v1.4.0`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **JavaScript/TypeScript**, and **Arduino / `ESP32` / `ESP8266`** stacks.
 
-- **Zero External Runtime Dependencies**: Uses only standard `java.nio.channels.DatagramChannel`, `Selector`, and `java.security.MessageDigest` (`SHA-256`) + `CRC32` — **portable constant-time `RFC 8439` `ChaCha20-Poly1305` is built directly into `NLTPWire`**, tested on **Temurin JDK 21 (`--release 11`)** without BouncyCastle *(Android device/emulator execution has not been tested yet)*.
-- **Full NLTP v1.3.2 Wire Parity**:
+- **Zero External Runtime Dependencies**: Uses only standard `java.nio.channels.DatagramChannel`, `Selector`, and `java.security.MessageDigest` (`SHA-256`) + `CRC32` + `Mac` (`HmacSHA256`) — **portable constant-time `RFC 8439` `ChaCha20-Poly1305` and 1-RTT per-session key agreement (`NLTPSession`) are built in**, tested on **Temurin JDK 21 (`--release 11`)** without BouncyCastle *(Android device/emulator execution has not been tested yet)*.
+- **Full NLTP v1.4.0 Wire Parity**:
   - Systematic `GF(2^8)` Cauchy forward error correction (`0x11D` primitive polynomial, `8`-shard generations, incremental Gauss-Jordan decoding).
   - `ChaCha20-Poly1305` (256-bit AEAD) + `RFC 6479` 64-packet sliding anti-replay window + strict plaintext-downgrade rejection.
   - Out-of-line urgent reflex channel (`sendReflex`) with zero head-of-line blocking.
@@ -14,7 +14,7 @@ Zero-external-dependency **Java 11+** implementation of the **NeckLink Transport
 
 ## Maven / Gradle Coordinates & Standalone JAR
 
-Build the zero-dependency library + CLI JAR (`--release 11`, version 1.3.2) from source with Maven, Gradle, or plain `javac` (the older `nltp-java-1.2.0.jar` on the [v1.2.0 release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0) still works but predates 1.3.2):
+Build the zero-dependency library + CLI JAR (`--release 11`, version 1.4.0) from source with Maven, Gradle, or plain `javac` (the older `nltp-java-1.2.0.jar` on the [v1.2.0 release](https://github.com/indian-aman/necklink/releases/tag/v1.2.0) still works but predates 1.3.2):
 
 ```bash
 # Maven
@@ -86,9 +86,9 @@ NLTPEndpoint<String> ep = new NLTPEndpoint<>(
 ## CLI (`NLTPCli`)
 
 ```bash
-java -jar target/nltp-1.3.2.jar gen-key
-java -jar target/nltp-1.3.2.jar stun
-java -jar target/nltp-1.3.2.jar relay --host 0.0.0.0 --port 9000
-java -jar target/nltp-1.3.2.jar serve --host 0.0.0.0 --port 9000 --psk "<KEY>" --save-dir ./inbox
-java -jar target/nltp-1.3.2.jar send-file --host 127.0.0.1 --port 9000 --psk "<KEY>" --file firmware.bin
+java -jar target/nltp-1.4.0.jar gen-key
+java -jar target/nltp-1.4.0.jar stun
+java -jar target/nltp-1.4.0.jar relay --host 0.0.0.0 --port 9000
+java -jar target/nltp-1.4.0.jar serve --host 0.0.0.0 --port 9000 --psk "<KEY>" --save-dir ./inbox
+java -jar target/nltp-1.4.0.jar send-file --host 127.0.0.1 --port 9000 --psk "<KEY>" --file firmware.bin
 ```

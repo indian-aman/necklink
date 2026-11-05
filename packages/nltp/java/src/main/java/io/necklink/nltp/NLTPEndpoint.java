@@ -321,6 +321,8 @@ public final class NLTPEndpoint<P> {
     private final int shardBytes;
     private final int genK;
     private final NLTPWire.AEADCipherContext aead;
+    /** Encrypted mode (NLTP 1.4): per-session keys from a 1-RTT handshake ({@link NLTPSession}). */
+    private final NLTPSession<P> sessions;
     private final Pacing.TokenBucketPacer pacer;
     private final Pacing.DeliveryRateController rateCtl;
     private final int initialBurstBytes;
@@ -330,7 +332,7 @@ public final class NLTPEndpoint<P> {
     private int nextStreamId = 1;
     private int reflexSeq = 0;
     // Reliable reflex lane (v1.3.2): retransmit until PT_REFLEX_ACK; receivers de-duplicate by (connId, seq)
-    private static final double REFLEX_ACK_TIMEOUT_S = 3.0;
+    private static final double REFLEX_ACK_TIMEOUT_S = 5.0;
     private static final double REFLEX_RETX_MIN_S = 0.015;
     private static final double REFLEX_RETX_FIRST_MAX_S = 0.06;
     private static final double REFLEX_RETX_MAX_S = 0.25;
@@ -399,6 +401,7 @@ public final class NLTPEndpoint<P> {
         this.shardBytes = shardBytes;
         this.genK = genK;
         this.aead = (psk != null && !psk.isEmpty()) ? new NLTPWire.AEADCipherContext(psk) : null;
+        this.sessions = (aead != null) ? new NLTPSession<>(psk, connId, this::sendHandshake) : null;
 
         if (maxTxKbps != null && maxTxKbps > 0.0) {
             this.pacer = new Pacing.TokenBucketPacer(maxTxKbps);
@@ -440,9 +443,31 @@ public final class NLTPEndpoint<P> {
         keepaliveTargets.putIfAbsent(peer, 0.0);
     }
 
+    private void sendHandshake(byte[] raw, P peer) {
+        wireBytesTx += raw.length;
+        pktsTx++;
+        sendPacketFn.accept(raw, peer);
+    }
+
+    /** Frames waiting for a session handshake to finish (encrypted mode). */
+    public int sessionQueuedFrames() {
+        return sessions == null ? 0 : sessions.queuedCount();
+    }
+
+    /** Handshake counters (encrypted mode): {hellos sent, sessions established, re-keys after a NO_SESSION hint}. */
+    public long[] sessionStats() {
+        return sessions == null ? new long[3] : new long[] {sessions.hellosTx, sessions.established, sessions.rekeysFromHint};
+    }
+
     private void emit(int pktType, P peer, byte[] payload, int flags, double tRef) {
         int tsMs = (int) ((long) (tRef * 1000.0));
-        byte[] raw = NLTPWire.packFrame(pktType, connId, payload, flags, tsMs, aead);
+        byte[] raw;
+        if (sessions != null) {
+            raw = sessions.seal(peer, pktType, payload, flags, tsMs, tRef);
+            if (raw == null) return; // handshake running; the frame is queued or retried by its sender
+        } else {
+            raw = NLTPWire.packFrame(pktType, connId, payload, flags, tsMs, null);
+        }
         wireBytesTx += raw.length;
         pktsTx++;
         if (keepaliveTargets.containsKey(peer)) {
@@ -583,6 +608,10 @@ public final class NLTPEndpoint<P> {
                 continue;
             }
             if (tNow >= r.nextS) {
+                if (sessions != null && !sessions.ready(r.peer, tNow)) {
+                    r.nextS = tNow + r.intervalS;
+                    continue;
+                }
                 emit(NLTPWire.PT_REFLEX_MSG, r.peer, r.payload, 0x02, tNow);
                 reflexRetransmits++;
                 r.intervalS = Math.min(REFLEX_RETX_MAX_S, r.intervalS * 1.5);
@@ -630,6 +659,13 @@ public final class NLTPEndpoint<P> {
         double rtoS = Math.max(0.055, Math.min(2.0, (srttMs / 1000.0) * 1.85));
         double inflightGuardS = Math.max(0.035, (srttMs / 1000.0) * 1.40);
 
+        if (sessions != null) {
+            List<P> busy = new ArrayList<>();
+            for (OutboundTransfer<P> x : outbound.values()) if (!x.completed) busy.add(x.peerAddr);
+            for (PendingReflex<P> r : reflexPending.values()) busy.add(r.peer);
+            sessions.service(tNow, busy);
+        }
+
         if (!reflexPending.isEmpty()) {
             serviceReflexes(tNow);
         }
@@ -656,6 +692,7 @@ public final class NLTPEndpoint<P> {
                 xfer.peerAddr = connRoutes.get(xfer.peerConnId);
             }
             P peer = xfer.peerAddr;
+            if (sessions != null && !sessions.ready(peer, tNow)) continue; // wait for the session handshake
 
             boolean needFinProbe = (xfer.baseUnackedGen >= xfer.generations.size()) && !xfer.completed;
             if ((!xfer.metaAcked || needFinProbe) && (xfer.lastMetaTx == 0.0 || (tNow - xfer.lastMetaTx) >= rtoS)) {
@@ -793,11 +830,23 @@ public final class NLTPEndpoint<P> {
         }
     }
 
+    /** An ACK belongs to a transfer if it comes from the receiver's conn_id, or from the transfer's address
+     *  under a new conn_id (the receiver restarted; the conn_id pre-filled at start is then stale). */
+    private boolean ackFromTransferPeer(OutboundTransfer<P> xfer, int peerConnId, P peer) {
+        return xfer.peerConnId == null || xfer.peerConnId == peerConnId || peer.equals(xfer.peerAddr);
+    }
+
     public void onDatagram(byte[] raw, int rawLen, P peer, double tNow) {
         wireBytesRx += rawLen;
         pktsRx++;
 
-        NLTPWire.Frame parsed = NLTPWire.unpackFrame(raw, rawLen, aead);
+        NLTPWire.Frame parsed;
+        if (sessions != null) {
+            parsed = sessions.open(raw, rawLen, peer, tNow);
+            if (parsed == NLTPSession.HANDLED) return;
+        } else {
+            parsed = NLTPWire.unpackFrame(raw, rawLen, null);
+        }
         if (parsed == null) {
             authDropsRx++;
             return;
@@ -965,11 +1014,8 @@ public final class NLTPEndpoint<P> {
 
             OutboundTransfer<P> xfer = outbound.get(sid);
             if (xfer == null || xfer.completed) return;
-            if (xfer.peerConnId == null) {
-                xfer.peerConnId = peerConnId;
-            } else if (xfer.peerConnId != peerConnId) {
-                return;
-            }
+            if (!ackFromTransferPeer(xfer, peerConnId, peer)) return;
+            xfer.peerConnId = peerConnId;
             xfer.peerAddr = peer;
             xfer.metaAcked = true;
 
@@ -1018,7 +1064,7 @@ public final class NLTPEndpoint<P> {
             int shaOk = payload[4] & 0xFF;
             OutboundTransfer<P> xfer = outbound.get(sid);
             if (xfer != null && !xfer.completed) {
-                if (xfer.peerConnId != null && xfer.peerConnId != peerConnId) return;
+                if (!ackFromTransferPeer(xfer, peerConnId, peer)) return;
                 xfer.peerConnId = peerConnId;
                 xfer.peerAddr = peer;
                 xfer.metaAcked = true;

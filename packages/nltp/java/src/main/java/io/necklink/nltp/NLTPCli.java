@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * NLTP v1.2 Java CLI ({@code java -jar nltp-1.3.2.jar ...}).
+ * NLTP v1.2 Java CLI ({@code java -jar nltp-1.4.0.jar ...}).
  *
  * Supports both user commands ({@code gen-key}, {@code stun}, {@code relay}, {@code serve}, {@code send-file})
  * and cross-language interop driver commands ({@code send}, {@code recv}) matching {@code nltp_cli}.
@@ -152,7 +152,7 @@ public final class NLTPCli {
             boolean acked;
             try (NLTPClient cli = NLTPClient.builder().server(host, port).psk(psk).lossDropSim(loss).build()) {
                 int seq = cli.sendReflex(text.getBytes(java.nio.charset.StandardCharsets.UTF_8));
-                acked = cli.waitReflexAck(seq, 3000L);
+                acked = cli.waitReflexAck(seq, 5000L);
                 System.out.println("RESULT {\"ok\":" + acked + ",\"acked\":" + acked + "}");
             }
             if (!acked) {

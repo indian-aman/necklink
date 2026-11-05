@@ -1,2 +1,2 @@
 """Umbrella meta-package shim for `pip install necklink` (provides `pynltp`, `necksense`, `neckcompass`, `necksight`, `neckcord`)."""
-__version__ = "1.3.2"
+__version__ = "1.4.0"

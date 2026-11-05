@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import socket
 import subprocess
 import sys
 import time
@@ -94,6 +95,27 @@ def _path_for(lang: str, p: Path) -> str:
     return _win_to_wsl_path(p) if (lang == "c" and C_USES_WSL) else str(p)
 
 
+
+def _next_free_udp_port(candidate: int) -> int:
+    """Return >= candidate that can currently bind UDP on both 0.0.0.0 and 127.0.0.1."""
+    p = candidate
+    for _ in range(500):
+        ok = True
+        for host in ("0.0.0.0", "127.0.0.1"):
+            sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                sock.bind((host, p))
+            except OSError:
+                ok = False
+                break
+            finally:
+                sock.close()
+        if ok:
+            return p
+        p += 1
+    return p
+
+
 def _parse_result(proc: subprocess.Popen, timeout: float = 90.0) -> Dict:
     if proc.stdin is not None and proc.stdin.closed:
         proc.stdin = None
@@ -126,7 +148,12 @@ def _wait_line_prefix(proc: subprocess.Popen, prefixes: Tuple[str, ...], timeout
         s = line.strip()
         if any(s.startswith(px) for px in prefixes):
             return s
-    raise RuntimeError(f"Subprocess did not emit {prefixes} within {timeout}s")
+    detail = ""
+    if proc.poll() is not None:
+        err = proc.stderr.read() if proc.stderr is not None else ""
+        lines = [l for l in (err or "").splitlines() if "Picked up JAVA_TOOL_OPTIONS" not in l]
+        detail = f" (exited with code {proc.returncode}; stderr: {' | '.join(lines)[-600:]})"
+    raise RuntimeError(f"Subprocess did not emit {prefixes} within {timeout}s{detail}")
 
 
 def _cli_cmd(lang: str, mode: str, host: str, port: int, file_arg: str, loss_pct: int,
@@ -240,43 +267,48 @@ def run_pair(
             stderr=subprocess.PIPE,
             text=True,
         )
-        _wait_line_prefix(rx_proc, ("READY", "RELAY registered"), timeout=20.0)
+        try:
+            _wait_line_prefix(rx_proc, ("READY", "RELAY registered"), timeout=20.0)
 
-        t0 = time.perf_counter()
-        if sender == "py":
-            s_relay = ("127.0.0.1", relay_ports[0]) if relay_ports else None
-            with NLTPClient(
-                (target_ip, 9 if relay_ports else port),
-                loss_drop_sim=loss,
-                psk=psk,
-                relay_addr=s_relay,
-                room=room_name,
-            ) as cli:
-                if relay_ports:
-                    time.sleep(0.05)
-                rep = cli.send_file(src_path, timeout=90.0)
-            tx_ok = bool(rep["verified_sha256"])
-            elapsed_s = time.perf_counter() - t0
-        else:
-            cmd = _cli_cmd(
-                sender, "send", target_ip, 9 if relay_ports else port,
-                _path_for(sender, src_path), loss_pct, psk,
-                relay_spec=relay_spec_for(sender), room=room_name,
-            )
-            tx_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-            tx_res = _parse_result(tx_proc, timeout=90.0)
-            tx_ok = bool(tx_res.get("ok"))
-            elapsed_s = float(tx_res.get("elapsed_s", time.perf_counter() - t0))
+            t0 = time.perf_counter()
+            if sender == "py":
+                s_relay = ("127.0.0.1", relay_ports[0]) if relay_ports else None
+                with NLTPClient(
+                    (target_ip, 9 if relay_ports else port),
+                    loss_drop_sim=loss,
+                    psk=psk,
+                    relay_addr=s_relay,
+                    room=room_name,
+                ) as cli:
+                    if relay_ports:
+                        time.sleep(0.05)
+                    rep = cli.send_file(src_path, timeout=90.0)
+                tx_ok = bool(rep["verified_sha256"])
+                elapsed_s = time.perf_counter() - t0
+            else:
+                cmd = _cli_cmd(
+                    sender, "send", target_ip, 9 if relay_ports else port,
+                    _path_for(sender, src_path), loss_pct, psk,
+                    relay_spec=relay_spec_for(sender), room=room_name,
+                )
+                tx_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                tx_res = _parse_result(tx_proc, timeout=90.0)
+                tx_ok = bool(tx_res.get("ok"))
+                elapsed_s = float(tx_res.get("elapsed_s", time.perf_counter() - t0))
 
-        if use_wait_stdin and rx_proc.stdin is not None:
-            try:
-                rx_proc.stdin.close()
-            except OSError:
-                pass
-            finally:
-                rx_proc.stdin = None
-        rx_res = _parse_result(rx_proc, timeout=30.0)
-        rx_ok = bool(rx_res.get("ok")) and out_file.exists() and out_file.read_bytes() == expected_bytes
+            if use_wait_stdin and rx_proc.stdin is not None:
+                try:
+                    rx_proc.stdin.close()
+                except OSError:
+                    pass
+                finally:
+                    rx_proc.stdin = None
+            rx_res = _parse_result(rx_proc, timeout=30.0)
+            rx_ok = bool(rx_res.get("ok")) and out_file.exists() and out_file.read_bytes() == expected_bytes
+        finally:
+            if rx_proc.poll() is None:
+                rx_proc.kill()
+                rx_proc.communicate()
 
     if out_file.exists():
         out_file.unlink()
@@ -314,11 +346,15 @@ def run_reflex_pair(sender: str, receiver: str, port: int, psk: str) -> Dict:
             else [JAVA_BIN, "-jar", JAVA_JAR, "serve", "--host", "127.0.0.1", "--port", str(port), "--psk", psk, "--max-items", "1"]
         )
         rx_proc = subprocess.Popen(rx_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
-        with NLTPClient(("127.0.0.1", port), psk=psk) as cli:
-            cli.send_reflex(msg)
-            time.sleep(0.05)
-        out, _ = rx_proc.communicate(timeout=10.0)
+        try:
+            _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
+            with NLTPClient(("127.0.0.1", port), psk=psk) as cli:
+                cli.wait_reflex_ack(cli.send_reflex(msg), timeout=5.0)   # the documented way to confirm delivery
+            out, _ = rx_proc.communicate(timeout=10.0)
+        finally:
+            if rx_proc.poll() is None:
+                rx_proc.kill()
+                rx_proc.communicate()
         ok = f"RECEIVED kind=reflex bytes={len(msg)} sha256_ok=True" in out or f"RECEIVED kind=reflex bytes={len(msg)} sha256_ok=true" in out
 
     return {
@@ -366,19 +402,23 @@ def run_reflex_loss_pair(sender: str, receiver: str, port: int, psk: str, n: int
              "--max-items", str(n), "--loss", str(loss)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
-        _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
-        if sender == "py":
-            with NLTPClient(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as cli:
-                for m in msgs:
-                    acks += cli.wait_reflex_ack(cli.send_reflex(m), timeout=3.0)
-        else:
-            for m in msgs:
-                acks += cli_send(sender, m)
         try:
-            out, _ = rx_proc.communicate(timeout=15.0)
+            _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
+            if sender == "py":
+                with NLTPClient(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as cli:
+                    for m in msgs:
+                        acks += cli.wait_reflex_ack(cli.send_reflex(m), timeout=5.0)
+            else:
+                for m in msgs:
+                    acks += cli_send(sender, m)
+            out, _ = rx_proc.communicate(timeout=25.0)
         except subprocess.TimeoutExpired:
             rx_proc.kill()
             out, _ = rx_proc.communicate()
+        finally:
+            if rx_proc.poll() is None:
+                rx_proc.kill()
+                rx_proc.communicate()
         ok = out.count("RECEIVED kind=reflex") == n and acks == n
 
     return {
@@ -421,7 +461,7 @@ def main() -> None:
                 for loss in (0, 15):
                     for s in langs:
                         for r in langs:
-                            port += 1
+                            port = _next_free_udp_port(port + 1)
                             res = run_pair(s, r, files[sz], work_dir, loss, port, psk=psk)
                             rows.append(res)
                             status = "OK  " if res["ok"] else "FAIL"
@@ -442,7 +482,7 @@ def main() -> None:
             ("py", "java"), ("java", "js"), ("js", "c"), ("c", "java"),
         ]
         for s, r in stress_pairs:
-            port += 1
+            port = _next_free_udp_port(port + 1)
             res = run_pair(s, r, files[262144], work_dir, 15, port, psk=b64_key)
             res["category"] = "stress_256k"
             rows.append(res)
@@ -462,7 +502,7 @@ def main() -> None:
         with NLTPRelayHub(("0.0.0.0", 0)) as py_hub:
             hub_port = py_hub.getsockname()[1]
             for s, r in (("js", "java"), ("c", "js")):
-                port += 1
+                port = _next_free_udp_port(port + 1)
                 res = run_pair(
                     s, r, files[65536], work_dir, 10, port,
                     psk=b64_key, relay_ports=(hub_port, f"room-{port}"),
@@ -474,7 +514,7 @@ def main() -> None:
                     raise RuntimeError(f"Python RelayHub failure: {res}")
 
         # 3b. JavaScript NLTPRelayHub
-        port += 1
+        port = _next_free_udp_port(port + 1)
         js_hub_port = port
         js_hub = subprocess.Popen(
             [NODE_BIN, JS_CLI, "relay", "--host", "0.0.0.0", "--port", str(js_hub_port)],
@@ -483,7 +523,7 @@ def main() -> None:
         try:
             _wait_line_prefix(js_hub, ("NLTPRelayHub listening",), timeout=10.0)
             for s, r in (("java", "py"), ("py", "java")):
-                port += 1
+                port = _next_free_udp_port(port + 1)
                 res = run_pair(
                     s, r, files[65536], work_dir, 10, port,
                     psk=b64_key, relay_ports=(js_hub_port, f"room-{port}"),
@@ -498,7 +538,7 @@ def main() -> None:
             js_hub.communicate()
 
         # 3c. Java NLTPRelayHub
-        port += 1
+        port = _next_free_udp_port(port + 1)
         java_hub_port = port
         java_hub = subprocess.Popen(
             [JAVA_BIN, "-jar", JAVA_JAR, "relay", "--host", "0.0.0.0", "--port", str(java_hub_port)],
@@ -507,7 +547,7 @@ def main() -> None:
         try:
             _wait_line_prefix(java_hub, ("NLTPRelayHub listening",), timeout=15.0)
             for s, r in (("py", "js"), ("js", "c")):
-                port += 1
+                port = _next_free_udp_port(port + 1)
                 res = run_pair(
                     s, r, files[65536], work_dir, 10, port,
                     psk=b64_key, relay_ports=(java_hub_port, f"room-{port}"),
@@ -526,7 +566,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         print("\n=== Part 4/5: Cross-Language Out-of-Line Reflex Verification ===", flush=True)
         for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py")):
-            port += 1
+            port = _next_free_udp_port(port + 1)
             res = run_reflex_pair(s, r, port, b64_key)
             rows.append(res)
             print(f"  [{len(rows):>3}/216]    reflex   {s:>4} -> {r:<4}      {res['size']:>2} B  loss  0%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
@@ -535,7 +575,7 @@ def main() -> None:
 
         print("\n=== Part 5/5: Reliable Reflex Lane @ 15% Loss (5 reflexes per pair, delivered once + acked) ===", flush=True)
         for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py"), ("js", "java"), ("java", "js")):
-            port += 1
+            port = _next_free_udp_port(port + 1)
             res = run_reflex_loss_pair(s, r, port, b64_key)
             rows.append(res)
             print(f"  [{len(rows):>3}/216] reflex x5  {s:>4} -> {r:<4}  acked {res['acked']}/5  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)

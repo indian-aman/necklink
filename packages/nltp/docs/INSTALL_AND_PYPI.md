@@ -1,6 +1,6 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-> **Version note.** Every NLTP component in this repository is **1.3.2**, and **`pynltp 1.3.2` is published on PyPI** (`pip install --upgrade pynltp`). For the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java `1.3.2` SDKs, build or install from a clone of this repository as shown below.
+> **Version note.** Every NLTP component in this repository is **1.4.0**. PyPI currently hosts **`pynltp 1.3.2`**, which does not have the 1.4 session handshake and cannot talk to 1.4 devices in encrypted mode; until 1.4.0 is published on PyPI, install Python from this repository (`pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"`). Build or install the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java 11+ SDKs from a clone of this repository as shown below. **Upgrade every device together:** encrypted 1.4 and 1.3.x endpoints do not interoperate (plaintext mode still does).
 
 ```bash
 git clone https://github.com/indian-aman/necklink.git
@@ -12,9 +12,8 @@ cd necklink/packages/nltp
 Installs the Python library (`import nltp`, `import pynltp`, `import necklink`) and the `nltp` CLI:
 
 ```bash
-pip install --upgrade pynltp
-# or from a local clone:
-pip install .
+pip install .                 # from this clone (1.4.0, with the session handshake)
+# pip install --upgrade pynltp  # PyPI: 1.3.2 until 1.4.0 is published (no session handshake)
 ```
 
 Verify:
@@ -30,9 +29,9 @@ python -c "import nltp; print('NLTP version:', nltp.__version__)"
 
 1. Zip the library folder:
    ```bash
-   cd arduino && zip -r NLTP-Arduino-1.3.2.zip NLTP
+   cd arduino && zip -r NLTP-Arduino-1.4.0.zip NLTP
    ```
-2. In **Arduino IDE** → **Sketch → Include Library → Add .ZIP Library...** → select `NLTP-Arduino-1.3.2.zip`.
+2. In **Arduino IDE** → **Sketch → Include Library → Add .ZIP Library...** → select `NLTP-Arduino-1.4.0.zip`.
 3. Open **File → Examples → NLTP**: `ESP32_Encrypted_Receiver`, `ESP32_Marine_Buoy_Sender`,
    `ESP32_Relay_CGNAT_Node`, and `ESPNowV2Interop`.
 
@@ -80,8 +79,8 @@ For environments without `node:dgram`, `nltp/core` (`NLTPEndpoint`, `packNltpFra
 Build the zero-dependency library + CLI JAR (`--release 11`):
 
 ```bash
-mvn -f java/pom.xml clean package        # -> java/target/nltp-1.3.2.jar
-java -jar java/target/nltp-1.3.2.jar gen-key
+mvn -f java/pom.xml clean package        # -> java/target/nltp-1.4.0.jar
+java -jar java/target/nltp-1.4.0.jar gen-key
 # or install into ~/.m2 for your own Maven/Gradle build:
 mvn -f java/pom.xml clean install
 ```

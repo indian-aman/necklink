@@ -56,6 +56,7 @@ from .internet import (
     unwrap_relay_packet,
     wrap_relay_packet,
 )
+from .session import HANDLED, SessionTable
 from .socket_api import NeckSocket
 
 NLTP_MAGIC = b"NL"
@@ -73,7 +74,7 @@ PT_PING = 0x08
 PT_PONG = 0x09
 PT_REFLEX_ACK = 0x0A  # receiver -> sender: u32 reflex seq (reliable reflex lane, v1.3.2)
 
-REFLEX_ACK_TIMEOUT_S = 3.0      # keep retransmitting an unacknowledged reflex for this long
+REFLEX_ACK_TIMEOUT_S = 5.0      # keep retransmitting an unacknowledged reflex for this long (incl. 1.4 handshake)
 REFLEX_RETX_MIN_S = 0.015
 REFLEX_RETX_FIRST_MAX_S = 0.06  # first retransmit within 60 ms even before an RTT sample exists
 REFLEX_RETX_MAX_S = 0.25
@@ -625,6 +626,10 @@ class NLTPEndpoint:
         self.shard_bytes = shard_bytes
         self.gen_k = gen_k
         self._aead: Optional[AEADCipherContext] = AEADCipherContext(psk) if psk is not None else None
+        # Encrypted mode (NLTP 1.4): every peer gets per-session keys from a 1-RTT handshake (session.py)
+        self._sessions: Optional[SessionTable] = (
+            SessionTable(psk, self.conn_id, self._send_handshake) if psk is not None else None
+        )
         self.pacer: Optional[TokenBucketPacer] = (
             TokenBucketPacer(rate_kbps=max_tx_kbps)
             if (max_tx_kbps is not None and max_tx_kbps > 0.0)
@@ -687,10 +692,20 @@ class NLTPEndpoint:
     def register_keepalive_peer(self, peer: Address) -> None:
         self._keepalive_targets.setdefault(peer, 0.0)
 
+    def _send_handshake(self, raw: bytes, peer: Address) -> None:
+        self.wire_bytes_tx += len(raw)
+        self.pkts_tx += 1
+        self._send_pkt(raw, peer)
+
     def _emit(self, pkt_type: int, peer: Address, payload: bytes, flags: int = 0, now_s: Optional[float] = None) -> None:
         t_ref = time.perf_counter() if now_s is None else now_s
         ts_ms = int(t_ref * 1000.0) & 0xFFFFFFFF
-        raw = pack_nltp_frame(pkt_type, self.conn_id, payload, flags=flags, ts_ms=ts_ms, aead=self._aead)
+        if self._sessions is not None:
+            raw = self._sessions.seal(peer, pkt_type, payload, flags, ts_ms, t_ref)
+            if raw is None:
+                return  # no session with this peer yet: a handshake is running; senders retry
+        else:
+            raw = pack_nltp_frame(pkt_type, self.conn_id, payload, flags=flags, ts_ms=ts_ms)
         self.wire_bytes_tx += len(raw)
         self.pkts_tx += 1
         if peer in self._keepalive_targets:
@@ -808,6 +823,9 @@ class NLTPEndpoint:
                 self.reflex_expired += 1
                 continue
             if t_now >= next_s:
+                if self._sessions is not None and not self._sessions.ready(peer, t_now):
+                    item[2] = t_now + interval
+                    continue
                 self._emit(PT_REFLEX_MSG, peer, payload, flags=0x02, now_s=t_now)
                 self.reflex_retransmits += 1
                 item[3] = min(REFLEX_RETX_MAX_S, interval * 1.5)
@@ -885,6 +903,12 @@ class NLTPEndpoint:
         rto_s = max(0.055, min(2.0, (self.srtt_ms / 1000.0) * 1.85))
         inflight_guard_s = max(0.035, (self.srtt_ms / 1000.0) * 1.40)
 
+        # 0. Session handshakes: HELLO retransmits, and re-keying with busy peers that went silent
+        if self._sessions is not None:
+            busy = {x.peer_addr for x in self.outbound.values() if not x.completed}
+            busy.update(item[0] for item in self._reflex_pending.values())
+            self._sessions.service(t_now, busy)
+
         # 0a. Retransmit unacknowledged reflexes (reliable reflex lane)
         if self._reflex_pending:
             self._service_reflexes(t_now)
@@ -910,6 +934,8 @@ class NLTPEndpoint:
             if xfer.peer_conn_id is not None and xfer.peer_conn_id in self.conn_routes:
                 xfer.peer_addr = self.conn_routes[xfer.peer_conn_id]
             peer = xfer.peer_addr
+            if self._sessions is not None and not self._sessions.ready(peer, t_now):
+                continue  # wait for the session handshake before sending this transfer
 
             # Ensure stream metadata reaches receiver (0-RTT + periodic retry until acked, or FIN_ACK probe)
             need_fin_probe = (xfer.base_unacked_gen >= len(xfer.generations)) and (not xfer.completed)
@@ -1010,6 +1036,13 @@ class NLTPEndpoint:
                 if last_tx == 0.0 or (t_now - last_tx) >= self.keepalive_s:
                     self.send_ping(peer_addr, now_s=t_now)
 
+    @staticmethod
+    def _ack_from_transfer_peer(xfer: "OutboundTransfer", peer_conn_id: int, peer: Address) -> bool:
+        """An ACK belongs to this transfer if it comes from the receiver's conn_id, or from the transfer's
+        address under a new conn_id: the receiver restarted (start_transfer pre-fills the last conn_id seen
+        at that address, which is stale after a restart and would otherwise make every ACK be ignored)."""
+        return xfer.peer_conn_id is None or xfer.peer_conn_id == peer_conn_id or peer == xfer.peer_addr
+
     def _update_peer_route(self, peer_conn_id: int, peer: Address) -> None:
         prev = self.conn_routes.get(peer_conn_id)
         if prev is not None and prev != peer:
@@ -1034,7 +1067,12 @@ class NLTPEndpoint:
         self.wire_bytes_rx += len(raw)
         self.pkts_rx += 1
 
-        parsed = unpack_nltp_frame(raw, aead=self._aead)
+        if self._sessions is not None:
+            parsed = self._sessions.open(raw, peer, t_now)
+            if parsed is HANDLED:
+                return
+        else:
+            parsed = unpack_nltp_frame(raw)
         if parsed is None:
             self.auth_drops_rx += 1
             return
@@ -1170,10 +1208,9 @@ class NLTPEndpoint:
             xfer = self.outbound.get(sid)
             if xfer is None or xfer.completed:
                 return
-            if xfer.peer_conn_id is None:
-                xfer.peer_conn_id = peer_conn_id
-            elif xfer.peer_conn_id != peer_conn_id:
+            if not self._ack_from_transfer_peer(xfer, peer_conn_id, peer):
                 return
+            xfer.peer_conn_id = peer_conn_id
             xfer.peer_addr = peer
             xfer.meta_acked = True
 
@@ -1211,7 +1248,7 @@ class NLTPEndpoint:
             sid, sha_ok = struct.unpack_from("<IB", payload, 0)
             xfer = self.outbound.get(sid)
             if xfer is not None and not xfer.completed:
-                if xfer.peer_conn_id is not None and xfer.peer_conn_id != peer_conn_id:
+                if not self._ack_from_transfer_peer(xfer, peer_conn_id, peer):
                     return
                 xfer.peer_conn_id = peer_conn_id
                 xfer.peer_addr = peer
@@ -1300,7 +1337,18 @@ class NLTPEndpoint:
 class _NLTPSocketBase:
     """Common Internet UDP I/O loop supporting DNS, IPv4/IPv6, live STUN, P2P hole-punching & RelayHub."""
 
-    def wait_reflex_ack(self, seq: int, timeout: float = 3.0) -> bool:
+    def _linger_for_handshake(self, max_s: float = 1.0) -> None:
+        """Frames sent just before close() may still be waiting for a session handshake: give it up to
+        `max_s` to finish so they go out (e.g. `send_reflex(...)` immediately followed by `close()`)."""
+        sessions = getattr(self.engine, "_sessions", None)
+        deadline = time.perf_counter() + max_s
+        while sessions is not None and time.perf_counter() < deadline:
+            with self._lock:
+                if sessions.queued_count() == 0:
+                    return
+            time.sleep(0.005)
+
+    def wait_reflex_ack(self, seq: int, timeout: float = 5.0) -> bool:
         """Block until reflex `seq` is acknowledged; False on timeout (or with a peer older than v1.3.2).
         Keep the socket open until then: closing it stops the retransmissions."""
         deadline = time.perf_counter() + timeout
@@ -1629,6 +1677,7 @@ class NLTPServer(_NLTPSocketBase):
         return False
 
     def close(self) -> None:
+        self._linger_for_handshake()
         self._running = False
         self._worker.join(timeout=1.0)
         self._sock.close()
@@ -1806,6 +1855,7 @@ class NLTPClient(_NLTPSocketBase):
         }
 
     def close(self) -> None:
+        self._linger_for_handshake()
         self._running = False
         self._worker.join(timeout=1.0)
         self._sock.close()

@@ -4,6 +4,7 @@
  * Uses built-in `node:dgram`, `node:dns/promises`, `node:fs`, and `node:path` (zero npm dependencies).
  */
 
+import { webcrypto } from 'node:crypto';
 import dgram from 'node:dgram';
 import dns from 'node:dns/promises';
 import fs from 'node:fs';
@@ -11,6 +12,9 @@ import net from 'node:net';
 import path from 'node:path';
 
 import { NLTPEndpoint, normalizePeerKey } from './endpoint.js';
+
+// Node 18 has no globalThis.crypto by default; NLTP needs it for keys and session nonces.
+if (!globalThis.crypto) globalThis.crypto = webcrypto;
 import {
   RELAY_VER_DATA,
   RELAY_VER_REG_ACK,
@@ -328,7 +332,7 @@ class NLTPSocketBase {
    * Resolves true once reflex `seq` is acknowledged, false on timeout (or with a peer older than
    * v1.3.2). Keep the socket open until then: closing it stops the retransmissions.
    */
-  async waitReflexAck(seq, timeoutMs = 3000) {
+  async waitReflexAck(seq, timeoutMs = 5000) {
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
       if (this.engine.reflexAcked(seq)) return true;
@@ -486,6 +490,11 @@ class NLTPSocketBase {
   }
 
   async close() {
+    // Frames sent just before close() may still wait for a session handshake: give it up to 1 s.
+    const lingerT0 = Date.now();
+    while (this._sock && this.engine._sessions && this.engine._sessions.queuedCount() > 0 && Date.now() - lingerT0 < 1000) {
+      await new Promise((r) => setTimeout(r, 5));
+    }
     this._closed = true;
     if (this._tickTimer) {
       clearInterval(this._tickTimer);

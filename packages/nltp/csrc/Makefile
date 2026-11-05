@@ -50,7 +50,7 @@ $(BUILD)/sketch_runner: $(SIMDIR)/arduino/*.h $(SIMDIR)/arduino/sketch_runner.cp
 	$(CXX) $(ARDFLAGS) -Dsetup=gateway_setup -Dloop=gateway_loop -x c++ -c $(ARDEX)/ESP32_ESPNow_Gateway/ESP32_ESPNow_Gateway.ino -o $(BUILD)/sk_gateway.o
 	$(CXX) $(ARDFLAGS) -c $(SIMDIR)/arduino/sketch_runner.cpp -o $(BUILD)/sk_runner.o
 	$(CC) -O1 -g -std=c99 -DESP_PLATFORM -I$(SIMDIR)/stubs -I. -c $(SIMDIR)/radio.c -o $(BUILD)/sk_radio.o
-	$(CC) -O1 -g -std=c99 -DESP_PLATFORM -I. -c nltp_core.c -o $(BUILD)/sk_core.o
+	$(CC) -O1 -g -std=c99 -DESP_PLATFORM -I$(SIMDIR)/stubs -I. -c nltp_core.c -o $(BUILD)/sk_core.o
 	$(CC) -O1 -g -std=c99 -DESP_PLATFORM -I. -c nltp_sha256.c -o $(BUILD)/sk_sha.o
 	$(CC) -O1 -g -std=c99 -DESP_PLATFORM -I. -c ../arduino/NLTP/src/nltp_net.c -o $(BUILD)/sk_net.o
 	$(CXX) -o $@ $(BUILD)/sk_sensor.o $(BUILD)/sk_gateway.o $(BUILD)/sk_runner.o $(BUILD)/sk_radio.o $(BUILD)/sk_core.o $(BUILD)/sk_sha.o $(BUILD)/sk_net.o

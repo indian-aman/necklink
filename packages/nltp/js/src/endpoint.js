@@ -39,9 +39,10 @@ import {
   writeU16LE,
   writeU32LE,
 } from './wire.js';
+import { HANDLED, SessionTable } from './session.js';
 
 // Reliable reflex lane (v1.3.2): retransmit until PT_REFLEX_ACK, receivers de-duplicate by (connId, seq)
-const REFLEX_ACK_TIMEOUT_S = 3.0;
+const REFLEX_ACK_TIMEOUT_S = 5.0;
 const REFLEX_RETX_MIN_S = 0.015;
 const REFLEX_RETX_FIRST_MAX_S = 0.06;
 const REFLEX_RETX_MAX_S = 0.25;
@@ -592,6 +593,10 @@ export class NLTPEndpoint {
     this.shardBytes = shardBytes;
     this.genK = genK;
     this._aead = psk !== null && psk !== undefined && psk !== '' ? new AEADCipherContext(psk) : null;
+    // Encrypted mode (NLTP 1.4): per-session keys from a 1-RTT handshake (session.js)
+    this._sessions = this._aead !== null
+      ? new SessionTable(psk, this.connId, (raw, peer) => this._sendHandshake(raw, peer), normalizePeerKey)
+      : null;
 
     this.pacer = maxTxKbps !== null && maxTxKbps > 0 ? new TokenBucketPacer(maxTxKbps) : null;
     this.rateCtl = null;
@@ -647,10 +652,22 @@ export class NLTPEndpoint {
     }
   }
 
+  _sendHandshake(raw, peer) {
+    this.wireBytesTx += raw.length;
+    this.pktsTx += 1;
+    this._sendPkt(raw, peer);
+  }
+
   _emit(pktType, peer, payload, flags = 0, nowS = null) {
     const tRef = nowS === null ? this._nowS() : nowS;
     const tsMs = Math.floor(tRef * 1000.0) >>> 0;
-    const raw = packNltpFrame(pktType, this.connId, payload, { flags, tsMs, aead: this._aead });
+    let raw;
+    if (this._sessions !== null) {
+      raw = this._sessions.seal(peer, pktType, toUint8Array(payload), flags, tsMs, tRef);
+      if (raw === null) return; // handshake running; queued or retried by the sender
+    } else {
+      raw = packNltpFrame(pktType, this.connId, payload, { flags, tsMs });
+    }
     this.wireBytesTx += raw.length;
     this.pktsTx += 1;
     const k = normalizePeerKey(peer);
@@ -810,6 +827,10 @@ export class NLTPEndpoint {
         continue;
       }
       if (tNow >= item.nextS) {
+        if (this._sessions !== null && !this._sessions.ready(item.peer, tNow)) {
+          item.nextS = tNow + item.intervalS;
+          continue;
+        }
         this._emit(PT_REFLEX_MSG, item.peer, item.payload, 0x02, tNow);
         this.reflexRetransmits += 1;
         item.intervalS = Math.min(REFLEX_RETX_MAX_S, item.intervalS * 1.5);
@@ -850,6 +871,13 @@ export class NLTPEndpoint {
     const rtoS = Math.max(0.055, Math.min(2.0, (this.srttMs / 1000.0) * 1.85));
     const inflightGuardS = Math.max(0.035, (this.srttMs / 1000.0) * 1.4);
 
+    if (this._sessions !== null) {
+      const busy = [];
+      for (const x of this.outbound.values()) if (!x.completed) busy.push(x.peerAddr);
+      for (const item of this._reflexPending.values()) busy.push(item.peer);
+      this._sessions.service(tNow, busy);
+    }
+
     if (this._reflexPending.size > 0) {
       this._serviceReflexes(tNow);
     }
@@ -875,6 +903,7 @@ export class NLTPEndpoint {
         xfer.peerAddr = this.connRoutes.get(xfer.peerConnId);
       }
       const peer = xfer.peerAddr;
+      if (this._sessions !== null && !this._sessions.ready(peer, tNow)) continue; // wait for the handshake
 
       const needFinProbe = xfer.baseUnackedGen >= xfer.generations.length && !xfer.completed;
       if ((!xfer.metaAcked || needFinProbe) && (xfer.lastMetaTx === 0.0 || tNow - xfer.lastMetaTx >= rtoS)) {
@@ -1042,13 +1071,26 @@ export class NLTPEndpoint {
     });
   }
 
+  /** An ACK belongs to a transfer if it comes from the receiver's conn_id, or from the transfer's address
+   *  under a new conn_id (the receiver restarted; the conn_id pre-filled at start is then stale). */
+  _ackFromTransferPeer(xfer, peerConnId, peer) {
+    return xfer.peerConnId === null || xfer.peerConnId === peerConnId
+      || normalizePeerKey(peer) === normalizePeerKey(xfer.peerAddr);
+  }
+
   onDatagram(rawInput, peer, nowS = null) {
     const raw = toUint8Array(rawInput);
     const tNow = nowS === null ? this._nowS() : nowS;
     this.wireBytesRx += raw.length;
     this.pktsRx += 1;
 
-    const parsed = unpackNltpFrame(raw, this._aead);
+    let parsed;
+    if (this._sessions !== null) {
+      parsed = this._sessions.open(raw, peer, tNow);
+      if (parsed === HANDLED) return;
+    } else {
+      parsed = unpackNltpFrame(raw);
+    }
     if (parsed === null) {
       this.authDropsRx += 1;
       return;
@@ -1232,11 +1274,8 @@ export class NLTPEndpoint {
 
       const xfer = this.outbound.get(sid);
       if (!xfer || xfer.completed) return;
-      if (xfer.peerConnId === null) {
-        xfer.peerConnId = peerConnId;
-      } else if (xfer.peerConnId !== peerConnId) {
-        return;
-      }
+      if (!this._ackFromTransferPeer(xfer, peerConnId, peer)) return;
+      xfer.peerConnId = peerConnId;
       xfer.peerAddr = peer;
       xfer.metaAcked = true;
 
@@ -1283,7 +1322,7 @@ export class NLTPEndpoint {
       const shaOk = payload[4];
       const xfer = this.outbound.get(sid);
       if (xfer && !xfer.completed) {
-        if (xfer.peerConnId !== null && xfer.peerConnId !== peerConnId) return;
+        if (!this._ackFromTransferPeer(xfer, peerConnId, peer)) return;
         xfer.peerConnId = peerConnId;
         xfer.peerAddr = peer;
         xfer.metaAcked = true;
