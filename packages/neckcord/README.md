@@ -6,7 +6,7 @@
 
 **A 4-byte motor-command frame, a self-healing six-leg gait generator and a fault-tolerant thruster allocator, modelled on the fruit-fly neck and ventral nerve cord, in Python and zero-heap, zero-float ANSI C99 (`322 B` of state).**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7&cacheSeconds=300)](https://pypi.org/project/neckcord/)
+[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7&cacheSeconds=180&v=140)](https://pypi.org/project/neckcord/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcord/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20322%20B-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![Tests](https://img.shields.io/badge/tests-31%20Py%20%2B%2011%20C99-10B981?style=flat-square)](tests/test_neckcord.py)

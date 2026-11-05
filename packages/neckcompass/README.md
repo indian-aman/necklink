@@ -6,7 +6,7 @@
 
 **A *Drosophila* central-complex ring-attractor compass and GPS-denied path integrator that rejects magnetometer spikes and recovers from heading upsets, in Python and zero-heap, zero-float ANSI C99 (`324 B` state RAM, ~`1 us`/step on a desktop core).**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=300)](https://pypi.org/project/neckcompass/)
+[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/neckcompass/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcompass/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-7%2F7-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)

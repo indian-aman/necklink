@@ -27,7 +27,7 @@ or dead-man switch on any machine that can hurt someone.
 
 ## 1. Python Examples (`examples/python/`)
 
-Install from the repository root (or directly from GitHub via `pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"`):
+Install from PyPI (`pip install --upgrade pynltp`) or editable from `packages/nltp`:
 
 ```bash
 pip install -e .

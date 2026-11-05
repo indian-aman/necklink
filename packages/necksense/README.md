@@ -6,8 +6,8 @@
 
 **Concentration-invariant normalisation, sparse binary hashing, one-shot novelty detection and one-shot classification, modelled on the *Drosophila* antennal lobe and mushroom body, in Python (NumPy) and zero-heap, zero-float `Q16.16` ANSI C99 that is bit-identical to Python.**
 
-[![Version](https://img.shields.io/badge/version-1.1.0-10B981?style=flat-square)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
+[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksense&color=10B981&cacheSeconds=180&v=140)](https://pypi.org/project/necksense/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksense/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
 [![Tests](https://img.shields.io/badge/tests-17%20pytest%20%2B%205%20C99-10B981?style=flat-square)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
@@ -52,6 +52,8 @@ raw sensor vector x(t)
 ## Install
 
 ```bash
+pip install necksense
+# or from this repository:
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"
 ```
 
@@ -244,7 +246,7 @@ What this shows:
 **1.1.0**
 - *Improvement:* `MushroomNoveltyDetector` now defaults to 2% sparse codes (`wta_frac=0.02`). Streaming anomaly AUROC rose from `0.9658` to `0.9942` on the benchmark seeds and from `0.961` to `0.997` on held-out seeds. For the C core, pass `k = 20` (of 1024) to `ns_kenyon_init` for novelty.
 - *Benchmark:* added baseline-corrected k-NN, nearest-neighbour memories at equal and 8× memory, and L2 + Mahalanobis. 1.0.0 compared only against baselines without drift correction or normalisation, which overstated the gap: "99.5% where k-NN drops to 33%", and "0.966 vs 0.845 AUROC".
-- *Docs:* the install instructions no longer claim a PyPI package. The C memory table now includes the classifier struct (131 KB by default). Every Python example runs as written.
+- *Docs & packaging:* published `necksense` `1.1.0` to PyPI (`pip install necksense`). The C memory table now includes the classifier struct (131 KB by default). Every Python example runs as written.
 
 ---
 

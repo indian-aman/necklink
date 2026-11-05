@@ -39,7 +39,6 @@ NECKLINK_SUITE_CATALOG: List[Dict[str, str]] = [
         "repo": "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
         "region": "Antennal Lobe & Mushroom Body",
         "summary": "Concentration-invariant normalisation, multiplication-free FlyHash, 1-shot novelty (0.994 AUROC in 4 KB) & classification (Py + Q16.16 C99)",
-        "install": 'pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"',
     },
     {
         "id": "compass",

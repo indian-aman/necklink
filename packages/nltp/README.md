@@ -6,7 +6,7 @@
 
 **Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
 
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/pynltp/)
 [![Version](https://img.shields.io/badge/version-1.4.0-0EA5E9?style=flat-square)](#8-changelog)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-216%2F216%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 + ESP8266 Mesh](https://img.shields.io/badge/ESP32%20%2B%20ESP8266%20ESP--NOW-100%25%20SHA--256%20%40%2035%25%20loss-00979D?style=flat-square&logo=espressif&logoColor=white)](#6-benchmarks--hardware-verification)
@@ -176,11 +176,9 @@ flowchart TB
 **How it works:** Runs on Python 3.9+ (Windows, Linux, macOS, Raspberry Pi) using only `numpy` and `cryptography`. `NLTPServer` and `NLTPClient` manage a background non-blocking UDP selector thread for 1-RTT packet pacing, FEC encoding/decoding, keepalives, and reflex acknowledgements.
 
 ```bash
-# 1.4.0 (with the session handshake) from GitHub source:
+pip install --upgrade pynltp
+# or install from GitHub source:
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"
-
-# PyPI still has 1.3.2 (no session handshake; its encrypted mode cannot talk to 1.4 devices):
-# pip install --upgrade pynltp
 ```
 
 **Basic Python Connection (Server + Client on LAN or Internet):**

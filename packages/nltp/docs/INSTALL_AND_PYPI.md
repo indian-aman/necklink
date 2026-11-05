@@ -1,6 +1,6 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-> **Version note.** Every NLTP component in this repository is **1.4.0**. PyPI currently hosts **`pynltp 1.3.2`**, which does not have the 1.4 session handshake and cannot talk to 1.4 devices in encrypted mode; until 1.4.0 is published on PyPI, install Python from this repository (`pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/nltp"`). Build or install the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java 11+ SDKs from a clone of this repository as shown below. **Upgrade every device together:** encrypted 1.4 and 1.3.x endpoints do not interoperate (plaintext mode still does).
+> **Version note.** Every NLTP component in this repository and on PyPI (`pynltp 1.4.0` / `necklink 1.4.0`) is **1.4.0**, with the 1-RTT per-session key handshake. **Upgrade every device together:** encrypted 1.4 and 1.3.x endpoints do not interoperate (plaintext mode still does). Build or install the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java 11+ SDKs from a clone of this repository as shown below.
 
 ```bash
 git clone https://github.com/indian-aman/necklink.git
@@ -12,8 +12,9 @@ cd necklink/packages/nltp
 Installs the Python library (`import nltp`, `import pynltp`, `import necklink`) and the `nltp` CLI:
 
 ```bash
-pip install .                 # from this clone (1.4.0, with the session handshake)
-# pip install --upgrade pynltp  # PyPI: 1.3.2 until 1.4.0 is published (no session handshake)
+pip install --upgrade pynltp   # from PyPI (1.4.0, with the session handshake)
+# or from a local clone:
+pip install .
 ```
 
 Verify:
@@ -91,7 +92,7 @@ See [`java/README.md`](../java/README.md) for the builder and `NLTPEndpoint<P>` 
 
 ## 6. Publishing to Official PyPI (`pypi.org`)
 
-> **Note on PyPI package names**: The literal name `nltp` on PyPI is occupied by an unrelated 2020 text-preprocessing package (`nltp 0.1.0`), so this package is published as **`pynltp`** (live on PyPI). Because the wheel ships a top-level `nltp/` module and `nltp` console script, `pip install pynltp` still gives users `from nltp import NLTPClient, NLTPServer` and the `nltp` CLI. The **`necklink`** umbrella installer (all five packages) is not on PyPI yet; it is waiting on PyPI's new-project quota, like `necksense`.
+> **Note on PyPI package names**: The literal name `nltp` on PyPI is occupied by an unrelated 2020 text-preprocessing package (`nltp 0.1.0`), so this package is published as **`pynltp`** (live on PyPI). Because the wheel ships a top-level `nltp/` module and `nltp` console script, `pip install pynltp` still gives users `from nltp import NLTPClient, NLTPServer` and the `nltp` CLI. The **`necklink`** umbrella installer (`pip install necklink`) is also live on PyPI and installs all five NeckLink packages (`pynltp`, `neckcompass`, `necksight`, `neckcord`, `necksense`).
 
 1. Register an account at `https://pypi.org/account/register/`, enable 2FA, and create an API token (`pypi-...`) under **Account Settings → API tokens**.
 2. Build and upload from the repository root:

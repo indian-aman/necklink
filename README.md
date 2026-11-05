@@ -11,11 +11,12 @@
 **Five open-source modules modelled on the adult *Drosophila* central nervous system, built for lossy radios, GPS-denied vehicles, micro-drones and low-cost microcontrollers.**
 
 [![Website](https://img.shields.io/badge/website-indian--aman.github.io%2Fnecklink-0EA5E9?style=flat-square&logo=githubpages&logoColor=white)](https://indian-aman.github.io/necklink/)
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
-[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B&cacheSeconds=300)](https://pypi.org/project/neckcompass/)
-[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4&cacheSeconds=300)](https://pypi.org/project/necksight/)
-[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E&cacheSeconds=300)](https://pypi.org/project/neckcord/)
-[![NeckSense v1.1.0](https://img.shields.io/badge/necksense-v1.1.0-10B981?style=flat-square&logo=python&logoColor=white)](https://github.com/indian-aman/necklink/tree/main/packages/necksense)
+[![PyPI necklink](https://img.shields.io/pypi/v/necklink?style=flat-square&logo=pypi&logoColor=white&label=necklink&color=6366F1&cacheSeconds=180&v=140)](https://pypi.org/project/necklink/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/pynltp/)
+[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B&cacheSeconds=180&v=140)](https://pypi.org/project/neckcompass/)
+[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4&cacheSeconds=180&v=140)](https://pypi.org/project/necksight/)
+[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E&cacheSeconds=180&v=140)](https://pypi.org/project/neckcord/)
+[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=necksense&color=10B981&cacheSeconds=180&v=140)](https://pypi.org/project/necksense/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](https://github.com/indian-aman/necklink/blob/main/LICENSE)
 
 [**Website**](https://indian-aman.github.io/necklink/) ·
@@ -42,24 +43,23 @@ NeckLink is the brand; each product translates one subsystem of the fruit-fly ne
 | **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** (`v1.1.0`) | Central complex (`E-PG` / `CPU4`) | Ring-attractor compass that rejects `70°–150°` magnetometer spikes as well as a 3σ-gated EKF (`0.44°` vs `0.41°` RMSE), re-anchors after a 90° heading upset where the gated EKF stays stuck, and homes without GNSS (`324 B` RAM in C99) | [`neckcompass`](https://pypi.org/project/neckcompass/) |
 | **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** (`v1.1.0`) | Optic lobe (`T4/T5` + `LPLC2`) | Glare-adapted motion detection and a four-quadrant looming reflex: `0.9988` AUROC on synthetic clutter vs `0.875` for compensated pyramidal Lucas-Kanade, gyro derotation so obstacles are still caught during fast turns, ~12,000 FPS at 32×32 in C99 (desktop) | [`necksight`](https://pypi.org/project/necksight/) |
 | **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** (`v1.1.0`) | Ventral nerve cord (`BANC` / `MANC`) | 4-byte motor command frame, self-healing six-leg gait generator, and a fault-tolerant thruster allocator that isolates a failed thruster in ~`42 ms` (on par with pseudo-inverse + threshold FDI) and can return it to service (`322 B` in C99) | [`neckcord`](https://pypi.org/project/neckcord/) |
-| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** (`v1.1.0`) | Antennal lobe & mushroom body | Concentration-invariant normalisation, multiplication-free FlyHash, one-shot novelty detection (`0.994` AUROC in 4 KB) and one-shot classification, with `Q16.16` C99 that is bit-identical to Python | [`packages/necksense`](https://github.com/indian-aman/necklink/tree/main/packages/necksense#install) |
+| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** (`v1.1.0`) | Antennal lobe & mushroom body | Concentration-invariant normalisation, multiplication-free FlyHash, one-shot novelty detection (`0.994` AUROC in 4 KB) and one-shot classification, with `Q16.16` C99 that is bit-identical to Python | [`necksense`](https://pypi.org/project/necksense/) |
 
 Each product's README has its full benchmarks, its API and a "when not to use it" section. Each benchmark compares against the strongest simple classical baseline we could build: a gated EKF, threshold FDI, baseline-corrected k-NN, or compensated pyramidal optical flow. Where that baseline ties or wins, the README says so.
 
-> **November 2026 release notes (`NLTP v1.3.2` + `v1.1.0` organ suite):**
-> - **Live on PyPI (`pynltp 1.3.2`, `neckcompass 1.1.0`, `necksight 1.1.0`, `neckcord 1.1.0`)**:
->   - **NLTP `1.3.2` (`pynltp`)**: Confirmed priority reflex lane (`PT_REFLEX_ACK`), C/ESP mid-stream anti-stall takeover guard, hardened multi-peer `ESP-NOW` hub (pre-auth slot gate + LRU 20-peer table), and live off-Wi-Fi `ESP32` (encrypted, `~7 Mbps` typical, `17.75 Mbps` best) + cross-chip `ESP8266EX` (`NodeMCU`) 3-board mesh verification.
->   - **Organ Suite `1.1.0` (`neckcompass`, `necksight`, `neckcord`, `necksense`)**: Audited against strong classical baselines, with real sensor-noise re-anchoring and drift fixes in `NeckCompass`, gyro derotation + Python 3.9 compatibility in `NeckSight`, thruster recovery probing in `NeckCord`, and sparser novelty codes in `NeckSense`.
-> - `necksense 1.1.0` and the `necklink` umbrella installer are pending PyPI's new-project creation quota reset; install `necksense` directly from this repository as shown below.
-> - **NLTP `1.4.0` (this repository, not yet on PyPI) is a security release**: encrypted sessions now use per-session keys from a 1-RTT handshake, which fixes accepting recorded traffic after a restart and nonce reuse between sessions. Encrypted `1.4` and `1.3.x` devices do not interoperate, so upgrade them together; see the [NLTP security model](https://github.com/indian-aman/necklink/tree/main/packages/nltp#24-encrypted-sessions--security-model-v14).
+> **November 2026 release notes (`NLTP v1.4.0` + `v1.1.0` organ suite — all live on PyPI):**
+> - **NLTP `1.4.0` (`pynltp`, security release)**: Encrypted sessions now derive fresh per-session directional keys via a 1-RTT `HELLO` / `HELLO_ACK` handshake (`HMAC-SHA256` + `ChaCha20-Poly1305`), eliminating replay after receiver restarts and nonce reuse across reboots, with automatic `NO_SESSION` recovery. Encrypted `1.4` and `1.3.x` endpoints do not interoperate, so upgrade them together; see the [NLTP security model](https://github.com/indian-aman/necklink/tree/main/packages/nltp#24-encrypted-sessions--security-model-v14).
+> - **Confirmed reflex lane & ESP-NOW mesh (`1.3.2`–`1.4.0`)**: Priority out-of-band reflex delivery (`PT_REFLEX_ACK`), C/ESP mid-stream anti-stall takeover guard, hardened multi-peer `ESP-NOW` hub (valid-`HELLO` slot gate + LRU 20-peer table), and live off-Wi-Fi `ESP32` (`~7 Mbps` typical, `17.75 Mbps` best) + cross-chip `ESP8266EX` (`NodeMCU`) 3-board mesh verification.
+> - **Organ Suite `1.1.0` (`neckcompass`, `necksight`, `neckcord`, `necksense`) + `necklink 1.4.0` umbrella**: All five modules and the `necklink` meta-package are live on PyPI, audited against strong classical baselines (`NeckCompass` sensor-noise re-anchoring, `NeckSight` gyro derotation + Python 3.9 support, `NeckCord` thruster recovery probing, and `NeckSense` 2%-sparse novelty codes).
 
 ---
 
 ## Install
 
 ```bash
-pip install --upgrade pynltp neckcompass necksight neckcord
-pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/necksense"
+pip install --upgrade necklink
+# or install individual modules:
+pip install --upgrade pynltp neckcompass necksight neckcord necksense
 ```
 
 Every package supports Python 3.9+ and depends only on NumPy (`pynltp` also uses `cryptography`). Each one's C99 core is self-contained inside `csrc/` so you can copy it directly into firmware.
