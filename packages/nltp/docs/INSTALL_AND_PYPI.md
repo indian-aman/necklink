@@ -1,6 +1,6 @@
 # Installing NLTP (Python, JavaScript/TypeScript, Java, Arduino IDE, and PlatformIO)
 
-> **Version note.** Every NLTP component in this repository is **1.3.2**, and **`pynltp 1.3.2` is published on PyPI** (`pip install --upgrade pynltp`). For the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java/Android `1.3.2` SDKs, build or install from a clone of this repository as shown below.
+> **Version note.** Every NLTP component in this repository is **1.3.2**, and **`pynltp 1.3.2` is published on PyPI** (`pip install --upgrade pynltp`). For the C99, Arduino/PlatformIO, JavaScript/TypeScript, and Java `1.3.2` SDKs, build or install from a clone of this repository as shown below.
 
 ```bash
 git clone https://github.com/indian-aman/necklink.git
@@ -56,9 +56,9 @@ lib_deps =
 
 ---
 
-## 4. JavaScript / TypeScript (Node.js 18+, Deno, Bun, Browser)
+## 4. JavaScript / TypeScript (Node.js 18+)
 
-Zero-dependency ESM + CommonJS + `.d.ts` package:
+Zero-dependency ESM + CommonJS + `.d.ts` package (tested on Node.js 20 in CI):
 
 ```bash
 npm install ./js             # from packages/nltp, or: npm install /path/to/necklink/packages/nltp/js
@@ -71,11 +71,11 @@ npx nltp-js gen-key
 node -e "import('nltp').then(m => console.log('Generated key:', m.generateNltpKey()))"
 ```
 
-For Browser / WebRTC / WebTransport environments without `node:dgram`, import `nltp/core` (`NLTPEndpoint`, `packNltpFrame`, `unpackNltpFrame`, `AEADCipherContext`). See [`js/README.md`](../js/README.md).
+For environments without `node:dgram`, `nltp/core` (`NLTPEndpoint`, `packNltpFrame`, `unpackNltpFrame`, `AEADCipherContext`) uses only `Uint8Array` / `DataView` with zero `node:*` imports *(non-Node runtimes are not yet tested in CI)*. See [`js/README.md`](../js/README.md).
 
 ---
 
-## 5. Java 11+ / Android (`io.necklink:nltp`)
+## 5. Java 11+ (`io.necklink:nltp`)
 
 Build the zero-dependency library + CLI JAR (`--release 11`):
 

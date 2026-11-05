@@ -2,8 +2,8 @@
  * Transport-Agnostic NLTP v1.2 Endpoint Engine (`NLTPEndpoint`),
  * Router-Safe `TokenBucketPacer`, and 1-RTT BBR-Style `DeliveryRateController`.
  *
- * Runs identically in Node.js (over `node:dgram`), Browsers (WebRTC / WebTransport),
- * Deno, Bun, or custom serial/radio byte links with zero Node-specific imports.
+ * Tested in Node.js (over `node:dgram`); uses zero Node-specific imports so it can also
+ * attach to custom byte-callback transports (non-Node runtimes not yet tested in CI).
  */
 
 import {

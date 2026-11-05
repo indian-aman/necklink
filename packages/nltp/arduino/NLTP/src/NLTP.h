@@ -1,8 +1,9 @@
 /*
  * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.3.2).
  *
- * Works out of the box with ESP32, ESP32-S3, ESP32-C3, RP2040-W, and any board
- * providing Arduino's standard <WiFiUdp.h> interface, while remaining 100%
+ * Hardware-tested on ESP32 (D0WDQ6 / D0WD-V3; UDP and ESP-NOW). UDP mode uses
+ * Arduino's standard <WiFiUdp.h> interface (other Wi-Fi boards are not yet
+ * hardware-tested), while remaining 100%
  * wire-compatible with Python `NLTPServer`, `NLTPClient`, and `NLTPRelayHub`.
  */
 #ifndef NLTP_ARDUINO_H

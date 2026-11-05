@@ -1,8 +1,8 @@
 # NLTP v1.3.2 — JavaScript & TypeScript SDK (`nltp`)
 
-Zero-dependency **JavaScript / TypeScript** implementation of the **NeckLink Transport Protocol (`NLTP v1.3.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **Java/Android**, and **Arduino / `ESP32` / `ESP8266`** stacks.
+Zero-dependency **JavaScript / TypeScript** implementation of the **NeckLink Transport Protocol (`NLTP v1.3.2`)**, byte-for-byte wire-compatible with the **Python**, **ANSI C99**, **Java 11+**, and **Arduino / `ESP32` / `ESP8266`** stacks.
 
-- **Zero External Dependencies**: Pure ES2022 (`ESM` + `CommonJS` + `.d.ts` TypeScript declarations) — runs in **Node.js 18+**, **Deno**, **Bun**, and **Browsers** (`WebRTC DataChannel` / `WebTransport` / custom byte callbacks).
+- **Zero External Dependencies**: Pure ES2022 (`ESM` + `CommonJS` + `.d.ts` TypeScript declarations) — tested on **Node.js 18+** (`Node.js 20` in CI). The `nltp/core` entrypoint uses only standard `Uint8Array` / `DataView` with zero `node:*` imports for custom byte callbacks *(browser, Deno, and Bun runtimes are not yet tested in CI)*.
 - **Full NLTP v1.3.2 Wire Parity**:
   - Systematic `GF(2^8)` Cauchy forward error correction (`0x11D` primitive polynomial, `8`-shard generations, incremental Gauss-Jordan decoding).
   - Pure-JS + `node:crypto` `ChaCha20-Poly1305` (256-bit AEAD, `RFC 8439`) with `20 B` AAD header and `RFC 6479` 64-packet sliding anti-replay window.
@@ -57,9 +57,9 @@ const { NLTPServer, NLTPClient, generateNltpKey } = require('./src/index.cjs');
 
 ---
 
-## Runtime-Agnostic Core (Browser / WebRTC / WebTransport / Custom Radios)
+## Transport-Agnostic Core (`nltp/core` — Custom Byte Callbacks)
 
-Import `nltp/core` (`./src/endpoint.js` + `./src/wire.js`) without `node:dgram`:
+Import `nltp/core` (`./src/endpoint.js` + `./src/wire.js`) without `node:dgram` *(tested on Node.js; browser/WebRTC/WebTransport runtimes not yet tested in CI)*:
 
 ```javascript
 import { NLTPEndpoint, generateNltpKey } from './src/endpoint.js';

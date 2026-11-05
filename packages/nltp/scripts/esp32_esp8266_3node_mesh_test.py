@@ -483,8 +483,18 @@ def main():
         c.close()
 
     p = Path(r"D:\necklink\packages\nltp\results\esp32_esp8266_crosschip_mesh.json")
-    p.write_text(json.dumps(out, indent=2), encoding="utf-8")
-    print(f"\nSaved complete 3-board telemetry -> {p}", flush=True)
+    raw_json = json.dumps(out, indent=2)
+    mac_redactions = {
+        n0.mac: "<node-0-esp32-mac>",
+        n1.mac: "<node-1-esp8266-mac>",
+    }
+    if n2 is not None:
+        mac_redactions[n2.mac] = "<node-2-esp32-mac>"
+    for real_mac, placeholder in mac_redactions.items():
+        if real_mac:
+            raw_json = raw_json.replace(real_mac, placeholder)
+    p.write_text(raw_json, encoding="utf-8")
+    print(f"\nSaved complete 3-board telemetry (MACs redacted) -> {p}", flush=True)
 
 
 if __name__ == "__main__":

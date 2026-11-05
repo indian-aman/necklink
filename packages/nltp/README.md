@@ -4,7 +4,7 @@
 
 # NLTP (`pynltp` v1.3.2)
 
-**Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, JavaScript/TypeScript, Java, Android, and ESP32/ESP8266.**
+**Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
 
 [![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=300)](https://pypi.org/project/pynltp/)
 [![Version](https://img.shields.io/badge/version-1.3.2-0EA5E9?style=flat-square)](#8-changelog)
@@ -38,7 +38,7 @@
 - **MQTT** requires a TCP broker, stalls behind head-of-line blocking during drops, and cannot run directly between microcontrollers without a Wi-Fi router.
 - **Raw ESP-NOW** fires fast 2.4 GHz frames without a router, but is capped at `250 B` (`v1`) or `1,470 B` (`v2`) per frame, drops multi-kilobyte payloads when a single packet is lost, limits hardware encryption to 6–17 peers, and cannot cross IP routers or cellular networks.
 
-**NLTP unifies embedded boards, mobile apps, browsers, laptops, and cloud servers under one unmodified `"NL"` binary wire format:**
+**NLTP unifies embedded boards, laptops, and servers under one unmodified `"NL"` binary wire format:**
 
 - **Forward Error Correction (`GF(2^8)` Cauchy Reed-Solomon)**: Reconstructs lost packets algebraically inside 8-shard generations without waiting for per-packet retransmission timeouts — delivering `100%` `SHA-256`-verified payloads across `0–35%` packet loss.
 - **256-Bit Authenticated Encryption (`ChaCha20-Poly1305`)**: Built-in `RFC 8439` AEAD with 20-byte header authentication, `RFC 6479` 64-packet anti-replay window, and end-to-end `SHA-256` stream receipts (`216/216` cross-language tests passed).
@@ -51,7 +51,7 @@
 
 ```mermaid
 flowchart LR
-    subgraph Sender["Sender (Python / JS / Java / Android / ESP)"]
+    subgraph Sender["Sender (Python / C99 / Node.js / Java / ESP)"]
         S1["Payload Bytes or File + SHA-256"] --> S2["Split into k=8 Shards (960 B or 192 B)"]
         S2 --> S3["GF(2^8) Cauchy Parity Generator"]
         S3 --> S4["1-RTT Adaptive Token-Bucket Pacer"]
@@ -59,7 +59,7 @@ flowchart LR
         S4 --> S5
     end
 
-    S5 ===>|"UDP/IP, CGNAT Relay, WebRTC, or ESP-NOW"| RX1
+    S5 ===>|"UDP/IP, CGNAT Relay, or ESP-NOW"| RX1
 
     subgraph Receiver["Receiver (Any NLTP Runtime)"]
         RX1["Verify Poly1305 Tag + RFC 6479 Replay Window"] --> RX2["Incremental GF(2^8) Gauss-Jordan Decoder"]
@@ -107,7 +107,7 @@ Calling `send_reflex()` / `sendReflex()` emits a standalone encrypted control pa
 
 ## 3. How NLTP Works on ESP: UDP Mode vs. ESP-NOW Mode vs. Hybrid Bridge
 
-On Espressif microcontrollers (`ESP32`, `ESP32-S2/S3`, `ESP32-C3/C5/C6`, and `ESP8266`), the exact same zero-heap ANSI C99 NLTP state machine (`nltp_endpoint_t`) runs over **two interchangeable physical transports** that can also be bridged together:
+On `ESP32` (`ESP32-D0WDQ6` / `ESP32-D0WD-V3`) and `ESP8266EX` (`NodeMCU`) — the two microcontroller families tested on hardware — the exact same zero-heap ANSI C99 NLTP state machine (`nltp_endpoint_t`) runs over **two interchangeable physical transports** that can also be bridged together:
 
 ```mermaid
 flowchart TB
@@ -124,7 +124,7 @@ flowchart TB
         GW["ESP32 Node: NLTPESPNowNode + NLTPWiFiNode"]
     end
 
-    GW <-->|"Direct Wi-Fi / LAN UDP"| SRV["Python · Node.js · Java · Android"]
+    GW <-->|"Direct Wi-Fi / LAN UDP"| SRV["Python · C99 · Node.js · Java"]
     GW <-->|"4G/5G SIM -> 1-Port NLTPRelayHub"| SRV
 ```
 
@@ -132,11 +132,11 @@ flowchart TB
 
 | Aspect | **Mode A: NLTP over UDP (`NLTPWiFiNode`)** | **Mode B1: NLTP over ESP-NOW v2 (`NLTPESPNowNode`)** | **Mode B2: NLTP over ESP-NOW v1 (`ESP8266` / `v1` Flag)** | **Mode C: ESP-NOW ↔ UDP Gateway** |
 | :--- | :--- | :--- | :--- | :--- |
-| **Supported Chips** | `ESP32` family, `RP2040-W`, any `<WiFiUdp.h>` board | `ESP32`, `S2`, `S3`, `C3`, `C5`, `C6` (ESP-IDF 5.x / Arduino core 3.x) | `ESP8266` (`NodeMCU`) + any `ESP32` with `setEspNowV1Mode(true)` | `ESP32` (runs ESP-NOW + Wi-Fi STA on shared radio channel) |
+| **Hardware Tested** | `ESP32` (`D0WDQ6`); uses Arduino `<WiFiUdp.h>` *(other boards untested)* | `ESP32` (`D0WDQ6` & `D0WD-V3`, Arduino-ESP32 3.x / ESP-IDF 5.x; `S2/S3/C3/C5/C6` untested) | `ESP8266EX` (`NodeMCU`) + `ESP32` with `setEspNowV1Mode(true)` | `ESP32` (runs ESP-NOW + Wi-Fi STA on shared radio channel) |
 | **Router / IP Needed?** | **Yes** — Wi-Fi AP, Ethernet, or 4G/5G hotspot | **No** — direct 2.4 GHz L2 action frames (`wifi_sta=0`) | **No** — direct 2.4 GHz L2 action frames (`wifi_sta=0`) | Leaf nodes: **No**; Gateway: **Yes** (Wi-Fi or 4G SIM) |
-| **Internet / Cloud Reach** | **Direct** (LAN, WAN, STUN, or `beginRelay()`) | Local 2.4 GHz hop (`~100–800 m`, or `LR` mode) | Local 2.4 GHz hop (`~100–400 m`) | **Full end-to-end** from off-grid leaf nodes to cloud/mobile |
+| **Internet / Cloud Reach** | **Direct** (LAN, WAN, STUN, or `beginRelay()`) | Local 2.4 GHz hop *(bench-tested indoors; outdoor range not measured)* | Local 2.4 GHz hop *(bench-tested indoors; outdoor range not measured)* | **Full end-to-end** from off-grid leaf nodes to cloud/server |
 | **Shard / Wire Size** | `960 B` shard → `1,010 B` UDP payload | `960 B` shard → `1,010 B` L2 frame (`<= 1,470 B` MTU) | `192 B` shard → `242 B` L2 frame (`<= 250 B` MTU) | Accepts both `192 B` & `960 B` shards automatically |
-| **Measured Goodput** | Up to **`3.04 Mbps`** (`PC ↔ Router ↔ ESP32`) | Typically **`~7 Mbps`** on a clean link (median of 13 runs, range `1.8–17.7 Mbps`); raw ESP-NOW v2 `~15 Mbps` | Typically **`~2 Mbps`** (`NodeMCU → ESP32`, `8 KB` AEAD: `1.7–2.5 Mbps`; one run reached `7.25 Mbps`) | Limited by upstream Wi-Fi / 4G link |
+| **Measured Goodput** | Up to **`3.04 Mbps`** (`PC ↔ Router ↔ ESP32`) | Typically **`~7 Mbps`** on a clean link (median of 13 runs, range `1.8–17.7 Mbps`); raw ESP-NOW v2 `~15 Mbps` | `NodeMCU → ESP32` (`8 KB` AEAD): **`1.29–1.60 Mbps`** (`2.58–3.88 Mbps` on `1–4 KB`; raw v1 `2.55–2.82 Mbps`); `ESP32 → NodeMCU`: **`4.32–4.49 Mbps`** (raw v1 `3.94–4.13 Mbps`) | Limited by upstream Wi-Fi / 4G link |
 | **Loss Survival** | Verified to **`20.8%`** loss (`100%` SHA-256) | Verified **`0–35%`** loss (`100%` SHA-256) | Verified **`0–35%`** cross-chip loss (`100%` SHA-256) | Independent FEC recovery on each hop (or L2 cut-through) |
 
 ### Key Engineering Details on ESP
@@ -214,11 +214,11 @@ nltp send-file --relay <RELAY_IP>:9000 --room device-01 --psk "<KEY>" --file sen
 
 ---
 
-### 4.2 JavaScript & TypeScript (`Node.js` UDP + `Browser / WebRTC`)
+### 4.2 JavaScript & TypeScript (`Node.js` UDP + Transport-Agnostic `nltp/core`)
 
-**How it works:** Zero external npm dependencies (`Node.js >= 18`, Deno, Bun, and modern Browsers). Ships dual `ESM` + `CommonJS` entrypoints and full `.d.ts` TypeScript declarations:
+**How it works:** Zero external npm dependencies, tested on **`Node.js >= 18`** (`Node.js 20` in CI). Ships dual `ESM` + `CommonJS` entrypoints and full `.d.ts` TypeScript declarations:
 - `import { NLTPServer, NLTPClient, NLTPRelayHub } from 'nltp'` uses `node:dgram` for native UDP networking.
-- `import { NLTPEndpoint } from 'nltp/core'` is 100% transport-agnostic (zero Node imports) so you can run NLTP over browser **WebRTC `RTCDataChannel`**, **WebTransport** datagrams, **WebSockets**, or **WebSerial**.
+- `import { NLTPEndpoint } from 'nltp/core'` uses only standard `Uint8Array` / `DataView` with zero `node:*` imports so you can attach NLTP to custom datagram callbacks (such as WebRTC `RTCDataChannel` or WebSockets; browser, Deno, and Bun runtimes are not yet tested in CI).
 
 ```bash
 npm install ./packages/nltp/js
@@ -250,7 +250,7 @@ await client.close();
 await server.close();
 ```
 
-**Browser / WebRTC DataChannel Connection (`nltp/core`):**
+**Custom Datagram / WebRTC Callback Example (`nltp/core`, untested in browsers):**
 
 ```javascript
 import { NLTPEndpoint } from 'nltp/core';
@@ -322,12 +322,9 @@ public class Example {
 
 ---
 
-### 4.4 Android (`io.necklink:nltp`, API 26+)
+### 4.4 Android Integration Notes (`io.necklink:nltp` — Untested on Android)
 
-**How it works:** Because `io.necklink:nltp` compiles to zero-dependency Java 11 bytecode using standard `java.nio.channels.DatagramChannel` and ships its own `ChaCha20-Poly1305` implementation (no native JNI `.so` libraries or third-party dependencies), it drops directly into any Kotlin or Java Android app (`minSdk = 26`, Android 8.0+):
-- **Direct Local Link**: Connect an Android phone directly to an `ESP32` over local Wi-Fi or phone hotspot with zero cloud/broker setup.
-- **Remote Cellular Link**: Connect from Android 4G/5G to a remote server or `ESP32` via `NLTPRelayHub` (`relay(InetSocketAddress(relayIp, 9000), "device-01")`).
-- **Seamless Wi-Fi ↔ 5G Handoff**: Call `client.rebindSocket("0.0.0.0", 0)` on network changes to migrate an active transfer in `0-RTT` without losing progress.
+> **Untested on Android hardware/emulator:** `io.necklink:nltp` is built and tested on desktop/server JVMs (Temurin JDK 21 with `--release 11`). Because it compiles to zero-dependency Java 11 bytecode using only `java.nio.channels.DatagramChannel`, `Selector`, `MessageDigest`, `CRC32`, and its own pure-Java `ChaCha20-Poly1305` (APIs present since Android API 26 / Android 8.0, with no JNI `.so` libraries or third-party jars), the snippets below show the intended Gradle/Kotlin wiring, **but Android runtime execution has not been verified yet**.
 
 **1. Gradle & Manifest Setup:**
 
@@ -389,7 +386,7 @@ suspend fun syncWithDevice(deviceIp: String, sharedKey: String, configBytes: Byt
 **How it works:** The C99 engine (`csrc/nltp_core.{h,c}`, `nltp_sha256.{h,c}`, `nltp_net.{h,c}`) uses **zero dynamic heap allocation** inside the protocol core and **zero floating-point math**. On Arduino/PlatformIO, `#include <NLTP.h>` provides two non-blocking classes driven by calling `.poll()` inside `loop()`:
 - `NLTPWiFiNode` — UDP over Wi-Fi / Ethernet / 4G router (works on all Arduino-ESP32 cores).
 - `NLTPESPNowNode` — Routerless 2.4 GHz ESP-NOW v2/v1 (Arduino-ESP32 core 3.x / ESP-IDF 5.x).
-- For `ESP8266` (`NodeMCU`) or custom bare-metal MCUs (`STM32`, `RP2040`), wire `nltp_core.c` directly to `esp_now_send` or any byte callback.
+- For `ESP8266EX` (`NodeMCU`) or other C99 targets, wire `nltp_core.c` directly to `esp_now_send` or any byte callback *(hardware-tested on `ESP32` and `ESP8266EX`; other microcontrollers untested on hardware)*.
 
 **Install in PlatformIO (`platformio.ini`) or Arduino IDE (`.ZIP`):**
 
@@ -400,7 +397,7 @@ lib_deps =
 ```
 *(For Arduino IDE: zip `packages/nltp/arduino/NLTP` and add via **Sketch → Include Library → Add .ZIP Library...**)*
 
-#### Example A: `ESP32` over Wi-Fi UDP (Connects Directly to Python / JS / Java / Android)
+#### Example A: `ESP32` over Wi-Fi UDP (Connects Directly to Python / C99 / Node.js / Java)
 
 ```cpp
 #include <WiFi.h>
@@ -414,7 +411,7 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) delay(200);
 
   nltp.begin(9700, "shared-256bit-key-or-passphrase");
-  nltp.setPeer(IPAddress(192, 168, 1, 100), 9000); // IP/port of Python, JS, Java, or Android peer
+  nltp.setPeer(IPAddress(192, 168, 1, 100), 9000); // IP/port of Python, Node.js, or Java peer
 }
 
 void loop() {
@@ -503,7 +500,7 @@ if (espNow.hasReceivedFile() && espNow.isReceivedShaOk() && wifiUdp.isSendComple
 
 | Capability | **NLTP (`v1.3.2`)** | **MQTT (over TCP/TLS)** | **Raw ESP-NOW (`v1` / `v2`)** | **TCP BBR / QUIC** |
 | :--- | :--- | :--- | :--- | :--- |
-| **Underlying Transport** | UDP/IP, CGNAT Relay, WebRTC, **or** L2 ESP-NOW | TCP/IP (or QUIC in niche brokers) | IEEE 802.11 L2 vendor action frames only | TCP/IP or UDP/IP (`QUIC`) |
+| **Underlying Transport** | UDP/IP, CGNAT Relay, L2 ESP-NOW, or custom byte callbacks | TCP/IP (or QUIC in niche brokers) | IEEE 802.11 L2 vendor action frames only | TCP/IP or UDP/IP (`QUIC`) |
 | **Central Broker Needed?** | **No** — direct P2P, hub, or optional 1-port relay | **Yes** — requires an MQTT broker (Mosquitto, EMQX, AWS IoT) | **No** — direct peer MAC to MAC | **No** — direct client/server |
 | **Works Without Wi-Fi Router?** | **Yes** (`ESP32` & `ESP8266` via ESP-NOW) | **No** — requires full IP + TCP stack | **Yes** (`ESP32` & `ESP8266`) | **No** — requires IP stack |
 | **Crosses Internet & 4G CGNAT?** | **Yes** (built-in STUN punch + zero-key relay) | **Yes** (if broker is hosted on a public IP) | **No** — single 2.4 GHz RF hop only | **Yes** (requires public IP or separate TURN/VPN) |
@@ -517,7 +514,7 @@ if (espNow.hasReceivedFile() && espNow.isReceivedShaOk() && wifiUdp.isSendComple
 
 > **Use NLTP when:**
 > - Transferring **binary batches, sensor logs, audio/image snapshots, configs, or OTA firmware (`1 KB – 10 MB`)** across lossy (`2–35%`), bursty, long-RTT, cellular-edge, or congested 2.4 GHz links.
-> - Building **routerless `ESP32` / `ESP8266` meshes** that need encrypted multi-KB transfers, cross-chip `v1 ↔ v2` compatibility, or seamless bridging to Python, Node.js, Java, or Android.
+> - Building **routerless `ESP32` / `ESP8266` meshes** that need encrypted multi-KB transfers, cross-chip `v1 ↔ v2` compatibility, or seamless bridging to Python, C99, Node.js, or Java.
 > - Connecting field devices and mobile apps **across 4G/5G carrier CGNAT** without setting up VPNs, TLS certificates, or heavyweight cloud brokers.
 > - **Combining NLTP + MQTT**: Use NLTP on the **lossy wireless edge** (`ESP8266/ESP32 → Gateway/Cloud Ingest`) and publish verified payloads into **MQTT** inside your cloud backend for dashboard and microservice fan-out.
 
@@ -573,15 +570,17 @@ Measured across three heterogeneous physical boards on Channel 11 with **zero Wi
 
 | Cross-Chip / Multi-Board Test | Payload & Conditions | **Raw ESP-NOW** | **NLTP `1.3.2` Cross-Chip Mesh** |
 | :--- | :--- | :---: | :---: |
-| **All 6 Pairwise Directional Links** | `16 KB` (`ESP32↔ESP32`) & `8 KB` (`ESP8266↔ESP32`) @ `0%` loss | `ESP32↔ESP32`: `3/3`<br>`ESP8266↔ESP32`: *invalid, see note* | **`18/18` (`100%` SHA-256)** · `ESP32↔ESP32`: `9.31` & `12.23 Mbps`; `ESP8266` links: `2.46–7.25 Mbps` |
-| **Cross-Chip Loss Sweep (`NodeMCU → ESP32`)** | `8 KB` encrypted (`242 B` L2 frames) @ `0%, 10%, 25%, 35%` loss | *invalid, see note* | **`3/3` (`100%` SHA-256) at all 4 loss levels** (`2.10`, `1.03`, `2.45`, `1.00 Mbps`) |
-| **2-Hop Relay via `ESP32`** | `NodeMCU (v1) → ESP32 Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | *invalid, see note* | **`3/3` (`100%` SHA-256)** · `1.32 Mbps` (`0%`) & `1.07 Mbps` (`15%` loss) |
-| **2-Hop Relay *Through* `250 B` `ESP8266`** | `ESP32 → NodeMCU 250 B Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | *invalid, see note* | **`3/3` (`100%` SHA-256)** · **`2.44 Mbps`** (`0%`) & **`0.54 Mbps`** (`15%` loss) |
-| **Simultaneous Dual-Sender Mixed Hub** | `ESP32 (32 KB v2)` + `NodeMCU (8 KB v1)` → `ESP32 Hub` at the same instant | *invalid, see note* | **`5/5` (`100%` both SHA-256)** @ `0%` (`365 ms`) & **`5/5`** @ `10%` loss (`380 ms`) |
+| **All 6 Pairwise Directional Links** | `16 KB` (`ESP32↔ESP32`) & `8 KB` (`ESP8266↔ESP32`) @ `0%` added loss | `ESP8266↔ESP32`: **`12/12`** (`2.78–4.13 Mbps`)<br>`ESP32↔ESP32`: `3/3` (`8.22 Mbps`, `-71 dBm`) & `0/3` (`-78 dBm`) | **`18/18` (`100%` SHA-256)** · `ESP32↔ESP32`: `7.85` & `12.42 Mbps`; `NodeMCU→ESP32`: `1.56` & `1.60 Mbps`; `ESP32→NodeMCU`: `4.32` & `4.49 Mbps` |
+| **Payload Sweep (`NodeMCU → ESP32`)** | `4 B`, `64 B`, `192 B`, `1 KB`, `4 KB`, `8 KB` @ `0%` loss | **`3/3` at every size** (`2.00 ms` @ `4 B`, `2.01–2.76 Mbps` @ `1–8 KB`) | **`3/3` (`100%` SHA-256) at every size** (`2.99 ms` @ `4 B`, `2.58` & `3.88 Mbps` @ `1–4 KB`, `1.45 Mbps` @ `8 KB`) |
+| **Cross-Chip Loss Sweep (`NodeMCU → ESP32`)** | `8 KB` encrypted (`242 B` L2 frames) @ `0%, 10%, 25%, 35%` loss | **`0%`: `3/3`** (`2.55 Mbps`, `25.7 ms`)<br>**`10%, 25%, 35%`: `0/3`** (`5.5–7.2 / 8 KB` avg) | **`3/3` (`100%` SHA-256) at all 4 loss levels** (`1.29`, `1.00`, `0.69`, `0.58 Mbps`) |
+| **2-Hop Relay via `ESP32`** | `NodeMCU (v1) → ESP32 Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | `0%`: `0/3` (`2.8 / 8 KB` avg; `-78 dBm` hop + Ch 11 relay collisions)<br>`15%`: `0/3` | **`3/3` (`100%` SHA-256)** · `0.40 Mbps` (`162.6 ms`, `0%`) & `0.023 Mbps` (`2.82 s`, `15%` loss) |
+| **2-Hop Relay *Through* `250 B` `ESP8266`** | `ESP32 → NodeMCU 250 B Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | **`0%`: `3/3` (`100%`, `2.02 Mbps`, `32.5 ms`)**<br>**`15%`: `0/3`** (`7.1 / 8 KB` avg) | **`3/3` (`100%` SHA-256)** · **`3.27 Mbps`** (`20.1 ms`, `0%`) & **`0.66 Mbps`** (`98.9 ms`, `15%` loss) |
+| **Simultaneous Dual-Sender Mixed Hub** | `ESP32 (32 KB v2)` + `NodeMCU (8 KB v1)` → `ESP32 Hub` at the same instant | `0/5` *(single-buffer raw receiver; see note)* | **`5/5` (`100%` both SHA-256)** @ `0%` (`417 ms`) & **`5/5`** @ `10%` loss (`387 ms`) |
 
-> **Note on the raw ESP-NOW column.** The raw results involving the `ESP8266` (`0/3` and `0/5` in [`results/esp32_esp8266_crosschip_mesh.json`](results/esp32_esp8266_crosschip_mesh.json)) came from a bug in the test firmware, not from ESP-NOW. The ESP32 receiver assumed `1,446 B` raw chunks while the ESP8266 sends `226 B` chunks, so it stopped after `ceil(size / 1446)` frames; an `8 KB` file "arrived" as `1,356 B` even on a clean link. In the other direction, the ESP32 sent `1,470 B` raw frames that an ESP8266 cannot receive. Both are fixed (the receiver reads the sender's chunk size from the frames, and `raw_send … v1` sends `250 B` frames), but the raw cross-chip tests have not been re-run yet: run [`scripts/esp32_esp8266_3node_mesh_test.py`](scripts/esp32_esp8266_3node_mesh_test.py) with the updated firmware for valid raw numbers. The NLTP results are unaffected.
->
-> The `7.25 Mbps` `NodeMCU → ESP32` link is a single best case: the same `8 KB` link measured `1.72` and `2.10 Mbps` in the payload and loss sweeps of the same file.
+> **Notes on the 3-board benchmark ([`results/esp32_esp8266_crosschip_mesh.json`](results/esp32_esp8266_crosschip_mesh.json)):**
+> - **Clean direct `ESP8266 ↔ ESP32` links (`-41` to `-57 dBm`)**: Raw ESP-NOW v1 (`250 B` frames / `226 B` chunks) delivers `100%` (`12/12` across all 4 directional pairs) and is faster than NLTP on `8 KB` `NodeMCU → ESP32` uploads (`2.55–2.82 Mbps` raw vs. `1.29–1.60 Mbps` NLTP; on `1–4 KB`, NLTP reaches `2.58–3.88 Mbps`), while NLTP is slightly faster on `8 KB` `ESP32 → NodeMCU` (`4.32–4.49 Mbps` vs. `3.94–4.13 Mbps` raw). Once packet loss reaches `10–35%`, raw multi-KB delivery drops to `0/3` while NLTP holds `3/3` (`100%` SHA-256).
+> - **Asymmetric bench RSSI & single-channel relay collisions**: On the bench, `Node 1` (`NodeMCU`) sat between `Node 0` and `Node 2` (`-41` to `-57 dBm` to both), so 2-hop Route B through the `250 B` `NodeMCU` relay succeeded `3/3` (`2.02 Mbps`) with raw ESP-NOW at `0%` added loss. By contrast, the direct `Node 0 → Node 2` link was `-78 dBm`, causing natural indoor RF drops (`12,369 / 16,384 B` avg raw direct, and `2,787 / 8,192 B` avg on 2-hop Route A where `Node 0` received and relayed on Channel 11 simultaneously); NLTP's FEC recovered `3/3` (`100%` SHA-256) on both routes.
+> - **Simultaneous dual-sender row**: The raw test receiver in `mesh3_v2_main.cpp` tracks one in-flight `run_id` buffer (`g_raw`), so interleaved frames from two concurrent senders overwrite each other (`0/5`). A custom per-MAC raw chunk table could separate two clean-link senders, whereas `nltp_espnow_hub_t` provides pre-authenticated per-MAC slots + FEC recovery out of the box (`5/5` at `0%` and `10%` loss).
 
 ---
 
@@ -634,8 +633,8 @@ Additional link profiles:
 | Path | Contents |
 | :--- | :--- |
 | [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python SDK & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPEndpoint`, `NLTPRelayHub`, STUN, `nltp` CLI) |
-| [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + Browser/WebRTC `nltp/core` + Node UDP + `nltp-js` CLI) |
-| [`java/`](java/) | Zero-dependency Java 11+ & Android SDK (`io.necklink:nltp`, Maven `pom.xml`, NIO UDP, portable `ChaCha20-Poly1305`, `NLTPCli`) |
+| [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + transport-agnostic `nltp/core` + Node.js UDP + `nltp-js` CLI) |
+| [`java/`](java/) | Zero-dependency Java 11+ SDK (`io.necklink:nltp`, Maven `pom.xml`, NIO UDP, portable `ChaCha20-Poly1305`, `NLTPCli`) |
 | [`arduino/NLTP/`](arduino/NLTP/) | Arduino IDE & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) & `NLTPESPNowNode` (ESP-NOW), plus 6 example sketches |
 | [`csrc/`](csrc/) | Zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_espnow.h`), POSIX CLI & host simulator |
 | [`esp32/`](esp32/) & [`esp32_mesh/`](esp32_mesh/) | Hardware firmware for `ESP32` Wi-Fi UDP, `ESP32` ESP-NOW v2 multi-peer hubs, and `ESP8266EX` (`NodeMCU`) cross-chip v1 mesh nodes |
@@ -671,13 +670,12 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 
 ## 8. Changelog
 
-**`1.3.2`** *(Python, ANSI C99, Arduino/ESP, JavaScript/TypeScript, Java/Android)*
+**`1.3.2`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)*
 - **Confirmed Priority Reflex Lane (`PT_REFLEX_ACK`, `0x0A`)**: `send_reflex` / `sendReflex` now retransmits (`15–250 ms` backoff, `3 s` window) until acknowledged, deduplicates by `(conn_id, seq)`, and adds `wait_reflex_ack` / `waitReflexAck` plus server-to-client `NLTPServer.send_reflex(client_addr, msg)` (`300/300` verified at `15%` and `30%` bidirectional loss across Python, JS, and Java).
 - **C99 & ESP Anti-Stall Takeover Guard**: Prevents a delayed replay or stray `conn_id` packet from resetting an in-progress receive stream unless the stream finishes or has been idle for `>= 1,000 ms` (verified `100%` on physical `ESP32` hardware under mid-stream injection while preserving `4.34 ms` deep-sleep cold wakes).
 - **Hardened Multi-Peer ESP-NOW Hub (`nltp_espnow.h`)**: Pre-authenticates unknown senders before allocating slots (`80/80` spoofed MAC frames blocked with `0` slots used), protects active transfers from eviction, adds atomic TX in-flight tracking, and LRU-manages the 20-entry ESP-NOW peer table.
 - **Hardware Verification (`ESP32` v2 + `ESP8266EX` Cross-Chip Mesh)**: Verified off-Wi-Fi on physical `ESP32` (typically `~7 Mbps` on a clean link, best `17.75 Mbps` on `32 KB` AEAD; `100%` `SHA-256` across `0–35%` packet loss and all 7 PHY modes including `LR 250K/500K`) and across a 3-board `ESP32 + ESP8266EX NodeMCU + ESP32` mesh (`100%` `SHA-256` across all 6 cross-chip links, 2-hop wireless relays through `250 B` `ESP8266`, and simultaneous `v2 + v1` multi-sender hub reception).
-- **Fixes & Compatibility**: `recv(timeout=0)` non-blocking poll fix in Python; Arduino-ESP32 core 2.x compile compatibility restored for `NLTPWiFiNode`; unified `1.3.2` version across all five SDKs; `mvn test` now runs the Java self-tests.
-- **Test firmware fix (`esp32_mesh/`)**: the raw ESP-NOW baseline now reassembles `226 B` chunks from an `ESP8266` and can send `250 B` frames to one (`raw_send … v1`). The earlier raw cross-chip results were invalid; see the note in section 6.2.
+- **Fixes & Compatibility**: `recv(timeout=0)` non-blocking poll fix in Python; Arduino-ESP32 core 2.x compile compatibility restored for `NLTPWiFiNode`; unified `1.3.2` version across all five SDKs; `mvn test` now runs the Java self-tests; re-ran the 3-board `ESP32 + ESP8266EX` benchmark with fixed `226 B` / `raw_send … v1` baseline reassembly (section 6.2).
 
 **`1.2.1 – 1.2.3`** *(C99 / Arduino)*: Added `nltp_espnow.h` and `NLTPESPNowNode` (`1,470 B` v2 and `250 B` v1 modes) with automatic per-packet shard-width detection on receive.
 

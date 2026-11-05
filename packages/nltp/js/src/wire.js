@@ -2,7 +2,7 @@
  * NLTP v1.2 Wire Protocol, GF(2^8) Algebraic Cauchy FEC, Pure-JS SHA-256,
  * RFC 8439 ChaCha20-Poly1305 AEAD, RFC 6479 ReplayWindow64, STUN & CGNAT Relay Framing.
  *
- * 100% runtime-agnostic (Node.js, Browser, Deno, Bun, Cloudflare Workers, React Native)
+ * Pure ES2022 (`Uint8Array` / `DataView`, tested on Node.js 18+)
  * with zero external dependencies and byte-for-byte wire compatibility with Python (`necklink/nltp.py`),
  * ANSI C99 (`csrc/nltp_wire.h`), Arduino/ESP32 (`arduino/NLTP`), and Java (`io.necklink.nltp`).
  */

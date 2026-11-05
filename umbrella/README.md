@@ -34,11 +34,11 @@
 
 ## Products
 
-NeckLink is the brand; each product translates one subsystem of the fruit-fly nervous system into a standalone library. Every product has a Python package on PyPI and a zero-heap, zero-float ANSI C99 core for microcontrollers (`ESP32`, `ESP8266`, `STM32`, `RP2040`), and each one is benchmarked against a strong classical baseline, including where the baseline still wins.
+NeckLink is the brand; each product translates one subsystem of the fruit-fly nervous system into a standalone library. Every product has a Python package on PyPI and a zero-heap, zero-float ANSI C99 core for microcontrollers (hardware-tested on `ESP32` and `ESP8266EX`; portable ANSI C99 for other targets), and each one is benchmarked against a strong classical baseline, including where the baseline still wins.
 
 | Product | Fly circuit | What it does | Package |
 | :--- | :--- | :--- | :--- |
-| **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** (`v1.3.2`) | Cervical connective | Loss-healing `GF(2^8)` Cauchy FEC file & priority-command transport with `ChaCha20-Poly1305` encryption over UDP (incl. 4G CGNAT traversal) or routerless ESP-NOW across `ESP32` & `ESP8266`, in Python, C99, JS/TS, Java, Android, and Arduino (`216/216` cross-language checks + `100%` `SHA-256` @ `35%` RF loss verified) | [`pynltp`](https://pypi.org/project/pynltp/) |
+| **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** (`v1.3.2`) | Cervical connective | Loss-healing `GF(2^8)` Cauchy FEC file & priority-command transport with `ChaCha20-Poly1305` encryption over UDP (incl. 4G CGNAT traversal) or routerless ESP-NOW across `ESP32` & `ESP8266`, in Python, C99, JS/TS (`Node.js`), Java 11+, and Arduino (`216/216` cross-language checks + `100%` `SHA-256` @ `35%` RF loss verified) | [`pynltp`](https://pypi.org/project/pynltp/) |
 | **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** (`v1.1.0`) | Central complex (`E-PG` / `CPU4`) | Ring-attractor compass that rejects `70°–150°` magnetometer spikes as well as a 3σ-gated EKF (`0.44°` vs `0.41°` RMSE), re-anchors after a 90° heading upset where the gated EKF stays stuck, and homes without GNSS (`324 B` RAM in C99) | [`neckcompass`](https://pypi.org/project/neckcompass/) |
 | **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** (`v1.1.0`) | Optic lobe (`T4/T5` + `LPLC2`) | Glare-adapted motion detection and a four-quadrant looming reflex: `0.9988` AUROC on synthetic clutter vs `0.875` for compensated pyramidal Lucas-Kanade, gyro derotation so obstacles are still caught during fast turns, ~12,000 FPS at 32×32 in C99 (desktop) | [`necksight`](https://pypi.org/project/necksight/) |
 | **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** (`v1.1.0`) | Ventral nerve cord (`BANC` / `MANC`) | 4-byte motor command frame, self-healing six-leg gait generator, and a fault-tolerant thruster allocator that isolates a failed thruster in ~`42 ms` (on par with pseudo-inverse + threshold FDI) and can return it to service (`322 B` in C99) | [`neckcord`](https://pypi.org/project/neckcord/) |
@@ -86,7 +86,7 @@ print(report)
 ```text
 necklink/
 ├── packages/
-│   ├── nltp/          NLTP wire protocol (v1.3.2): Python, C99, JS/TS, Java/Android, Arduino, ESP32/ESP8266
+│   ├── nltp/          NLTP wire protocol (v1.3.2): Python, C99, JS/TS (Node.js), Java 11+, Arduino, ESP32/ESP8266
 │   ├── neckcompass/   Central-complex compass and path integrator (v1.1.0)
 │   ├── necksight/     Optic-lobe motion and looming reflex (v1.1.0)
 │   ├── neckcord/      Ventral-nerve-cord motor codec and thruster allocator (v1.1.0)
@@ -118,7 +118,7 @@ CI ([`.github/workflows/packages-ci.yml`](https://github.com/indian-aman/necklin
 - runs its tests, including the README examples;
 - builds the C core with `-Werror` and runs its self-tests.
 
-NLTP also has JavaScript (`packages/nltp/js`), Java/Android (`packages/nltp/java`) and ESP32/ESP8266 (`packages/nltp/arduino`, `packages/nltp/esp32`, `packages/nltp/esp32_mesh`) SDKs; see [its README](https://github.com/indian-aman/necklink/tree/main/packages/nltp#readme).
+NLTP also has JavaScript (`packages/nltp/js`), Java 11+ (`packages/nltp/java`) and ESP32/ESP8266 (`packages/nltp/arduino`, `packages/nltp/esp32`, `packages/nltp/esp32_mesh`) SDKs; see [its README](https://github.com/indian-aman/necklink/tree/main/packages/nltp#readme).
 
 ### History
 
