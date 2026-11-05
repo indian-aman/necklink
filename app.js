@@ -211,8 +211,8 @@
       tradeoff: "At equal tag size SimHash beats FlyHash on recall (50.5% vs 27.5%), and a baseline-corrected k-NN matches NeckSense on drifting gas plumes (100% vs 99.5%). NeckSense wins on one-shot novelty at equal 4 KB memory (0.994 vs 0.940 AUROC) with no weights and no float multiplications.",
       code: `from necksense import MushroomNoveltyDetector\n\ndet = MushroomNoveltyDetector(n_inputs=8, stateful_antennal=True, n_kc=1024)\nnovelty = det.update_and_score(enose_8ch_reading)\nif novelty > 0.75:\n    print(f"1-shot chemical plume anomaly detected: {novelty:.3f}")`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
-      pypi: "https://github.com/indian-aman/necklink/tree/main/packages/necksense#install",
-      pypiLabel: "Install v1.1.0"
+      pypi: "https://pypi.org/project/necksense/",
+      pypiLabel: "PyPI v1.1.0"
     },
     nltp: {
       colorVar: "--nltp",
@@ -229,7 +229,7 @@
       code: `from nltp import NLTPClient, generate_nltp_key\n\nwith NLTPClient(("127.0.0.1", 9000), psk=generate_nltp_key()) as cli:\n    cli.send_reflex("LOOM_ESTOP")\n    receipt = cli.send_file("telemetry_batch.bin")\n    assert receipt["verified_sha256"]`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/nltp",
       pypi: "https://pypi.org/project/pynltp/",
-      pypiLabel: "PyPI v1.3.2"
+      pypiLabel: "PyPI v1.4.0"
     }
   };
 
