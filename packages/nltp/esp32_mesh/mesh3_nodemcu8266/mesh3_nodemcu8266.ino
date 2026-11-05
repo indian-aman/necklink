@@ -278,7 +278,15 @@ static void process_rx_item(const struct rxq_item_s &it) {
             return;
         }
         if (h->m1 != '2') return;
-        uint32_t max_chunk = 250u - sizeof(raw_v2_hdr_t); /* 226 B on ESP8266 */
+        /* Chunk size the sender used, read from the frame (non-final chunks are full-size; a final
+         * chunk with seq > 0 gives (total - its length) / seq), instead of assuming 226 B. */
+        uint32_t clen0 = it.len - sizeof(raw_v2_hdr_t);
+        uint32_t max_chunk = clen0 ? clen0 : 1u;
+        if (h->flags & 0x01u) {
+            max_chunk = (h->seq == 0 || h->total_bytes < clen0) ? (h->total_bytes ? h->total_bytes : 1u)
+                                                                 : (h->total_bytes - clen0) / h->seq;
+            if (max_chunk == 0) max_chunk = 1u;
+        }
         uint32_t exp_pkts = (h->total_bytes == 0) ? 1u : ((h->total_bytes + max_chunk - 1u) / max_chunk);
         if (exp_pkts > 128u) return;
 

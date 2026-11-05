@@ -163,6 +163,10 @@ def run_raw(sender: NodeConn, receiver: NodeConn, dst_mac: str, sz: int, via_mac
     if relay and relay is not sender and relay is not receiver:
         relay.clear()
     cmd = f"raw_send {dst_mac} {sz}" + (f" {via_mac}" if via_mac else "")
+    # An ESP32 must send 250 B frames when the receiver or relay is an ESP-NOW v1 device (ESP8266),
+    # exactly as a real application would; 1,470 B v2 frames cannot be received there.
+    if sender.enow_v == 2 and (receiver.enow_v == 1 or (relay is not None and relay.enow_v == 1)):
+        cmd += " v1"
     sender.send_cmd(cmd)
     t0 = time.perf_counter()
     tx_m = rx_m = None

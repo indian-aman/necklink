@@ -92,7 +92,7 @@ See [`java/README.md`](../java/README.md) for the builder and `NLTPEndpoint<P>` 
 
 ## 6. Publishing to Official PyPI (`pypi.org`)
 
-> **Note on PyPI package names**: The literal name `nltp` on PyPI is occupied by an unrelated 2020 text-preprocessing package (`nltp 0.1.0`), whereas **`necklink`**, **`pynltp`**, and **`nltp-transport`** are available. Because this repository ships a top-level `nltp/` module and `nltp` console script inside the wheel, installing `pip install necklink` (or `pip install pynltp`) still gives users `from nltp import NLTPClient, NLTPServer` and the `nltp` CLI.
+> **Note on PyPI package names**: The literal name `nltp` on PyPI is occupied by an unrelated 2020 text-preprocessing package (`nltp 0.1.0`), so this package is published as **`pynltp`** (live on PyPI). Because the wheel ships a top-level `nltp/` module and `nltp` console script, `pip install pynltp` still gives users `from nltp import NLTPClient, NLTPServer` and the `nltp` CLI. The **`necklink`** umbrella installer (all five packages) is not on PyPI yet; it is waiting on PyPI's new-project quota, like `necksense`.
 
 1. Register an account at `https://pypi.org/account/register/`, enable 2FA, and create an API token (`pypi-...`) under **Account Settings → API tokens**.
 2. Build and upload from the repository root:

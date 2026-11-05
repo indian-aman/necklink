@@ -34,7 +34,7 @@
 
 **NLTP (NeckLink Transport Protocol)** is a lightweight, reliable, encrypted datagram transport built for links where standard protocols break down: congested 2.4 GHz RF, weak outdoor Wi-Fi, 4G/5G cellular connections behind carrier CGNAT, long-RTT radio/satellite links, and routerless microcontroller meshes.
 
-- **TCP and QUIC** collapse on bursty wireless packet loss (`5–35%` fades) while waiting on round-trip retransmission timers.
+- **TCP and QUIC** slow down sharply on bursty wireless loss while waiting on round-trip retransmission timers: in this repo's emulated benchmarks a `1 MB` transfer under `10%` bursty loss took `13.1 s` with `TCP BBR` (2 of 3 runs finished) and `3.5–8.9 s` with `QUIC`, against `1.3–1.8 s` with NLTP. On steady loss up to `5%` they are only `8–23%` slower than NLTP.
 - **MQTT** requires a TCP broker, stalls behind head-of-line blocking during drops, and cannot run directly between microcontrollers without a Wi-Fi router.
 - **Raw ESP-NOW** fires fast 2.4 GHz frames without a router, but is capped at `250 B` (`v1`) or `1,470 B` (`v2`) per frame, drops multi-kilobyte payloads when a single packet is lost, limits hardware encryption to 6–17 peers, and cannot cross IP routers or cellular networks.
 
@@ -136,13 +136,13 @@ flowchart TB
 | **Router / IP Needed?** | **Yes** — Wi-Fi AP, Ethernet, or 4G/5G hotspot | **No** — direct 2.4 GHz L2 action frames (`wifi_sta=0`) | **No** — direct 2.4 GHz L2 action frames (`wifi_sta=0`) | Leaf nodes: **No**; Gateway: **Yes** (Wi-Fi or 4G SIM) |
 | **Internet / Cloud Reach** | **Direct** (LAN, WAN, STUN, or `beginRelay()`) | Local 2.4 GHz hop (`~100–800 m`, or `LR` mode) | Local 2.4 GHz hop (`~100–400 m`) | **Full end-to-end** from off-grid leaf nodes to cloud/mobile |
 | **Shard / Wire Size** | `960 B` shard → `1,010 B` UDP payload | `960 B` shard → `1,010 B` L2 frame (`<= 1,470 B` MTU) | `192 B` shard → `242 B` L2 frame (`<= 250 B` MTU) | Accepts both `192 B` & `960 B` shards automatically |
-| **Measured Goodput** | Up to **`3.04 Mbps`** (`PC ↔ Router ↔ ESP32`) | **`17.75 Mbps` median / `18.35 Mbps` max** (`32 KB` AEAD) | Up to **`7.25 Mbps`** (`NodeMCU → ESP32` `8 KB` AEAD) | Limited by upstream Wi-Fi / 4G link |
+| **Measured Goodput** | Up to **`3.04 Mbps`** (`PC ↔ Router ↔ ESP32`) | Typically **`~7 Mbps`** on a clean link (median of 13 runs, range `1.8–17.7 Mbps`); raw ESP-NOW v2 `~15 Mbps` | Typically **`~2 Mbps`** (`NodeMCU → ESP32`, `8 KB` AEAD: `1.7–2.5 Mbps`; one run reached `7.25 Mbps`) | Limited by upstream Wi-Fi / 4G link |
 | **Loss Survival** | Verified to **`20.8%`** loss (`100%` SHA-256) | Verified **`0–35%`** loss (`100%` SHA-256) | Verified **`0–35%`** cross-chip loss (`100%` SHA-256) | Independent FEC recovery on each hop (or L2 cut-through) |
 
 ### Key Engineering Details on ESP
 
 1. **Zero L2 Wrapper Overhead**: `nltp_espnow.h` places the raw `"NL"` datagram directly inside the IEEE 802.11 vendor action payload with zero extra headers. A gateway can either verify-and-forward complete files (`NLTPESPNowNode` → `NLTPWiFiNode`) or forward raw `"NL"` packets byte-for-byte into a UDP socket or `NLTPRelayHub`.
-2. **Cross-Chip `ESP8266 ↔ ESP32` Compatibility**: An `ESP8266` (`80 KB` total SRAM) compiled with `-DNLTP_SHARD_BYTES=192 -DNLTP_RX_SLOTS=2` transmits `242 B` encrypted shards that any `ESP32` v2 hub (`1,470 B` MTU) decodes natively alongside `1,010 B` v2 shards from other `ESP32` peers.
+2. **Cross-Chip `ESP8266 ↔ ESP32` Compatibility**: An `ESP8266` (`80 KB` total SRAM) built with `NLTP_SHARD_BYTES=192`, `NLTP_RX_SLOTS=3`, `NLTP_TX_WINDOW=8` and `NLTP_RX_MAX_GENS=128` (the tested settings) transmits `242 B` encrypted shards that any `ESP32` v2 hub (`1,470 B` MTU) decodes natively alongside `1,010 B` v2 shards from other `ESP32` peers.
 3. **Hardened Multi-Peer Hub (`nltp_espnow_hub_t`)**:
    - **Pre-Auth Slot Gate**: Unknown sender MACs must pass `ChaCha20-Poly1305` (or `allow_cb` + `CRC-32`) verification *before* any RAM slot or ESP-NOW peer entry is allocated — spoofed MAC floods allocate `0` slots.
    - **Automatic 20-Peer Hardware Table Management**: ESP-NOW hardware supports at most 20 total peers (`6–17` encrypted). NLTP encrypts at the payload layer with 256-bit `ChaCha20-Poly1305` and LRU-evicts idle peer entries automatically, so a single hub can talk to an unlimited population of intermittent field sensors.
@@ -465,9 +465,12 @@ void loop() {
 On `ESP8266` (`80 KB` SRAM), compile the portable C99 core with `192 B` shards (`242 B` encrypted L2 frame `<= 250 B` v1 limit) — any `ESP32` running `NLTPESPNowNode` or `nltp_espnow_hub_t` decodes its packets automatically:
 
 ```cpp
+// The same four settings must also be applied where nltp_core.c is compiled (the full sketch does this
+// in nltp_core_8266.c); if the sketch and the core disagree, the endpoint struct sizes differ.
 #define NLTP_SHARD_BYTES 192
-#define NLTP_RX_SLOTS    2
-#define NLTP_RX_MAX_GENS 48
+#define NLTP_RX_SLOTS    3
+#define NLTP_TX_WINDOW   8
+#define NLTP_RX_MAX_GENS 128
 #include <espnow.h>
 #include "nltp_core.h"
 
@@ -537,24 +540,27 @@ Measured live on two physical boards (`ESP32-D0WDQ6` ↔ `ESP32-D0WD-V3`, Channe
 
 | Receiver Frame Loss | **Raw ESP-NOW v2** (`1,470 B` chunks, 802.11 L2 ACK only) | **NLTP `1.3.2` over ESP-NOW v2** (`ChaCha20-Poly1305` + `GF(2^8)` FEC + `SHA-256`) |
 | :---: | :---: | :---: |
-| **`0%`** | `3/3` (`100%`) · `15.11 Mbps` | **`3/3` (`100%` SHA-256)** · **`15.88 Mbps`** (`8.45 ms`) |
-| **`5%`** | `3/3` (`100%`) · `14.98 Mbps` *(L2 retry limit border)* | **`3/3` (`100%` SHA-256)** · **`14.87 Mbps`** (`9.03 ms`) |
-| **`10%`** | `0/3` (`0%` intact — missing chunks) | **`3/3` (`100%` SHA-256)** · **`14.49 Mbps`** (`9.26 ms`) |
-| **`15%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`2.55 Mbps`** (`52.6 ms`) |
-| **`25%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`4.79 Mbps`** (`28.0 ms`) |
-| **`35%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`2.27 Mbps`** (`59.1 ms`) |
+| **`0%`** | `3/3` (`100%`) · `15.11 Mbps` | **`3/3` (`100%` SHA-256)** · **`15.88 Mbps`** (`8.26 ms`) |
+| **`5%`** | `3/3` (`100%`) · `14.98 Mbps` *(L2 retry limit border)* | **`3/3` (`100%` SHA-256)** · **`14.87 Mbps`** (`8.81 ms`) |
+| **`10%`** | `0/3` (`0%` intact — missing chunks) | **`3/3` (`100%` SHA-256)** · **`14.49 Mbps`** (`9.05 ms`) |
+| **`15%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`2.55 Mbps`** (`51.44 ms`) |
+| **`25%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`4.79 Mbps`** (`27.39 ms`) |
+| **`35%`** | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`2.27 Mbps`** (`57.82 ms`) |
+
+Medians of 3 trials; individual trials vary widely (at `15%` loss they took `8.5`, `51.4` and `59.3 ms`), so the speed column is not monotonic in loss.
 
 #### B. Throughput, PHY Modes, Full-Duplex, Soak & Security Highlights (`v1.3.2`)
 
-- **Peak `32 KB` Encrypted Goodput**: **`17.75 Mbps` median / `18.35 Mbps` max (`14.77 ms`)** with full 256-bit `ChaCha20-Poly1305` AEAD + `SHA-256` verification (vs. `16.96 Mbps` median / `20.53 Mbps` max unencrypted Raw ESP-NOW v2).
+- **Clean-Link Throughput (typical vs. best)**: NLTP's speed varies a lot between runs. Across the 13 clean-link measurements at `11 Mbps` or faster PHY rates (payload, PHY-rate and TX-power sweeps plus the `0%` row above), **NLTP's median is `7.1 Mbps` against `15.0 Mbps` for raw ESP-NOW v2** (about `0.4×`). NLTP matched or beat raw in 5 of the 13, best **`17.75 Mbps`** (`32 KB`, full AEAD + `SHA-256`, vs. `16.96 Mbps` raw in that run). On a clean link raw ESP-NOW is faster; NLTP's advantage is that it still delivers when frames are lost (table A).
+- **TX-Power Sweep (`16 KB`, `+2` to `+19.5 dBm`)**: NLTP `1.8–8.7 Mbps` vs. raw ESP-NOW v2 `7.6–15.2 Mbps`, all `3/3` delivered.
 - **Small-Payload Latency (`4 B` / `64 B`)**: **`2.72 ms`** (`CRC-32`) / **`3.17 ms`** (`4 B` AEAD) / **`2.62 ms`** (`64 B` AEAD) vs. `3.05–3.06 ms` Raw ESP-NOW v2.
 - **All 7 Hardware 2.4 GHz PHY Modes Verified (`8 KB` AEAD, `3/3` SHA-256 each)**:
-  - `802.11b 1M`: `0.45 Mbps` · `802.11b 11M`: `7.96 Mbps` · `802.11n MCS4`: `5.82 Mbps` med (`14.90` max) · `MCS7`: `7.11 Mbps` med (`17.24` max) · `AUTO`: `7.19 Mbps` med (`16.16` max) · **Espressif Long-Range `LR 250K`**: `0.10 Mbps` · **`LR 500K`**: `0.26 Mbps`.
-- **Simultaneous Full-Duplex Collision Stress (`32 KB A→B` + `32 KB B→A` at once)**: **`5/5` (`100%`)** at `0%` loss (`3.49 Mbps`) and **`5/5` (`100%`)** at `10%` loss (`3.05 Mbps`, where Raw v2 scored `0/5`).
+  - NLTP (raw ESP-NOW v2 in brackets): `802.11b 1M`: `0.45 Mbps` (`0.80`) · `802.11b 11M`: `7.96 Mbps` (`6.66`) · `802.11n MCS4`: `5.82 Mbps` med, `14.90` max (`15.03`) · `MCS7`: `7.11 Mbps` med, `17.24` max (`19.04`) · `AUTO`: `7.19 Mbps` med, `16.16` max (`18.80`) · **Espressif Long-Range `LR 250K`**: `0.10 Mbps` (`0.20`) · **`LR 500K`**: `0.26 Mbps` (`0.42`).
+- **Simultaneous Full-Duplex Collision Stress (`32 KB A→B` + `32 KB B→A` at once)**: **`5/5` (`100%`)** at `0%` loss (`3.49 Mbps`; raw v2 `5/5`, `3.18 Mbps`) and **`5/5` (`100%`)** at `10%` loss (`3.05 Mbps`, where raw v2 scored `0/5`).
 - **Zero-Leak Endurance & Deep-Sleep Wake**: `50 × 8 KB` back-to-back transfers (`400 KB`, `50/50` SHA-256 in `13.16 s`) with **`+4 B` TX / `0 B` RX heap delta**, plus **`20/20` fresh `conn_id` cold wakes** in **`4.34 ms` median**.
 - **Anti-Stall & Adversarial Security (`160/160` Blocked)**:
-  - **`3/3` (`100%`)** survival when authenticated stray-`conn_id` frames were injected mid-transfer at `10%` loss (`v1.3.2` 1-second takeover guard).
-  - **`80/80` forged frames** from 25 random spoofed MACs rejected pre-auth with **`0` hub slots allocated** + **`80/80` bit-flipped, replayed, wrong-key, and plaintext-downgrade frames** dropped (whereas Raw ESP-NOW v2 accepted `40/40` spoofed frames as valid data).
+  - **`3/3` (`100%`)** survival when 3–5 authenticated stray-`conn_id` frames were injected mid-transfer (`16 KB` at the `802.11b 1 Mbps` rate, no added loss; `v1.3.2` 1-second takeover guard).
+  - **`80/80` forged frames** from spoofed MACs rejected pre-auth with **`0` hub slots allocated** + **`80/80` bit-flipped, replayed, wrong-key, and plaintext-downgrade frames** dropped (whereas Raw ESP-NOW v2 accepted `40/40` spoofed frames as valid data).
 
 ---
 
@@ -567,11 +573,15 @@ Measured across three heterogeneous physical boards on Channel 11 with **zero Wi
 
 | Cross-Chip / Multi-Board Test | Payload & Conditions | **Raw ESP-NOW** | **NLTP `1.3.2` Cross-Chip Mesh** |
 | :--- | :--- | :---: | :---: |
-| **All 6 Pairwise Directional Links** | `16 KB` (`ESP32↔ESP32`) & `8 KB` (`ESP8266↔ESP32`) @ `0%` loss | `ESP32↔ESP32`: `3/3`<br>`ESP8266↔ESP32`: `0/3` | **`18/18` (`100%` SHA-256)** · up to **`12.23 Mbps`** (`ESP32↔ESP32`) & **`7.25 Mbps`** (`NodeMCU→ESP32`) |
-| **Cross-Chip Loss Sweep (`NodeMCU → ESP32`)** | `8 KB` encrypted (`242 B` L2 frames) @ `0%, 10%, 25%, 35%` loss | `0/3` at every level | **`3/3` (`100%` SHA-256) at all 4 loss levels** (`2.10`, `1.03`, `2.45`, `1.00 Mbps`) |
-| **2-Hop Relay via `ESP32`** | `NodeMCU (v1) → ESP32 Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | *No multi-hop recovery* | **`3/3` (`100%` SHA-256)** · `1.32 Mbps` (`0%`) & `1.07 Mbps` (`15%` loss) |
-| **2-Hop Relay *Through* `250 B` `ESP8266`** | `ESP32 → NodeMCU 250 B Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | `0/3` (`0%` intact) | **`3/3` (`100%` SHA-256)** · **`2.44 Mbps`** (`0%`) & **`0.54 Mbps`** (`15%` loss) |
-| **Simultaneous Dual-Sender Mixed Hub** | `ESP32 (32 KB v2)` + `NodeMCU (8 KB v1)` → `ESP32 Hub` at the same instant | `0/5` (`0%` both intact) | **`5/5` (`100%` both SHA-256)** @ `0%` (`365 ms`) & **`5/5`** @ `10%` loss (`380 ms`) |
+| **All 6 Pairwise Directional Links** | `16 KB` (`ESP32↔ESP32`) & `8 KB` (`ESP8266↔ESP32`) @ `0%` loss | `ESP32↔ESP32`: `3/3`<br>`ESP8266↔ESP32`: *invalid, see note* | **`18/18` (`100%` SHA-256)** · `ESP32↔ESP32`: `9.31` & `12.23 Mbps`; `ESP8266` links: `2.46–7.25 Mbps` |
+| **Cross-Chip Loss Sweep (`NodeMCU → ESP32`)** | `8 KB` encrypted (`242 B` L2 frames) @ `0%, 10%, 25%, 35%` loss | *invalid, see note* | **`3/3` (`100%` SHA-256) at all 4 loss levels** (`2.10`, `1.03`, `2.45`, `1.00 Mbps`) |
+| **2-Hop Relay via `ESP32`** | `NodeMCU (v1) → ESP32 Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | *invalid, see note* | **`3/3` (`100%` SHA-256)** · `1.32 Mbps` (`0%`) & `1.07 Mbps` (`15%` loss) |
+| **2-Hop Relay *Through* `250 B` `ESP8266`** | `ESP32 → NodeMCU 250 B Relay → ESP32 Hub` (`8 KB`, `0%` & `15%` loss) | *invalid, see note* | **`3/3` (`100%` SHA-256)** · **`2.44 Mbps`** (`0%`) & **`0.54 Mbps`** (`15%` loss) |
+| **Simultaneous Dual-Sender Mixed Hub** | `ESP32 (32 KB v2)` + `NodeMCU (8 KB v1)` → `ESP32 Hub` at the same instant | *invalid, see note* | **`5/5` (`100%` both SHA-256)** @ `0%` (`365 ms`) & **`5/5`** @ `10%` loss (`380 ms`) |
+
+> **Note on the raw ESP-NOW column.** The raw results involving the `ESP8266` (`0/3` and `0/5` in [`results/esp32_esp8266_crosschip_mesh.json`](results/esp32_esp8266_crosschip_mesh.json)) came from a bug in the test firmware, not from ESP-NOW. The ESP32 receiver assumed `1,446 B` raw chunks while the ESP8266 sends `226 B` chunks, so it stopped after `ceil(size / 1446)` frames; an `8 KB` file "arrived" as `1,356 B` even on a clean link. In the other direction, the ESP32 sent `1,470 B` raw frames that an ESP8266 cannot receive. Both are fixed (the receiver reads the sender's chunk size from the frames, and `raw_send … v1` sends `250 B` frames), but the raw cross-chip tests have not been re-run yet: run [`scripts/esp32_esp8266_3node_mesh_test.py`](scripts/esp32_esp8266_3node_mesh_test.py) with the updated firmware for valid raw numbers. The NLTP results are unaffected.
+>
+> The `7.25 Mbps` `NodeMCU → ESP32` link is a single best case: the same `8 KB` link measured `1.72` and `2.10 Mbps` in the payload and loss sweeps of the same file.
 
 ---
 
@@ -610,8 +620,9 @@ Additional link profiles:
 ### 6.5 `216/216` 4-Language Wire Interop & `18/18` Dual-NAT / CGNAT Suite
 
 - **`216/216` Cross-Language Matrix ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py))**:
-  - `192/192` full 4×4 directional matrix (`Python ↔ C99 ↔ JS ↔ Java`) across plaintext, Base64 256-bit keys, and passphrases at `0%` and `15%` packet loss (`1 KB` and `64 KB`), plus `48/48` `192 B` ESP-NOW v1 shard interop (`1 KB–300 KB`).
-  - `8/8` `256 KB` lossy cross-language streams + `6/6` cross-language zero-knowledge `NLTPRelayHub` rooms + `10/10` reliable out-of-band `send_reflex` + `wait_reflex_ack` at `15%` loss (`300/300` at `30%` loss in unit suites).
+  - `192/192` full 4×4 directional matrix (`Python ↔ C99 ↔ JS ↔ Java`) across plaintext, Base64 256-bit keys, and passphrases at `0%` and `15%` packet loss (`1 KB` and `64 KB`).
+  - `8/8` `256 KB` lossy cross-language streams + `6/6` cross-language zero-knowledge `NLTPRelayHub` rooms + `4/4` out-of-band `send_reflex` checks at `0%` loss + `6/6` reliable-reflex pairs at `15%` loss (5 reflexes each, every one delivered once and acknowledged).
+  - Separately, during development: `300/300` reflexes delivered at `15%` and at `30%` loss each way in each of Python, JS and Java (not part of the repo's test suites).
 - **`18/18` Dual-NAT & Symmetric-CGNAT Suite ([`scripts/virtual_nat_test.py`](scripts/virtual_nat_test.py))**:
   - `9/9` direct STUN + `TTL=2` UDP hole-punching across two separate Linux NAT routers (`1 MB` in `1.22–2.26 s` at `5%` last-mile loss).
   - Automatic 3-second fallback to `NLTPRelayHub` under symmetric CGNAT (`MASQUERADE --random-fully`, `1.80 s`) and NAT mapping preservation across idle gaps.
@@ -641,9 +652,12 @@ pytest
 # C99 self-tests (crypto, FEC, tampering, replay, stream takeover, ESP-NOW v1) + simulated radio hub
 make -C csrc all test espnow-sim
 
-# JavaScript & Java self-tests
+# JavaScript & Java self-tests (`mvn test` runs the 7 Java self-tests)
 npm --prefix js test
 mvn -f java/pom.xml test
+
+# ESP32 example sketches end to end on the simulated ESP-NOW radio (sensor -> gateway -> Python server)
+python scripts/esp32_sketch_e2e_test.py
 
 # Full 216/216 4-language interoperability suite
 python scripts/multilang_interop_test.py
@@ -661,8 +675,9 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 - **Confirmed Priority Reflex Lane (`PT_REFLEX_ACK`, `0x0A`)**: `send_reflex` / `sendReflex` now retransmits (`15–250 ms` backoff, `3 s` window) until acknowledged, deduplicates by `(conn_id, seq)`, and adds `wait_reflex_ack` / `waitReflexAck` plus server-to-client `NLTPServer.send_reflex(client_addr, msg)` (`300/300` verified at `15%` and `30%` bidirectional loss across Python, JS, and Java).
 - **C99 & ESP Anti-Stall Takeover Guard**: Prevents a delayed replay or stray `conn_id` packet from resetting an in-progress receive stream unless the stream finishes or has been idle for `>= 1,000 ms` (verified `100%` on physical `ESP32` hardware under mid-stream injection while preserving `4.34 ms` deep-sleep cold wakes).
 - **Hardened Multi-Peer ESP-NOW Hub (`nltp_espnow.h`)**: Pre-authenticates unknown senders before allocating slots (`80/80` spoofed MAC frames blocked with `0` slots used), protects active transfers from eviction, adds atomic TX in-flight tracking, and LRU-manages the 20-entry ESP-NOW peer table.
-- **Hardware Verification (`ESP32` v2 + `ESP8266EX` Cross-Chip Mesh)**: Verified off-Wi-Fi on physical `ESP32` (`17.75 Mbps` median / `18.35 Mbps` max on `32 KB` AEAD, `100%` `SHA-256` across `0–35%` packet loss and all 7 PHY modes including `LR 250K/500K`) and across a 3-board `ESP32 + ESP8266EX NodeMCU + ESP32` mesh (`100%` `SHA-256` across all 6 cross-chip links, 2-hop wireless relays through `250 B` `ESP8266`, and simultaneous `v2 + v1` multi-sender hub reception).
-- **Fixes & Compatibility**: `recv(timeout=0)` non-blocking poll fix in Python; Arduino-ESP32 core 2.x compile compatibility restored for `NLTPWiFiNode`; unified `1.3.2` version across all five SDKs.
+- **Hardware Verification (`ESP32` v2 + `ESP8266EX` Cross-Chip Mesh)**: Verified off-Wi-Fi on physical `ESP32` (typically `~7 Mbps` on a clean link, best `17.75 Mbps` on `32 KB` AEAD; `100%` `SHA-256` across `0–35%` packet loss and all 7 PHY modes including `LR 250K/500K`) and across a 3-board `ESP32 + ESP8266EX NodeMCU + ESP32` mesh (`100%` `SHA-256` across all 6 cross-chip links, 2-hop wireless relays through `250 B` `ESP8266`, and simultaneous `v2 + v1` multi-sender hub reception).
+- **Fixes & Compatibility**: `recv(timeout=0)` non-blocking poll fix in Python; Arduino-ESP32 core 2.x compile compatibility restored for `NLTPWiFiNode`; unified `1.3.2` version across all five SDKs; `mvn test` now runs the Java self-tests.
+- **Test firmware fix (`esp32_mesh/`)**: the raw ESP-NOW baseline now reassembles `226 B` chunks from an `ESP8266` and can send `250 B` frames to one (`raw_send … v1`). The earlier raw cross-chip results were invalid; see the note in section 6.2.
 
 **`1.2.1 – 1.2.3`** *(C99 / Arduino)*: Added `nltp_espnow.h` and `NLTPESPNowNode` (`1,470 B` v2 and `250 B` v1 modes) with automatic per-packet shard-width detection on receive.
 

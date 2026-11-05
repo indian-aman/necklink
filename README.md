@@ -48,7 +48,7 @@ Each product's README has its full benchmarks, its API and a "when not to use it
 
 > **November 2026 release notes (`NLTP v1.3.2` + `v1.1.0` organ suite):**
 > - **Live on PyPI (`pynltp 1.3.2`, `neckcompass 1.1.0`, `necksight 1.1.0`, `neckcord 1.1.0`)**:
->   - **NLTP `1.3.2` (`pynltp`)**: Confirmed priority reflex lane (`PT_REFLEX_ACK`), C/ESP mid-stream anti-stall takeover guard, hardened multi-peer `ESP-NOW` hub (pre-auth slot gate + LRU 20-peer table), and live off-Wi-Fi `ESP32` (`17.75 Mbps` AEAD) + cross-chip `ESP8266EX` (`NodeMCU`) 3-board mesh verification.
+>   - **NLTP `1.3.2` (`pynltp`)**: Confirmed priority reflex lane (`PT_REFLEX_ACK`), C/ESP mid-stream anti-stall takeover guard, hardened multi-peer `ESP-NOW` hub (pre-auth slot gate + LRU 20-peer table), and live off-Wi-Fi `ESP32` (encrypted, `~7 Mbps` typical, `17.75 Mbps` best) + cross-chip `ESP8266EX` (`NodeMCU`) 3-board mesh verification.
 >   - **Organ Suite `1.1.0` (`neckcompass`, `necksight`, `neckcord`, `necksense`)**: Audited against strong classical baselines, with real sensor-noise re-anchoring and drift fixes in `NeckCompass`, gyro derotation + Python 3.9 compatibility in `NeckSight`, thruster recovery probing in `NeckCord`, and sparser novelty codes in `NeckSense`.
 > - `necksense 1.1.0` and the `necklink 1.3.2` umbrella installer are pending PyPI's new-project creation quota reset; install `necksense` directly from this repository as shown below.
 

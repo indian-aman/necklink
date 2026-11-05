@@ -221,6 +221,17 @@ static void enqueue_l2_forward(const uint8_t dst[6], const uint8_t *pkt, uint16_
     xQueueSend(g_relay_q, &it, 0);
 }
 
+/* Chunk size the sender used, read from the frame itself (the header has no size field).
+ * Every non-final chunk is full-size; a final chunk with seq > 0 gives (total - its length) / seq.
+ * Without this, 226 B chunks from a 250 B ESP-NOW v1 sender (ESP8266) were treated as 1,446 B
+ * chunks: the receiver stopped after ceil(total / 1446) frames and reported a clean link as lost. */
+static uint32_t raw_sender_chunk(const raw_v2_hdr_t *h, uint32_t chunk_len) {
+    if (!(h->flags & 0x01u)) return chunk_len ? chunk_len : 1u;
+    if (h->seq == 0 || h->total_bytes < chunk_len) return h->total_bytes ? h->total_bytes : 1u;
+    uint32_t c = (h->total_bytes - chunk_len) / h->seq;
+    return c ? c : 1u;
+}
+
 static void on_non_nltp_frame_isr(const esp_now_recv_info_t *info, const uint8_t *data, int len) {
     if (!data || len < 8) return;
     int8_t rssi = (info && info->rx_ctrl) ? (int8_t)info->rx_ctrl->rssi : -60;
@@ -269,7 +280,7 @@ static void on_non_nltp_frame_isr(const esp_now_recv_info_t *info, const uint8_t
     }
     if (h->m1 != '2') return;
 
-    uint32_t max_chunk = NLTP_ESPNOW_MTU - sizeof(raw_v2_hdr_t);
+    uint32_t max_chunk = raw_sender_chunk(h, (uint32_t)len - (uint32_t)sizeof(raw_v2_hdr_t));
     uint32_t exp_pkts = (h->total_bytes == 0) ? 1u : ((h->total_bytes + max_chunk - 1u) / max_chunk);
     if (exp_pkts > 256u) return;
 
@@ -407,9 +418,11 @@ static void poll_raw_v2(void) {
                   (int)g_raw.rx_rssi);
 }
 
-static void execute_raw_v2_sync(const uint8_t dst_mac[6], const uint8_t *via_mac, uint32_t total_len) {
+/* v1_frames: keep every frame <= 250 B (226 B chunks) so an ESP-NOW v1 peer (ESP8266), or a route
+ * through one, can receive it; otherwise chunks fill the 1,470 B ESP-NOW v2 MTU. */
+static void execute_raw_v2_sync(const uint8_t dst_mac[6], const uint8_t *via_mac, uint32_t total_len, bool v1_frames) {
     static uint8_t pkt_buf[NLTP_ESPNOW_MTU];
-    uint32_t max_chunk = NLTP_ESPNOW_MTU - sizeof(raw_v2_hdr_t);
+    uint32_t max_chunk = (v1_frames ? 250u : NLTP_ESPNOW_MTU) - sizeof(raw_v2_hdr_t);
     uint32_t n_pkts = (total_len == 0) ? 1u : ((total_len + max_chunk - 1u) / max_chunk);
     uint16_t run_id = g_next_raw_run++;
     if (run_id == 0) run_id = g_next_raw_run++;
@@ -787,16 +800,17 @@ static void handle_cmd(const char *cmd) {
             }
         }
     } else if (strncmp(cmd, "raw_send ", 9) == 0) {
-        /* raw_send <dst> <bytes> [via_relay] */
-        char t_dst[32] = {0}, t_via[32] = {0};
+        /* raw_send <dst> <bytes> [via_relay] [v1]   (v1: 250 B frames for ESP8266 / ESP-NOW v1 routes) */
+        char t_dst[32] = {0}, t_a[32] = {0}, t_b[32] = {0};
         uint32_t sz = 0;
-        int n = sscanf(cmd + 9, "%31s %lu %31s", t_dst, (unsigned long *)&sz, t_via);
+        int n = sscanf(cmd + 9, "%31s %lu %31s %31s", t_dst, (unsigned long *)&sz, t_a, t_b);
         uint8_t dst[6], via[6];
         if (n >= 2 && parse_mac_or_node(t_dst, dst)) {
             if (sz < 1u) sz = 1u;
             if (sz > MAX_TEST_BYTES) sz = MAX_TEST_BYTES;
-            bool has_via = (n == 3 && parse_mac_or_node(t_via, via));
-            execute_raw_v2_sync(dst, has_via ? via : nullptr, sz);
+            bool v1_frames = (n >= 3 && strcmp(t_a, "v1") == 0) || (n >= 4 && strcmp(t_b, "v1") == 0);
+            bool has_via = (n >= 3 && strcmp(t_a, "v1") != 0 && parse_mac_or_node(t_a, via));
+            execute_raw_v2_sync(dst, has_via ? via : nullptr, sz, v1_frames);
         } else {
             Serial.println("ERR raw_send_args");
         }
