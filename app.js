@@ -217,10 +217,10 @@
     nltp: {
       colorVar: "--nltp",
       region: "Cervical connective · loss-healing wire protocol",
-      tests: "23 Py + 216 interop + ESP32/ESP8266 mesh",
+      tests: "32 Py + 16 C99 + 216 interop + ESP32/ESP8266 mesh",
       name: "NLTP",
       pkg: "pynltp",
-      desc: "Loss-healing file, message and confirmed-command transport with GF(2^8) Cauchy FEC over UDP and routerless ESP-NOW, secured by ChaCha20-Poly1305 AEAD, with RFC 5389 STUN hole-punching and a zero-knowledge single-port 4G CGNAT relay.",
+      desc: "Loss-healing file, message and confirmed-command transport with GF(2^8) Cauchy FEC over UDP and routerless ESP-NOW, secured by ChaCha20-Poly1305 per-session AEAD (1-RTT handshake), with RFC 5389 STUN hole-punching and a zero-knowledge single-port 4G CGNAT relay.",
       ram: "~65 KB on ESP32",
       speed: "~7 Mbps typical ESP-NOW v2 (best 17.75)",
       gain: "100% SHA-256 @ 35% loss",
