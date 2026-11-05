@@ -35,8 +35,8 @@ export const PT_HELLO_ACK = 0x0c;
 export const PT_NO_SESSION = 0x0d;
 export const NONCE_BYTES = 16;
 
-const HELLO_FIRST_RETX_S = 0.12;
-const HELLO_MAX_RETX_S = 0.50;
+const HELLO_FIRST_RETX_S = 0.06;
+const HELLO_MAX_RETX_S = 0.20;
 const HELLO_GIVE_UP_S = 10.0;
 const TAKEOVER_SILENCE_S = 1.0;
 const REKEY_SILENCE_S = 3.0;

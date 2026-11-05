@@ -47,8 +47,8 @@ HDR_SIZE = 20
 TAG_SIZE = 16
 KDF_LABEL = b"NLTP-1.4 session"
 
-HELLO_FIRST_RETX_S = 0.12     # HELLO retransmit interval (x1.5 per retry, capped at 0.5 s)
-HELLO_MAX_RETX_S = 0.50
+HELLO_FIRST_RETX_S = 0.06     # HELLO retransmit interval (x1.5 per retry, capped at 0.20 s)
+HELLO_MAX_RETX_S = 0.20
 HELLO_GIVE_UP_S = 10.0        # a pending handshake is dropped after this; the next send starts a new one
 TAKEOVER_SILENCE_S = 1.0      # a new HELLO replaces the session used for sending only after this silence
 REKEY_SILENCE_S = 3.0         # re-handshake when a peer we still owe data has been silent this long

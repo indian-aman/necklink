@@ -1010,6 +1010,7 @@ export class NLTPEndpoint {
 
     if (this.keepaliveS > 0.0 && this._keepaliveTargets.size > 0) {
       for (const entry of this._keepaliveTargets.values()) {
+        if (this._sessions !== null && !this._sessions.ready(entry.peer, tNow)) continue;
         if (entry.lastTx === 0.0 || tNow - entry.lastTx >= this.keepaliveS) {
           this.sendPing(entry.peer, tNow);
         }

@@ -801,6 +801,7 @@ public final class NLTPEndpoint<P> {
 
         if (keepaliveS > 0.0 && !keepaliveTargets.isEmpty()) {
             for (Map.Entry<P, Double> e : new ArrayList<>(keepaliveTargets.entrySet())) {
+                if (sessions != null && !sessions.ready(e.getKey(), tNow)) continue;
                 if (e.getValue() == 0.0 || (tNow - e.getValue()) >= keepaliveS) {
                     sendPing(e.getKey(), tNow);
                 }

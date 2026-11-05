@@ -33,8 +33,8 @@ final class NLTPSession<P> {
     static final int PT_NO_SESSION = 0x0D;
     static final int NONCE_BYTES = 16;
 
-    private static final double HELLO_FIRST_RETX_S = 0.12;
-    private static final double HELLO_MAX_RETX_S = 0.50;
+    private static final double HELLO_FIRST_RETX_S = 0.06;
+    private static final double HELLO_MAX_RETX_S = 0.20;
     private static final double HELLO_GIVE_UP_S = 10.0;
     private static final double TAKEOVER_SILENCE_S = 1.0;
     private static final double REKEY_SILENCE_S = 3.0;

@@ -1033,6 +1033,8 @@ class NLTPEndpoint:
         # 2. Emit periodic NAT/CGNAT pinhole keepalives on idle links
         if self.keepalive_s > 0.0 and self._keepalive_targets:
             for peer_addr, last_tx in list(self._keepalive_targets.items()):
+                if self._sessions is not None and not self._sessions.ready(peer_addr, t_now):
+                    continue
                 if last_tx == 0.0 or (t_now - last_tx) >= self.keepalive_s:
                     self.send_ping(peer_addr, now_s=t_now)
 

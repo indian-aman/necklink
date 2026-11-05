@@ -102,8 +102,8 @@ static uint8_t *payload_buf(nltp_endpoint_t *ep) {
  * keys make counter restarts and conn_id collisions harmless.
  * ------------------------------------------------------------------------- */
 
-#define HS_FIRST_RETX_MS 120u
-#define HS_MAX_RETX_MS 500u
+#define HS_FIRST_RETX_MS 60u
+#define HS_MAX_RETX_MS 200u
 #define HS_GIVE_UP_MS 10000u
 #define SESS_TAKEOVER_MS 1000u   /* a new HELLO replaces the live session only after this much silence */
 #define SESS_REKEY_MS 3000u      /* re-handshake when the peer of an unfinished send has been silent this long */
