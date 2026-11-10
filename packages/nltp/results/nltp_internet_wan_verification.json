@@ -1,43 +1,43 @@
 {
   "encryption_64kb": {
-    "plaintext_ms": 10.7,
-    "plaintext_wire_bytes": 68583,
-    "chacha20_poly1305_ms": 10.9,
-    "chacha20_poly1305_wire_bytes": 70063,
-    "extra_wire_overhead_pct": 2.16,
+    "plaintext_ms": 11.6,
+    "plaintext_wire_bytes": 69602,
+    "chacha20_poly1305_ms": 11.2,
+    "chacha20_poly1305_wire_bytes": 71162,
+    "extra_wire_overhead_pct": 2.24,
     "verified_sha256": true
   },
   "router_32pkt_fifo_128kb": {
-    "unpaced_tail_drops": 89,
-    "unpaced_ms": 261.0,
-    "unpaced_tx_bytes": 366427,
+    "unpaced_tail_drops": 74,
+    "unpaced_ms": 297.8,
+    "unpaced_tx_bytes": 358961,
     "paced_tail_drops": 0,
-    "paced_ms": 115.7,
-    "paced_tx_bytes": 141197,
+    "paced_ms": 201.5,
+    "paced_tx_bytes": 146821,
     "max_udp_packet_bytes": 1010
   },
   "wifi_to_4g_roaming_128kb_15pct_loss": {
     "port_changed": true,
     "roam_events_detected": 1,
-    "elapsed_ms": 244.9,
+    "elapsed_ms": 466.5,
     "verified_sha256": true
   },
   "dual_stateful_nat_p2p_hole_punch": {
     "punched_both_sides": true,
-    "hole_punch_ms": 56.25,
-    "file_64kb_ms": 39.9,
+    "hole_punch_ms": 392.4,
+    "file_64kb_ms": 36.7,
     "verified_sha256": true
   },
   "cgnat_zero_knowledge_relay_64kb_19pct_loss": {
-    "elapsed_ms": 67.4,
+    "elapsed_ms": 290.0,
     "verified_sha256": true,
-    "relay_forwarded_packets": 209,
+    "relay_forwarded_packets": 220,
     "forged_packets_dropped": 10
   },
   "live_public_internet_stun": {
     "reachable": true,
-    "masked_wan_endpoint": "xxx.xxx.xxx.xxx:59968",
-    "rtt_ms": 8.74,
+    "masked_wan_endpoint": "xxx.xxx.xxx.xxx:57754",
+    "rtt_ms": 7.17,
     "endpoint_independent_nat": true,
     "nat_summary": "Endpoint-Independent NAT (Direct P2P UDP Hole-Punching Supported)",
     "servers_queried": [

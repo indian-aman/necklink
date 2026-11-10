@@ -2,9 +2,9 @@
 """
 esp32_esp8266_3node_mesh_test.py — True 3-Physical-Board Off-Wi-Fi Mesh & Benchmark Suite
 Boards online simultaneously (wifi_sta=0, ip=0.0.0.0, 2.4 GHz Channel 11):
-  - Node 0 (COM9):  ESP32-D0WDQ6  (ESP-NOW v2, 1,470 B MTU, NLTP 1.3.2 hub)
-  - Node 1 (COM13): ESP8266EX     (NodeMCU, ESP-NOW v1, 250 B MTU, NLTP 1.3.2 192B-shard node + L2 relay)
-  - Node 2 (COM12): ESP32-D0WD-V3 (ESP-NOW v2, 1,470 B MTU, NLTP 1.3.2 hub)
+  - Node 0 (COM9):  ESP32-D0WDQ6  (ESP-NOW v2, 1,470 B MTU, NLTP 1.4.0 hub)
+  - Node 1 (COM13): ESP8266EX     (NodeMCU, ESP-NOW v1, 250 B MTU, NLTP 1.4.0 192B-shard node + L2 relay)
+  - Node 2 (COM12): ESP32-D0WD-V3 (ESP-NOW v2, 1,470 B MTU, NLTP 1.4.0 hub)
 """
 
 import json
@@ -278,7 +278,7 @@ def main():
             n.cmd_wait("rate 4", "OK rate=")
         n.cmd_wait("drop 0", "OK drop=")
         n.cmd_wait("l2relay off", "OK l2relay=off")
-        n.cmd_wait("psk necklink-1.3.2-mesh3-key", "OK psk=")
+        n.cmd_wait("psk necklink-1.4.0-mesh3-key", "OK psk=")
         n.cmd_wait("reset_counts", "OK reset_counts")
     reset_esp32_hubs(nodes)
 
@@ -320,7 +320,7 @@ def main():
         nltp_p = summarize([run_nltp(s_n, d_n, d_n.mac, sz) for _ in range(3)])
         lbl = f"Node{s_id}({s_n.port})->Node{d_id}({d_n.port}) [{sz}B]"
         out["pairwise_links"].append({"link": lbl, "bytes": sz, "raw": raw_p, "nltp": nltp_p})
-        print(f"  {lbl:<38} | Raw: {raw_p['median_ms']:>6.2f}ms ({raw_p['median_mbps']:.3f}Mbps, {raw_p['delivery_pct']}%) | NLTP 1.3.2: {nltp_p['median_ms']:>6.2f}ms ({nltp_p['median_mbps']:.3f}Mbps, {nltp_p['delivery_pct']}%)", flush=True)
+        print(f"  {lbl:<38} | Raw: {raw_p['median_ms']:>6.2f}ms ({raw_p['median_mbps']:.3f}Mbps, {raw_p['delivery_pct']}%) | NLTP 1.4.0: {nltp_p['median_ms']:>6.2f}ms ({nltp_p['median_mbps']:.3f}Mbps, {nltp_p['delivery_pct']}%)", flush=True)
 
     # 2. NodeMCU (v1 250B) -> ESP32 (v2 1470B) Payload Scaling
     print("\n[2] NodeMCU (ESP8266 250B HW) -> ESP32 (ESP-NOW v2 Hub) Dynamic Interop Sweep...", flush=True)
@@ -330,7 +330,7 @@ def main():
         raw_s = summarize([run_raw(n1, n0, n0.mac, sz) for _ in range(3)])
         nltp_s = summarize([run_nltp(n1, n0, n0.mac, sz) for _ in range(3)])
         out["nodemcu_to_esp32_payloads"].append({"bytes": sz, "raw": raw_s, "nltp": nltp_s})
-        print(f"  {sz:>6} B | Raw: {raw_s['median_ms']:>6.2f} ms ({raw_s['median_mbps']:.3f} Mbps, L2={raw_s['max_l2']}B) | NLTP 1.3.2: {nltp_s['median_ms']:>6.2f} ms ({nltp_s['median_mbps']:.3f} Mbps, L2={nltp_s['max_l2']}B)", flush=True)
+        print(f"  {sz:>6} B | Raw: {raw_s['median_ms']:>6.2f} ms ({raw_s['median_mbps']:.3f} Mbps, L2={raw_s['max_l2']}B) | NLTP 1.4.0: {nltp_s['median_ms']:>6.2f} ms ({nltp_s['median_mbps']:.3f} Mbps, L2={nltp_s['max_l2']}B)", flush=True)
 
     # 3. NodeMCU -> ESP32 Packet-Loss Sweep (0% -> 35% on 8 KB)
     print("\n[3] Cross-Chip Packet-Loss Sweep (NodeMCU -> ESP32 v2 Hub, 8 KB, 0% -> 35% Loss)...", flush=True)
@@ -341,7 +341,7 @@ def main():
         raw_l = summarize([run_raw(n1, n0, n0.mac, 8192) for _ in range(3)])
         nltp_l = summarize([run_nltp(n1, n0, n0.mac, 8192, timeout=10.0) for _ in range(3)])
         out["nodemcu_to_esp32_loss"].append({"loss_pct": loss, "raw": raw_l, "nltp": nltp_l})
-        print(f"  Loss {loss:>2}% | Raw: intact={raw_l['delivery_pct']:>5.1f}% (avg {raw_l['avg_rcvd']:.0f}/8192 B) | NLTP 1.3.2: SHA-256={nltp_l['delivery_pct']:>5.1f}% ({nltp_l['median_ms']:.2f} ms, {nltp_l['median_mbps']:.3f} Mbps)", flush=True)
+        print(f"  Loss {loss:>2}% | Raw: intact={raw_l['delivery_pct']:>5.1f}% (avg {raw_l['avg_rcvd']:.0f}/8192 B) | NLTP 1.4.0: SHA-256={nltp_l['delivery_pct']:>5.1f}% ({nltp_l['median_ms']:.2f} ms, {nltp_l['median_mbps']:.3f} Mbps)", flush=True)
     n0.cmd_wait("drop 0", "OK drop=")
 
     # 4. True 3-Physical-Board Linear Multi-Room Wireless Relays
@@ -375,7 +375,7 @@ def main():
                     "nltp_relayed": nltp_rel,
                 }
             )
-            print(f"  Route A (loss={loss:>2}%) | Raw: intact={raw_r['delivery_pct']:>5.1f}% (relayed={raw_rel}) | NLTP 1.3.2: SHA-256={nltp_r['delivery_pct']:>5.1f}% ({nltp_r['median_ms']:.2f} ms, {nltp_r['median_mbps']:.3f} Mbps, relayed={nltp_rel})", flush=True)
+            print(f"  Route A (loss={loss:>2}%) | Raw: intact={raw_r['delivery_pct']:>5.1f}% (relayed={raw_rel}) | NLTP 1.4.0: SHA-256={nltp_r['delivery_pct']:>5.1f}% ({nltp_r['median_ms']:.2f} ms, {nltp_r['median_mbps']:.3f} Mbps, relayed={nltp_rel})", flush=True)
 
         print("\n[4B] True 3-Board Linear Relay #2: COM9 (ESP32) -> COM13 (NodeMCU Relay) -> COM12 (ESP32 Hub) [8 KB via 250B Relay]...", flush=True)
         for loss in [0, 15]:
@@ -406,7 +406,7 @@ def main():
                     "nltp_relayed": nltp_rel2,
                 }
             )
-            print(f"  Route B (loss={loss:>2}%) | Raw: intact={raw_r2['delivery_pct']:>5.1f}% (relayed={raw_rel2}) | NLTP 1.3.2: SHA-256={nltp_r2['delivery_pct']:>5.1f}% ({nltp_r2['median_ms']:.2f} ms, {nltp_r2['median_mbps']:.3f} Mbps, relayed={nltp_rel2})", flush=True)
+            print(f"  Route B (loss={loss:>2}%) | Raw: intact={raw_r2['delivery_pct']:>5.1f}% (relayed={raw_rel2}) | NLTP 1.4.0: SHA-256={nltp_r2['delivery_pct']:>5.1f}% ({nltp_r2['median_ms']:.2f} ms, {nltp_r2['median_mbps']:.3f} Mbps, relayed={nltp_rel2})", flush=True)
 
         # 5. Simultaneous 2-Sender -> 1-Hub Concurrency (COM9 ESP32 32KB v2 + COM13 NodeMCU 8KB v1 -> COM12 ESP32 Hub!)
         print("\n[5] Simultaneous 3-Board Multi-Peer Hub Test: (COM9 ESP32 32KB v2 + COM13 NodeMCU 8KB v1) -> COM12 ESP32 Hub...", flush=True)
@@ -473,7 +473,7 @@ def main():
             }
             print(
                 f"  2-Sender->Hub (loss={loss:>2}%) | Raw both-intact={sim_hub[f'loss_{loss}pct']['raw_both_streams_intact_pct']:>5.1f}% | "
-                f"NLTP 1.3.2 Hub both-SHA256={sim_hub[f'loss_{loss}pct']['nltp_both_streams_sha256_pct']:>5.1f}% "
+                f"NLTP 1.4.0 Hub both-SHA256={sim_hub[f'loss_{loss}pct']['nltp_both_streams_sha256_pct']:>5.1f}% "
                 f"(median {sim_hub[f'loss_{loss}pct']['nltp_median_wall_ms']:.2f} ms, slots={sim_hub[f'loss_{loss}pct']['hub_active_slots']}/2)",
                 flush=True,
             )

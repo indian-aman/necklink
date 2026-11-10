@@ -1,11 +1,11 @@
 /*
- * mesh3_nodemcu8266.ino — Pure Off-Wi-Fi NLTP 1.3.2 + Raw ESP-NOW Node 1 for ESP8266EX (COM13)
+ * mesh3_nodemcu8266.ino — Pure Off-Wi-Fi NLTP 1.4.0 + Raw ESP-NOW Node 1 for ESP8266EX (COM13)
  *
  * Zero Wi-Fi Router / Zero SoftAP (WIFI_STA disconnected, locked to 2.4 GHz Channel 11).
  * Interconnects directly over 2.4 GHz ESP-NOW with ESP32 Node 0 (COM9) & ESP32 Node 2 (COM12):
  *   - Emits & receives identical 'M','3' L2 discovery beacons
- *   - Runs full ANSI C99 NLTP 1.3.2 (ChaCha20-Poly1305 AEAD, GF(256) Cauchy FEC, SHA-256 FIN_ACK,
- *     RFC 6479 anti-replay, NLTP_RX_TAKEOVER_MS=1000 anti-stall) at 192 B shards (<= 242 B L2 <= 250 B ESP8266 HW MTU)
+ *   - Runs full ANSI C99 NLTP 1.4.0 (1-RTT per-session AEAD keys, ChaCha20-Poly1305, GF(256) Cauchy FEC,
+ *     SHA-256 FIN_ACK, RFC 6479 anti-replay, NLTP_RX_TAKEOVER_MS=1000 anti-stall) at 192 B shards (<= 242 B L2 <= 250 B ESP8266 HW MTU)
  *   - Runs Raw ESP-NOW + L2 Cut-Through Relay (`l2relay <macA> <macB>`) for 3-board multi-hop testing!
  */
 
@@ -31,7 +31,7 @@ static const uint32_t MAX_8266_BYTES = 8192u;
 static uint8_t BCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 static uint8_t g_my_mac[6] = {0};
 
-static char g_psk[96] = "necklink-1.3.2-mesh3-key";
+static char g_psk[96] = "necklink-1.4.0-mesh3-key";
 static volatile uint8_t g_drop_pct = 0;
 
 static uint32_t g_rng = 0x9E3779B9u ^ 0x85EBCA6Bu;
@@ -178,7 +178,7 @@ static uint8_t g_raw_ack_ok = 0;
 static uint32_t g_raw_ack_bytes = 0;
 static uint16_t g_next_raw_run = 100;
 
-/* NLTP 1.3.2 Endpoint */
+/* NLTP 1.4.0 Endpoint */
 static nltp_endpoint_t g_ep;
 static uint8_t g_rx_buf[MAX_8266_BYTES];
 static uint8_t g_tx_buf[MAX_8266_BYTES];

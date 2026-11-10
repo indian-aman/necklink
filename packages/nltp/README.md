@@ -613,23 +613,24 @@ Measured over 2 Wi-Fi hops (`ESP32-D0WDQ6 ↔ Router ↔ PC`) on `58–60 KB` en
 
 ---
 
-### 6.4 Linux `tc netem` `1 MB`, `10 MB` & Satellite Benchmarks vs. 7 Protocols
+### 6.4 Linux `tc netem` `1 MB`, `10 MB` & Satellite Benchmarks vs. 7 Protocols (`v1.4.0`)
 
-Measured on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss and rate limits in both directions, `iptables` wire-byte ratio in parentheses):
+Measured on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss and rate limits in both directions, `iptables` wire-byte ratio in parentheses; [`results/fair_transport_benchmark_v140_core.json`](results/fair_transport_benchmark_v140_core.json), [`results/fair_transport_benchmark_v140_warm64.json`](results/fair_transport_benchmark_v140_warm64.json)):
 
-| Emulated Symmetric Link (`1 MB` File) | **`NLTP`** | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`w128`) | `kcptun` (`FEC`) | `UDT4` | `SRT` |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.23x`) | **`0.51 s` (`1.04x`)** | `0.57 s` (`1.05x`) | `0.60 s` (`1.54x`) | `0.74 s` (`2.25x`) | `0.95 s` (`1.15x`) | `0.87 s` (`1.15x`) |
-| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | **`0.60 s` (`1.20x`)** | `0.65 s` (`1.07x`) | `0.67 s` (`1.07x`) | `0.85 s` (`1.25x`) | `0.81 s` (`1.62x`) | `3.02 s` (`1.07x`) | `1.37 s` (`1.05x`) |
-| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.28 s` (`1.30x`)** | `1.49 s` (`1.12x`) | `1.57 s` (`1.07x`) | `1.74 s` (`1.45x`) | `1.52 s` (`1.75x`) | `9.98 s` (`1.19x`) | `6.49 s` (`1.24x`) |
-| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | **`2.78 s` (`1.41x`)** | `3.45 s` (`1.15x`) | `4.42 s` (`1.16x`) | `4.08 s` (`1.61x`) | `3.15 s` (`1.72x`) | `26.47 s` (`1.37x`) | `14.73 s` *(1/3)* |
-| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`6.36 s` (`1.54x`)** | `8.31 s` (`1.32x`) | `11.87 s` (`1.26x`) | `8.98 s` (`2.11x`) | `9.38 s` (`2.25x`) | `FAIL (0/3)` | `FAIL (0/3)` |
-| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | **`1.84 s` (`1.49x`)** | `13.10 s` *(2/3)* | `3.48 s` (`CUBIC`) | `2.16 s` (`1.63x`) | `2.07 s` (`1.71x`) | `9.55 s` (`1.34x`) | `4.11 s` *(2/3)* |
+| Emulated Symmetric Link (`1 MB` File) | **`NLTP 1.4.0` (Plain)** | **`NLTP 1.4.0` (AEAD Session)** | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`w128`) | `kcptun` (`FEC`) | `UDT4` | `SRT` |
+| :--- | :---: | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
+| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.23x`) | `0.62 s` (`1.25x`) | **`0.51 s` (`1.04x`)** | `0.57 s` (`1.05x`) | `0.58 s` (`1.50x`) | `0.74 s` (`2.25x`) | `0.94 s` (`1.15x`) | `0.87 s` (`1.15x`) |
+| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | `0.59 s` (`1.21x`) | `0.65 s` (`1.24x`) | **`0.59 s` (`1.06x`)** | `0.70 s` (`1.07x`) | `0.85 s` (`1.25x`) | `0.84 s` (`1.63x`) | `3.05 s` (`1.07x`) | `1.39 s` (`1.05x`) |
+| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.27 s` (`1.31x`)** | **`1.31 s` (`1.28x`)** | `1.49 s` (`1.08x`) | `1.59 s` (`1.09x`) | `1.74 s` (`1.45x`) | `1.56 s` (`1.74x`) | `10.17 s` (`1.18x`) | `6.57 s` (`1.24x`) |
+| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | **`2.65 s` (`1.40x`)** | **`2.79 s` (`1.41x`)** | `3.39 s` (`1.13x`) | `4.41 s` (`1.16x`) | `4.08 s` (`1.61x`) | `3.15 s` (`1.72x`) | `26.57 s` (`1.38x`) | `14.70 s` *(1/3)* |
+| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`5.89 s` (`1.47x`)** | **`6.06 s` (`1.49x`)** | `8.55 s` (`1.31x`) | `11.87 s` (`1.26x`) | `8.98 s` (`2.11x`) | `8.74 s` (`2.18x`) | `FAIL (0/3)` | `FAIL (0/3)` |
+| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | **`1.86 s` (`1.56x`)** | **`2.16 s` (`1.59x`)** | `13.48 s` *(2/3)* | `3.48 s` (`CUBIC`) | `2.16 s` (`1.63x`) | `2.07 s` (`1.71x`) | `10.02 s` (`1.33x`) | `3.79 s` *(2/3)* |
 
-Additional link profiles:
-- **GEO Satellite (`2 Mbit`, `600 ms` RTT, `3%` loss)**: **`0.91 s`** on `64 KB` (vs. `2.77 s` `TCP BBR` / `2.67 s` `QUIC`) and **`6.05 s`** on `1 MB` (vs. `8.85 s` `TCP BBR` / `7.29 s` `QUIC`).
+Additional link profiles & `64 KB` warm session reuse (`v1.4.0`):
+- **Warm vs. Cold 1-RTT Session (`64 KB`, `nltp-enc-warm` vs. `nltp-enc`)**: Reusing an established `1.4.0` session saves the initial `HELLO` / `HELLO_ACK` RTT — **`0.062 s` warm vs. `0.088 s` cold** on `clean` (`1.42×`), **`0.227 s` warm vs. `0.363 s` cold** on `moderate` (`1.60×`, beating `TCP BBR` `0.413 s` and `QUIC` `0.422 s`), and **`0.506 s` warm vs. `0.556 s` cold** on `heavy` (`1.10×`, beating `TCP BBR` `0.818 s` and `QUIC` `1.224 s`).
+- **GEO Satellite (`2 Mbit`, `600 ms` RTT, `3%` loss)**: **`0.91 s`** (`nltp`) / **`1.52 s`** (`nltp-enc` cold) on `64 KB` (vs. `2.77 s` `TCP BBR` / `2.67 s` `QUIC`) and **`5.97 s`** (`nltp`) / **`6.07 s`** (`nltp-enc`) on `1 MB` (vs. `8.85 s` `TCP BBR` / `7.29 s` `QUIC`).
 - **`10 MB` Bursty Fades (`10 Mbit`, `100 ms`, `10%` burst)**: **`13.79 s` (`3/3` passed)** vs. `TCP BBR` (`1/3` passed) and `QUIC` (`1/3` passed).
-- **Where `TCP BBR` / `QUIC` / `kcptun` Win**: On `10 MB` clean (`4.45 s` `TCP BBR` vs. `5.64 s` `NLTP`), `10 MB` steady `5%` loss (`9.81 s` `TCP BBR` vs. `11.28 s` `NLTP`), and heavy `±20 ms` jitter (`1.39 s` `kcptun` / `1.52 s` `QUIC` vs. `3.28 s` `NLTP`).
+- **Where `TCP BBR` / `QUIC` / `kcptun` Win**: On `10 MB` clean (`4.45 s` `TCP BBR` vs. `5.64 s` `NLTP`), `10 MB` steady `5%` loss (`9.81 s` `TCP BBR` vs. `11.28 s` `NLTP`), and heavy `±20 ms` jitter (`1.39 s` `kcptun` / `1.52 s` `QUIC` vs. `3.32 s` `NLTP`).
 
 ---
 
@@ -694,7 +695,9 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 - **ESP-NOW hub**: unknown senders must present a valid `HELLO`; slots with traffic in the last second are not recycled (a sender between its handshake and its first data was being evicted).
 - **Fix (Python, JS, Java)**: after a receiver restarted at the same address, a new transfer to it ignored every ACK because it expected the old `conn_id`; it now accepts the restarted receiver.
 - **Tests**: `tests/test_session_security.py` (replay after restart, same-`conn_id` sessions, restart recovery, legacy and wrong-key rejection, replayed `HELLO`s, simultaneous open, close-time handshake linger); C self-tests 15–16; all 216 interop checks and the ESP32 sketch and ESP-NOW simulations run with sessions.
-- **Not re-measured**: the hardware and `netem` benchmarks in section 6 were run on `1.3.2` and earlier. Sessions add one handshake round trip when a session starts and do not change the per-packet format size.
+- **Re-measured on `1.4.0` (`tc netem` + physical `ESP32 ↔ ESP8266EX` ESP-NOW)**:
+  - **Linux `tc netem` (`1 MB` & `64 KB` across 6 core links + 4 extended links, [`results/fair_transport_benchmark_v140_core.json`](results/fair_transport_benchmark_v140_core.json), [`results/fair_transport_benchmark_v140_warm64.json`](results/fair_transport_benchmark_v140_warm64.json))**: `nltp-enc` (`1.4.0` cold 1-RTT session) leads all 8 protocols on `1 MB` `moderate` (`1.31 s`), `heavy` (`2.79 s`), `severe` (`6.06 s`), `bursty` (`2.16 s`), and `geosat` (`6.07 s`); warm session reuse (`nltp-enc-warm`) saves `1.10×–1.60×` on `64 KB` transfers (`0.227 s` warm vs. `0.363 s` cold at `100 ms` RTT / `5%` loss; `0.506 s` warm vs. `0.556 s` cold at `200 ms` RTT / `10%` loss).
+  - **Physical Off-Wi-Fi `ESP32-D0WD-V3` (`COM9`) ↔ `ESP8266EX NodeMCU` (`COM4`) Hardware**: Verified `100%` `SHA-256` across `0–35%` packet loss (`4.32 Mbps` `ESP32 → NodeMCU` `8 KB` AEAD; `3.05 ms` warm vs. `7.02 ms` cold 1-RTT `4 B` encrypted frame; `81/81` OTA adversarial spoof/tamper/replay/legacy-`v1` frames rejected; automatic `NO_SESSION` (`0x0D`) 1-RTT session recovery after live receiver reboot).
 
 **`1.3.2`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)*
 - **Confirmed Priority Reflex Lane (`PT_REFLEX_ACK`, `0x0A`)**: `send_reflex` / `sendReflex` now retransmits (`15–250 ms` backoff, `3 s` window) until acknowledged, deduplicates by `(conn_id, seq)`, and adds `wait_reflex_ack` / `waitReflexAck` plus server-to-client `NLTPServer.send_reflex(client_addr, msg)` (`300/300` verified at `15%` and `30%` bidirectional loss across Python, JS, and Java).

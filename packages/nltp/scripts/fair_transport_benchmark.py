@@ -298,6 +298,9 @@ def run_transfer(proto: str, path: Path, size: int, sha: str, rate_mbit: float, 
     elif proto == "nltp-enc":
         srv_args = ["nltp-server", str(port), "none", "1", NLTP_TEST_PSK]
         cli_args = ["nltp-client", str(port), str(path), "none", "0", "cold", NLTP_TEST_PSK]
+    elif proto == "nltp-enc-warm":
+        srv_args = ["nltp-server", str(port), "none", "2", NLTP_TEST_PSK]
+        cli_args = ["nltp-client", str(port), str(path), "none", "0", "warm", NLTP_TEST_PSK]
     elif proto == "nltp-warm":
         srv_args, cli_args = ["nltp-server", str(port), "none", "2"], ["nltp-client", str(port), str(path), "none", "0", "warm"]
     elif proto in ("kcp-fast", "kcp-fast128", "kcp-fast-cc", "kcptun", "udt"):

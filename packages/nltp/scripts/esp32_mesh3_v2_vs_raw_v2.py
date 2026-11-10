@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-esp32_mesh3_v2_vs_raw_v2.py — Complete Off-Wi-Fi Interconnection & Benchmark Suite (NLTP 1.3.2)
+esp32_mesh3_v2_vs_raw_v2.py — Complete Off-Wi-Fi Interconnection & Benchmark Suite (NLTP 1.4.0)
 
 Tests all connected ESP32 modules (COM9, COM11, COM12) in 100% off-Wi-Fi connectionless
 2.4 GHz mode (wifi_sta=0, ip=0.0.0.0, Channel 11) and compares:
-  1) NLTP 1.3.2 over ESP-NOW v2 (zero-wrapper "NL" frames, GF(256) Cauchy FEC,
+  1) NLTP 1.4.0 over ESP-NOW v2 (zero-wrapper "NL" frames, 1-RTT per-session keys, GF(256) Cauchy FEC,
      ChaCha20-Poly1305 AEAD + RFC 6479 anti-replay / IEEE CRC32, SHA-256 FIN_ACK,
-     v1.3.2 stateless pre-auth gate + LRU peer cache + NLTP_RX_TAKEOVER_MS anti-stall)
+     stateless pre-auth gate + LRU peer cache + NLTP_RX_TAKEOVER_MS anti-stall)
   2) Bare-Metal Raw ESP-NOW v2 (<= 1,470 B vendor action frames, no FEC/AEAD)
 """
 
@@ -373,7 +373,7 @@ def set_txpwr_all(nodes: Dict[int, MeshNode], qdbm: int):
 
 
 def run_wsl_espnow_sim() -> dict:
-    """Runs NLTP 1.3.2 C99 espnow_sim (3 concurrent sensors + 30 sequential sensors + forged flood)."""
+    """Runs NLTP 1.4.0 C99 espnow_sim (3 concurrent sensors + 30 sequential sensors + forged flood)."""
     try:
         proc = subprocess.run(
             ["wsl", "bash", "-lc", "cd /mnt/d/necklink/packages/nltp/csrc && make -s test espnow-sim"],
@@ -408,7 +408,7 @@ def summarize_trials(trials: List[dict], key_ok: str = "ok") -> dict:
 
 def main():
     print("=" * 78)
-    print("NLTP 1.3.2 + ESP-NOW v2  vs  RAW ESP-NOW v2 — OFF-WI-FI MESH TEST SUITE")
+    print("NLTP 1.4.0 + ESP-NOW v2  vs  RAW ESP-NOW v2 — OFF-WI-FI MESH TEST SUITE")
     print("=" * 78)
 
     nodes, hw_report = discover_nodes()
@@ -424,7 +424,7 @@ def main():
     # Clean baseline state
     set_drop_all(nodes, 0)
     set_txpwr_all(nodes, 78)
-    set_psk_all(nodes, "necklink-1.3.2-mesh3-key")
+    set_psk_all(nodes, "necklink-1.4.0-mesh3-key")
     for n in nodes.values():
         n.cmd_wait("l2relay off", "OK l2relay=off", timeout=1.0)
         n.cmd_wait("reset_counts", "OK reset_counts", timeout=1.0)
@@ -440,7 +440,7 @@ def main():
         mesh_topology[f"node_{nid}"] = st
 
     results = {
-        "repo_version": "NLTP 1.3.2 (commit 7f05c5a)",
+        "repo_version": "NLTP 1.4.0 (commit 7f05c5a)",
         "wifi_router_connected": False,
         "hardware": hw_report,
         "mesh_topology": mesh_topology,
@@ -499,13 +499,13 @@ def main():
     # =========================================================================
     print("\n[Cat 2] Running Payload Size Sweep (4 B -> 32 KB)...")
     for sz in PAYLOAD_SIZES:
-        set_psk_all(nodes, "necklink-1.3.2-mesh3-key")
+        set_psk_all(nodes, "necklink-1.4.0-mesh3-key")
         raw_s = summarize_trials([run_raw_trial(node_a, node_b, node_b.mac, sz) for _ in range(3)])
         nltp_enc = summarize_trials([run_nltp_trial(node_a, node_b, node_b.mac, sz) for _ in range(3)])
 
         set_psk_all(nodes, "off")
         nltp_pln = summarize_trials([run_nltp_trial(node_a, node_b, node_b.mac, sz) for _ in range(3)])
-        set_psk_all(nodes, "necklink-1.3.2-mesh3-key")
+        set_psk_all(nodes, "necklink-1.4.0-mesh3-key")
 
         row = {
             "bytes": sz,
@@ -805,10 +805,10 @@ def main():
         "median_ms": round(statistics.median(wake_ms), 2) if wake_ms else 0.0,
     }
     results["cat6_stress_and_security"]["deep_sleep_wakes_20x"] = wake_res
-    print(f"  Cold Wakes: {wake_ok}/20 SHA-256 verified (0 ms handshake, median {wake_res['median_ms']:.2f} ms)")
+    print(f"  Cold Wakes: {wake_ok}/20 SHA-256 verified (1-RTT session handshake, median {wake_res['median_ms']:.2f} ms)")
 
-    # 6D: v1.3.2 (commit 3775512) Stray-conn_id Mid-Stream Injection Anti-Stall Test
-    print("\n[Cat 6D] v1.3.2 Mid-Stream Stray-conn_id Anti-Stall Injection Test...")
+    # 6D: Stray-conn_id Mid-Stream Injection Anti-Stall Test
+    print("\n[Cat 6D] v1.4.0 Mid-Stream Stray-conn_id Anti-Stall Injection Test...")
     set_rate_all(nodes, 0)  # 802.11b 1M so 16 KB stream lasts ~180 ms and 5 stray shards arrive mid-flight!
     stray_trials = []
     inj_source = node_mid if node_mid is not None else node_a
@@ -836,8 +836,8 @@ def main():
         f"({stray_res['stray_shards_injected_per_trial']} authenticated stray-conn_id shards injected mid-flight)"
     )
 
-    # 6E: v1.3.2 (commit ff2681f) Forged / Spoofed / Replay Fuzz Flood (200 Adversarial Frames)
-    print("\n[Cat 6E] v1.3.2 Stateless Pre-Auth Gate + AEAD/Replay Fuzz Flood (200 Frames)...")
+    # 6E: Forged / Spoofed / Replay Fuzz Flood (200 Adversarial Frames)
+    print("\n[Cat 6E] v1.4.0 Stateless Pre-Auth Gate + AEAD/Replay Fuzz Flood (200 Frames)...")
     # Phase 1: Unknown sender (clear_slots on node_b first -> tests stateless nltp_espnow_frame_ok!)
     node_b.cmd_wait("clear_slots", "OK clear_slots", timeout=1.0)
     node_b.cmd_wait("reset_counts", "OK reset_counts", timeout=1.0)
@@ -873,15 +873,15 @@ def main():
     results["cat6_stress_and_security"]["v132_adversarial_fuzz_200"] = fuzz_res
     print(
         f"  Unknown-Peer Flood (100 frames): Raw v2 accepted {st_unk['raw_forged']}/20 forged! | "
-        f"NLTP v1.3.2 blocked {st_unk['preauth_drops']}/80 pre-auth with slots={st_unk['slots']} allocated!"
+        f"NLTP v1.4.0 blocked {st_unk['preauth_drops']}/80 pre-auth with slots={st_unk['slots']} allocated!"
     )
     print(
         f"  Known-Slot Flood   (100 frames): Raw v2 accepted {st_known['raw_forged']}/20 forged! | "
-        f"NLTP v1.3.2 blocked {st_known['auth_drops']}/80 (AEAD+RFC6479 replay), post-flood 16KB={recovery['mbps']:.3f} Mbps (ok={recovery['ok']})"
+        f"NLTP v1.4.0 blocked {st_known['auth_drops']}/80 (AEAD+RFC6479 replay), post-flood 16KB={recovery['mbps']:.3f} Mbps (ok={recovery['ok']})"
     )
 
     # Also run C99 3-node concurrent + 30-sensor sequential espnow_sim from updated repo
-    print("\n[Cat 7] Verifying NLTP 1.3.2 C99 3-Node Concurrent + 30-Sensor LRU Hub Simulation...")
+    print("\n[Cat 7] Verifying NLTP 1.4.0 C99 3-Node Concurrent + 30-Sensor LRU Hub Simulation...")
     sim_res = run_wsl_espnow_sim()
     results["c99_3node_30sensor_sim"] = sim_res
     print(f"  C99 espnow_sim passed={sim_res['passed']}")

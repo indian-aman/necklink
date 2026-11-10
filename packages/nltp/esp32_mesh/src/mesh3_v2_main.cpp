@@ -1,12 +1,12 @@
 /*
- * mesh3_v2_main.cpp — 3-Node Pure Off-Wi-Fi Interconnection & Benchmark Firmware (NLTP 1.3.2)
+ * mesh3_v2_main.cpp — 3-Node Pure Off-Wi-Fi Interconnection & Benchmark Firmware (NLTP 1.4.0)
  *
  * Zero Wi-Fi Router / Zero SoftAP / Zero DHCP on ALL 3 ESP32 Modules:
  *   - Node 0 (COM9), Node 1 (COM11), Node 2 (COM12) all boot in connectionless WIFI_STA mode
  *     (`WiFi.disconnect(true, true)`) locked to 2.4 GHz Channel 11.
- *   - Built directly on the updated NLTP 1.3.2 `nltp_espnow.h` (`nltp_espnow_hub_t`,
- *     stateless `nltp_espnow_frame_ok` pre-auth gate, 16-entry LRU peer-table eviction,
- *     and `nltp_core.c` `NLTP_RX_TAKEOVER_MS` anti-stall protection).
+ *   - Built directly on NLTP 1.4.0 `nltp_espnow.h` (`nltp_espnow_hub_t`, 1-RTT per-session
+ *     ChaCha20-Poly1305 AEAD handshake, stateless `nltp_espnow_frame_ok` pre-auth gate,
+ *     16-entry LRU peer-table eviction, and `nltp_core.c` `NLTP_RX_TAKEOVER_MS` anti-stall).
  *   - Compares head-to-head on identical hardware & radio conditions:
  *       1) NLTP over ESP-NOW v2 (zero-wrapper "NL" frames, <= 1,010 B AEAD / 990 B CRC32,
  *          GF(256) Cauchy FEC, ChaCha20-Poly1305 + RFC 6479 anti-replay, SHA-256 FIN_ACK)
@@ -35,7 +35,7 @@ static const uint8_t MESH_CHANNEL = 11;
 static const uint32_t MAX_TEST_BYTES = 32u * 1024u;
 static const uint8_t BCAST_MAC[6] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
 
-static char g_psk[96] = "necklink-1.3.2-mesh3-key";
+static char g_psk[96] = "necklink-1.4.0-mesh3-key";
 static nltp_espnow_rate_t g_rate_mode = NLTP_ESPNOW_RATE_AUTO;
 static int8_t g_txpwr_qdbm = 78; /* 78 = +19.5 dBm max */
 static volatile uint8_t g_drop_pct = 0;
@@ -475,7 +475,7 @@ static void execute_raw_v2_sync(const uint8_t dst_mac[6], const uint8_t *via_mac
 }
 
 /* =========================================================================
- * 3. NLTP 1.3.2 Multi-Peer Hub (`nltp_espnow_hub_t`) + Optional L2 Cut-Through Relay
+ * 3. NLTP 1.4.0 Multi-Peer Hub (`nltp_espnow_hub_t`) + Optional L2 Cut-Through Relay
  * ========================================================================= */
 static nltp_espnow_hub_t *g_hub = nullptr;
 static bool g_nltp_tx_active = false;
@@ -499,7 +499,7 @@ static void on_hub_message(void *, const uint8_t src_mac[6], int8_t rssi,
  *   - Identical RX drop simulation (`g_drop_pct`) as Raw ESP-NOW v2
  *   - Optional 2-hop L2 cut-through forwarding (`g_l2_nltp_relay_on`: A <-> Relay <-> B)
  *   - Exact `g_max_nltp_rx_l2` tracking
- *   - All v1.3.2 `nltp_espnow_frame_ok` & LRU peer/slot protections! */
+ *   - All v1.4.0 `nltp_espnow_frame_ok` & LRU peer/slot protections! */
 static void poll_nltp_hub(void) {
     nltp_espnow_rx_item_t item;
     uint32_t now_ms = nltp_espnow_now_ms(NULL);
@@ -589,7 +589,7 @@ static void poll_nltp_hub(void) {
 }
 
 /* =========================================================================
- * 4. Adversarial Fuzzing & v1.3.2 Stray-Packet Stall Test Helpers
+ * 4. Adversarial Fuzzing & v1.4.0 Stray-Packet Stall Test Helpers
  * ========================================================================= */
 static void send_forged_and_spoofed_burst(const uint8_t dst_mac[6], uint32_t count, bool prime_replay) {
     uint8_t pkt[280];
@@ -649,8 +649,8 @@ static void send_forged_and_spoofed_burst(const uint8_t dst_mac[6], uint32_t cou
     }
 }
 
-/* Test v1.3.2 commit 3775512: send an AUTHENTICATED shard with a DIFFERENT `conn_id` mid-stream!
- * Before 3775512, this wiped the receiver's active stream; in v1.3.2 (`NLTP_RX_TAKEOVER_MS=1000`),
+/* Test Stray-conn_id mid-stream injection: send an AUTHENTICATED shard with a DIFFERENT `conn_id` mid-stream!
+ * With `NLTP_RX_TAKEOVER_MS=1000` (and v1.4.0 session authentication),
  * the receiver ignores the stray `conn_id` while its current stream is actively arriving! */
 static void send_stray_conn_id_shard(const uint8_t dst_mac[6]) {
     uint8_t pkt[128];
