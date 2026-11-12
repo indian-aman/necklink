@@ -1,6 +1,6 @@
 {
-  "total_tests": 216,
-  "passed": 216,
+  "total_tests": 248,
+  "passed": 248,
   "languages": [
     "py",
     "c",
@@ -15,9 +15,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0084
+      "elapsed_s": 0.0228
     },
     {
       "category": "direct",
@@ -25,9 +27,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0072
+      "elapsed_s": 0.0108
     },
     {
       "category": "direct",
@@ -35,9 +39,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0117
+      "elapsed_s": 0.0244
     },
     {
       "category": "direct",
@@ -45,9 +51,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0291
+      "elapsed_s": 0.0555
     },
     {
       "category": "direct",
@@ -55,9 +63,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.004
+      "elapsed_s": 0.0053
     },
     {
       "category": "direct",
@@ -65,6 +75,8 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
       "elapsed_s": 0.0003
@@ -75,89 +87,107 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.007
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0242
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0086
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0065
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0141
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0358
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.0353
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
       "elapsed_s": 0.0241
     },
     {
       "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0699
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0511
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0244
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0249
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0569
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0969
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.0964
+    },
+    {
+      "category": "direct",
       "sender": "java",
       "receiver": "js",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0324
+      "elapsed_s": 0.0857
     },
     {
       "category": "direct",
@@ -165,9 +195,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0525
+      "elapsed_s": 0.1667
     },
     {
       "category": "direct",
@@ -175,9 +207,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0164
+      "elapsed_s": 0.0241
     },
     {
       "category": "direct",
@@ -185,9 +219,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0118
+      "elapsed_s": 0.0708
     },
     {
       "category": "direct",
@@ -195,9 +231,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0678
+      "elapsed_s": 0.0284
     },
     {
       "category": "direct",
@@ -205,9 +243,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0694
+      "elapsed_s": 0.1436
     },
     {
       "category": "direct",
@@ -215,9 +255,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0035
+      "elapsed_s": 0.0613
     },
     {
       "category": "direct",
@@ -225,9 +267,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.5539
+      "elapsed_s": 0.0003
     },
     {
       "category": "direct",
@@ -235,9 +279,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0065
+      "elapsed_s": 0.0242
     },
     {
       "category": "direct",
@@ -245,9 +291,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0641
+      "elapsed_s": 0.063
     },
     {
       "category": "direct",
@@ -255,9 +303,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0082
+      "elapsed_s": 0.0193
     },
     {
       "category": "direct",
@@ -265,9 +315,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.1818
+      "elapsed_s": 0.0562
     },
     {
       "category": "direct",
@@ -275,9 +327,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.2861
+      "elapsed_s": 0.0276
     },
     {
       "category": "direct",
@@ -285,9 +339,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.1133
+      "elapsed_s": 0.1013
     },
     {
       "category": "direct",
@@ -295,9 +351,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0265
+      "elapsed_s": 0.1411
     },
     {
       "category": "direct",
@@ -305,9 +363,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0246
+      "elapsed_s": 0.1337
     },
     {
       "category": "direct",
@@ -315,9 +375,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0327
+      "elapsed_s": 0.1122
     },
     {
       "category": "direct",
@@ -325,9 +387,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0791
+      "elapsed_s": 0.131
     },
     {
       "category": "direct",
@@ -335,9 +399,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0334
+      "elapsed_s": 0.0595
     },
     {
       "category": "direct",
@@ -345,9 +411,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0408
+      "elapsed_s": 0.0444
     },
     {
       "category": "direct",
@@ -355,9 +423,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0671
+      "elapsed_s": 0.283
     },
     {
       "category": "direct",
@@ -365,9 +435,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0532
+      "elapsed_s": 0.256
     },
     {
       "category": "direct",
@@ -375,9 +447,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0425
+      "elapsed_s": 0.0461
     },
     {
       "category": "direct",
@@ -385,6 +459,8 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
       "elapsed_s": 0.0366
@@ -395,9 +471,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0953
+      "elapsed_s": 0.0629
     },
     {
       "category": "direct",
@@ -405,9 +483,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0506
+      "elapsed_s": 0.0507
     },
     {
       "category": "direct",
@@ -415,9 +495,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0545
+      "elapsed_s": 0.0598
     },
     {
       "category": "direct",
@@ -425,9 +507,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0474
+      "elapsed_s": 0.054
     },
     {
       "category": "direct",
@@ -435,9 +519,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0803
+      "elapsed_s": 0.0841
     },
     {
       "category": "direct",
@@ -445,9 +531,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0594
+      "elapsed_s": 0.0792
     },
     {
       "category": "direct",
@@ -455,9 +543,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.2326
+      "elapsed_s": 0.1108
     },
     {
       "category": "direct",
@@ -465,9 +555,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.2243
+      "elapsed_s": 0.1044
     },
     {
       "category": "direct",
@@ -475,9 +567,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.2696
+      "elapsed_s": 0.1359
     },
     {
       "category": "direct",
@@ -485,9 +579,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.2219
+      "elapsed_s": 0.3075
     },
     {
       "category": "direct",
@@ -495,9 +591,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0587
+      "elapsed_s": 0.0736
     },
     {
       "category": "direct",
@@ -505,9 +603,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0972
+      "elapsed_s": 0.084
     },
     {
       "category": "direct",
@@ -515,9 +615,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0745
+      "elapsed_s": 0.1524
     },
     {
       "category": "direct",
@@ -525,9 +627,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.1541
+      "elapsed_s": 0.4101
     },
     {
       "category": "direct",
@@ -535,9 +639,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0713
+      "elapsed_s": 0.0261
     },
     {
       "category": "direct",
@@ -545,9 +651,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.0731
+      "elapsed_s": 0.1325
     },
     {
       "category": "direct",
@@ -555,9 +663,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
       "ok": true,
-      "elapsed_s": 0.161
+      "elapsed_s": 0.0776
     },
     {
       "category": "direct",
@@ -565,19 +675,791 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.2281
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1085
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.152
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1722
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.1606
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.4086
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.4336
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.5382
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "plain",
+      "ok": true,
+      "elapsed_s": 0.5931
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0236
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0091
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0452
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2664
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0071
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0041
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0323
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2291
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0505
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0343
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1405
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.219
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2546
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1794
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.4008
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.595
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0346
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1277
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0531
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2406
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0097
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0113
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0891
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2682
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.052
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1832
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.5861
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3074
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2918
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3966
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2789
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.4697
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
       "ok": true,
       "elapsed_s": 0.051
     },
     {
       "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0443
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2239
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3606
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0479
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0386
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2472
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2182
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.145
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1108
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3034
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.6145
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.219
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1732
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2907
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2832
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0821
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1401
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1725
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3099
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0827
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2897
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3856
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3162
+    },
+    {
+      "category": "direct",
       "sender": "js",
       "receiver": "py",
       "loss_pct": 15,
       "size": 65536,
-      "key_mode": "plain",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.0923
+      "elapsed_s": 0.2189
     },
     {
       "category": "direct",
@@ -585,7 +1467,393 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 65536,
-      "key_mode": "plain",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1882
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1985
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3463
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2149
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1859
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.8438
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.5832
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0155
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0107
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0491
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1774
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0077
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0045
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0387
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.3527
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.048
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0358
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.085
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.2498
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1935
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1589
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.2283
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 0,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.6692
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.042
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1271
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.0508
+    },
+    {
+      "category": "direct",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.25
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1791
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.348
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1363
+    },
+    {
+      "category": "direct",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.3461
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1016
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 1000,
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
       "elapsed_s": 0.1018
     },
@@ -594,330 +1862,12 @@
       "sender": "js",
       "receiver": "js",
       "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.1514
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.3085
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.4792
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.1591
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.5178
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "plain",
-      "ok": true,
-      "elapsed_s": 0.4834
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 0,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0135
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0078
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.025
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1587
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0061
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0004
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0164
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0601
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.02
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0273
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0362
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0938
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.029
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0255
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1022
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1156
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.017
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0113
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0328
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1229
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0643
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1509
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.3255
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0556
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0796
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0717
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.9066
+      "elapsed_s": 0.3858
     },
     {
       "category": "direct",
@@ -925,9 +1875,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.3955
+      "elapsed_s": 0.2553
     },
     {
       "category": "direct",
@@ -935,9 +1887,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.066
+      "elapsed_s": 0.2309
     },
     {
       "category": "direct",
@@ -945,9 +1899,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0903
+      "elapsed_s": 0.2593
     },
     {
       "category": "direct",
@@ -955,9 +1911,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1905
+      "elapsed_s": 0.2514
     },
     {
       "category": "direct",
@@ -965,9 +1923,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 1000,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 1000,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1408
+      "elapsed_s": 0.4387
     },
     {
       "category": "direct",
@@ -975,9 +1935,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0532
+      "elapsed_s": 0.0437
     },
     {
       "category": "direct",
@@ -985,9 +1947,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0414
+      "elapsed_s": 0.0464
     },
     {
       "category": "direct",
@@ -995,9 +1959,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0783
+      "elapsed_s": 0.2808
     },
     {
       "category": "direct",
@@ -1005,9 +1971,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1056
+      "elapsed_s": 0.2616
     },
     {
       "category": "direct",
@@ -1015,9 +1983,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0418
+      "elapsed_s": 0.0598
     },
     {
       "category": "direct",
@@ -1025,9 +1995,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0321
+      "elapsed_s": 0.0389
     },
     {
       "category": "direct",
@@ -1035,9 +2007,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0794
+      "elapsed_s": 0.1366
     },
     {
       "category": "direct",
@@ -1045,9 +2019,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1042
+      "elapsed_s": 0.2945
     },
     {
       "category": "direct",
@@ -1055,659 +2031,23 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0903
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.087
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1445
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1742
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0452
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.2357
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
       "ok": true,
       "elapsed_s": 0.1666
     },
     {
       "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1808
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0599
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1035
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1309
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1387
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0263
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.2281
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.4176
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.2893
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0855
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.3343
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.3443
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1912
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0518
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.0882
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.2397
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.2603
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0118
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.006
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0221
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0765
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0058
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.001
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0125
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0555
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.026
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0219
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0288
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0641
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0282
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0305
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0787
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.087
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0137
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0658
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.2997
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1033
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0037
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0003
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.552
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1033
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.2911
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0841
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0788
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1547
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0412
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1601
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1255
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 1000,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1692
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0452
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0448
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0847
-    },
-    {
-      "category": "direct",
-      "sender": "py",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0932
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0417
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "c",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0327
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "js",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0754
-    },
-    {
-      "category": "direct",
-      "sender": "c",
-      "receiver": "java",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1083
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 0,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1232
-    },
-    {
-      "category": "direct",
       "sender": "js",
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0839
+      "elapsed_s": 0.3051
     },
     {
       "category": "direct",
@@ -1715,9 +2055,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1461
+      "elapsed_s": 0.3878
     },
     {
       "category": "direct",
@@ -1725,9 +2067,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1895
+      "elapsed_s": 0.5216
     },
     {
       "category": "direct",
@@ -1735,9 +2079,11 @@
       "receiver": "py",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0575
+      "elapsed_s": 0.3625
     },
     {
       "category": "direct",
@@ -1745,9 +2091,11 @@
       "receiver": "c",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.2362
+      "elapsed_s": 0.3425
     },
     {
       "category": "direct",
@@ -1755,9 +2103,11 @@
       "receiver": "js",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.165
+      "elapsed_s": 0.2801
     },
     {
       "category": "direct",
@@ -1765,9 +2115,11 @@
       "receiver": "java",
       "loss_pct": 0,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.143
+      "elapsed_s": 0.4502
     },
     {
       "category": "direct",
@@ -1775,9 +2127,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0907
+      "elapsed_s": 0.1922
     },
     {
       "category": "direct",
@@ -1785,9 +2139,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.0892
+      "elapsed_s": 0.1505
     },
     {
       "category": "direct",
@@ -1795,9 +2151,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.2557
+      "elapsed_s": 0.5701
     },
     {
       "category": "direct",
@@ -1805,9 +2163,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.1701
+      "elapsed_s": 0.4475
     },
     {
       "category": "direct",
@@ -1815,9 +2175,11 @@
       "receiver": "py",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.2192
+      "elapsed_s": 0.0379
     },
     {
       "category": "direct",
@@ -1825,9 +2187,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.8455
+      "elapsed_s": 0.1909
     },
     {
       "category": "direct",
@@ -1835,9 +2199,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
       "ok": true,
-      "elapsed_s": 0.2039
+      "elapsed_s": 0.1715
     },
     {
       "category": "direct",
@@ -1845,139 +2211,167 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.494
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1627
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1434
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.2268
+    },
+    {
+      "category": "direct",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.34
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.162
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.1926
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.4174
+    },
+    {
+      "category": "direct",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "passphrase",
+      "ok": true,
+      "elapsed_s": 0.3712
+    },
+    {
+      "category": "stress_256k",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.9436
+    },
+    {
+      "category": "stress_256k",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.78
+    },
+    {
+      "category": "stress_256k",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3734
+    },
+    {
+      "category": "stress_256k",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
+      "key_mode": "b64-key",
       "ok": true,
       "elapsed_s": 0.1776
     },
     {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0949
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1393
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1816
-    },
-    {
-      "category": "direct",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1927
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.0501
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.1563
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.2115
-    },
-    {
-      "category": "direct",
-      "sender": "java",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 65536,
-      "key_mode": "passphrase",
-      "ok": true,
-      "elapsed_s": 0.2379
-    },
-    {
-      "category": "stress_256k",
-      "sender": "py",
-      "receiver": "js",
-      "loss_pct": 15,
-      "size": 262144,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.5154
-    },
-    {
-      "category": "stress_256k",
-      "sender": "js",
-      "receiver": "java",
-      "loss_pct": 15,
-      "size": 262144,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.3247
-    },
-    {
-      "category": "stress_256k",
-      "sender": "java",
-      "receiver": "c",
-      "loss_pct": 15,
-      "size": 262144,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1806
-    },
-    {
-      "category": "stress_256k",
-      "sender": "c",
-      "receiver": "py",
-      "loss_pct": 15,
-      "size": 262144,
-      "key_mode": "b64-key",
-      "ok": true,
-      "elapsed_s": 0.1631
-    },
-    {
       "category": "stress_256k",
       "sender": "py",
       "receiver": "java",
       "loss_pct": 15,
       "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.3282
+      "elapsed_s": 0.3971
     },
     {
       "category": "stress_256k",
@@ -1985,9 +2379,11 @@
       "receiver": "js",
       "loss_pct": 15,
       "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.4543
+      "elapsed_s": 0.6688
     },
     {
       "category": "stress_256k",
@@ -1995,9 +2391,11 @@
       "receiver": "c",
       "loss_pct": 15,
       "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.3581
+      "elapsed_s": 0.2492
     },
     {
       "category": "stress_256k",
@@ -2005,9 +2403,11 @@
       "receiver": "java",
       "loss_pct": 15,
       "size": 262144,
+      "wire_payload_bytes": 262144,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.2266
+      "elapsed_s": 0.6171
     },
     {
       "category": "relay",
@@ -2015,9 +2415,11 @@
       "receiver": "java",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.2319,
+      "elapsed_s": 0.5072,
       "relay_hub": "py"
     },
     {
@@ -2026,9 +2428,11 @@
       "receiver": "js",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.14,
+      "elapsed_s": 0.2412,
       "relay_hub": "py"
     },
     {
@@ -2037,9 +2441,11 @@
       "receiver": "py",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.063,
+      "elapsed_s": 0.2052,
       "relay_hub": "js"
     },
     {
@@ -2048,9 +2454,11 @@
       "receiver": "java",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.1104,
+      "elapsed_s": 0.3939,
       "relay_hub": "js"
     },
     {
@@ -2059,9 +2467,11 @@
       "receiver": "js",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.287,
+      "elapsed_s": 0.238,
       "relay_hub": "java"
     },
     {
@@ -2070,10 +2480,32 @@
       "receiver": "c",
       "loss_pct": 10,
       "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.1437,
+      "elapsed_s": 0.176,
       "relay_hub": "java"
+    },
+    {
+      "category": "reflex",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 13,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 1.5087
+    },
+    {
+      "category": "reflex",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 0,
+      "size": 13,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0055
     },
     {
       "category": "reflex",
@@ -2083,7 +2515,7 @@
       "size": 14,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.7001
+      "elapsed_s": 1.8107
     },
     {
       "category": "reflex",
@@ -2093,7 +2525,7 @@
       "size": 16,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.7201
+      "elapsed_s": 2.0313
     },
     {
       "category": "reflex",
@@ -2103,7 +2535,7 @@
       "size": 14,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.2105
+      "elapsed_s": 0.415
     },
     {
       "category": "reflex",
@@ -2113,7 +2545,49 @@
       "size": 16,
       "key_mode": "b64-key",
       "ok": true,
-      "elapsed_s": 0.1821
+      "elapsed_s": 0.6721
+    },
+    {
+      "category": "reflex",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 0,
+      "size": 13,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 2.1049
+    },
+    {
+      "category": "reflex",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 0,
+      "size": 15,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 1.8908
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 1.5142
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 1.6333
     },
     {
       "category": "reflex-loss",
@@ -2124,7 +2598,7 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 0.7056
+      "elapsed_s": 3.8471
     },
     {
       "category": "reflex-loss",
@@ -2135,7 +2609,7 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 0.8577
+      "elapsed_s": 2.0615
     },
     {
       "category": "reflex-loss",
@@ -2146,7 +2620,7 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 2.3965
+      "elapsed_s": 3.1311
     },
     {
       "category": "reflex-loss",
@@ -2157,7 +2631,7 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 4.9351
+      "elapsed_s": 5.009
     },
     {
       "category": "reflex-loss",
@@ -2168,7 +2642,7 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 2.395
+      "elapsed_s": 5.1145
     },
     {
       "category": "reflex-loss",
@@ -2179,7 +2653,313 @@
       "key_mode": "b64-key",
       "acked": 5,
       "ok": true,
-      "elapsed_s": 2.1916
+      "elapsed_s": 6.7063
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 6.1912
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 4.4583
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 4.1321
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 4.4801
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 1.672
+    },
+    {
+      "category": "reflex-loss",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 5,
+      "key_mode": "b64-key",
+      "acked": 5,
+      "ok": true,
+      "elapsed_s": 4.1678
+    },
+    {
+      "category": "lz4",
+      "sender": "py",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0233
+    },
+    {
+      "category": "lz4",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0173
+    },
+    {
+      "category": "lz4",
+      "sender": "py",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1567
+    },
+    {
+      "category": "lz4",
+      "sender": "py",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.146
+    },
+    {
+      "category": "lz4",
+      "sender": "c",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4707,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0076
+    },
+    {
+      "category": "lz4",
+      "sender": "c",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4707,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1196
+    },
+    {
+      "category": "lz4",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4707,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1991
+    },
+    {
+      "category": "lz4",
+      "sender": "c",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4707,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1905
+    },
+    {
+      "category": "lz4",
+      "sender": "js",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0593
+    },
+    {
+      "category": "lz4",
+      "sender": "js",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0623
+    },
+    {
+      "category": "lz4",
+      "sender": "js",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3684
+    },
+    {
+      "category": "lz4",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3352
+    },
+    {
+      "category": "lz4",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1802
+    },
+    {
+      "category": "lz4",
+      "sender": "java",
+      "receiver": "c",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1375
+    },
+    {
+      "category": "lz4",
+      "sender": "java",
+      "receiver": "js",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1917
+    },
+    {
+      "category": "lz4",
+      "sender": "java",
+      "receiver": "java",
+      "loss_pct": 15,
+      "size": 94390,
+      "wire_payload_bytes": 4643,
+      "compressed": true,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.3085
+    },
+    {
+      "category": "lz4-bypass",
+      "sender": "py",
+      "receiver": "c",
+      "loss_pct": 10,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.0944
+    },
+    {
+      "category": "lz4-bypass",
+      "sender": "c",
+      "receiver": "js",
+      "loss_pct": 10,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1031
+    },
+    {
+      "category": "lz4-bypass",
+      "sender": "js",
+      "receiver": "java",
+      "loss_pct": 10,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.2184
+    },
+    {
+      "category": "lz4-bypass",
+      "sender": "java",
+      "receiver": "py",
+      "loss_pct": 10,
+      "size": 65536,
+      "wire_payload_bytes": 65536,
+      "compressed": false,
+      "key_mode": "b64-key",
+      "ok": true,
+      "elapsed_s": 0.1527
     }
   ]
 }

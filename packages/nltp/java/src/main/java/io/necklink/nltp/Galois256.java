@@ -10,6 +10,7 @@ import java.util.Arrays;
 public final class Galois256 {
     private static final int[] GF_EXP = new int[512];
     private static final int[] GF_LOG = new int[256];
+    private static final byte[][] GF_MUL_TAB = new byte[256][256];
 
     static {
         int x = 1;
@@ -24,14 +25,19 @@ public final class Galois256 {
         for (int i = 255; i < 512; i++) {
             GF_EXP[i] = GF_EXP[i - 255];
         }
+        for (int f = 1; f < 256; f++) {
+            int lf = GF_LOG[f];
+            byte[] row = GF_MUL_TAB[f];
+            for (int v = 1; v < 256; v++) {
+                row[v] = (byte) GF_EXP[lf + GF_LOG[v]];
+            }
+        }
     }
 
     private Galois256() {}
 
     public static int mul(int a, int b) {
-        int ua = a & 0xFF;
-        int ub = b & 0xFF;
-        return (ua != 0 && ub != 0) ? GF_EXP[GF_LOG[ua] + GF_LOG[ub]] : 0;
+        return GF_MUL_TAB[a & 0xFF][b & 0xFF] & 0xFF;
     }
 
     public static int inv(int a) {
@@ -42,25 +48,37 @@ public final class Galois256 {
         return GF_EXP[255 - GF_LOG[ua]];
     }
 
-    /** dst ^= factor * src */
+    /** dst ^= factor * src (branchless 4x-unrolled table lookup) */
     public static void axpy(byte[] dst, byte[] src, int factor) {
         int f = factor & 0xFF;
         if (f == 0) {
             return;
         }
         int n = dst.length;
+        int n4 = n & ~3;
         if (f == 1) {
-            for (int i = 0; i < n; i++) {
+            int i = 0;
+            for (; i < n4; i += 4) {
+                dst[i] ^= src[i];
+                dst[i + 1] ^= src[i + 1];
+                dst[i + 2] ^= src[i + 2];
+                dst[i + 3] ^= src[i + 3];
+            }
+            for (; i < n; i++) {
                 dst[i] ^= src[i];
             }
             return;
         }
-        int lf = GF_LOG[f];
-        for (int i = 0; i < n; i++) {
-            int sv = src[i] & 0xFF;
-            if (sv != 0) {
-                dst[i] ^= (byte) GF_EXP[lf + GF_LOG[sv]];
-            }
+        byte[] mulRow = GF_MUL_TAB[f];
+        int i = 0;
+        for (; i < n4; i += 4) {
+            dst[i] ^= mulRow[src[i] & 0xFF];
+            dst[i + 1] ^= mulRow[src[i + 1] & 0xFF];
+            dst[i + 2] ^= mulRow[src[i + 2] & 0xFF];
+            dst[i + 3] ^= mulRow[src[i + 3] & 0xFF];
+        }
+        for (; i < n; i++) {
+            dst[i] ^= mulRow[src[i] & 0xFF];
         }
     }
 
@@ -73,12 +91,18 @@ public final class Galois256 {
             Arrays.fill(buf, (byte) 0);
             return;
         }
-        int lf = GF_LOG[f];
-        for (int i = 0; i < buf.length; i++) {
-            int v = buf[i] & 0xFF;
-            if (v != 0) {
-                buf[i] = (byte) GF_EXP[lf + GF_LOG[v]];
-            }
+        byte[] mulRow = GF_MUL_TAB[f];
+        int n = buf.length;
+        int n4 = n & ~3;
+        int i = 0;
+        for (; i < n4; i += 4) {
+            buf[i] = mulRow[buf[i] & 0xFF];
+            buf[i + 1] = mulRow[buf[i + 1] & 0xFF];
+            buf[i + 2] = mulRow[buf[i + 2] & 0xFF];
+            buf[i + 3] = mulRow[buf[i + 3] & 0xFF];
+        }
+        for (; i < n; i++) {
+            buf[i] = mulRow[buf[i] & 0xFF];
         }
     }
 

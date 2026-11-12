@@ -27,6 +27,7 @@ public final class NLTPWire {
 
     public static final int DEFAULT_SHARD_BYTES = 960;
     public static final int DEFAULT_GEN_K = 8;
+    public static final int MAX_LZ4_RAW_BYTES = 64 * 1024 * 1024;
 
     public static final int PT_DATA_SHARD = 0x01;
     public static final int PT_CRYPTIC_PARITY = 0x02;
@@ -392,30 +393,46 @@ public final class NLTPWire {
     }
 
     public static final class ReplayWindow64 {
+        private static final long WINDOW_BITS = 512L;
         private long highestSeq = 0L;
-        private long bitmap = 0L;
+        private final long[] bitmap = new long[8];
 
         public boolean wouldAccept(long seq) {
             if (seq == 0L) return false;
             if (Long.compareUnsigned(seq, highestSeq) > 0) return true;
             long diff = highestSeq - seq;
-            if (Long.compareUnsigned(diff, 64L) >= 0) return false;
-            return (bitmap & (1L << (int) diff)) == 0L;
+            if (Long.compareUnsigned(diff, WINDOW_BITS) >= 0) return false;
+            int word = (int) (diff >>> 6);
+            int bit = (int) (diff & 63L);
+            return ((bitmap[word] >>> bit) & 1L) == 0L;
         }
 
         public boolean accept(long seq) {
             if (!wouldAccept(seq)) return false;
             if (Long.compareUnsigned(seq, highestSeq) > 0) {
                 long shift = seq - highestSeq;
-                if (Long.compareUnsigned(shift, 64L) >= 0) {
-                    bitmap = 1L;
+                if (Long.compareUnsigned(shift, WINDOW_BITS) >= 0) {
+                    Arrays.fill(bitmap, 0L);
+                    bitmap[0] = 1L;
                 } else {
-                    bitmap = (bitmap << (int) shift) | 1L;
+                    int wShift = (int) (shift >>> 6);
+                    int bShift = (int) (shift & 63L);
+                    for (int i = 7; i >= 0; i--) {
+                        long v = 0L;
+                        if (i >= wShift) {
+                            v = bitmap[i - wShift] << bShift;
+                            if (bShift > 0 && i > wShift) {
+                                v |= bitmap[i - wShift - 1] >>> (64 - bShift);
+                            }
+                        }
+                        bitmap[i] = v;
+                    }
+                    bitmap[0] |= 1L;
                 }
                 highestSeq = seq;
             } else {
                 long diff = highestSeq - seq;
-                bitmap |= (1L << (int) diff);
+                bitmap[(int) (diff >>> 6)] |= (1L << (int) (diff & 63L));
             }
             return true;
         }
@@ -754,5 +771,319 @@ public final class NLTPWire {
             else sb.append(c);
         }
         return sb.toString();
+    }
+
+    // -----------------------------------------------------------------------
+    // Pure-Java RFC 7748 X25519 Ephemeral Key Exchange (JDK 11+ & Android API 21+)
+    // -----------------------------------------------------------------------
+
+    private static final java.math.BigInteger P25519 =
+            java.math.BigInteger.ONE.shiftLeft(255).subtract(java.math.BigInteger.valueOf(19));
+    private static final java.math.BigInteger A24_25519 = java.math.BigInteger.valueOf(121665);
+    private static final byte[] X25519_BASEPOINT = new byte[]{
+            9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+    };
+
+    private static java.math.BigInteger add25519(java.math.BigInteger a, java.math.BigInteger b) {
+        java.math.BigInteger s = a.add(b);
+        return s.compareTo(P25519) >= 0 ? s.subtract(P25519) : s;
+    }
+
+    private static java.math.BigInteger sub25519(java.math.BigInteger a, java.math.BigInteger b) {
+        java.math.BigInteger d = a.subtract(b);
+        return d.signum() < 0 ? d.add(P25519) : d;
+    }
+
+    private static java.math.BigInteger mul25519(java.math.BigInteger a, java.math.BigInteger b) {
+        return a.multiply(b).mod(P25519);
+    }
+
+    public static byte[] x25519ScalarMult(byte[] scalar32, byte[] u32) {
+        if (scalar32 == null || u32 == null || scalar32.length != 32 || u32.length != 32) {
+            return null;
+        }
+        byte[] k = Arrays.copyOf(scalar32, 32);
+        k[0] &= (byte) 248;
+        k[31] &= (byte) 127;
+        k[31] |= (byte) 64;
+
+        byte[] kBe = new byte[33];
+        byte[] uBe = new byte[33];
+        for (int i = 0; i < 32; i++) {
+            kBe[1 + i] = k[31 - i];
+            uBe[1 + i] = u32[31 - i];
+        }
+        uBe[1] &= (byte) 127;
+        Arrays.fill(k, (byte) 0);
+
+        java.math.BigInteger scalar = new java.math.BigInteger(kBe);
+        Arrays.fill(kBe, (byte) 0);
+        java.math.BigInteger u = new java.math.BigInteger(uBe).mod(P25519);
+
+        java.math.BigInteger x1 = u;
+        java.math.BigInteger x2 = java.math.BigInteger.ONE;
+        java.math.BigInteger z2 = java.math.BigInteger.ZERO;
+        java.math.BigInteger x3 = u;
+        java.math.BigInteger z3 = java.math.BigInteger.ONE;
+        int swap = 0;
+
+        for (int t = 254; t >= 0; t--) {
+            int kt = scalar.testBit(t) ? 1 : 0;
+            swap ^= kt;
+            if (swap == 1) {
+                java.math.BigInteger tmp = x2; x2 = x3; x3 = tmp;
+                tmp = z2; z2 = z3; z3 = tmp;
+            }
+            swap = kt;
+
+            java.math.BigInteger A = add25519(x2, z2);
+            java.math.BigInteger AA = mul25519(A, A);
+            java.math.BigInteger B = sub25519(x2, z2);
+            java.math.BigInteger BB = mul25519(B, B);
+            java.math.BigInteger E = sub25519(AA, BB);
+            java.math.BigInteger C = add25519(x3, z3);
+            java.math.BigInteger D = sub25519(x3, z3);
+            java.math.BigInteger DA = mul25519(D, A);
+            java.math.BigInteger CB = mul25519(C, B);
+            java.math.BigInteger sum = add25519(DA, CB);
+            java.math.BigInteger diff = sub25519(DA, CB);
+            x3 = mul25519(sum, sum);
+            z3 = mul25519(x1, mul25519(diff, diff));
+            x2 = mul25519(AA, BB);
+            z2 = mul25519(E, add25519(AA, mul25519(A24_25519, E)));
+        }
+
+        if (swap == 1) {
+            java.math.BigInteger tmp = x2; x2 = x3; x3 = tmp;
+            tmp = z2; z2 = z3; z3 = tmp;
+        }
+
+        java.math.BigInteger zInv = z2.signum() == 0
+                ? java.math.BigInteger.ZERO
+                : z2.modPow(P25519.subtract(java.math.BigInteger.TWO), P25519);
+        java.math.BigInteger outVal = mul25519(x2, zInv);
+
+        byte[] be = outVal.toByteArray();
+        byte[] out = new byte[32];
+        int nonZero = 0;
+        for (int i = 0; i < 32; i++) {
+            int srcIdx = be.length - 1 - i;
+            byte b = srcIdx >= 0 ? be[srcIdx] : 0;
+            out[i] = b;
+            nonZero |= (b & 0xFF);
+        }
+        return nonZero == 0 ? null : out;
+    }
+
+    public static byte[] x25519PublicFromPrivate(byte[] scalar32) {
+        return x25519ScalarMult(scalar32, X25519_BASEPOINT);
+    }
+
+    // -----------------------------------------------------------------------
+    // Zero-Dependency Standard LZ4 Raw Block Codec (NLTP v1.6)
+    // Byte-for-byte wire compatible with C99/Arduino, Python, and JS SDKs.
+    // -----------------------------------------------------------------------
+
+    public static byte[] lz4Compress(byte[] src) {
+        return lz4Compress(src, 12);
+    }
+
+    /**
+     * Compresses {@code src} as a standard LZ4 raw block.
+     * Smart auto-bypass: returns {@code null} if {@code src.length < 32} or if compressed output
+     * is not strictly smaller than {@code src.length} (zero byte inflation on JPEGs/ZIPs/random data).
+     */
+    public static byte[] lz4Compress(byte[] src, int hashLog) {
+        if (src == null || src.length < 32) {
+            return null;
+        }
+        final int srcLen = src.length;
+        final int hLog = Math.max(10, Math.min(14, hashLog));
+        final int hShift = 32 - hLog;
+        final int[] htab = new int[1 << hLog];
+        Arrays.fill(htab, -1);
+
+        final byte[] dst = new byte[srcLen];
+        int op = 0;
+        int anchor = 0;
+        htab[(readU32LE(src, 0) * 0x9E3779B1) >>> hShift] = 0;
+        int ip = 1;
+        final int mflimit = srcLen - 12;
+        final int matchLimit = srcLen - 5;
+
+        while (ip <= mflimit) {
+            int ref = -1;
+            int findMatchAttempts = (1 << 6) + 3;
+            int cur = ip;
+            while (true) {
+                ip = cur;
+                int h = (readU32LE(src, ip) * 0x9E3779B1) >>> hShift;
+                ref = htab[h];
+                htab[h] = ip;
+                if (ref >= 0 && (ip - ref) <= 65535 && readU32LE(src, ref) == readU32LE(src, ip)) {
+                    break;
+                }
+                int step = (findMatchAttempts++) >>> 6;
+                cur = ip + step;
+                if (cur > mflimit) {
+                    ip = cur;
+                    break;
+                }
+            }
+            if (ip > mflimit) {
+                break;
+            }
+
+            while (ip > anchor && ref > 0 && src[ip - 1] == src[ref - 1]) {
+                ip--;
+                ref--;
+            }
+
+            int litLen = ip - anchor;
+            int mLen = 4;
+            while (ip + mLen < matchLimit && src[ip + mLen] == src[ref + mLen]) {
+                mLen++;
+            }
+
+            int litExtra = (litLen >= 15) ? ((litLen - 15) / 255 + 1) : 0;
+            int matchExtra = (mLen - 4 >= 15) ? (((mLen - 4) - 15) / 255 + 1) : 0;
+            if (op + 1 + litExtra + litLen + 2 + matchExtra >= srcLen) {
+                return null;
+            }
+
+            dst[op++] = (byte) ((Math.min(litLen, 15) << 4) | Math.min(mLen - 4, 15));
+            if (litLen >= 15) {
+                int rem = litLen - 15;
+                while (rem >= 255) {
+                    dst[op++] = (byte) 255;
+                    rem -= 255;
+                }
+                dst[op++] = (byte) rem;
+            }
+            if (litLen > 0) {
+                System.arraycopy(src, anchor, dst, op, litLen);
+                op += litLen;
+            }
+
+            int offset = ip - ref;
+            dst[op++] = (byte) (offset & 0xFF);
+            dst[op++] = (byte) ((offset >>> 8) & 0xFF);
+
+            if (mLen - 4 >= 15) {
+                int rem = (mLen - 4) - 15;
+                while (rem >= 255) {
+                    dst[op++] = (byte) 255;
+                    rem -= 255;
+                }
+                dst[op++] = (byte) rem;
+            }
+
+            ip += mLen;
+            anchor = ip;
+            if (ip <= mflimit) {
+                htab[(readU32LE(src, ip - 2) * 0x9E3779B1) >>> hShift] = ip - 2;
+            }
+        }
+
+        int lastLit = srcLen - anchor;
+        int lastExtra = (lastLit >= 15) ? ((lastLit - 15) / 255 + 1) : 0;
+        if (op + 1 + lastExtra + lastLit >= srcLen) {
+            return null;
+        }
+        dst[op++] = (byte) (Math.min(lastLit, 15) << 4);
+        if (lastLit >= 15) {
+            int rem = lastLit - 15;
+            while (rem >= 255) {
+                dst[op++] = (byte) 255;
+                rem -= 255;
+            }
+            dst[op++] = (byte) rem;
+        }
+        if (lastLit > 0) {
+            System.arraycopy(src, anchor, dst, op, lastLit);
+            op += lastLit;
+        }
+        return Arrays.copyOf(dst, op);
+    }
+
+    /**
+     * Bounds-checked standard LZ4 raw block decompressor.
+     * Returns exact {@code expectedRawLen}-byte buffer, or {@code null} on malformed/truncated/overflowing input.
+     */
+    public static byte[] lz4Decompress(byte[] src, int expectedRawLen) {
+        if (src == null || expectedRawLen < 0 || expectedRawLen > MAX_LZ4_RAW_BYTES) {
+            return null;
+        }
+        if (expectedRawLen == 0) {
+            return src.length == 0 ? new byte[0] : null;
+        }
+        if (src.length == 0) {
+            return null;
+        }
+
+        final byte[] dst = new byte[expectedRawLen];
+        final int srcLen = src.length;
+        int ip = 0;
+        int op = 0;
+
+        while (ip < srcLen) {
+            int token = src[ip++] & 0xFF;
+            int litLen = token >>> 4;
+            if (litLen == 15) {
+                int s;
+                do {
+                    if (ip >= srcLen) return null;
+                    s = src[ip++] & 0xFF;
+                    if (litLen > expectedRawLen - op - s) return null;
+                    litLen += s;
+                } while (s == 255);
+            }
+            if (litLen > srcLen - ip || litLen > expectedRawLen - op) {
+                return null;
+            }
+            if (litLen > 0) {
+                System.arraycopy(src, ip, dst, op, litLen);
+                ip += litLen;
+                op += litLen;
+            }
+            if (ip == srcLen) {
+                break;
+            }
+            if (ip + 2 > srcLen) {
+                return null;
+            }
+            int offset = (src[ip] & 0xFF) | ((src[ip + 1] & 0xFF) << 8);
+            ip += 2;
+            if (offset == 0 || offset > op) {
+                return null;
+            }
+
+            int mLen = token & 0x0F;
+            if (mLen == 15) {
+                int s;
+                do {
+                    if (ip >= srcLen) return null;
+                    s = src[ip++] & 0xFF;
+                    if (mLen > expectedRawLen - op - 4 - s) return null;
+                    mLen += s;
+                } while (s == 255);
+            }
+            mLen += 4;
+            if (mLen > expectedRawLen - op) {
+                return null;
+            }
+
+            int matchPos = op - offset;
+            if (offset >= mLen) {
+                System.arraycopy(dst, matchPos, dst, op, mLen);
+                op += mLen;
+            } else {
+                for (int i = 0; i < mLen; i++) {
+                    dst[op++] = dst[matchPos + i];
+                }
+            }
+        }
+        return (op == expectedRawLen) ? dst : null;
     }
 }

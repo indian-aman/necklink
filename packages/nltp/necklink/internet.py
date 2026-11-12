@@ -117,7 +117,10 @@ class AEADCipherContext:
 
 
 class ReplayWindow64:
-    """RFC 6479 64-packet sliding bitmap anti-replay detector (tolerates UDP reordering, blocks replays)."""
+    """RFC 6479 512-packet sliding bitmap anti-replay detector (absorbs high-BDP UDP jitter & reordering, blocks replays)."""
+
+    WINDOW_BITS = 512
+    _MASK = (1 << 512) - 1
 
     def __init__(self) -> None:
         self.highest_seq: int = 0
@@ -129,7 +132,7 @@ class ReplayWindow64:
         if seq > self.highest_seq:
             return True
         diff = self.highest_seq - seq
-        if diff >= 64:
+        if diff >= self.WINDOW_BITS:
             return False
         return bool((self.bitmap & (1 << diff)) == 0)
 
@@ -138,10 +141,10 @@ class ReplayWindow64:
             return False
         if seq > self.highest_seq:
             shift = seq - self.highest_seq
-            if shift >= 64:
+            if shift >= self.WINDOW_BITS:
                 self.bitmap = 1
             else:
-                self.bitmap = ((self.bitmap << shift) | 1) & 0xFFFFFFFFFFFFFFFF
+                self.bitmap = ((self.bitmap << shift) | 1) & self._MASK
             self.highest_seq = seq
         else:
             diff = self.highest_seq - seq

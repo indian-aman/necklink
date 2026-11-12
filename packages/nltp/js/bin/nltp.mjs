@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * NLTP v1.2 JavaScript CLI (`nltp` / `nltp-js`)
+ * NLTP v1.6 JavaScript CLI (`nltp` / `nltp-js`)
  *
  * Supports both user commands (`gen-key`, `stun`, `relay`, `serve`, `send-file`)
  * and cross-language interop driver commands (`send`, `recv`) matching `nltp_cli`.
@@ -34,14 +34,14 @@ async function main() {
   const cmd = argv[0];
 
   if (!cmd || cmd === '--help' || cmd === '-h') {
-    console.log(`NLTP v1.2 JavaScript CLI
+    console.log(`NLTP v1.6 JavaScript CLI
 Commands:
   nltp-js gen-key
   nltp-js stun [--show-ip]
   nltp-js relay [--host 0.0.0.0] [--port 9000] [--duration 0]
   nltp-js serve [--host 0.0.0.0] [--port 9000] [--psk KEY] [--save-dir ./inbox] [--relay IP:PORT --room NAME] [--max-items N]
-  nltp-js send-file --file PATH [--host 127.0.0.1] [--port 9000] [--psk KEY] [--relay IP:PORT --room NAME]
-  nltp-js send <host> <port> <file> [--loss PCT] [--psk KEY] [--relay IP:PORT --room NAME]
+  nltp-js send-file --file PATH [--host 127.0.0.1] [--port 9000] [--psk KEY] [--compress|-z] [--relay IP:PORT --room NAME]
+  nltp-js send <host> <port> <file> [--loss PCT] [--psk KEY] [--compress|-z] [--relay IP:PORT --room NAME]
   nltp-js recv <bind_ip> <port> <out_file> [--loss PCT] [--psk KEY] [--relay IP:PORT --room NAME]`);
     return 0;
   }
@@ -105,7 +105,7 @@ Commands:
         }
       }
       // Keep answering briefly so late retransmissions (reflexes, final FECs) still get their ACK
-      await new Promise((r) => setTimeout(r, 500));
+      await new Promise((r) => setTimeout(r, 1500));
     } finally {
       await srv.close();
     }
@@ -121,6 +121,7 @@ Commands:
     const relaySpec = getOpt(argv, '--relay', null);
     const room = getOpt(argv, '--room', null);
     const loss = Number(getOpt(argv, '--loss', '0'));
+    const compress = argv.includes('--compress') || argv.includes('-z');
     const cli = await NLTPClient.connect({
       host,
       port,
@@ -130,7 +131,7 @@ Commands:
       lossDropSim: loss,
     });
     try {
-      const receipt = await cli.sendFile(filepath, { timeoutMs: 90000 });
+      const receipt = await cli.sendFile(filepath, { timeoutMs: 90000, compress });
       console.log(JSON.stringify(receipt, null, 2));
       return receipt.verifiedSha256 ? 0 : 1;
     } finally {
@@ -167,6 +168,7 @@ Commands:
     const relaySpec = getOpt(argv, '--relay', null);
     const room = getOpt(argv, '--room', null);
     const maxKbps = Number(getOpt(argv, '--max-kbps', '50000'));
+    const compress = argv.includes('--compress') || argv.includes('-z');
     const cli = await NLTPClient.connect({
       host,
       port,
@@ -177,10 +179,12 @@ Commands:
       lossDropSim: lossPct / 100.0,
     });
     try {
-      const receipt = await cli.sendFile(filepath, { timeoutMs: 90000 });
+      const receipt = await cli.sendFile(filepath, { timeoutMs: 90000, compress });
       console.log(`RESULT ${JSON.stringify({
         ok: receipt.verifiedSha256,
         bytes: receipt.bytes,
+        wire_payload_bytes: receipt.wirePayloadBytes,
+        compressed: receipt.compressed,
         elapsed_s: receipt.elapsedS,
         goodput_kbps: receipt.goodputKbps,
         encrypted: receipt.encrypted,

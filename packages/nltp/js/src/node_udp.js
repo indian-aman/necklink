@@ -476,6 +476,9 @@ class NLTPSocketBase {
       stream_id: xfer.streamId,
       filename: xfer.filename,
       bytes: xfer.totalBytes,
+      wirePayloadBytes: xfer.wirePayloadBytes ?? xfer.totalBytes,
+      wire_payload_bytes: xfer.wirePayloadBytes ?? xfer.totalBytes,
+      compressed: Boolean(xfer.compressed),
       sha256: xfer.sha256Hex,
       verifiedSha256: ok,
       verified_sha256: ok,
@@ -564,20 +567,25 @@ export class NLTPServer extends NLTPSocketBase {
     return this.engine.sendReflex(clientAddr, raw);
   }
 
-  async sendBytes(clientAddr, data, { filename = '', timeoutMs = 15000 } = {}) {
+  async sendBytes(clientAddr, data, { filename = '', timeoutMs = 15000, compress = false } = {}) {
     await this.ready();
     const kind = filename ? 'file' : 'bytes';
     const xfer = this.engine.startTransfer(clientAddr, data, {
       kind,
       filename: filename ? path.basename(filename) : '',
+      compress,
     });
     return this._awaitTransfer(xfer, timeoutMs);
   }
 
-  async sendFile(clientAddr, filepath, { timeoutMs = 60000 } = {}) {
+  async sendFile(clientAddr, filepath, { timeoutMs = 60000, compress = false } = {}) {
     await this.ready();
     const raw = fs.readFileSync(filepath);
-    const xfer = this.engine.startTransfer(clientAddr, raw, { kind: 'file', filename: path.basename(filepath) });
+    const xfer = this.engine.startTransfer(clientAddr, raw, {
+      kind: 'file',
+      filename: path.basename(filepath),
+      compress,
+    });
     return this._awaitTransfer(xfer, timeoutMs);
   }
 }
@@ -666,33 +674,38 @@ export class NLTPClient extends NLTPSocketBase {
     return this.address();
   }
 
-  async sendBytes(data, { filename = '', timeoutMs = 20000 } = {}) {
+  async sendBytes(data, { filename = '', timeoutMs = 20000, compress = false } = {}) {
     await this.ready();
     const kind = filename ? 'file' : 'bytes';
     const xfer = this.engine.startTransfer(this.serverAddr, data, {
       kind,
       filename: filename ? path.basename(filename) : '',
+      compress,
     });
     const ok = await this._awaitTransfer(xfer, timeoutMs);
     return this._buildReceipt(xfer, ok);
   }
 
-  async sendMessage(text, { timeoutMs = 15000 } = {}) {
-    return this.sendBytes(utf8Encode(String(text)), { timeoutMs });
+  async sendMessage(text, { timeoutMs = 15000, compress = false } = {}) {
+    return this.sendBytes(utf8Encode(String(text)), { timeoutMs, compress });
   }
 
-  async sendJson(obj, { timeoutMs = 15000 } = {}) {
+  async sendJson(obj, { timeoutMs = 15000, compress = false } = {}) {
     await this.ready();
     const raw = utf8Encode(JSON.stringify(obj));
-    const xfer = this.engine.startTransfer(this.serverAddr, raw, { kind: 'json' });
+    const xfer = this.engine.startTransfer(this.serverAddr, raw, { kind: 'json', compress });
     const ok = await this._awaitTransfer(xfer, timeoutMs);
     return this._buildReceipt(xfer, ok);
   }
 
-  async sendFile(filepath, { timeoutMs = 60000 } = {}) {
+  async sendFile(filepath, { timeoutMs = 60000, compress = false } = {}) {
     await this.ready();
     const raw = fs.readFileSync(filepath);
-    const xfer = this.engine.startTransfer(this.serverAddr, raw, { kind: 'file', filename: path.basename(filepath) });
+    const xfer = this.engine.startTransfer(this.serverAddr, raw, {
+      kind: 'file',
+      filename: path.basename(filepath),
+      compress,
+    });
     const ok = await this._awaitTransfer(xfer, timeoutMs);
     return this._buildReceipt(xfer, ok);
   }

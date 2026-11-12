@@ -32,6 +32,8 @@ public final class NLTPEndpoint<P> {
         public final String kind;
         public final String filename;
         public final int totalBytes;
+        public final int wirePayloadBytes;
+        public final boolean compressed;
         public final String sha256Hex;
         final List<TxGeneration> generations;
         final byte[] metaPayload;
@@ -57,12 +59,31 @@ public final class NLTPEndpoint<P> {
                 byte[] metaPayload,
                 double startedAt
         ) {
+            this(streamId, peerAddr, peerConnId, kind, filename, totalBytes, totalBytes, false, sha256Hex, generations, metaPayload, startedAt);
+        }
+
+        OutboundTransfer(
+                int streamId,
+                P peerAddr,
+                Integer peerConnId,
+                String kind,
+                String filename,
+                int totalBytes,
+                int wirePayloadBytes,
+                boolean compressed,
+                String sha256Hex,
+                List<TxGeneration> generations,
+                byte[] metaPayload,
+                double startedAt
+        ) {
             this.streamId = streamId;
             this.peerAddr = peerAddr;
             this.peerConnId = peerConnId;
             this.kind = kind;
             this.filename = filename;
             this.totalBytes = totalBytes;
+            this.wirePayloadBytes = wirePayloadBytes;
+            this.compressed = compressed;
             this.sha256Hex = sha256Hex;
             this.generations = generations;
             this.metaPayload = metaPayload;
@@ -75,7 +96,11 @@ public final class NLTPEndpoint<P> {
         final int genId;
         final int kShards;
         final int rowWidth;
-        final byte[][] dataMat;
+        final byte[] src;
+        final int off;
+        final int len;
+        final int shardBytes;
+        byte[][] dataMat = null;
 
         int nextSysIdx = 0;
         boolean proactiveDone = false;
@@ -90,6 +115,10 @@ public final class NLTPEndpoint<P> {
         TxGeneration(int streamId, int genId, byte[] src, int off, int len, int shardBytes) {
             this.streamId = streamId;
             this.genId = genId;
+            this.src = src;
+            this.off = off;
+            this.len = len;
+            this.shardBytes = shardBytes;
             int chunksCount = (len == 0) ? 1 : ((len + shardBytes - 1) / shardBytes);
             this.kShards = chunksCount;
             int maxChunk = 0;
@@ -99,15 +128,21 @@ public final class NLTPEndpoint<P> {
                 if (cLen > maxChunk) maxChunk = cLen;
             }
             this.rowWidth = 2 + maxChunk;
-            this.dataMat = new byte[kShards][rowWidth];
-            for (int i = 0; i < kShards; i++) {
-                int cOff = off + i * shardBytes;
-                int cLen = (len == 0) ? 0 : Math.min(shardBytes, Math.max(0, (off + len) - cOff));
-                NLTPWire.writeU16LE(dataMat[i], 0, cLen);
-                if (cLen > 0) {
-                    System.arraycopy(src, cOff, dataMat[i], 2, cLen);
+        }
+
+        private byte[][] ensureDataMat() {
+            if (dataMat == null) {
+                dataMat = new byte[kShards][rowWidth];
+                for (int i = 0; i < kShards; i++) {
+                    int cOff = off + i * shardBytes;
+                    int cLen = (len == 0) ? 0 : Math.min(shardBytes, Math.max(0, (off + len) - cOff));
+                    NLTPWire.writeU16LE(dataMat[i], 0, cLen);
+                    if (cLen > 0) {
+                        System.arraycopy(src, cOff, dataMat[i], 2, cLen);
+                    }
                 }
             }
+            return dataMat;
         }
 
         private byte[] packShard(int shardIdx, byte[] rowBytes) {
@@ -122,20 +157,36 @@ public final class NLTPEndpoint<P> {
         }
 
         byte[] makeSystematicPayload(int sysIdx) {
-            return packShard(sysIdx, dataMat[sysIdx]);
+            if (dataMat != null) {
+                return packShard(sysIdx, dataMat[sysIdx]);
+            }
+            byte[] out = new byte[NLTPWire.SHARD_HDR_SIZE + rowWidth];
+            NLTPWire.writeU32LE(out, 0, streamId);
+            NLTPWire.writeU32LE(out, 4, genId);
+            out[8] = (byte) (kShards & 0xFF);
+            out[9] = (byte) (sysIdx & 0xFF);
+            NLTPWire.writeU16LE(out, 10, rowWidth);
+            int cOff = off + sysIdx * shardBytes;
+            int cLen = (len == 0) ? 0 : Math.min(shardBytes, Math.max(0, (off + len) - cOff));
+            NLTPWire.writeU16LE(out, NLTPWire.SHARD_HDR_SIZE, cLen);
+            if (cLen > 0) {
+                System.arraycopy(src, cOff, out, NLTPWire.SHARD_HDR_SIZE + 2, cLen);
+            }
+            return out;
         }
 
         byte[] makeCrypticParityPayload() {
+            byte[][] mat = ensureDataMat();
             int pOff = nextParityOffset;
             nextParityOffset = (nextParityOffset + 1) % 192;
             int shardIdx = kShards + pOff;
             if (kShards == 1) {
-                return packShard(shardIdx, dataMat[0]);
+                return packShard(shardIdx, mat[0]);
             }
             byte[] coeff = Galois256.cauchyRow(pOff, kShards);
             byte[] coded = new byte[rowWidth];
             for (int c = 0; c < kShards; c++) {
-                Galois256.axpy(coded, dataMat[c], coeff[c] & 0xFF);
+                Galois256.axpy(coded, mat[c], coeff[c] & 0xFF);
             }
             return packShard(shardIdx, coded);
         }
@@ -145,6 +196,9 @@ public final class NLTPEndpoint<P> {
         final int kShards;
         final int rowWidth;
         final Set<Integer> seenIndices = new HashSet<>();
+        boolean sysOnly = true;
+        final byte[][] sysRows;
+        int sysCount = 0;
         final List<byte[]> rowsCoeff = new ArrayList<>();
         final List<byte[]> rowsData = new ArrayList<>();
         byte[] solvedBytes = null;
@@ -152,16 +206,44 @@ public final class NLTPEndpoint<P> {
         RxGeneration(int kShards, int rowWidth) {
             this.kShards = kShards;
             this.rowWidth = rowWidth;
+            this.sysRows = new byte[kShards][];
+        }
+
+        int haveShards() {
+            if (solvedBytes != null) return kShards;
+            return sysOnly ? sysCount : rowsCoeff.size();
         }
 
         int neededDof() {
             if (solvedBytes != null) return 0;
-            return Math.max(0, kShards - rowsCoeff.size());
+            return Math.max(0, kShards - haveShards());
         }
 
         boolean addShard(int shardIdx, byte[] shardBuf) {
             if (solvedBytes != null || shardBuf.length != rowWidth) return false;
             if (!seenIndices.add(shardIdx)) return false;
+
+            if (sysOnly && shardIdx < kShards) {
+                sysRows[shardIdx] = Arrays.copyOf(shardBuf, shardBuf.length);
+                sysCount++;
+                if (sysCount >= kShards) {
+                    return finishSystematic();
+                }
+                return false;
+            }
+
+            if (sysOnly) {
+                sysOnly = false;
+                for (int i = 0; i < kShards; i++) {
+                    if (sysRows[i] != null) {
+                        byte[] c = new byte[kShards];
+                        c[i] = 1;
+                        rowsCoeff.add(c);
+                        rowsData.add(sysRows[i]);
+                        sysRows[i] = null;
+                    }
+                }
+            }
 
             byte[] coeff;
             if (shardIdx < kShards) {
@@ -177,6 +259,28 @@ public final class NLTPEndpoint<P> {
                 return trySolve();
             }
             return false;
+        }
+
+        private boolean finishSystematic() {
+            int total = 0;
+            int[] lens = new int[kShards];
+            for (int i = 0; i < kShards; i++) {
+                byte[] row = sysRows[i];
+                if (row == null) return false;
+                int actualLen = NLTPWire.readU16LE(row, 0);
+                if (actualLen > rowWidth - 2) return false;
+                lens[i] = actualLen;
+                total += actualLen;
+            }
+            byte[] out = new byte[total];
+            int pos = 0;
+            for (int i = 0; i < kShards; i++) {
+                System.arraycopy(sysRows[i], 2, out, pos, lens[i]);
+                pos += lens[i];
+                sysRows[i] = null;
+            }
+            solvedBytes = out;
+            return true;
         }
 
         private boolean trySolve() {
@@ -231,6 +335,9 @@ public final class NLTPEndpoint<P> {
         int totalBytes = 0;
         int totalGens = 0;
         String expectedSha256 = "";
+        boolean isLz4 = false;
+        int rawBytes = -1;
+        boolean codecInvalid = false;
         boolean metaReceived = false;
         final Map<Integer, RxGeneration> gens = new HashMap<>();
         final Map<Integer, byte[]> solvedGens = new HashMap<>();
@@ -247,17 +354,37 @@ public final class NLTPEndpoint<P> {
         final Map<Integer, Integer> genKMap = new HashMap<>();
         final Map<Integer, Integer> genMaxSysSeen = new HashMap<>();
         int maxGenSeen = -1;
+        int maxSysOrd = -1;
+        int reorderWnd = 0;
 
         InboundStreamState(int streamId) {
             this.streamId = streamId;
         }
 
         void ingestMeta(String kind, String filename, int totalBytes, int totalGens, String sha256) {
+            ingestMeta(kind, filename, totalBytes, totalGens, sha256, "", -1L);
+        }
+
+        void ingestMeta(String kind, String filename, int totalBytes, int totalGens, String sha256, String codec, long rawBytesLong) {
             this.kind = kind;
             this.filename = filename;
             this.totalBytes = totalBytes;
             this.totalGens = totalGens;
             this.expectedSha256 = sha256;
+            if (codec == null || codec.isEmpty() || "none".equals(codec)) {
+                this.isLz4 = false;
+                this.codecInvalid = false;
+            } else if ("lz4".equals(codec)) {
+                this.isLz4 = true;
+                if (rawBytesLong < 0L || rawBytesLong > NLTPWire.MAX_LZ4_RAW_BYTES) {
+                    this.codecInvalid = true;
+                } else {
+                    this.rawBytes = (int) rawBytesLong;
+                    this.codecInvalid = false;
+                }
+            } else {
+                this.codecInvalid = true;
+            }
             this.metaReceived = true;
         }
 
@@ -269,9 +396,20 @@ public final class NLTPEndpoint<P> {
 
         byte[] tryFinalize() {
             if (completed || !metaReceived) return null;
+            if (codecInvalid) {
+                completed = true;
+                sha256Ok = false;
+                gens.clear();
+                solvedGens.clear();
+                return new byte[0];
+            }
             if (totalGens == 0) {
                 byte[] empty = new byte[0];
                 completed = true;
+                if (isLz4 && rawBytes != 0) {
+                    sha256Ok = false;
+                    return empty;
+                }
                 sha256Ok = NLTPWire.sha256Hex(empty).equals(expectedSha256);
                 return empty;
             }
@@ -290,7 +428,19 @@ public final class NLTPEndpoint<P> {
                 System.arraycopy(b, 0, cat, pos, b.length);
                 pos += b.length;
             }
-            byte[] full = (cat.length == totalBytes) ? cat : Arrays.copyOf(cat, totalBytes);
+            byte[] wireFull = (cat.length == totalBytes) ? cat : Arrays.copyOf(cat, totalBytes);
+            byte[] full = wireFull;
+            if (isLz4) {
+                byte[] dec = NLTPWire.lz4Decompress(wireFull, rawBytes);
+                if (dec == null) {
+                    completed = true;
+                    sha256Ok = false;
+                    gens.clear();
+                    solvedGens.clear();
+                    return new byte[0];
+                }
+                full = dec;
+            }
             String digest = NLTPWire.sha256Hex(full);
             completed = true;
             sha256Ok = digest.equals(expectedSha256);
@@ -505,27 +655,37 @@ public final class NLTPEndpoint<P> {
     }
 
     public OutboundTransfer<P> startTransfer(P peer, byte[] data, String kind, String filename, double tNow) {
+        return startTransfer(peer, data, kind, filename, false, tNow);
+    }
+
+    public OutboundTransfer<P> startTransfer(P peer, byte[] data, String kind, String filename, boolean compress, double tNow) {
         int sid = nextStreamId++;
+        String shaHex = NLTPWire.sha256Hex(data);
+        byte[] comp = compress ? NLTPWire.lz4Compress(data) : null;
+        boolean useLz4 = (comp != null && comp.length < data.length);
+        byte[] wireData = useLz4 ? comp : Arrays.copyOf(data, data.length);
+
         int genSliceLen = shardBytes * genK;
         List<TxGeneration> gens = new ArrayList<>();
-        if (data.length == 0) {
-            gens.add(new TxGeneration(sid, 0, data, 0, 0, shardBytes));
+        if (wireData.length == 0) {
+            gens.add(new TxGeneration(sid, 0, wireData, 0, 0, shardBytes));
         } else {
             int gIdx = 0;
-            for (int off = 0; off < data.length; off += genSliceLen) {
-                int rem = Math.min(genSliceLen, data.length - off);
-                gens.add(new TxGeneration(sid, gIdx++, data, off, rem, shardBytes));
+            for (int off = 0; off < wireData.length; off += genSliceLen) {
+                int rem = Math.min(genSliceLen, wireData.length - off);
+                gens.add(new TxGeneration(sid, gIdx++, wireData, off, rem, shardBytes));
             }
         }
 
-        String shaHex = NLTPWire.sha256Hex(data);
         String cleanName = safeBasename(filename);
+        String metaTail = useLz4 ? (",\"codec\":\"lz4\",\"raw_bytes\":" + data.length + "}") : "}";
         String metaJson = "{\"stream_id\":" + sid
                 + ",\"kind\":\"" + NLTPWire.jsonEscape(kind) + "\""
                 + ",\"filename\":\"" + NLTPWire.jsonEscape(cleanName) + "\""
-                + ",\"total_bytes\":" + data.length
+                + ",\"total_bytes\":" + wireData.length
                 + ",\"total_gens\":" + gens.size()
-                + ",\"sha256\":\"" + shaHex + "\"}";
+                + ",\"sha256\":\"" + shaHex + "\""
+                + metaTail;
         byte[] metaBytes = metaJson.getBytes(StandardCharsets.UTF_8);
 
         Integer knownCid = null;
@@ -537,7 +697,7 @@ public final class NLTPEndpoint<P> {
         }
 
         OutboundTransfer<P> xfer = new OutboundTransfer<>(
-                sid, peer, knownCid, kind, cleanName, data.length, shaHex, gens, metaBytes, tNow
+                sid, peer, knownCid, kind, cleanName, data.length, wireData.length, useLz4, shaHex, gens, metaBytes, tNow
         );
 
         boolean anyActive = false;
@@ -550,7 +710,7 @@ public final class NLTPEndpoint<P> {
         if (rateCtl != null && pacer != null && !anyActive) {
             int burst = rateCtl.initialBurst(initialBurstBytes);
             if (burst > 0) {
-                pacer.grantBurst(Math.min(burst, data.length + 2 * shardBytes));
+                pacer.grantBurst(Math.min(burst, wireData.length + 2 * shardBytes));
             }
             rateCtl.startStream(sid, tNow);
         }
@@ -646,13 +806,23 @@ public final class NLTPEndpoint<P> {
     }
 
     private int effectiveWindowGenerations() {
+        int eff = windowGenerations;
         if (hasRttSample && minRttMs < 900000.0) {
-            double queueThresh = Math.max(minRttMs * 2.0, minRttMs + 35.0);
+            double base = (rateCtl != null && rateCtl.minMeanRttMs() < 900000.0) ? rateCtl.minMeanRttMs() : minRttMs;
+            double jitterPad = (rateCtl != null) ? 2.5 * rateCtl.rttvarMs() : 0.0;
+            double queueThresh = Math.max(base * 2.0, base + 35.0 + jitterPad);
             if (srttMs > queueThresh) {
-                return Math.max(3, windowGenerations / 4);
+                eff = Math.max(3, windowGenerations / 4);
+            }
+            if (rateCtl != null && rateCtl.mode() == Pacing.DeliveryRateController.CRUISE) {
+                double bwKbps = Math.max(rateCtl.rateKbps(), rateCtl.btlbwKbps());
+                int genBytes = Math.max(1, shardBytes * genK);
+                double bdpBytes = ((bwKbps * 1000.0) / 8.0) * (base / 1000.0);
+                int bdpGens = Math.max(4, (int) Math.ceil((2.2 * bdpBytes) / genBytes) + 2);
+                eff = Math.min(eff, bdpGens);
             }
         }
-        return windowGenerations;
+        return eff;
     }
 
     public void stepTx(double tNow) {
@@ -854,6 +1024,7 @@ public final class NLTPEndpoint<P> {
         }
 
         int pktType = parsed.pktType;
+        int pktFlags = parsed.flags;
         int peerConnId = parsed.connId;
         int pktTsMs = parsed.tsMs;
         byte[] payload = parsed.payload;
@@ -932,7 +1103,9 @@ public final class NLTPEndpoint<P> {
             int totalBytes = (int) NLTPWire.jsonGetLong(js, "total_bytes", 0L);
             int totalGens = (int) NLTPWire.jsonGetLong(js, "total_gens", 0L);
             String sha = NLTPWire.jsonGetString(js, "sha256");
-            st.ingestMeta(kind.isEmpty() ? "bytes" : kind, filename, totalBytes, totalGens, sha);
+            String codec = NLTPWire.jsonGetString(js, "codec");
+            long rawBytes = NLTPWire.jsonGetLong(js, "raw_bytes", -1L);
+            st.ingestMeta(kind.isEmpty() ? "bytes" : kind, filename, totalBytes, totalGens, sha, codec, rawBytes);
             checkStreamCompleteOrAck(peer, peerConnId, st, pktTsMs, tNow, true);
             return;
         }
@@ -975,7 +1148,15 @@ public final class NLTPEndpoint<P> {
                 RxGeneration rxExisting = st.gens.get(genId);
                 boolean alreadySeen = st.solvedGens.containsKey(genId)
                         || (rxExisting != null && rxExisting.seenIndices.contains(shardIdx));
-                if (!alreadySeen) st.sysShardsRcvd++;
+                if (!alreadySeen) {
+                    st.sysShardsRcvd++;
+                    int sysOrd = genId * genK + shardIdx;
+                    if (sysOrd < st.maxSysOrd) {
+                        st.reorderWnd = Math.min(16, Math.max(st.reorderWnd, st.maxSysOrd - sysOrd));
+                    } else {
+                        st.maxSysOrd = sysOrd;
+                    }
+                }
                 int prevMax = st.genMaxSysSeen.getOrDefault(genId, -1);
                 if (shardIdx > prevMax) st.genMaxSysSeen.put(genId, shardIdx);
             } else if (pktType == NLTPWire.PT_CRYPTIC_PARITY) {
@@ -1018,7 +1199,11 @@ public final class NLTPEndpoint<P> {
             if (!ackFromTransferPeer(xfer, peerConnId, peer)) return;
             xfer.peerConnId = peerConnId;
             xfer.peerAddr = peer;
-            xfer.metaAcked = true;
+            if ((pktFlags & 0x02) != 0) {
+                if ((pktFlags & 0x01) != 0) xfer.metaAcked = true;
+            } else {
+                xfer.metaAcked = true;
+            }
 
             int nowMs = (int) ((long) (tNow * 1000.0));
             long rtt = Integer.toUnsignedLong(nowMs - echoTs);
@@ -1116,6 +1301,8 @@ public final class NLTPEndpoint<P> {
         }
 
         int maxG = st.maxGenSeen;
+        boolean isFinalGen = st.metaReceived && (maxG >= st.totalGens - 1);
+        int rGuard = isFinalGen ? 0 : Math.min(st.reorderWnd, 6);
         int expectedSys = 0;
         for (int gI = 0; gI < maxG; gI++) {
             expectedSys += st.genKMap.getOrDefault(gI, genK);
@@ -1123,25 +1310,29 @@ public final class NLTPEndpoint<P> {
         if (maxG >= 0) {
             expectedSys += st.genMaxSysSeen.getOrDefault(maxG, 0) + 1;
         }
-        expectedSys = Math.max(1, expectedSys);
-        double estLoss = Math.max(0.0, Math.min(0.92, 1.0 - (st.sysShardsRcvd / (double) expectedSys)));
+        int adjExpected = Math.max(1, Math.max(st.sysShardsRcvd, expectedSys - rGuard));
+        double estLoss = Math.max(0.0, Math.min(0.92, 1.0 - (st.sysShardsRcvd / (double) adjExpected)));
         int lossQ8 = (int) Math.round(estLoss * 255.0) & 0xFF;
 
+        int maxGLead = (maxG >= 0) ? (st.genMaxSysSeen.getOrDefault(maxG, -1) + 1) : 0;
         List<int[]> reports = new ArrayList<>();
         for (int gId = st.baseGen; gId <= maxG; gId++) {
             if (st.solvedGens.containsKey(gId)) continue;
             RxGeneration rxG = st.gens.get(gId);
-            int have = (rxG != null) ? rxG.rowsCoeff.size() : 0;
+            int have = (rxG != null) ? rxG.haveShards() : 0;
             int need = (rxG != null) ? rxG.neededDof() : genK;
             if (gId < maxG && need > 0) {
-                reports.add(new int[]{gId - st.baseGen, have, need});
+                if (rGuard == 0 || gId <= maxG - 2 || maxGLead >= rGuard) {
+                    reports.add(new int[]{gId - st.baseGen, have, need});
+                }
             } else if (gId == maxG && rxG != null && !rxG.seenIndices.isEmpty()) {
                 int maxIdx = 0;
                 for (int idx : rxG.seenIndices) {
                     if (idx > maxIdx) maxIdx = idx;
                 }
                 int maxSeenIdx = Math.min(rxG.kShards, maxIdx + 1);
-                int confirmedMissing = Math.min(need, Math.max(0, maxSeenIdx - have));
+                int effSeen = Math.max(0, maxSeenIdx - Math.min(rGuard, 4));
+                int confirmedMissing = Math.min(need, Math.max(0, effSeen - have));
                 if (confirmedMissing > 0) {
                     reports.add(new int[]{gId - st.baseGen, have, confirmedMissing});
                 }
@@ -1168,7 +1359,7 @@ public final class NLTPEndpoint<P> {
             long arrClamped = Math.min(0xFFFFFFFFL, Math.max(0L, (long) st.arrivalKbps));
             NLTPWire.writeU32LE(ackBuf, pos + 4, (int) arrClamped);
 
-            emit(NLTPWire.PT_PROPRIOCEPTIVE_ACK, peer, ackBuf, 0, tNow);
+            emit(NLTPWire.PT_PROPRIOCEPTIVE_ACK, peer, ackBuf, st.metaReceived ? 0x03 : 0x02, tNow);
             lastAckEmit.put(peerConnId + ":" + st.streamId, tNow);
         }
     }

@@ -443,7 +443,218 @@ int main(void) {
         ok = ok && first_len[0] > 40u && first_len[0] == first_len[1] &&
              memcmp(first[0], first[1], NLTP_ENC_HEADER_BYTES - 4u) == 0 &&             /* same conn_id + counter */
              memcmp(first[0] + NLTP_ENC_HEADER_BYTES, first[1] + NLTP_ENC_HEADER_BYTES, 32u) != 0;
-        check(ok, "1.4: same conn_id + counter after reboot: new keys", "first data frames differ");
+        check(ok, "1.5: same conn_id + counter after reboot: new keys", "first data frames differ");
+    }
+
+    /* 17. NLTP 1.5: 512-packet anti-replay window accepts out-of-order up to 511 packets back and rejects 512+ */
+    {
+        nltp_replay_window_t rw;
+        nltp_replay_init(&rw);
+        ok = nltp_replay_accept(&rw, 513u) == 1 &&
+             nltp_replay_accept(&rw, 2u) == 1 &&       /* 513 - 2 = 511 < 512: valid reordered packet */
+             nltp_replay_accept(&rw, 2u) == 0 &&       /* duplicate of seq=2 rejected */
+             nltp_replay_accept(&rw, 1u) == 0 &&       /* 513 - 1 = 512 >= 512: expired below window */
+             nltp_replay_accept(&rw, 300u) == 1 &&
+             nltp_replay_accept(&rw, 300u) == 0;
+        check(ok, "1.5: 512-packet anti-replay window (reordering <=511 ok)", "513->2 ok, 513->1 rejected");
+    }
+
+    /* 18. NLTP 1.5: RFC 7748 s6.1 X25519 test vector + low-order all-zero shared secret rejection */
+    {
+        static const uint8_t sk_a[32] = {
+            0x77, 0x07, 0x6d, 0x0a, 0x73, 0x18, 0xa5, 0x7d, 0x3c, 0x16, 0xc1, 0x72, 0x51, 0xb2, 0x66, 0x45,
+            0xdf, 0x4c, 0x2f, 0x87, 0xeb, 0xc0, 0x99, 0x2a, 0xb1, 0x77, 0xfb, 0xa5, 0x1d, 0xb9, 0x2c, 0x2a
+        };
+        static const uint8_t sk_b[32] = {
+            0x5d, 0xab, 0x08, 0x7e, 0x62, 0x4a, 0x8a, 0x4b, 0x79, 0xe1, 0x7f, 0x8b, 0x83, 0x80, 0x0e, 0xe6,
+            0x6f, 0x3b, 0xb1, 0x29, 0x26, 0x18, 0xb6, 0xfd, 0x1c, 0x2f, 0x8b, 0x27, 0xff, 0x88, 0xe0, 0xeb
+        };
+        static const uint8_t want_ss[32] = {
+            0x4a, 0x5d, 0x9d, 0x5b, 0xa4, 0xce, 0x2d, 0xe1, 0x72, 0x8e, 0x3b, 0xf4, 0x80, 0x35, 0x0f, 0x25,
+            0xe0, 0x7e, 0x21, 0xc9, 0x47, 0xd1, 0x9e, 0x33, 0x76, 0xf0, 0x9b, 0x3c, 0x1e, 0x16, 0x17, 0x42
+        };
+        uint8_t pk_a[32], pk_b[32], ss_ab[32], ss_ba[32], zero_pt[32], bad_out[32];
+        int ok_ab, ok_ba, ok_zero;
+        memset(zero_pt, 0, sizeof(zero_pt));
+        nltp_x25519_public_key(pk_a, sk_a);
+        nltp_x25519_public_key(pk_b, sk_b);
+        ok_ab = nltp_x25519_scalarmult(ss_ab, sk_a, pk_b);
+        ok_ba = nltp_x25519_scalarmult(ss_ba, sk_b, pk_a);
+        ok_zero = nltp_x25519_scalarmult(bad_out, sk_a, zero_pt);
+        hex_of(ss_ab, hex);
+        ok = ok_ab == 1 && ok_ba == 1 && ok_zero == 0 &&
+             memcmp(ss_ab, want_ss, 32) == 0 && memcmp(ss_ba, want_ss, 32) == 0;
+        check(ok, "1.5: RFC 7748 X25519 DH + low-order point rejection", hex);
+    }
+
+    /* 19. NLTP 1.5 Forward Secrecy: ephemeral private key wiped on handshake; compromised PSK cannot decrypt */
+    {
+        uint8_t zero32[32], pt_hello[128], pt_data[PMAX];
+        size_t pt_hlen = 0, pt_dlen = 0;
+        uint8_t t_out, f_out;
+        uint32_t c_out, ts_out;
+        int r, got_hello = 0, got_data = 0, psk_opened_data = 0;
+        memset(zero32, 0, sizeof(zero32));
+        rec_n = 0;
+        rec_on = 1;
+        ok = run_transfer(key, key, 0, 0, 0, 20000);
+        rec_on = 0;
+        for (r = 0; r < rec_n; ++r) {
+            uint8_t ptype = rec[r][2] & 0x0Fu;
+            if (!got_hello && ptype == NLTP_PT_HELLO) {
+                got_hello = nltp_unpack_encrypted_frame_v(rec[r], rec_len[r], key, NLTP_SESSION_VERSION, 0,
+                                                          &t_out, &f_out, &c_out, &ts_out, pt_hello, &pt_hlen) &&
+                            pt_hlen == NLTP_HELLO_PT_BYTES;
+            } else if (!got_data && ptype == NLTP_PT_DATA_SHARD) {
+                got_data = 1;
+                psk_opened_data = nltp_unpack_encrypted_frame_v(rec[r], rec_len[r], key, NLTP_SESSION_VERSION, 0,
+                                                                &t_out, &f_out, &c_out, &ts_out, pt_data, &pt_dlen);
+            }
+        }
+        ok = ok && got_hello && got_data && !psk_opened_data &&
+             memcmp(ep_a.pend_sk_i, zero32, 32) == 0;
+        snprintf(detail, sizeof(detail), "hello_pt=%uB sk_i_wiped=%d psk_open=%d",
+                 (unsigned)pt_hlen, memcmp(ep_a.pend_sk_i, zero32, 32) == 0, psk_opened_data);
+        check(ok, "1.5: PFS wipes ephemeral sk_i; compromised PSK fails on data", detail);
+    }
+
+    /* 20. NLTP 1.5 Reliable Reflex Lane + nltp_tx_idle: cold encrypted start under 20% loss + deduplication */
+    {
+        static const char *cmd1 = "ESTOP_STATION_01";
+        static const char *cmd2 = "CALIBRATE_ZERO_SPAN";
+        uint8_t out_buf[NLTP_REFLEX_MAX_LEN];
+        uint16_t out_len = 0;
+        uint32_t out_cid = 0, seq1, seq2, t;
+        int got_cnt = 0, idle_before, idle_during, idle_after;
+        memset(&q_ab, 0, sizeof(q_ab));
+        memset(&q_ba, 0, sizeof(q_ba));
+        memset(&link_a, 0, sizeof(link_a));
+        memset(&link_b, 0, sizeof(link_b));
+        link_a.q = &q_ab;
+        link_b.q = &q_ba;
+        link_a.drop_pct = 20;
+        link_b.drop_pct = 20;
+        nltp_init(&ep_a, 0x9001, 20000, send_cb, clock_cb, &link_a);
+        nltp_init(&ep_b, 0x9002, 20000, send_cb, clock_cb, &link_b);
+        nltp_set_key(&ep_a, key);
+        nltp_set_key(&ep_b, key);
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+
+        idle_before = nltp_tx_idle(&ep_a) && !nltp_tx_done(&ep_a);
+        seq1 = nltp_send_reflex(&ep_a, (const uint8_t *)cmd1, (uint16_t)strlen(cmd1));
+        seq2 = nltp_send_reflex(&ep_a, (const uint8_t *)cmd2, (uint16_t)strlen(cmd2));
+        nltp_send_buffer(&ep_a, file_tx, 4096u, "concurrent.bin");
+        idle_during = !nltp_tx_idle(&ep_a);
+
+        ok = 1;
+        for (t = 0; t < 15000; ++t) {
+            g_clock++;
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+            while (nltp_pop_reflex(&ep_b, out_buf, sizeof(out_buf), &out_len, &out_cid)) {
+                got_cnt++;
+                if (got_cnt == 1) ok = ok && out_len == strlen(cmd1) && memcmp(out_buf, cmd1, out_len) == 0;
+                if (got_cnt == 2) ok = ok && out_len == strlen(cmd2) && memcmp(out_buf, cmd2, out_len) == 0;
+            }
+            if (nltp_reflex_acked(&ep_a, seq1) && nltp_reflex_acked(&ep_a, seq2) &&
+                nltp_tx_done(&ep_a) && nltp_rx_done(&ep_b)) break;
+        }
+        idle_after = nltp_tx_idle(&ep_a) && nltp_tx_done(&ep_a);
+        ok = ok && got_cnt == 2 && nltp_reflex_acked(&ep_a, seq1) && nltp_reflex_acked(&ep_a, seq2) &&
+             nltp_reflex_pending(&ep_a) == 0u && idle_before && idle_during && idle_after;
+        snprintf(detail, sizeof(detail), "got=%d acks=%u idle=%d/%d/%d",
+                 got_cnt, (unsigned)ep_a.reflex_acks_rx, idle_before, !idle_during, idle_after);
+        check(ok, "1.5: reliable reflex under 20% loss + nltp_tx_idle states", detail);
+    }
+
+    /* 21. NLTP 1.6 Zero-Dependency LZ4 Block Codec: round-trip, zero-heap inplace, incompressible & fuzz bounds */
+    {
+        static uint8_t sensor_csv[32768], comp_buf[32768], dec_buf[33280];
+        uint32_t htab[1024];
+        size_t pos = 0, clen, incomp_len;
+        int row = 0, ok_dec, ok_inp, ok_bad1, ok_bad2;
+        while (pos + 128 < sizeof(sensor_csv)) {
+            int w = snprintf((char *)sensor_csv + pos, sizeof(sensor_csv) - pos,
+                             "2026-11-12T03:%02d:%02dZ,AQMS-ST01,PM25=%.1f,PM10=%.1f,NO2=%.2f,SO2=%.2f,CO=%.2f,STATUS=OK\n",
+                             (row / 60) % 60, row % 60, 24.3 + (row % 7) * 0.4, 51.2 + (row % 11) * 0.5,
+                             18.25, 6.10, 0.72);
+            if (w <= 0) break;
+            pos += (size_t)w;
+            row++;
+        }
+        clen = nltp_lz4_compress(sensor_csv, pos, comp_buf, sizeof(comp_buf), htab, 10u);
+        ok_dec = clen > 0u && clen < pos / 3u && nltp_lz4_decompress(comp_buf, clen, dec_buf, pos) &&
+                 memcmp(dec_buf, sensor_csv, pos) == 0;
+        memcpy(dec_buf, comp_buf, clen);
+        ok_inp = nltp_lz4_decompress_inplace(dec_buf, sizeof(dec_buf), clen, pos) &&
+                 memcmp(dec_buf, sensor_csv, pos) == 0;
+        /* Incompressible pseudo-random input (`file_tx`) must return 0 (auto-bypass) */
+        incomp_len = nltp_lz4_compress(file_tx, sizeof(file_tx), comp_buf, sizeof(comp_buf), htab, 10u);
+        /* Corrupted offset (0) and truncated length must fail safely */
+        comp_buf[clen / 2u] ^= 0xFFu;
+        ok_bad1 = !nltp_lz4_decompress(comp_buf, clen - 3u, dec_buf, pos);
+        dec_buf[0] = 0x1Fu; dec_buf[1] = 'A'; dec_buf[2] = 0u; dec_buf[3] = 0u; /* invalid zero offset */
+        ok_bad2 = !nltp_lz4_decompress(dec_buf, 4u, comp_buf, 20u);
+        ok = ok_dec && ok_inp && incomp_len == 0u && ok_bad1 && ok_bad2;
+        snprintf(detail, sizeof(detail), "csv=%uB->%uB (%.2fx) rand_bypass=%d fuzz_safe=%d",
+                 (unsigned)pos, (unsigned)clen, clen ? (double)pos / (double)clen : 0.0,
+                 incomp_len == 0u, ok_bad1 && ok_bad2);
+        check(ok, "1.6: LZ4 block compress/decompress, zero-heap inplace & fuzz guards", detail);
+    }
+
+    /* 22. NLTP 1.6 Encrypted X25519 + LZ4 E2E Transfer under 15% Loss (compressible + incompressible fallback) */
+    {
+        static uint8_t log_tx[28672], comp_scratch[28672];
+        size_t pos = 0;
+        int row = 0;
+        uint32_t t, wire_lz4, wire_raw;
+        while (pos + 96 < sizeof(log_tx)) {
+            int w = snprintf((char *)log_tx + pos, sizeof(log_tx) - pos,
+                             "{\"station\":\"RUT200-AQMS\",\"seq\":%d,\"pm25\":28.4,\"pm10\":61.0,\"o3\":31.2}\n", row++);
+            if (w <= 0) break;
+            pos += (size_t)w;
+        }
+        memset(&q_ab, 0, sizeof(q_ab));
+        memset(&q_ba, 0, sizeof(q_ba));
+        memset(&link_a, 0, sizeof(link_a));
+        memset(&link_b, 0, sizeof(link_b));
+        link_a.q = &q_ab; link_b.q = &q_ba;
+        link_a.drop_pct = 15; link_b.drop_pct = 15;
+        nltp_init(&ep_a, 0xA001, 20000, send_cb, clock_cb, &link_a);
+        nltp_init(&ep_b, 0xA002, 20000, send_cb, clock_cb, &link_b);
+        nltp_set_key(&ep_a, key);
+        nltp_set_key(&ep_b, key);
+        memset(file_rx, 0, sizeof(file_rx));
+        nltp_set_rx_buffer(&ep_b, file_rx, sizeof(file_rx));
+        nltp_send_buffer_lz4(&ep_a, log_tx, (uint32_t)pos, comp_scratch, sizeof(comp_scratch), "aqms.jsonl");
+        for (t = 0; t < 20000 && !(nltp_tx_done(&ep_a) && nltp_rx_done(&ep_b)); ++t) {
+            g_clock++;
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+        }
+        wire_lz4 = ep_a.bytes_tx;
+        ok = nltp_tx_verified(&ep_a) && nltp_rx_sha_ok(&ep_b) && nltp_rx_len(&ep_b) == (uint32_t)pos &&
+             memcmp(file_rx, log_tx, pos) == 0 && wire_lz4 < (uint32_t)(pos / 2u);
+
+        /* Also verify incompressible `file_tx` sent via `nltp_send_buffer_lz4` auto-bypasses cleanly */
+        nltp_send_buffer_lz4(&ep_a, file_tx, 8192u, comp_scratch, sizeof(comp_scratch), "rand.bin");
+        for (t = 0; t < 20000 && !(nltp_tx_done(&ep_a) && ep_b.rx.completed && ep_b.rx.stream_id == 2u); ++t) {
+            g_clock++;
+            deliver(&q_ab, &ep_b);
+            deliver(&q_ba, &ep_a);
+            nltp_poll(&ep_a);
+            nltp_poll(&ep_b);
+        }
+        wire_raw = ep_a.bytes_tx - wire_lz4;
+        ok = ok && nltp_tx_verified(&ep_a) && nltp_rx_sha_ok(&ep_b) && nltp_rx_len(&ep_b) == 8192u &&
+             memcmp(file_rx, file_tx, 8192u) == 0;
+        snprintf(detail, sizeof(detail), "jsonl=%uB->wire=%uB rand_wire=%uB sha_ok=1",
+                 (unsigned)pos, (unsigned)wire_lz4, (unsigned)wire_raw);
+        check(ok, "1.6: encrypted X25519 + LZ4 E2E under 15% loss + raw auto-bypass", detail);
     }
 
     printf("\n%s (%d failure%s)\n", failures ? "FAILED" : "ALL PASSED", failures, failures == 1 ? "" : "s");

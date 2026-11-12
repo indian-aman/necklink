@@ -507,6 +507,18 @@ static inline void nltp_espnow_node_set_v1_mode(nltp_espnow_node_t *node, int en
     nltp_set_shard_bytes(&node->ep, enable_v1 ? NLTP_ESPNOW_V1_SHARD_BYTES : (uint16_t)NLTP_SHARD_BYTES);
 }
 
+static inline uint32_t nltp_espnow_node_send_reflex(nltp_espnow_node_t *node, const uint8_t *msg, uint16_t len) {
+    return nltp_send_reflex(&node->ep, msg, len);
+}
+
+static inline int nltp_espnow_node_pop_reflex(nltp_espnow_node_t *node,
+                                              uint8_t *out_buf,
+                                              uint16_t cap,
+                                              uint16_t *out_len,
+                                              uint32_t *out_peer_cid) {
+    return nltp_pop_reflex(&node->ep, out_buf, cap, out_len, out_peer_cid);
+}
+
 static inline void nltp_espnow_node_poll(nltp_espnow_node_t *node) {
     nltp_espnow_rx_item_t item;
     while (g_nltp_espnow_bus.rx_q && xQueueReceive(g_nltp_espnow_bus.rx_q, &item, 0) == pdTRUE) {
@@ -587,17 +599,18 @@ typedef struct {
 } nltp_espnow_hub_t;
 
 /* Stateless check that `pkt` may open a slot for an unknown sender: with a key, only a session HELLO
- * (NLTP 1.4) with a valid ChaCha20-Poly1305 tag under the long-term key -- a new sender always starts with
+ * (NLTP 1.5) with a valid ChaCha20-Poly1305 tag under the long-term key -- a new sender always starts with
  * one, and no other frame can be authenticated before a session exists; without a key, a valid CRC32
  * (which only filters corruption -- plaintext hubs should also set an allow-list callback). */
 static inline int nltp_espnow_frame_ok(const uint8_t *pkt, size_t len, int encrypted, const uint8_t key32[32]) {
     if (encrypted) {
         uint8_t type, flags;
         uint32_t cid, ts;
-        size_t pt_len;
+        size_t pt_len = 0u;
         if (len < NLTP_ENC_HEADER_BYTES || pkt[2] != (uint8_t)((NLTP_SESSION_VERSION << 4) | NLTP_PT_HELLO)) return 0;
-        return nltp_unpack_encrypted_frame_v(pkt, len, key32, NLTP_SESSION_VERSION, NULL, &type, &flags, &cid, &ts,
-                                             NULL, &pt_len);
+        if (!nltp_unpack_encrypted_frame_v(pkt, len, key32, NLTP_SESSION_VERSION, NULL, &type, &flags, &cid, &ts,
+                                           NULL, &pt_len)) return 0;
+        return pt_len >= NLTP_HELLO_PT_BYTES;
     }
     if (len < NLTP_HEADER_BYTES || (pkt[3] & NLTP_FLAG_ENCRYPTED)) return 0;
     {
@@ -615,9 +628,11 @@ static inline int nltp_espnow_frame_ok(const uint8_t *pkt, size_t len, int encry
 #define NLTP_ESPNOW_SLOT_GRACE_MS 1000u  /* a slot with authenticated traffic this recently is not recycled */
 #endif
 
-/* A slot is busy while it is receiving or sending an unfinished transfer; busy slots are never evicted. */
+/* A slot is busy while it is receiving or sending an unfinished transfer or reflex; busy slots are never evicted. */
 static inline int nltp_espnow_slot_busy(const nltp_espnow_slot_t *slot) {
-    return (slot->ep.rx.active && !slot->ep.rx.completed) || (slot->ep.tx.active && !slot->ep.tx.completed);
+    return (slot->ep.rx.active && !slot->ep.rx.completed) ||
+           (slot->ep.tx.active && !slot->ep.tx.completed) ||
+           nltp_reflex_pending(&slot->ep) > 0u;
 }
 
 static inline void nltp_espnow_hub_release_slot(nltp_espnow_slot_t *slot) {

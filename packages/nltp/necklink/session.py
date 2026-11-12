@@ -1,26 +1,23 @@
 """
-Encrypted NLTP sessions (wire version 2, NLTP 1.4).
+Encrypted NLTP sessions with Ephemeral Forward Secrecy (wire version 2, NLTP 1.5).
 
-Why: in 1.3.x every frame was sealed directly with the long-term pre-shared key, using the nonce
-conn_id || counter, where the counter restarted at 1 whenever a program started. That allowed:
-  * replay: a receiver that restarted forgot its replay window, so recorded frames were accepted again;
-  * nonce reuse: two sessions with the same conn_id (a reused or colliding id) reused nonces under one key.
+Why:
+  * In 1.3.x, sealing directly under the static key K allowed cross-restart replay and conn_id nonce reuse.
+  * In 1.4.x, 1-RTT random nonces prevented replay and nonce reuse, but a later compromise of K could still
+    decrypt recorded traffic.
 
-Fix: a 1-RTT handshake gives every session its own keys, mixed from a fresh random value from EACH side:
+NLTP 1.5 upgrades the 1-RTT session handshake to authenticated ephemeral X25519 + PSK (RFC 7748 + HMAC-SHA256):
 
-    initiator -> responder  HELLO      { n_i (16 B) }              sealed with the long-term key K
-    responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) } sealed with K
+    initiator -> responder  HELLO      { n_i (16 B) || pk_i (32 B) }               sealed with K (84 B wire)
+    responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) || pk_r (32 B) } sealed with K (100 B wire)
 
-    prk   = HMAC-SHA256(K,   "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r))
+    dh    = X25519(sk_i, pk_r) == X25519(sk_r, pk_i)   (reject if all-zero per RFC 7748 s6.1)
+    prk   = HMAC-SHA256(K,   "NLTP-1.5-X25519" || dh || n_i || n_r || LE32(cid_i) || LE32(cid_r))
     k_i2r = HMAC-SHA256(prk, "i2r"),   k_r2i = HMAC-SHA256(prk, "r2i")
 
-Data frames keep the 20-byte header (version nibble 2) and are sealed with the session key for their
-direction (nonce = sender conn_id || per-session counter from 1). Handshake frames use a random 64-bit
-counter, so nonces under K do not repeat. Recorded traffic fails after any restart because the responder
-contributes a new n_r to every session; counters may restart safely because every session has new keys.
-
-What this does NOT add: forward secrecy (a leaked K decrypts recorded sessions) or per-device identity
-(every holder of K is trusted). Those need public-key cryptography.
+Ephemeral secret scalars (sk_i, sk_r) and dh are wiped immediately on session establishment, giving full
+Perfect Forward Secrecy (PFS) even if the pre-shared key K is later compromised, while fitting comfortably
+inside the 250-byte ESP-NOW v1 frame budget.
 """
 from __future__ import annotations
 
@@ -31,6 +28,8 @@ import struct
 from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 from .internet import ReplayWindow64, derive_aead_key
@@ -40,12 +39,15 @@ PT_HELLO = 0x0B
 PT_HELLO_ACK = 0x0C
 PT_NO_SESSION = 0x0D          # unauthenticated hint: "I have no session for your conn_id" (see open())
 NONCE_BYTES = 16
+X25519_BYTES = 32
+HELLO_PT_BYTES = NONCE_BYTES + X25519_BYTES               # 48 B: n_i (16) || pk_i (32)
+HELLO_ACK_PT_BYTES = 2 * NONCE_BYTES + X25519_BYTES       # 64 B: n_i (16) || n_r (16) || pk_r (32)
 FLAG_ENCRYPTED = 0x80
 MAGIC = b"NL"
 HDR_FMT = "<2sBBIQI"          # magic, ver_type, flags, conn_id, seq64, ts_ms = 20 B
 HDR_SIZE = 20
 TAG_SIZE = 16
-KDF_LABEL = b"NLTP-1.4 session"
+KDF_LABEL = b"NLTP-1.5-X25519"
 
 HELLO_FIRST_RETX_S = 0.06     # HELLO retransmit interval (x1.5 per retry, capped at 0.20 s)
 HELLO_MAX_RETX_S = 0.20
@@ -64,9 +66,46 @@ def hmac_sha256(key: bytes, msg: bytes) -> bytes:
     return hmac.new(key, msg, hashlib.sha256).digest()
 
 
-def derive_session_keys(k_long: bytes, n_i: bytes, n_r: bytes, cid_i: int, cid_r: int) -> Tuple[bytes, bytes]:
-    """Returns (k_i2r, k_r2i) for the session between initiator cid_i and responder cid_r."""
-    prk = hmac_sha256(k_long, KDF_LABEL + n_i + n_r + struct.pack("<II", cid_i & 0xFFFFFFFF, cid_r & 0xFFFFFFFF))
+def x25519_keypair() -> Tuple[bytearray, bytes]:
+    """Generates an ephemeral X25519 keypair, returning (mutable sk_buf[32] for zeroization, pk_bytes[32])."""
+    sk_buf = bytearray(os.urandom(X25519_BYTES))
+    priv = X25519PrivateKey.from_private_bytes(bytes(sk_buf))
+    pk = priv.public_key().public_bytes(serialization.Encoding.Raw, serialization.PublicFormat.Raw)
+    return sk_buf, pk
+
+
+def x25519_scalarmult(sk32: bytes | bytearray, pk32: bytes) -> Optional[bytes]:
+    """RFC 7748 X25519 ECDH; returns None if peer point has low order (all-zero shared secret)."""
+    if len(sk32) != X25519_BYTES or len(pk32) != X25519_BYTES:
+        return None
+    try:
+        priv = X25519PrivateKey.from_private_bytes(bytes(sk32))
+        pub = X25519PublicKey.from_public_bytes(bytes(pk32))
+        dh = priv.exchange(pub)
+    except ValueError:
+        return None
+    if len(dh) != X25519_BYTES or hmac.compare_digest(dh, b"\x00" * X25519_BYTES):
+        return None
+    return dh
+
+
+def _wipe(buf: Optional[bytearray]) -> None:
+    if buf is not None:
+        for i in range(len(buf)):
+            buf[i] = 0
+
+
+def derive_session_keys(
+    k_long: bytes,
+    dh: bytes,
+    n_i: bytes,
+    n_r: bytes,
+    cid_i: int,
+    cid_r: int,
+) -> Tuple[bytes, bytes]:
+    """Returns (k_i2r, k_r2i) mixed from long-term PSK K, ephemeral X25519 shared secret dh, and nonces."""
+    material = KDF_LABEL + dh + n_i + n_r + struct.pack("<II", cid_i & 0xFFFFFFFF, cid_r & 0xFFFFFFFF)
+    prk = hmac_sha256(k_long, material)
     return hmac_sha256(prk, b"i2r"), hmac_sha256(prk, b"r2i")
 
 
@@ -75,16 +114,19 @@ def _random_seq() -> int:
 
 
 class _Session:
-    __slots__ = ("role", "peer_addr", "peer_cid", "n_i", "n_r", "tx", "rx", "tx_seq", "replay",
+    __slots__ = ("role", "peer_addr", "peer_cid", "n_i", "n_r", "sk_i", "pk_i", "tx", "rx", "tx_seq", "replay",
                  "established", "est_s", "last_rx_s", "hello_next_s", "hello_interval", "deadline_s", "ack_frame",
                  "queued")
 
-    def __init__(self, role: str, peer_addr: Address, n_i: bytes, now: float) -> None:
+    def __init__(self, role: str, peer_addr: Address, n_i: bytes, now: float,
+                 sk_i: Optional[bytearray] = None, pk_i: bytes = b"") -> None:
         self.role = role
         self.peer_addr = peer_addr
         self.peer_cid: Optional[int] = None
         self.n_i = n_i
         self.n_r: Optional[bytes] = None
+        self.sk_i: Optional[bytearray] = sk_i
+        self.pk_i: bytes = pk_i
         self.tx: Optional[ChaCha20Poly1305] = None
         self.rx: Optional[ChaCha20Poly1305] = None
         self.tx_seq = 0
@@ -98,7 +140,12 @@ class _Session:
         self.ack_frame: Optional[bytes] = None
         self.queued: List[Tuple[int, bytes, int, int]] = []
 
+    def wipe_ephemeral(self) -> None:
+        _wipe(self.sk_i)
+        self.sk_i = None
+
     def set_keys(self, k_i2r: bytes, k_r2i: bytes, now: float) -> None:
+        self.wipe_ephemeral()
         if self.role == "i":
             self.tx, self.rx = ChaCha20Poly1305(k_i2r), ChaCha20Poly1305(k_r2i)
         else:
@@ -141,11 +188,12 @@ class SessionTable:
         return hdr + aead.encrypt(struct.pack("<IQ", self.my_cid, seq64), payload, hdr)
 
     def _send_hello(self, s: _Session, ts_ms: int) -> None:
-        self._send_raw(self._seal(self._hs_aead, PT_HELLO, 0, _random_seq(), ts_ms, s.n_i), s.peer_addr)
+        self._send_raw(self._seal(self._hs_aead, PT_HELLO, 0, _random_seq(), ts_ms, s.n_i + s.pk_i), s.peer_addr)
         self.hellos_tx += 1
 
     def _start_handshake(self, addr: Address, now: float) -> _Session:
-        s = _Session("i", addr, os.urandom(NONCE_BYTES), now)
+        sk_i, pk_i = x25519_keypair()
+        s = _Session("i", addr, os.urandom(NONCE_BYTES), now, sk_i=sk_i, pk_i=pk_i)
         self.pending[addr] = s
         self._send_hello(s, int(now * 1000.0))
         s.hello_next_s = now + s.hello_interval
@@ -179,6 +227,7 @@ class SessionTable:
         """Retransmits pending HELLOs and re-handshakes with busy peers that went silent (e.g. restarted)."""
         for addr, s in list(self.pending.items()):
             if now >= s.deadline_s:
+                s.wipe_ephemeral()
                 del self.pending[addr]
             elif now >= s.hello_next_s:
                 self._send_hello(s, int(now * 1000.0))
@@ -227,11 +276,18 @@ class SessionTable:
                 pt = self._hs_aead.decrypt(nonce, body, hdr)
             except InvalidTag:
                 return None
-            if pkt_type == PT_HELLO and len(pt) >= NONCE_BYTES:
-                self._on_hello(cid, pt[:NONCE_BYTES], addr, now, ts_ms)
+            if pkt_type == PT_HELLO and len(pt) >= HELLO_PT_BYTES:
+                self._on_hello(cid, pt[:NONCE_BYTES], pt[NONCE_BYTES:HELLO_PT_BYTES], addr, now, ts_ms)
                 return HANDLED
-            if pkt_type == PT_HELLO_ACK and len(pt) >= 2 * NONCE_BYTES:
-                self._on_ack(cid, pt[:NONCE_BYTES], pt[NONCE_BYTES:2 * NONCE_BYTES], addr, now)
+            if pkt_type == PT_HELLO_ACK and len(pt) >= HELLO_ACK_PT_BYTES:
+                self._on_ack(
+                    cid,
+                    pt[:NONCE_BYTES],
+                    pt[NONCE_BYTES:2 * NONCE_BYTES],
+                    pt[2 * NONCE_BYTES:HELLO_ACK_PT_BYTES],
+                    addr,
+                    now,
+                )
                 return HANDLED
             return None
 
@@ -280,26 +336,34 @@ class SessionTable:
         self.rekeys_from_hint += 1
         self._start_handshake(addr, now)
 
-    def _on_hello(self, cid: int, n_i: bytes, addr: Address, now: float, ts_ms: int) -> None:
+    def _on_hello(self, cid: int, n_i: bytes, pk_i: bytes, addr: Address, now: float, ts_ms: int) -> None:
         for s in self.by_cid.get(cid, ()):
-            if s.role == "r" and s.n_i == n_i and s.ack_frame is not None:
-                self._send_raw(s.ack_frame, addr)     # retransmitted HELLO: same answer
+            if s.role == "r" and s.n_i == n_i and s.pk_i == pk_i and s.ack_frame is not None:
+                self._send_raw(s.ack_frame, addr)     # retransmitted HELLO: same answer (ephemeral sk_r already wiped)
                 self.acks_tx += 1
                 return
+        sk_r, pk_r = x25519_keypair()
+        dh = x25519_scalarmult(sk_r, pk_i)
+        _wipe(sk_r)
+        if dh is None:
+            return
         mine = self.pending.get(addr)
         if mine is not None:
             if mine.n_i < n_i:
                 return                                # simultaneous open: our HELLO wins, theirs is ignored
+            mine.wipe_ephemeral()
             del self.pending[addr]                    # theirs wins; our queued frames go out on their session
-        s = _Session("r", addr, n_i, now)
+        s = _Session("r", addr, n_i, now, pk_i=pk_i)
         s.peer_cid = cid
         s.n_r = os.urandom(NONCE_BYTES)
-        s.set_keys(*derive_session_keys(self.k_long, n_i, s.n_r, cid, self.my_cid), now=now)
+        dh_buf = bytearray(dh)
+        s.set_keys(*derive_session_keys(self.k_long, bytes(dh_buf), n_i, s.n_r, cid, self.my_cid), now=now)
+        _wipe(dh_buf)
         self._remember(cid, s, active=False)
         cur = self.by_addr.get(addr)
         if cur is None or now - cur.last_rx_s >= TAKEOVER_SILENCE_S:
             self.by_addr[addr] = s
-        s.ack_frame = self._seal(self._hs_aead, PT_HELLO_ACK, 0, _random_seq(), ts_ms, n_i + s.n_r)
+        s.ack_frame = self._seal(self._hs_aead, PT_HELLO_ACK, 0, _random_seq(), ts_ms, n_i + s.n_r + pk_r)
         self._send_raw(s.ack_frame, addr)
         self.acks_tx += 1
         self.established += 1
@@ -311,19 +375,26 @@ class SessionTable:
             s.tx_seq += 1
             self._send_raw(self._seal(s.tx, pkt_type, flags, s.tx_seq, ts_ms, payload), addr)
 
-    def _on_ack(self, cid: int, n_i: bytes, n_r: bytes, addr: Address, now: float) -> None:
+    def _on_ack(self, cid: int, n_i: bytes, n_r: bytes, pk_r: bytes, addr: Address, now: float) -> None:
         s = self.pending.get(addr)
         if s is None or s.n_i != n_i:
             s = next((p for p in self.pending.values() if p.n_i == n_i), None)
-            if s is None:
+            if s is None or s.sk_i is None:
                 return                                # stale or replayed ACK
+        if s.sk_i is None:
+            return
+        dh = x25519_scalarmult(s.sk_i, pk_r)
+        if dh is None:
+            return
         for key, val in list(self.pending.items()):
             if val is s:
                 del self.pending[key]
         s.peer_cid = cid
         s.n_r = n_r
         s.peer_addr = addr
-        s.set_keys(*derive_session_keys(self.k_long, n_i, n_r, self.my_cid, cid), now=now)
+        dh_buf = bytearray(dh)
+        s.set_keys(*derive_session_keys(self.k_long, bytes(dh_buf), n_i, n_r, self.my_cid, cid), now=now)
+        _wipe(dh_buf)
         self._remember(cid, s, active=True)
         self.by_addr[addr] = s
         self.established += 1

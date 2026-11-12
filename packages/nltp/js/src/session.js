@@ -1,14 +1,12 @@
 /**
- * Encrypted NLTP sessions (wire version 2, NLTP 1.4). Same protocol as necklink/session.py:
+ * Encrypted NLTP sessions with Ephemeral Forward Secrecy (wire version 2, NLTP 1.5).
+ * Same protocol as necklink/session.py:
  *
- *   initiator -> responder  HELLO      { n_i (16 B) }              sealed with the long-term key K
- *   responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) } sealed with K
- *   prk   = HMAC-SHA256(K,   "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r))
+ *   initiator -> responder  HELLO      { n_i (16 B) || pk_i (32 B) }               sealed with K
+ *   responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) || pk_r (32 B) } sealed with K
+ *   dh    = X25519(sk_i, pk_r) == X25519(sk_r, pk_i)   (reject all-zero)
+ *   prk   = HMAC-SHA256(K,   "NLTP-1.5-X25519" || dh || n_i || n_r || LE32(cid_i) || LE32(cid_r))
  *   k_i2r = HMAC-SHA256(prk, "i2r"),   k_r2i = HMAC-SHA256(prk, "r2i")
- *
- * Data frames keep the 20-byte header (version nibble 2) and are sealed with the session key for their
- * direction. Recorded traffic fails after any restart (the responder adds a fresh n_r to every session),
- * and per-session keys make counter restarts and conn_id collisions harmless.
  */
 import {
   AEAD_TAG_SIZE,
@@ -27,6 +25,8 @@ import {
   utf8Encode,
   writeU32LE,
   writeU64LE,
+  x25519PublicFromPrivate,
+  x25519ScalarMult,
 } from './wire.js';
 
 export const SESSION_VERSION = 2;
@@ -34,6 +34,9 @@ export const PT_HELLO = 0x0b;
 export const PT_HELLO_ACK = 0x0c;
 export const PT_NO_SESSION = 0x0d;
 export const NONCE_BYTES = 16;
+export const X25519_BYTES = 32;
+export const HELLO_PT_BYTES = NONCE_BYTES + X25519_BYTES;
+export const HELLO_ACK_PT_BYTES = 2 * NONCE_BYTES + X25519_BYTES;
 
 const HELLO_FIRST_RETX_S = 0.06;
 const HELLO_MAX_RETX_S = 0.20;
@@ -44,7 +47,7 @@ const HINT_INTERVAL_S = 0.25;
 const MAX_SESSIONS_PER_CID = 2;
 const MAX_CIDS = 4096;
 const MAX_QUEUED = 64;
-const KDF_LABEL = utf8Encode('NLTP-1.4 session');
+const KDF_LABEL = utf8Encode('NLTP-1.5-X25519');
 const LABEL_I2R = utf8Encode('i2r');
 const LABEL_R2I = utf8Encode('r2i');
 
@@ -75,11 +78,11 @@ export function hmacSha256(key, msg) {
   return sha256Bytes(concat(opad, sha256Bytes(concat(ipad, msg))));
 }
 
-export function deriveSessionKeys(kLong, nI, nR, cidI, cidR) {
+export function deriveSessionKeys(kLong, dh, nI, nR, cidI, cidR) {
   const cids = new Uint8Array(8);
   writeU32LE(cids, 0, cidI >>> 0);
   writeU32LE(cids, 4, cidR >>> 0);
-  const prk = hmacSha256(kLong, concat(KDF_LABEL, nI, nR, cids));
+  const prk = hmacSha256(kLong, concat(KDF_LABEL, dh, nI, nR, cids));
   return [hmacSha256(prk, LABEL_I2R), hmacSha256(prk, LABEL_R2I)];
 }
 
@@ -127,13 +130,15 @@ function aeadOpen(key, nonce, aad, body) {
 }
 
 class Session {
-  constructor(role, peer, peerKey, nI, now) {
+  constructor(role, peer, peerKey, nI, now, skI = null, pkI = null) {
     this.role = role;
     this.peer = peer;
     this.peerKey = peerKey;
     this.peerCid = null;
     this.nI = nI;
     this.nR = null;
+    this.skI = skI;
+    this.pkI = pkI;
     this.kTx = null;
     this.kRx = null;
     this.txSeq = 0n;
@@ -148,7 +153,15 @@ class Session {
     this.queued = [];
   }
 
+  wipeEphemeral() {
+    if (this.skI !== null) {
+      this.skI.fill(0);
+      this.skI = null;
+    }
+  }
+
   setKeys([kI2R, kR2I], now) {
+    this.wipeEphemeral();
     if (this.role === 'i') {
       this.kTx = kI2R;
       this.kRx = kR2I;
@@ -200,12 +213,14 @@ export class SessionTable {
   }
 
   _sendHello(s, tsMs) {
-    this._sendRaw(this._seal(this.kLong, PT_HELLO, 0, randomSeq(), tsMs, s.nI), s.peer);
+    this._sendRaw(this._seal(this.kLong, PT_HELLO, 0, randomSeq(), tsMs, concat(s.nI, s.pkI)), s.peer);
     this.hellosTx += 1;
   }
 
   _startHandshake(peer, key, now) {
-    const s = new Session('i', peer, key, randomBytes(NONCE_BYTES), now);
+    const skI = randomBytes(X25519_BYTES);
+    const pkI = x25519PublicFromPrivate(skI);
+    const s = new Session('i', peer, key, randomBytes(NONCE_BYTES), now, skI, pkI);
     this.pending.set(key, s);
     this._sendHello(s, Math.floor(now * 1000));
     s.helloNextS = now + s.helloInterval;
@@ -242,6 +257,7 @@ export class SessionTable {
   service(now, busyPeers) {
     for (const [key, s] of this.pending) {
       if (now >= s.deadlineS) {
+        s.wipeEphemeral();
         this.pending.delete(key);
       } else if (now >= s.helloNextS) {
         this._sendHello(s, Math.floor(now * 1000));
@@ -297,12 +313,20 @@ export class SessionTable {
     if (pktType === PT_HELLO || pktType === PT_HELLO_ACK) {
       const pt = aeadOpen(this.kLong, nonce, hdr, body);
       if (pt === null) return null;
-      if (pktType === PT_HELLO && pt.length >= NONCE_BYTES) {
-        this._onHello(cid, pt.slice(0, NONCE_BYTES), peer, key, now, tsMs);
+      if (pktType === PT_HELLO && pt.length >= HELLO_PT_BYTES) {
+        this._onHello(cid, pt.slice(0, NONCE_BYTES), pt.slice(NONCE_BYTES, HELLO_PT_BYTES), peer, key, now, tsMs);
         return HANDLED;
       }
-      if (pktType === PT_HELLO_ACK && pt.length >= 2 * NONCE_BYTES) {
-        this._onAck(cid, pt.slice(0, NONCE_BYTES), pt.slice(NONCE_BYTES, 2 * NONCE_BYTES), peer, key, now);
+      if (pktType === PT_HELLO_ACK && pt.length >= HELLO_ACK_PT_BYTES) {
+        this._onAck(
+          cid,
+          pt.slice(0, NONCE_BYTES),
+          pt.slice(NONCE_BYTES, 2 * NONCE_BYTES),
+          pt.slice(2 * NONCE_BYTES, HELLO_ACK_PT_BYTES),
+          peer,
+          key,
+          now
+        );
         return HANDLED;
       }
       return null;
@@ -335,42 +359,56 @@ export class SessionTable {
     }
   }
 
-  _onHello(cid, nI, peer, key, now, tsMs) {
+  _onHello(cid, nI, pkI, peer, key, now, tsMs) {
     for (const s of this.byCid.get(cid) || []) {
-      if (s.role === 'r' && bytesEq(s.nI, nI) && s.ackFrame !== null) {
+      if (s.role === 'r' && bytesEq(s.nI, nI) && s.pkI !== null && bytesEq(s.pkI, pkI) && s.ackFrame !== null) {
         this._sendRaw(s.ackFrame, peer);
         this.acksTx += 1;
         return;
       }
     }
+    const skR = randomBytes(X25519_BYTES);
+    const pkR = x25519PublicFromPrivate(skR);
+    const dh = x25519ScalarMult(skR, pkI);
+    skR.fill(0);
+    if (dh === null) return;
+
     const mine = this.pending.get(key);
     if (mine !== undefined) {
-      if (bytesLess(mine.nI, nI)) return; // simultaneous open: our HELLO wins
+      if (bytesLess(mine.nI, nI)) {
+        dh.fill(0);
+        return; // simultaneous open: our HELLO wins
+      }
+      mine.wipeEphemeral();
       this.pending.delete(key);
     }
-    const s = new Session('r', peer, key, nI, now);
+    const s = new Session('r', peer, key, nI, now, null, pkI);
     s.peerCid = cid;
     s.nR = randomBytes(NONCE_BYTES);
-    s.setKeys(deriveSessionKeys(this.kLong, nI, s.nR, cid, this.myCid), now);
+    s.setKeys(deriveSessionKeys(this.kLong, dh, nI, s.nR, cid, this.myCid), now);
+    dh.fill(0);
     this._remember(cid, s, false);
     const cur = this.byAddr.get(key);
     if (cur === undefined || now - cur.lastRxS >= TAKEOVER_SILENCE_S) this.byAddr.set(key, s);
-    s.ackFrame = this._seal(this.kLong, PT_HELLO_ACK, 0, randomSeq(), tsMs, concat(nI, s.nR));
+    s.ackFrame = this._seal(this.kLong, PT_HELLO_ACK, 0, randomSeq(), tsMs, concat(nI, s.nR, pkR));
     this._sendRaw(s.ackFrame, peer);
     this.acksTx += 1;
     this.established += 1;
     if (mine !== undefined && mine.queued.length && this.byAddr.get(key) === s) this._flush(s, mine.queued, peer);
   }
 
-  _onAck(cid, nI, nR, peer, key, now) {
+  _onAck(cid, nI, nR, pkR, peer, key, now) {
     let s = this.pending.get(key);
     if (s === undefined || !bytesEq(s.nI, nI)) {
       s = undefined;
       for (const p of this.pending.values()) {
         if (bytesEq(p.nI, nI)) s = p;
       }
-      if (s === undefined) return;
+      if (s === undefined || s.skI === null) return;
     }
+    if (s.skI === null) return;
+    const dh = x25519ScalarMult(s.skI, pkR);
+    if (dh === null) return;
     for (const [k, v] of this.pending) {
       if (v === s) this.pending.delete(k);
     }
@@ -378,7 +416,8 @@ export class SessionTable {
     s.nR = nR;
     s.peer = peer;
     s.peerKey = key;
-    s.setKeys(deriveSessionKeys(this.kLong, nI, nR, this.myCid, cid), now);
+    s.setKeys(deriveSessionKeys(this.kLong, dh, nI, nR, this.myCid, cid), now);
+    dh.fill(0);
     this._remember(cid, s, true);
     this.byAddr.set(key, s);
     this.established += 1;

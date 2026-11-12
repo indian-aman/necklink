@@ -14,10 +14,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=555.7",
-  "elapsed_s": 1.282558,
+  "punch": "PUNCH ok ms=555.2",
+  "elapsed_s": 1.648139,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.283"
+   "SENT 1 ok=1 elapsed=1.648"
   ]
  },
  {
@@ -28,10 +28,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=606.4",
-  "elapsed_s": 1.497669,
+  "punch": "PUNCH ok ms=555.5",
+  "elapsed_s": 1.921123,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.498"
+   "SENT 1 ok=1 elapsed=1.921"
   ]
  },
  {
@@ -40,10 +40,10 @@
   "passed": true,
   "ok": true,
   "path": "direct",
-  "sender_wan": "198.51.100.2:33550",
+  "sender_wan": "198.51.100.2:52369",
   "receiver_wan": "192.0.2.2:7000",
   "punch": "PUNCH ok",
-  "elapsed_s": 1.6094578039999874,
+  "elapsed_s": 1.4798326999999745,
   "sent": []
  },
  {
@@ -54,10 +54,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=607.0",
-  "elapsed_s": 1.754594,
+  "punch": "PUNCH ok ms=664.6",
+  "elapsed_s": 1.373532,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.755"
+   "SENT 1 ok=1 elapsed=1.374"
   ]
  },
  {
@@ -68,10 +68,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=553.5",
-  "elapsed_s": 1.499036,
+  "punch": "PUNCH ok ms=555.3",
+  "elapsed_s": 1.914383,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.499"
+   "SENT 1 ok=1 elapsed=1.914"
   ]
  },
  {
@@ -80,10 +80,10 @@
   "passed": true,
   "ok": true,
   "path": "direct",
-  "sender_wan": "198.51.100.2:57027",
+  "sender_wan": "198.51.100.2:42636",
   "receiver_wan": "192.0.2.2:7000",
   "punch": "PUNCH ok",
-  "elapsed_s": 1.5683828719999724,
+  "elapsed_s": 1.6597501789999853,
   "sent": []
  },
  {
@@ -94,10 +94,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=552.4",
-  "elapsed_s": 1.631297,
+  "punch": "PUNCH ok ms=554.6",
+  "elapsed_s": 1.236233,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.631"
+   "SENT 1 ok=1 elapsed=1.236"
   ]
  },
  {
@@ -108,10 +108,10 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=554.9",
-  "elapsed_s": 1.5492,
+  "punch": "PUNCH ok ms=554.6",
+  "elapsed_s": 1.85326,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.549"
+   "SENT 1 ok=1 elapsed=1.853"
   ]
  },
  {
@@ -120,10 +120,10 @@
   "passed": true,
   "ok": true,
   "path": "direct",
-  "sender_wan": "198.51.100.2:47977",
+  "sender_wan": "198.51.100.2:49478",
   "receiver_wan": "192.0.2.2:7000",
   "punch": "PUNCH ok",
-  "elapsed_s": 1.54247978799998,
+  "elapsed_s": 1.3318207989999848,
   "sent": []
  },
  {
@@ -131,21 +131,21 @@
   "expected_ok": true,
   "passed": true,
   "ok": true,
-  "elapsed_s": 2.063392
+  "elapsed_s": 1.499702
  },
  {
   "test": "relay, Python -> C, encrypted",
   "expected_ok": true,
   "passed": true,
   "ok": true,
-  "elapsed_s": 1.5130288339999538
+  "elapsed_s": 1.4333437380000191
  },
  {
   "test": "relay, C -> C",
   "expected_ok": true,
   "passed": true,
   "ok": true,
-  "elapsed_s": 1.702563
+  "elapsed_s": 1.757114
  },
  {
   "test": "symmetric NAT: hole punch C -> C must fail",
@@ -153,19 +153,19 @@
   "passed": true,
   "ok": false,
   "path": "direct",
-  "sender_wan": "198.51.100.2:5787",
-  "receiver_wan": "192.0.2.2:39054",
-  "punch": "PUNCH failed ms=3004.7",
+  "sender_wan": "198.51.100.2:18654",
+  "receiver_wan": "192.0.2.2:59898",
+  "punch": "PUNCH failed ms=3001.6",
   "elapsed_s": null,
   "sent": [],
   "rx_tail": [
-   "WAN 192.0.2.2:39054",
-   "PUNCH failed ms=3000.2",
+   "WAN 192.0.2.2:59898",
+   "PUNCH failed ms=3001.6",
    "RESULT {\"ok\": false, \"error\": \"punch\"}"
   ],
   "tx_tail": [
-   "WAN 198.51.100.2:5787",
-   "PUNCH failed ms=3004.7",
+   "WAN 198.51.100.2:18654",
+   "PUNCH failed ms=3001.6",
    "RESULT {\"ok\": false, \"error\": \"punch\"}"
   ]
  },
@@ -175,12 +175,12 @@
   "passed": true,
   "ok": true,
   "path": "relay (fallback)",
-  "sender_wan": "198.51.100.2:5787",
-  "receiver_wan": "192.0.2.2:39054",
-  "punch": "PUNCH failed ms=3001.6",
-  "elapsed_s": 2.624704,
+  "sender_wan": "198.51.100.2:18654",
+  "receiver_wan": "192.0.2.2:59898",
+  "punch": "PUNCH failed ms=3004.7",
+  "elapsed_s": 1.999247,
   "sent": [
-   "SENT 1 ok=1 elapsed=2.625"
+   "SENT 1 ok=1 elapsed=1.999"
   ]
  },
  {
@@ -188,7 +188,7 @@
   "expected_ok": true,
   "passed": true,
   "ok": true,
-  "elapsed_s": 1.826014
+  "elapsed_s": 1.938639
  },
  {
   "test": "NAT forgets after 4 s; 2nd send after 8 s idle, no keepalive",
@@ -198,23 +198,23 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=555.9",
-  "elapsed_s": 60.000023,
+  "punch": "PUNCH ok ms=554.2",
+  "elapsed_s": 60.00017,
   "sent": [
-   "SENT 1 ok=1 elapsed=1.854",
+   "SENT 1 ok=1 elapsed=1.941",
    "SENT 2 ok=0 elapsed=60.000"
   ],
   "rx_tail": [
    "WAN 192.0.2.2:7000",
-   "PUNCH ok ms=555.9",
+   "PUNCH ok ms=554.2",
    "RECEIVED 1 ok=1 bytes=1048576"
   ],
   "tx_tail": [
    "WAN 198.51.100.2:7001",
-   "PUNCH ok ms=555.9",
-   "SENT 1 ok=1 elapsed=1.854",
+   "PUNCH ok ms=554.2",
+   "SENT 1 ok=1 elapsed=1.941",
    "SENT 2 ok=0 elapsed=60.000",
-   "RESULT {\"ok\": false, \"elapsed_s\": 60.000023, \"pkts_tx\": 8525, \"punch_ms\": 555.9}"
+   "RESULT {\"ok\": false, \"elapsed_s\": 60.000170, \"pkts_tx\": 8426, \"punch_ms\": 554.2}"
   ]
  },
  {
@@ -225,11 +225,11 @@
   "path": "direct",
   "sender_wan": "198.51.100.2:7001",
   "receiver_wan": "192.0.2.2:7000",
-  "punch": "PUNCH ok ms=604.3",
-  "elapsed_s": 1.470378,
+  "punch": "PUNCH ok ms=553.2",
+  "elapsed_s": 1.75321,
   "sent": [
-   "SENT 1 ok=1 elapsed=2.084",
-   "SENT 2 ok=1 elapsed=1.470"
+   "SENT 1 ok=1 elapsed=1.401",
+   "SENT 2 ok=1 elapsed=1.753"
   ]
  }
 ]

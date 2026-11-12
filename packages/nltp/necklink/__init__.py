@@ -41,7 +41,16 @@ from .internet import (
     discover_wan_endpoint,
     generate_nltp_key,
 )
-from .nltp import NLTPClient, NLTPEndpoint, NLTPServer, ReceivedItem, pack_nltp_frame, unpack_nltp_frame
+from .nltp import (
+    NLTPClient,
+    NLTPEndpoint,
+    NLTPServer,
+    ReceivedItem,
+    lz4_compress,
+    lz4_decompress,
+    pack_nltp_frame,
+    unpack_nltp_frame,
+)
 from .socket_api import AsyncNeckSocket, NeckSocket, NeckUDPServer
 from .suite import (
     NECKLINK_SUITE_CATALOG,
@@ -65,7 +74,7 @@ except ImportError:  # Optional dependency (`pip install aioquic`)
     connect_necklink_quic = None  # type: ignore[assignment]
     generate_ephemeral_quic_cert = None  # type: ignore[assignment]
 
-__version__ = "1.4.0"
+__version__ = "1.6.0"
 
 
 def __getattr__(name: str):
@@ -99,6 +108,8 @@ __all__ = [
     "NLTPClient",
     "NLTPEndpoint",
     "ReceivedItem",
+    "lz4_compress",
+    "lz4_decompress",
     "pack_nltp_frame",
     "unpack_nltp_frame",
     "AEADCipherContext",

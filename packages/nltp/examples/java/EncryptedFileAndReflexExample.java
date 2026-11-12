@@ -18,8 +18,8 @@ import java.util.concurrent.CompletableFuture;
  * Encrypted File Transfer + Out-of-Line Reflex + Zero-Knowledge CGNAT Relay under 10% Loss.
  *
  * Build & Run:
- *   javac -cp java/target/nltp-1.4.0.jar examples/java/EncryptedFileAndReflexExample.java
- *   java -cp "java/target/nltp-1.4.0.jar;examples/java" EncryptedFileAndReflexExample
+ *   javac -cp java/target/nltp-1.5.0.jar examples/java/EncryptedFileAndReflexExample.java
+ *   java -cp "java/target/nltp-1.5.0.jar;examples/java" EncryptedFileAndReflexExample
  */
 public final class EncryptedFileAndReflexExample {
     public static void main(String[] args) throws Exception {

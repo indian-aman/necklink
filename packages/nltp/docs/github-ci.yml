@@ -15,9 +15,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Build zero-heap ANSI C99 core & run 9/9 security self-tests
+      - name: Build zero-heap ANSI C99 core & run 22/22 self-tests + 4.76 KB NLTP_TX_ONLY profile
         run: |
-          make -C csrc clean all test
+          make -C csrc clean all test espnow-sim
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5
@@ -35,13 +35,13 @@ jobs:
           distribution: "temurin"
           java-version: "21"
 
-      - name: Build zero-dep Java SDK (--release 11) & run 7/7 Java self-tests
+      - name: Build zero-dep Java SDK (--release 11) & run 8/8 Java self-tests
         run: |
           mkdir -p java/target/classes java/target/test-classes
           javac --release 11 -Xlint:all -Werror -d java/target/classes java/src/main/java/io/necklink/nltp/*.java
-          jar --create --file java/target/nltp-1.4.0.jar --main-class io.necklink.nltp.NLTPCli -C java/target/classes .
-          javac --release 11 -Xlint:all -Werror -cp java/target/nltp-1.4.0.jar -d java/target/test-classes java/src/test/java/io/necklink/nltp/*.java
-          java -cp "java/target/nltp-1.4.0.jar:java/target/test-classes" io.necklink.nltp.NLTPSelfTest
+          jar --create --file java/target/nltp-1.6.0.jar --main-class io.necklink.nltp.NLTPCli -C java/target/classes .
+          javac --release 11 -Xlint:all -Werror -cp java/target/nltp-1.6.0.jar -d java/target/test-classes java/src/test/java/io/necklink/nltp/*.java
+          java -cp "java/target/nltp-1.6.0.jar:java/target/test-classes" io.necklink.nltp.NLTPSelfTest
 
       - name: Run JavaScript / TypeScript SDK test suite
         run: |
@@ -56,7 +56,7 @@ jobs:
         run: |
           pytest tests -v
 
-      - name: Run 210-pair 4-language (Python <-> C99 <-> JS <-> Java) wire & encryption interop suite
+      - name: Run 248-case 4-language (Python <-> C99 <-> JS <-> Java) wire, X25519 PFS & LZ4 interop suite
         if: matrix.python-version == '3.12'
         run: |
           python scripts/multilang_interop_test.py

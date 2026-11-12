@@ -7,7 +7,7 @@ NET_SRCS  := nltp_net.c
 
 .PHONY: all test clean espnow-sim sketch-runner
 
-all: $(BUILD)/nltp_selftest $(BUILD)/nltp_cli
+all: $(BUILD)/nltp_selftest $(BUILD)/nltp_txonly_selftest $(BUILD)/nltp_cli
 
 $(BUILD):
 	mkdir -p $(BUILD)
@@ -15,11 +15,15 @@ $(BUILD):
 $(BUILD)/nltp_selftest: tools/nltp_selftest.c $(CORE_SRCS) nltp_core.h nltp_sha256.h nltp_wire.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ tools/nltp_selftest.c $(CORE_SRCS)
 
+$(BUILD)/nltp_txonly_selftest: tools/nltp_txonly_selftest.c $(CORE_SRCS) nltp_core.h nltp_sha256.h nltp_wire.h | $(BUILD)
+	$(CC) $(CFLAGS) -DNLTP_TX_ONLY=1 -o $@ tools/nltp_txonly_selftest.c $(CORE_SRCS)
+
 $(BUILD)/nltp_cli: tools/nltp_cli.c $(CORE_SRCS) $(NET_SRCS) nltp_core.h nltp_net.h nltp_sha256.h nltp_wire.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ tools/nltp_cli.c $(CORE_SRCS) $(NET_SRCS)
 
-test: $(BUILD)/nltp_selftest
+test: $(BUILD)/nltp_selftest $(BUILD)/nltp_txonly_selftest
 	./$(BUILD)/nltp_selftest
+	./$(BUILD)/nltp_txonly_selftest
 
 # Host simulation of the ESP-NOW transport (nltp_espnow.h) on a fake radio; no ESP32 needed.
 SIMDIR   := tools/espnow_sim

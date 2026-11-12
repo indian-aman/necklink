@@ -51,6 +51,9 @@ export interface TransferReceipt {
   stream_id: number;
   filename: string;
   bytes: number;
+  wirePayloadBytes: number;
+  wire_payload_bytes: number;
+  compressed: boolean;
   sha256: string;
   verifiedSha256: boolean;
   verified_sha256: boolean;
@@ -63,6 +66,10 @@ export interface TransferReceipt {
   encrypted: boolean;
 }
 
+export const MAX_LZ4_RAW_BYTES: number;
+export function lz4Compress(src: string | Uint8Array | ArrayBuffer, hashLog?: number): Uint8Array | null;
+export function lz4Decompress(src: string | Uint8Array | ArrayBuffer, expectedRawLen: number): Uint8Array | null;
+
 export function generateNltpKey(): string;
 export function deriveAeadKey(psk: string | Uint8Array | ArrayBuffer): Uint8Array;
 export function sha256Bytes(data: string | Uint8Array | ArrayBuffer): Uint8Array;
@@ -72,6 +79,8 @@ export function gf256Mul(a: number, b: number): number;
 export function gf256Inv(a: number): number;
 export function cauchyRow(parityOffset: number, kShards: number): Uint8Array;
 export function makeRoomTag(roomName: string): Uint8Array;
+export function x25519ScalarMult(scalar32: Uint8Array | ArrayBuffer, u32: Uint8Array | ArrayBuffer): Uint8Array | null;
+export function x25519PublicFromPrivate(scalar32: Uint8Array | ArrayBuffer): Uint8Array | null;
 
 export class ReplayWindow64 {
   highestSeq: bigint;
@@ -134,7 +143,7 @@ export class NLTPEndpoint {
     adaptiveRate?: boolean;
     initialBurstBytes?: number | null;
   });
-  startTransfer(peer: PeerAddress | [string, number] | string, data: Uint8Array | string, opts?: { kind?: string; filename?: string; nowS?: number | null }): any;
+  startTransfer(peer: PeerAddress | [string, number] | string, data: Uint8Array | string, opts?: { kind?: string; filename?: string; compress?: boolean; nowS?: number | null }): any;
   sendReflex(peer: PeerAddress | [string, number] | string, msg: Uint8Array | string, opts?: { crypticTwin?: boolean; nowS?: number | null }): number;
   /** True once the receiver acknowledged reflex `seq` (peers older than v1.3.2 never acknowledge). */
   reflexAcked(seq: number): boolean;
@@ -172,8 +181,8 @@ export class NLTPServer {
   ready(): Promise<void>;
   address(): PeerAddress;
   recv(timeoutMs?: number): Promise<ReceivedItem | null>;
-  sendBytes(clientAddr: PeerAddress | [string, number], data: Uint8Array | string, opts?: { filename?: string; timeoutMs?: number }): Promise<boolean>;
-  sendFile(clientAddr: PeerAddress | [string, number], filepath: string, opts?: { timeoutMs?: number }): Promise<boolean>;
+  sendBytes(clientAddr: PeerAddress | [string, number], data: Uint8Array | string, opts?: { filename?: string; timeoutMs?: number; compress?: boolean }): Promise<boolean>;
+  sendFile(clientAddr: PeerAddress | [string, number], filepath: string, opts?: { timeoutMs?: number; compress?: boolean }): Promise<boolean>;
   discoverWan(opts?: { stunServers?: [string, number][]; timeoutMs?: number }): Promise<StunDiscoveryResult>;
   punchP2p(peerWanAddr: PeerAddress | [string, number], opts?: { timeoutMs?: number; prePunchTtl?: number }): Promise<boolean>;
   close(): Promise<void>;
@@ -196,10 +205,10 @@ export class NLTPClient {
   address(): PeerAddress;
   setPeerEndpoint(host: string, port: number): Promise<void>;
   rebindSocket(opts?: { host?: string | null; port?: number }): Promise<PeerAddress>;
-  sendBytes(data: Uint8Array | string, opts?: { filename?: string; timeoutMs?: number }): Promise<TransferReceipt>;
-  sendMessage(text: string, opts?: { timeoutMs?: number }): Promise<TransferReceipt>;
-  sendJson(obj: unknown, opts?: { timeoutMs?: number }): Promise<TransferReceipt>;
-  sendFile(filepath: string, opts?: { timeoutMs?: number }): Promise<TransferReceipt>;
+  sendBytes(data: Uint8Array | string, opts?: { filename?: string; timeoutMs?: number; compress?: boolean }): Promise<TransferReceipt>;
+  sendMessage(text: string, opts?: { timeoutMs?: number; compress?: boolean }): Promise<TransferReceipt>;
+  sendJson(obj: unknown, opts?: { timeoutMs?: number; compress?: boolean }): Promise<TransferReceipt>;
+  sendFile(filepath: string, opts?: { timeoutMs?: number; compress?: boolean }): Promise<TransferReceipt>;
   sendReflex(urgentMsg: string | Uint8Array): Promise<number>;
   recv(timeoutMs?: number): Promise<ReceivedItem | null>;
   discoverWan(opts?: { stunServers?: [string, number][]; timeoutMs?: number }): Promise<StunDiscoveryResult>;

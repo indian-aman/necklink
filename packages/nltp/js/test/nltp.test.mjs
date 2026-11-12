@@ -28,6 +28,8 @@ import {
   sha256Hex,
   solveLinearSystemGF256,
   unpackNltpFrame,
+  x25519PublicFromPrivate,
+  x25519ScalarMult,
 } from '../src/index.js';
 
 test('Pure-JS SHA-256 matches node:crypto across boundary lengths', () => {
@@ -77,16 +79,26 @@ test('Key derivation & ReplayWindow64 match Python/C99 specification', () => {
   const expectedPass44 = crypto.createHash('sha256').update(`NLTP-v1-PASSPHRASE:${pass44}`).digest();
   assert.deepEqual(Buffer.from(deriveAeadKey(pass44)), expectedPass44);
 
-  // ReplayWindow64 out-of-order & replay blocking
+  // ReplayWindow64 (512-packet sliding window) out-of-order & replay blocking
   const rw = new ReplayWindow64();
   assert.equal(rw.accept(0n), false);
   assert.equal(rw.accept(5n), true);
   assert.equal(rw.accept(5n), false);
   assert.equal(rw.accept(3n), true);
   assert.equal(rw.accept(3n), false);
-  assert.equal(rw.accept(100n), true);
-  assert.equal(rw.accept(36n), false); // 100 - 36 == 64 -> outside 64-pkt window
-  assert.equal(rw.accept(37n), true);  // 100 - 37 == 63 -> inside window
+  assert.equal(rw.accept(600n), true);
+  assert.equal(rw.accept(88n), false); // 600 - 88 == 512 -> outside 512-pkt window
+  assert.equal(rw.accept(89n), true);  // 600 - 89 == 511 -> inside 512-pkt window
+  assert.equal(rw.accept(89n), false);
+
+  // Pure-JS RFC 7748 Section 5.2 X25519 test vector + low-order point rejection
+  const aliceSk = Buffer.from('a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4', 'hex');
+  const bobPk = Buffer.from('e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c', 'hex');
+  const expectedShared = Buffer.from('c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552', 'hex');
+  assert.deepEqual(Buffer.from(x25519ScalarMult(aliceSk, bobPk)), expectedShared);
+  assert.equal(x25519ScalarMult(aliceSk, new Uint8Array(32)), null);
+  const alicePk = x25519PublicFromPrivate(aliceSk);
+  assert.equal(alicePk.length, 32);
 });
 
 test('Encrypted & plaintext frame packing rejects tampering, replays, and downgrades', () => {
@@ -309,4 +321,58 @@ test('CommonJS require("./src/index.cjs") works cleanly', () => {
   assert.equal(typeof cjs.NLTPServer, 'function');
   assert.equal(cjs.generateNltpKey().length, 44);
   assert.equal(crc32Ieee(new TextEncoder().encode('123456789')), 0xcbf43926);
+});
+
+test('NLTP 1.6 LZ4 block codec, RLE overlap, incompressible auto-bypass & encrypted E2E under 12% loss', async () => {
+  const { lz4Compress, lz4Decompress } = await import('../src/index.js');
+
+  // 1. Repetitive AQMS JSONL log (>6x compression)
+  let logText = '';
+  for (let i = 0; i < 350; i++) {
+    logText += `{"ts":"2026-11-12T03:${String(Math.trunc(i / 60)).padStart(2, '0')}:${String(i % 60).padStart(2, '0')}Z","station":"AQMS-01","pm25":23.4,"pm10":51.0,"status":"OK"}\n`;
+  }
+  const raw = new TextEncoder().encode(logText);
+  const comp = lz4Compress(raw);
+  assert.ok(comp !== null && comp.length < raw.length / 5);
+  assert.deepEqual(lz4Decompress(comp, raw.length), raw);
+
+  // 2. Overlapping RLE matches (off=1 and off=3 < mlen)
+  const rle = new TextEncoder().encode('A'.repeat(500) + 'XYZ'.repeat(300) + 'tail-literals');
+  const compRle = lz4Compress(rle);
+  assert.ok(compRle !== null && compRle.length < 80);
+  assert.deepEqual(lz4Decompress(compRle, rle.length), rle);
+
+  // 3. Incompressible payload returns null + fuzz guards reject malformed input
+  const rnd = crypto.randomBytes(16384);
+  assert.equal(lz4Compress(rnd), null);
+  assert.equal(lz4Decompress(comp.subarray(0, comp.length - 3), raw.length), null);
+  assert.equal(lz4Decompress(new Uint8Array([0x1f, 0x41, 0x00, 0x00]), 20), null);
+
+  // 4. Encrypted X25519+PSK + LZ4 E2E transfer under 12% loss + incompressible fallback
+  const psk = generateNltpKey();
+  const srv = await NLTPServer.listen({ host: '127.0.0.1', port: 0, psk, lossDropSim: 0.12 });
+  const cli = await NLTPClient.connect({ host: '127.0.0.1', port: srv.address().port, psk, lossDropSim: 0.12 });
+  try {
+    const rec1 = await cli.sendBytes(raw, { compress: true, timeoutMs: 15000 });
+    assert.equal(rec1.verifiedSha256, true);
+    assert.equal(rec1.compressed, true);
+    assert.equal(rec1.bytes, raw.length);
+    assert.ok(rec1.wirePayloadBytes < raw.length / 5);
+
+    const rx1 = await srv.recv(5000);
+    assert.ok(rx1 && rx1.sha256Verified);
+    assert.deepEqual(rx1.data, raw);
+
+    const rec2 = await cli.sendBytes(rnd, { compress: true, timeoutMs: 15000 });
+    assert.equal(rec2.verifiedSha256, true);
+    assert.equal(rec2.compressed, false);
+    assert.equal(rec2.wirePayloadBytes, rnd.length);
+
+    const rx2 = await srv.recv(5000);
+    assert.ok(rx2 && rx2.sha256Verified);
+    assert.deepEqual(Buffer.from(rx2.data), rnd);
+  } finally {
+    await cli.close();
+    await srv.close();
+  }
 });

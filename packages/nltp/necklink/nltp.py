@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import queue
 import select
@@ -182,6 +183,173 @@ def unpack_nltp_frame(
 
 
 # ---------------------------------------------------------------------------
+# Zero-Dependency Standard LZ4 Raw Block Codec (NLTP 1.6)
+# ---------------------------------------------------------------------------
+
+MAX_LZ4_RAW_BYTES = 64 * 1024 * 1024  # 64 MB decompression cap against malformed raw_bytes
+
+
+def lz4_compress(src: bytes, hash_log: int = 12) -> Optional[bytes]:
+    """
+    Compresses `src` into a standard Yann Collet LZ4 raw block (zero external dependencies).
+    Returns `None` if `src` is incompressible (`compressed_len >= len(src)` or `len(src) < 16`).
+    """
+    src_len = len(src)
+    if src_len < 16 or hash_log < 8 or hash_log > 16:
+        return None
+    htab = [0] * (1 << hash_log)
+    shift = 32 - hash_log
+    limit = src_len - 12
+    match_limit = src_len - 5
+    anchor = 0
+    ip = 1
+    out = bytearray()
+    unpack_u32 = struct.unpack_from
+
+    while ip <= limit:
+        step = 1
+        search_match_nb = 1 << 6
+        ref = 0
+        while True:
+            v = unpack_u32("<I", src, ip)[0]
+            h = ((v * 2654435761) & 0xFFFFFFFF) >> shift
+            ref = htab[h]
+            htab[h] = ip
+            if (ip - ref) <= 65535 and unpack_u32("<I", src, ref)[0] == v:
+                break
+            ip += step
+            if ip > limit:
+                break
+            search_match_nb += 1
+            step = search_match_nb >> 6
+        if ip > limit:
+            break
+
+        while ip > anchor and ref > 0 and src[ip - 1] == src[ref - 1]:
+            ip -= 1
+            ref -= 1
+
+        lit_len = ip - anchor
+        mlen = 4
+        while ip + mlen + 8 <= match_limit and src[ip + mlen : ip + mlen + 8] == src[ref + mlen : ref + mlen + 8]:
+            mlen += 8
+        while ip + mlen < match_limit and src[ip + mlen] == src[ref + mlen]:
+            mlen += 1
+
+        token = (15 if lit_len >= 15 else lit_len) << 4
+        ml_code = mlen - 4
+        token |= 15 if ml_code >= 15 else ml_code
+        out.append(token)
+        if lit_len >= 15:
+            rem = lit_len - 15
+            while rem >= 255:
+                out.append(255)
+                rem -= 255
+            out.append(rem)
+        if lit_len:
+            out.extend(src[anchor : anchor + lit_len])
+
+        off = ip - ref
+        out.append(off & 0xFF)
+        out.append((off >> 8) & 0xFF)
+
+        if ml_code >= 15:
+            rem = ml_code - 15
+            while rem >= 255:
+                out.append(255)
+                rem -= 255
+            out.append(rem)
+
+        if len(out) >= src_len:
+            return None
+
+        ip += mlen
+        anchor = ip
+        if ip <= limit:
+            v_prev = unpack_u32("<I", src, ip - 2)[0]
+            htab[((v_prev * 2654435761) & 0xFFFFFFFF) >> shift] = ip - 2
+
+    last_lit = src_len - anchor
+    if len(out) + 1 + (last_lit // 255) + 1 + last_lit >= src_len:
+        return None
+    out.append((15 if last_lit >= 15 else last_lit) << 4)
+    if last_lit >= 15:
+        rem = last_lit - 15
+        while rem >= 255:
+            out.append(255)
+            rem -= 255
+        out.append(rem)
+    if last_lit:
+        out.extend(src[anchor:])
+    return bytes(out) if len(out) < src_len else None
+
+
+def lz4_decompress(src: bytes, expected_raw_len: int) -> Optional[bytes]:
+    """
+    Bounds-checked standard LZ4 raw block decompressor.
+    Returns exact `expected_raw_len` bytes, or `None` on any corruption/truncation/bounds violation.
+    """
+    if expected_raw_len == 0:
+        return b"" if len(src) == 0 else None
+    if expected_raw_len < 0 or expected_raw_len > MAX_LZ4_RAW_BYTES or len(src) == 0:
+        return None
+    src_len = len(src)
+    ip = 0
+    out = bytearray()
+    while ip < src_len:
+        token = src[ip]
+        ip += 1
+        lit_len = (token >> 4) & 0x0F
+        if lit_len == 15:
+            while True:
+                if ip >= src_len:
+                    return None
+                s = src[ip]
+                ip += 1
+                lit_len += s
+                if len(out) + lit_len > expected_raw_len:
+                    return None
+                if s != 255:
+                    break
+        if ip + lit_len > src_len or len(out) + lit_len > expected_raw_len:
+            return None
+        if lit_len:
+            out.extend(src[ip : ip + lit_len])
+            ip += lit_len
+        if ip == src_len:
+            break
+        if ip + 2 > src_len:
+            return None
+        off = src[ip] | (src[ip + 1] << 8)
+        ip += 2
+        if off == 0 or off > len(out):
+            return None
+        mlen = (token & 0x0F) + 4
+        if (token & 0x0F) == 15:
+            while True:
+                if ip >= src_len:
+                    return None
+                s = src[ip]
+                ip += 1
+                mlen += s
+                if len(out) + mlen > expected_raw_len:
+                    return None
+                if s != 255:
+                    break
+        if len(out) + mlen > expected_raw_len:
+            return None
+        ref = len(out) - off
+        if off >= mlen:
+            out.extend(out[ref : ref + mlen])
+        else:
+            pat = bytes(out[ref : ref + off])
+            out.extend(pat * (mlen // off) + pat[: mlen % off])
+    if len(out) != expected_raw_len:
+        return None
+    return bytes(out)
+
+
+# ---------------------------------------------------------------------------
 # Sender & Receiver Generation Algebraic State Machines (GF(2^8))
 # ---------------------------------------------------------------------------
 
@@ -199,11 +367,12 @@ class _TxGeneration:
         self.k_shards = len(chunks)
         self.max_chunk_len = max(len(c) for c in chunks)
         self.row_width = 2 + self.max_chunk_len
-        self.data_mat = np.zeros((self.k_shards, self.row_width), dtype=np.uint8)
-        for idx, ch in enumerate(chunks):
-            struct.pack_into("<H", self.data_mat[idx], 0, len(ch))
-            if ch:
-                self.data_mat[idx, 2 : 2 + len(ch)] = np.frombuffer(ch, dtype=np.uint8)
+        # Pre-pack systematic rows directly as bytes (zero numpy allocation unless parity is actually needed)
+        self._sys_rows: List[bytes] = [
+            struct.pack("<H", len(ch)) + ch + (b"\x00" * (self.max_chunk_len - len(ch)))
+            for ch in chunks
+        ]
+        self._data_mat: Optional[np.ndarray] = None
 
         self.next_sys_idx: int = 0
         self.proactive_done: bool = False
@@ -216,17 +385,25 @@ class _TxGeneration:
         self.repair_in_flight: int = 0
         self.last_repair_time: float = 0.0
 
+    @property
+    def data_mat(self) -> np.ndarray:
+        if self._data_mat is None:
+            mat = np.zeros((self.k_shards, self.row_width), dtype=np.uint8)
+            for idx, rbytes in enumerate(self._sys_rows):
+                mat[idx] = np.frombuffer(rbytes, dtype=np.uint8)
+            self._data_mat = mat
+        return self._data_mat
+
     def make_systematic_payload(self, sys_idx: int) -> bytes:
-        row_bytes = self.data_mat[sys_idx].tobytes()
         shdr = struct.pack(SHARD_HDR_FMT, self.stream_id, self.gen_id, self.k_shards, sys_idx, self.row_width)
-        return shdr + row_bytes
+        return shdr + self._sys_rows[sys_idx]
 
     def make_cryptic_parity_payload(self) -> bytes:
         p_off = self.next_parity_offset
         self.next_parity_offset = (self.next_parity_offset + 1) % 192
         shard_idx = self.k_shards + p_off
         if self.k_shards == 1:
-            coded_bytes = self.data_mat[0].tobytes()
+            coded_bytes = self._sys_rows[0]
         else:
             coeff = _cauchy_row(p_off, self.k_shards).reshape(1, self.k_shards)
             coded_bytes = _GF.matmul(coeff, self.data_mat)[0].tobytes()
@@ -241,15 +418,23 @@ class _RxGeneration:
         self.k_shards = k_shards
         self.row_width = row_width
         self.seen_indices: set[int] = set()
+        self._sys_only: bool = True
+        self._sys_rows: Dict[int, bytes] = {}
         self.rows_coeff: List[np.ndarray] = []
         self.rows_data: List[np.ndarray] = []
         self.solved_bytes: Optional[bytes] = None
 
     @property
+    def have_shards(self) -> int:
+        if self.solved_bytes is not None:
+            return self.k_shards
+        return len(self._sys_rows) if self._sys_only else len(self.rows_coeff)
+
+    @property
     def needed_dof(self) -> int:
         if self.solved_bytes is not None:
             return 0
-        return max(0, self.k_shards - len(self.rows_coeff))
+        return max(0, self.k_shards - self.have_shards)
 
     def add_shard(self, shard_idx: int, shard_buf: bytes) -> bool:
         """Returns True when this shard newly completes & solves the generation."""
@@ -258,6 +443,21 @@ class _RxGeneration:
         if shard_idx in self.seen_indices:
             return False
         self.seen_indices.add(shard_idx)
+
+        if self._sys_only and shard_idx < self.k_shards:
+            self._sys_rows[shard_idx] = bytes(shard_buf)
+            if len(self._sys_rows) >= self.k_shards:
+                return self._try_solve()
+            return False
+
+        if self._sys_only:
+            self._sys_only = False
+            for s_idx, s_buf in self._sys_rows.items():
+                c_vec = np.zeros(self.k_shards, dtype=np.uint8)
+                c_vec[s_idx] = 1
+                self.rows_coeff.append(c_vec)
+                self.rows_data.append(np.frombuffer(s_buf, dtype=np.uint8).copy())
+            self._sys_rows.clear()
 
         if shard_idx < self.k_shards:
             coeff = np.zeros(self.k_shards, dtype=np.uint8)
@@ -274,10 +474,26 @@ class _RxGeneration:
 
     def _try_solve(self) -> bool:
         k = self.k_shards
+        if self._sys_only:
+            out = bytearray()
+            for i in range(k):
+                r_buf = self._sys_rows[i]
+                actual_len = struct.unpack_from("<H", r_buf, 0)[0]
+                if actual_len > self.row_width - 2:
+                    return False
+                out.extend(r_buf[2 : 2 + actual_len])
+            self.solved_bytes = bytes(out)
+            self._sys_rows.clear()
+            return True
+
         if k == 1:
             raw_row = self.rows_data[0]
             actual_len = struct.unpack_from("<H", raw_row, 0)[0]
+            if actual_len > self.row_width - 2:
+                return False
             self.solved_bytes = bytes(raw_row[2 : 2 + actual_len])
+            self.rows_coeff.clear()
+            self.rows_data.clear()
             return True
 
         mat_g = np.stack(self.rows_coeff[:k], axis=0)
@@ -316,6 +532,8 @@ class OutboundTransfer:
     sha256_hex: str
     generations: List[_TxGeneration]
     meta_payload: bytes
+    wire_payload_bytes: int = 0
+    compressed: bool = False
     peer_conn_id: Optional[int] = None
     base_unacked_gen: int = 0
     meta_acked: bool = False
@@ -354,6 +572,9 @@ class _InboundStreamState:
         self.total_bytes: int = 0
         self.total_gens: int = 0
         self.expected_sha256: str = ""
+        self.is_lz4: bool = False
+        self.raw_bytes: int = 0
+        self.codec_invalid: bool = False
         self.meta_received: bool = False
         self.gens: Dict[int, _RxGeneration] = {}
         self.solved_gens: Dict[int, bytes] = {}
@@ -371,6 +592,8 @@ class _InboundStreamState:
         self.gen_k_map: Dict[int, int] = {}
         self.gen_max_sys_seen: Dict[int, int] = {}
         self.max_gen_seen: int = -1
+        self.max_sys_ord: int = -1
+        self.reorder_wnd: int = 0
 
     def ingest_meta(self, meta_dict: Dict[str, Any]) -> None:
         self.kind = str(meta_dict["kind"])
@@ -378,6 +601,19 @@ class _InboundStreamState:
         self.total_bytes = int(meta_dict["total_bytes"])
         self.total_gens = int(meta_dict["total_gens"])
         self.expected_sha256 = str(meta_dict["sha256"])
+        codec = meta_dict.get("codec")
+        if codec is None or codec in ("", "none"):
+            self.is_lz4 = False
+            self.raw_bytes = self.total_bytes
+        elif codec == "lz4":
+            raw_b = int(meta_dict.get("raw_bytes", -1))
+            if raw_b < 0 or raw_b > MAX_LZ4_RAW_BYTES:
+                self.codec_invalid = True
+            else:
+                self.is_lz4 = True
+                self.raw_bytes = raw_b
+        else:
+            self.codec_invalid = True
         self.meta_received = True
 
     def advance_base(self) -> None:
@@ -389,17 +625,29 @@ class _InboundStreamState:
             return None
         if self.total_gens == 0:
             self.completed = True
+            if self.codec_invalid or (self.is_lz4 and self.raw_bytes != 0):
+                self.sha256_ok = False
+                return b"", False
             self.sha256_ok = (hashlib.sha256(b"").hexdigest() == self.expected_sha256)
             return b"", self.sha256_ok
         if len(self.solved_gens) < self.total_gens:
             return None
         full = b"".join(self.solved_gens[g] for g in range(self.total_gens))
         full = full[: self.total_bytes]
-        digest = hashlib.sha256(full).hexdigest()
-        self.completed = True
-        self.sha256_ok = (digest == self.expected_sha256)
         self.gens.clear()
         self.solved_gens.clear()
+        self.completed = True
+        if self.codec_invalid:
+            self.sha256_ok = False
+            return b"", False
+        if self.is_lz4:
+            dec = lz4_decompress(full, self.raw_bytes)
+            if dec is None:
+                self.sha256_ok = False
+                return b"", False
+            full = dec
+        digest = hashlib.sha256(full).hexdigest()
+        self.sha256_ok = (digest == self.expected_sha256)
         return full, self.sha256_ok
 
 
@@ -431,7 +679,10 @@ class _DeliveryRateController:
         self.rate_kbps = min(self.INIT_KBPS, self.cap_kbps)
         self.mode = self.STARTUP
         self.min_rtt_ms = float("inf")
+        self.min_mean_rtt_ms = float("inf")
         self.round_min_rtt_ms = float("inf")
+        self.round_rtt_sum = 0.0
+        self.round_rtt_cnt = 0
         self.n_rtt_samples = 0
         self.startup_exit_pending = False
         self.tracked_stream: Optional[int] = None
@@ -447,10 +698,10 @@ class _DeliveryRateController:
         self.random_loss_samples = 0
         self.last_deliv_kbps = 0.0
         self.last_queue_ms = 0.0
-        self.btlbw_rounds: List[float] = []   # per-round max arrival rate, last 6 rounds
+        self.btlbw_rounds: List[float] = []   # per-round max arrival rate, last 10 rounds
         self.round_arrival_max = 0.0
         self.train_probe_done = False
-        # Path jitter (mean deviation of RTT samples): delay variation below ~1.5x this is not a queue
+        # Path jitter (mean deviation of RTT samples): delay variation below ~2x this is not a standing queue
         self.srtt_ms = 0.0
         self.rttvar_ms = 0.0
         # (time, cumulative bytes sent) at each ACK, to compare deliveries with what was sent one RTT earlier
@@ -460,6 +711,13 @@ class _DeliveryRateController:
     def btlbw_kbps(self) -> float:
         return max(self.btlbw_rounds + [self.round_arrival_max]) if (self.btlbw_rounds or self.round_arrival_max) else 0.0
 
+    def _base_rtt_ms(self) -> float:
+        if self.min_mean_rtt_ms < float("inf"):
+            return self.min_mean_rtt_ms
+        if self.n_rtt_samples >= 2 and self.srtt_ms > 0.0:
+            return self.srtt_ms
+        return self.min_rtt_ms
+
     def start_stream(self, stream_id: int, now_s: float) -> None:
         """Measure delivery on this stream from now on (the trailer counts bytes per stream)."""
         self.tracked_stream = stream_id
@@ -468,6 +726,8 @@ class _DeliveryRateController:
         self.round_t0, self.round_rx0, self.round_sent0 = now_s, 0, self.sent_bytes
         self.prev_round_sent = 0
         self.round_min_rtt_ms = float("inf")
+        self.round_rtt_sum = 0.0
+        self.round_rtt_cnt = 0
 
     def on_sent(self, n_bytes: int) -> None:
         self.sent_bytes += n_bytes
@@ -475,6 +735,8 @@ class _DeliveryRateController:
     def on_rtt_sample(self, rtt_ms: float) -> None:
         self.min_rtt_ms = min(self.min_rtt_ms, rtt_ms)
         self.round_min_rtt_ms = min(self.round_min_rtt_ms, rtt_ms)
+        self.round_rtt_sum += rtt_ms
+        self.round_rtt_cnt += 1
         self.n_rtt_samples += 1
         if self.n_rtt_samples == 1:
             self.srtt_ms, self.rttvar_ms = rtt_ms, rtt_ms / 4.0
@@ -482,13 +744,15 @@ class _DeliveryRateController:
             self.rttvar_ms = 0.75 * self.rttvar_ms + 0.25 * abs(rtt_ms - self.srtt_ms)
             self.srtt_ms = 0.875 * self.srtt_ms + 0.125 * rtt_ms
         if self.mode == self.STARTUP and self.n_rtt_samples >= 4:
-            if rtt_ms > self.min_rtt_ms + max(4.0, self.min_rtt_ms / 8.0, 2.0 * self.rttvar_ms):
+            base = self._base_rtt_ms()
+            if rtt_ms > base + max(6.0, base / 6.0, 2.5 * self.rttvar_ms):
                 self.startup_exit_pending = True
 
     def _queue_target_ms(self) -> float:
-        if self.min_rtt_ms == float("inf"):
+        base = self._base_rtt_ms()
+        if base == float("inf"):
             return 4.0
-        return max(4.0, 0.05 * self.min_rtt_ms, 1.5 * self.rttvar_ms)
+        return max(4.0, 0.05 * base, 2.0 * self.rttvar_ms)
 
     def _sent_at(self, t: float) -> int:
         """Cumulative bytes sent as of time `t` (latest history entry not after `t`)."""
@@ -526,7 +790,16 @@ class _DeliveryRateController:
                 old = self.rate_kbps
                 self.rate_kbps = max(self.MIN_KBPS, min(self.cap_kbps, max(self.rate_kbps, 1.05 * arrival_kbps)))
                 return self.rate_kbps != old
-        base_rtt = self.min_rtt_ms if self.min_rtt_ms < float("inf") else srtt_ms
+            elif self.rounds_done <= 1 and self.last_queue_ms <= self._queue_target_ms():
+                # Second half of the initial burst: if an early jittered packet #0 understated the first
+                # 16-shard train, ratchet upward as soon as the cleaner second train arrives.
+                cand = min(self.cap_kbps, 1.05 * arrival_kbps)
+                if cand > self.rate_kbps:
+                    self.rate_kbps = cand
+                    return True
+        base_rtt = self._base_rtt_ms()
+        if base_rtt == float("inf"):
+            base_rtt = srtt_ms
         dt = now_s - self.round_t0
         early_exit = self.mode == self.STARTUP and self.startup_exit_pending and dt >= 0.005
         if dt < max(0.02, base_rtt / 1000.0) and not early_exit:
@@ -535,7 +808,14 @@ class _DeliveryRateController:
         delivered = (rx_bytes - self.round_rx0) & 0xFFFFFFFF
         deliv_kbps = delivered * 8.0 / 1000.0 / dt
         round_sent = self.sent_bytes - self.round_sent0
-        queue_ms = self.round_min_rtt_ms - self.min_rtt_ms if self.round_min_rtt_ms < float("inf") else 0.0
+        if self.round_rtt_cnt >= 3:
+            round_mean_rtt = self.round_rtt_sum / float(self.round_rtt_cnt)
+            self.min_mean_rtt_ms = min(self.min_mean_rtt_ms, round_mean_rtt)
+            queue_ms = max(0.0, round_mean_rtt - self.min_mean_rtt_ms)
+        elif self.round_min_rtt_ms < float("inf"):
+            queue_ms = max(0.0, self.round_min_rtt_ms - self.min_rtt_ms - 0.5 * self.rttvar_ms)
+        else:
+            queue_ms = 0.0
         target_ms = self._queue_target_ms()
         old = self.rate_kbps
 
@@ -566,22 +846,31 @@ class _DeliveryRateController:
             elif deliv_kbps >= 0.5 * self.rate_kbps:
                 self.rate_kbps = max(2.0 * self.rate_kbps, 2.0 * deliv_kbps)
         else:
-            cap = max(self._capacity_kbps(deliv_kbps), self.btlbw_kbps())
+            deliv_cap = self._capacity_kbps(deliv_kbps)
+            cap = max(deliv_cap, self.btlbw_kbps())
             if queue_ms > 2.0 * target_ms:
-                # Queue is building: pace just under capacity so it drains, instead of cutting again and again
-                self.rate_kbps = min(self.rate_kbps * 0.9, 0.95 * cap) if cap > 0 else self.rate_kbps * 0.85
+                # Queue is building: pace just under capacity so it drains, bounded by actual delivered capacity
+                floor_kbps = 0.55 * deliv_cap if deliv_cap > 0.0 else self.MIN_KBPS
+                cut = min(self.rate_kbps * 0.90, 0.95 * cap) if cap > 0 else self.rate_kbps * 0.85
+                self.rate_kbps = max(floor_kbps, cut)
             elif queue_ms < target_ms:
-                ceiling = 1.25 * cap if cap > 0 else self.rate_kbps * 1.10
-                self.rate_kbps = min(self.rate_kbps * 1.10, max(self.rate_kbps, ceiling))
+                clean_pipe = (self.rounds_done >= 2) and (self.random_loss < 0.01)
+                fast_probe = (not clean_pipe) and (queue_ms < 0.5 * target_ms) and (deliv_cap >= 0.80 * self.rate_kbps)
+                gain = 1.30 if fast_probe else (1.08 if clean_pipe else 1.12)
+                ceil_mult = 1.35 if fast_probe else (1.12 if clean_pipe else 1.25)
+                ceiling = ceil_mult * cap if cap > 0 else self.rate_kbps * gain
+                self.rate_kbps = min(self.rate_kbps * gain, max(self.rate_kbps, ceiling))
 
         self.rate_kbps = max(self.MIN_KBPS, min(self.cap_kbps, self.rate_kbps))
         self.last_deliv_kbps, self.last_queue_ms = deliv_kbps, queue_ms
         self.prev_round_sent, self.prev_queue_ms = round_sent, queue_ms
         self.round_t0, self.round_rx0, self.round_sent0 = now_s, rx_bytes, self.sent_bytes
         self.round_min_rtt_ms = float("inf")
+        self.round_rtt_sum = 0.0
+        self.round_rtt_cnt = 0
         self.startup_exit_pending = False
-        if self.round_arrival_max > 0.0:
-            self.btlbw_rounds = (self.btlbw_rounds + [self.round_arrival_max])[-6:]
+        if self.round_arrival_max > 0.0 and (not self.btlbw_rounds or self.round_arrival_max >= 0.85 * self.rate_kbps):
+            self.btlbw_rounds = (self.btlbw_rounds + [self.round_arrival_max])[-10:]
         self.round_arrival_max = 0.0
         return self.rate_kbps != old
 
@@ -739,29 +1028,42 @@ class NLTPEndpoint:
         *,
         kind: str = "bytes",
         filename: str = "",
+        compress: bool = False,
         now_s: Optional[float] = None,
     ) -> OutboundTransfer:
         t_now = time.perf_counter() if now_s is None else now_s
         sid = self._next_stream_id
         self._next_stream_id += 1
 
+        raw_len = len(data)
+        sha_hex = hashlib.sha256(data).hexdigest()
+        wire_data = data
+        used_lz4 = False
+        if compress and raw_len >= 32:
+            comp = lz4_compress(data)
+            if comp is not None and len(comp) < raw_len:
+                wire_data = comp
+                used_lz4 = True
+
         gen_slice_len = self.shard_bytes * self.gen_k
         gens: List[_TxGeneration] = []
-        if len(data) == 0:
+        if len(wire_data) == 0:
             gens.append(_TxGeneration(sid, 0, b"", self.shard_bytes, self.gen_k))
         else:
-            for g_idx, off in enumerate(range(0, len(data), gen_slice_len)):
-                gens.append(_TxGeneration(sid, g_idx, data[off : off + gen_slice_len], self.shard_bytes, self.gen_k))
+            for g_idx, off in enumerate(range(0, len(wire_data), gen_slice_len)):
+                gens.append(_TxGeneration(sid, g_idx, wire_data[off : off + gen_slice_len], self.shard_bytes, self.gen_k))
 
-        sha_hex = hashlib.sha256(data).hexdigest()
-        meta_obj = {
+        meta_obj: Dict[str, Any] = {
             "stream_id": sid,
             "kind": kind,
             "filename": Path(filename).name if filename else "",
-            "total_bytes": len(data),
+            "total_bytes": len(wire_data),
             "total_gens": len(gens),
             "sha256": sha_hex,
         }
+        if used_lz4:
+            meta_obj["codec"] = "lz4"
+            meta_obj["raw_bytes"] = raw_len
         meta_bytes = json.dumps(meta_obj, separators=(",", ":")).encode("utf-8")
         # Bind known peer_conn_id if we already have a route for this peer
         known_cid = next((cid for cid, addr in self.conn_routes.items() if addr == peer), None)
@@ -771,7 +1073,9 @@ class NLTPEndpoint:
             peer_conn_id=known_cid,
             kind=kind,
             filename=meta_obj["filename"],
-            total_bytes=len(data),
+            total_bytes=raw_len,
+            wire_payload_bytes=len(wire_data),
+            compressed=used_lz4,
             sha256_hex=sha_hex,
             generations=gens,
             meta_payload=meta_bytes,
@@ -782,7 +1086,7 @@ class NLTPEndpoint:
         ):
             burst = self.rate_ctl.initial_burst(self.initial_burst_bytes)
             if burst > 0:
-                self.pacer.grant_burst(min(burst, len(data) + 2 * self.shard_bytes))
+                self.pacer.grant_burst(min(burst, len(wire_data) + 2 * self.shard_bytes))
             self.rate_ctl.start_stream(sid, t_now)
         self.outbound[sid] = xfer
         self.register_keepalive_peer(peer)
@@ -889,14 +1193,31 @@ class NLTPEndpoint:
         """
         Disinhibitory Congestion Control:
           - Never shrinks window on random wireless packet drops alone (`peer_loss_ema` triggers repair, not choke).
-          - Shrinks in-flight window ONLY when real RTT queue inflation (`srtt_ms > 2x min_rtt_ms + 35 ms`) proves
-            an intermediate router/4G queue is filling up!
+          - Bounds CRUISE in-flight window to ~2.2x BDP + 2 generations so clean links do not overflow shallow queues.
+          - Shrinks in-flight window ONLY when real RTT queue inflation proves an intermediate FIFO queue is filling up,
+            using round-mean base RTT + path jitter margin so negative-jitter/reordered packets never false-choke!
         """
+        eff = self.window_generations
+        if (
+            self._has_rtt_sample
+            and self.rate_ctl is not None
+            and self.rate_ctl.mode == _DeliveryRateController.CRUISE
+        ):
+            gen_bytes = max(1, self.gen_k * self.shard_bytes)
+            bdp_bytes = self.rate_ctl.rate_kbps * 1000.0 / 8.0 * (self.srtt_ms / 1000.0)
+            bdp_gens = int(math.ceil(2.2 * bdp_bytes / gen_bytes)) + 2
+            eff = min(eff, max(4, bdp_gens))
         if self._has_rtt_sample and self.min_rtt_ms < 900000.0:
-            queue_thresh = max(self.min_rtt_ms * 2.0, self.min_rtt_ms + 35.0)
+            base = (
+                self.rate_ctl.min_mean_rtt_ms
+                if (self.rate_ctl is not None and self.rate_ctl.min_mean_rtt_ms < 900000.0)
+                else self.min_rtt_ms
+            )
+            jitter_pad = 2.5 * self.rate_ctl.rttvar_ms if self.rate_ctl is not None else 0.0
+            queue_thresh = max(base * 2.0, base + 35.0 + jitter_pad)
             if self.srtt_ms > queue_thresh:
                 return max(3, self.window_generations // 4)
-        return self.window_generations
+        return eff
 
     def step_tx(self, now_s: Optional[float] = None) -> None:
         t_now = time.perf_counter() if now_s is None else now_s
@@ -1176,6 +1497,11 @@ class NLTPEndpoint:
                 already_seen = (gen_id in st.solved_gens) or (rx_existing is not None and shard_idx in rx_existing.seen_indices)
                 if not already_seen:
                     st.sys_shards_rcvd += 1
+                    sys_ord = gen_id * self.gen_k + shard_idx
+                    if sys_ord < st.max_sys_ord:
+                        st.reorder_wnd = min(16, max(st.reorder_wnd, st.max_sys_ord - sys_ord))
+                    else:
+                        st.max_sys_ord = sys_ord
                 st.gen_max_sys_seen[gen_id] = max(st.gen_max_sys_seen.get(gen_id, -1), shard_idx)
             elif pkt_type == PT_CRYPTIC_PARITY:
                 st.gen_max_sys_seen[gen_id] = k_shards - 1
@@ -1214,7 +1540,11 @@ class NLTPEndpoint:
                 return
             xfer.peer_conn_id = peer_conn_id
             xfer.peer_addr = peer
-            xfer.meta_acked = True
+            if (_flags & 0x02) != 0:
+                if (_flags & 0x01) != 0:
+                    xfer.meta_acked = True
+            else:
+                xfer.meta_acked = True
 
             now_ms = int(t_now * 1000.0) & 0xFFFFFFFF
             rtt = float((now_ms - echo_ts) & 0xFFFFFFFF)
@@ -1293,31 +1623,38 @@ class NLTPEndpoint:
                     sha256_verified=sha_ok,
                 )
             )
-            self._emit(PT_STREAM_FIN_ACK, peer, struct.pack("<IB", st.stream_id, 1 if sha_ok else 0), now_s=t_now)
+            fin_payload = struct.pack("<IB", st.stream_id, 1 if sha_ok else 0)
+            self._emit(PT_STREAM_FIN_ACK, peer, fin_payload, now_s=t_now)
+            self._emit(PT_STREAM_FIN_ACK, peer, fin_payload, now_s=t_now)
             return
 
         max_g = st.max_gen_seen
+        is_final_gen = st.meta_received and (max_g >= st.total_gens - 1)
+        r_guard = 0 if is_final_gen else min(st.reorder_wnd, 6)
         expected_sys = 0
         for g_i in range(max_g):
             expected_sys += st.gen_k_map.get(g_i, self.gen_k)
         if max_g >= 0:
             expected_sys += st.gen_max_sys_seen.get(max_g, 0) + 1
-        expected_sys = max(1, expected_sys)
-        est_loss = max(0.0, min(0.92, 1.0 - (st.sys_shards_rcvd / float(expected_sys))))
+        adj_expected = max(1, max(st.sys_shards_rcvd, expected_sys - r_guard))
+        est_loss = max(0.0, min(0.92, 1.0 - (st.sys_shards_rcvd / float(adj_expected))))
         loss_q8 = int(round(est_loss * 255.0))
 
+        max_g_lead = (st.gen_max_sys_seen.get(max_g, -1) + 1) if max_g >= 0 else 0
         reports: List[bytes] = []
         for g_id in range(st.base_gen, max_g + 1):
             if g_id in st.solved_gens:
                 continue
             rx_g = st.gens.get(g_id)
-            have = len(rx_g.rows_coeff) if rx_g is not None else 0
+            have = rx_g.have_shards if rx_g is not None else 0
             need = rx_g.needed_dof if rx_g is not None else self.gen_k
             if g_id < max_g and need > 0:
-                reports.append(struct.pack("<HBB", g_id - st.base_gen, have, need))
+                if r_guard == 0 or g_id <= max_g - 2 or max_g_lead >= r_guard:
+                    reports.append(struct.pack("<HBB", g_id - st.base_gen, have, need))
             elif g_id == max_g and rx_g is not None and rx_g.seen_indices:
                 max_seen_idx = min(rx_g.k_shards, max(rx_g.seen_indices) + 1)
-                confirmed_missing = min(need, max(0, max_seen_idx - have))
+                eff_seen = max(0, max_seen_idx - min(r_guard, 4))
+                confirmed_missing = min(need, max(0, eff_seen - have))
                 if confirmed_missing > 0:
                     reports.append(struct.pack("<HBB", g_id - st.base_gen, have, confirmed_missing))
             if len(reports) >= 16:
@@ -1328,7 +1665,8 @@ class NLTPEndpoint:
             # Optional trailer: cumulative shard bytes received + latest arrival rate (kbps), for the sender's
             # rate controller. Older parsers stop after the reports and ignore it.
             trailer = struct.pack("<II", st.bytes_rcvd & 0xFFFFFFFF, min(0xFFFFFFFF, int(st.arrival_kbps)))
-            self._emit(PT_PROPRIOCEPTIVE_ACK, peer, ack_hdr + b"".join(reports) + trailer, now_s=t_now)
+            ack_flags = 0x03 if st.meta_received else 0x02
+            self._emit(PT_PROPRIOCEPTIVE_ACK, peer, ack_hdr + b"".join(reports) + trailer, flags=ack_flags, now_s=t_now)
             self._last_ack_emit[(peer_conn_id, st.stream_id)] = t_now
 
 
@@ -1658,16 +1996,16 @@ class NLTPServer(_NLTPSocketBase):
         with self._lock:
             return self.engine.send_reflex(client_addr, b)
 
-    def send_bytes(self, client_addr: Address, data: bytes, timeout: float = 15.0) -> bool:
+    def send_bytes(self, client_addr: Address, data: bytes, timeout: float = 15.0, *, compress: bool = False) -> bool:
         with self._lock:
-            xfer = self.engine.start_transfer(client_addr, data, kind="bytes")
+            xfer = self.engine.start_transfer(client_addr, data, kind="bytes", compress=compress)
         return self._wait_transfer(xfer, timeout)
 
-    def send_file(self, client_addr: Address, filepath: Union[str, Path], timeout: float = 60.0) -> bool:
+    def send_file(self, client_addr: Address, filepath: Union[str, Path], timeout: float = 60.0, *, compress: bool = False) -> bool:
         p = Path(filepath)
         raw = p.read_bytes()
         with self._lock:
-            xfer = self.engine.start_transfer(client_addr, raw, kind="file", filename=p.name)
+            xfer = self.engine.start_transfer(client_addr, raw, kind="file", filename=p.name, compress=compress)
         return self._wait_transfer(xfer, timeout)
 
     def _wait_transfer(self, xfer: OutboundTransfer, timeout: float) -> bool:
@@ -1786,29 +2124,29 @@ class NLTPClient(_NLTPSocketBase):
             pass
         return new_local
 
-    def send_bytes(self, data: bytes, *, timeout: float = 20.0) -> Dict[str, Any]:
-        """Sends arbitrary bytes reliably with end-to-end SHA-256 verification."""
+    def send_bytes(self, data: bytes, *, timeout: float = 20.0, compress: bool = False) -> Dict[str, Any]:
+        """Sends arbitrary bytes reliably with end-to-end SHA-256 verification (and optional LZ4 compression)."""
         with self._lock:
-            xfer = self.engine.start_transfer(self.server_addr, data, kind="bytes")
+            xfer = self.engine.start_transfer(self.server_addr, data, kind="bytes", compress=compress)
         ok = self._wait_transfer(xfer, timeout)
         return self._transfer_receipt(xfer, ok)
 
-    def send_message(self, text: str, *, timeout: float = 15.0) -> Dict[str, Any]:
-        return self.send_bytes(text.encode("utf-8"), timeout=timeout)
+    def send_message(self, text: str, *, timeout: float = 15.0, compress: bool = False) -> Dict[str, Any]:
+        return self.send_bytes(text.encode("utf-8"), timeout=timeout, compress=compress)
 
-    def send_json(self, obj: Any, *, timeout: float = 15.0) -> Dict[str, Any]:
+    def send_json(self, obj: Any, *, timeout: float = 15.0, compress: bool = False) -> Dict[str, Any]:
         raw = json.dumps(obj, separators=(",", ":")).encode("utf-8")
         with self._lock:
-            xfer = self.engine.start_transfer(self.server_addr, raw, kind="json")
+            xfer = self.engine.start_transfer(self.server_addr, raw, kind="json", compress=compress)
         ok = self._wait_transfer(xfer, timeout)
         return self._transfer_receipt(xfer, ok)
 
-    def send_file(self, filepath: Union[str, Path], *, timeout: float = 60.0) -> Dict[str, Any]:
-        """Transfers a file of any format (.bin, .png, .pdf, .zip, .pt) with 100% SHA-256 verification."""
+    def send_file(self, filepath: Union[str, Path], *, timeout: float = 60.0, compress: bool = False) -> Dict[str, Any]:
+        """Transfers a file of any format (.bin, .png, .pdf, .zip, .pt, .csv, .jsonl) with 100% SHA-256 verification."""
         p = Path(filepath)
         raw = p.read_bytes()
         with self._lock:
-            xfer = self.engine.start_transfer(self.server_addr, raw, kind="file", filename=p.name)
+            xfer = self.engine.start_transfer(self.server_addr, raw, kind="file", filename=p.name, compress=compress)
         ok = self._wait_transfer(xfer, timeout)
         return self._transfer_receipt(xfer, ok)
 
@@ -1848,6 +2186,8 @@ class NLTPClient(_NLTPSocketBase):
             "stream_id": xfer.stream_id,
             "filename": xfer.filename,
             "bytes": xfer.total_bytes,
+            "wire_payload_bytes": xfer.wire_payload_bytes or xfer.total_bytes,
+            "compressed": xfer.compressed,
             "sha256": xfer.sha256_hex,
             "verified_sha256": ok,
             "elapsed_s": round(elapsed, 4),

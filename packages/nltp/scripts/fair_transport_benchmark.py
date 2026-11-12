@@ -194,7 +194,7 @@ def role_nltp_server(port: int, cap_kbps: Optional[float], n_items: int = 1, psk
 
 
 def role_nltp_client(port: int, path: str, cap_kbps: Optional[float], burst: int = 0, warm: bool = False,
-                     psk: Optional[str] = None) -> None:
+                     psk: Optional[str] = None, compress: bool = False) -> None:
     """`warm`: send the file once untimed on the same connection, then time a second transfer."""
     sys.path.insert(0, str(ROOT))
     from necklink.nltp import NLTPClient
@@ -206,10 +206,10 @@ def role_nltp_client(port: int, path: str, cap_kbps: Optional[float], burst: int
     t0 = time.perf_counter()
     with NLTPClient((IP_B, port), **kw) as cli:
         if warm:
-            cli.send_file(path, timeout=TRANSFER_TIMEOUT_S)
+            cli.send_file(path, timeout=TRANSFER_TIMEOUT_S, compress=compress)
             time.sleep(0.2)
             t0 = time.perf_counter()
-        rcpt = cli.send_file(path, timeout=TRANSFER_TIMEOUT_S)
+        rcpt = cli.send_file(path, timeout=TRANSFER_TIMEOUT_S, compress=compress)
     _emit({"ok": bool(rcpt["verified_sha256"]), "elapsed_s": time.perf_counter() - t0})
 
 
@@ -298,6 +298,14 @@ def run_transfer(proto: str, path: Path, size: int, sha: str, rate_mbit: float, 
     elif proto == "nltp-enc":
         srv_args = ["nltp-server", str(port), "none", "1", NLTP_TEST_PSK]
         cli_args = ["nltp-client", str(port), str(path), "none", "0", "cold", NLTP_TEST_PSK]
+    elif proto == "nltp-lz4":
+        srv_args = ["nltp-server", str(port), "none"]
+        cli_args = ["nltp-client", str(port), str(path), "none", "0", "cold", "", "lz4"]
+    elif proto == "nltp-enc-lz4":
+        srv_args = ["nltp-server", str(port), "none", "1", NLTP_TEST_PSK]
+        cli_args = ["nltp-client", str(port), str(path), "none", "0", "cold", NLTP_TEST_PSK, "lz4"]
+    elif proto in ("nltp-c-enc", "nltp-c-enc-lz4"):
+        srv_args = cli_args = []
     elif proto == "nltp-enc-warm":
         srv_args = ["nltp-server", str(port), "none", "2", NLTP_TEST_PSK]
         cli_args = ["nltp-client", str(port), str(path), "none", "0", "warm", NLTP_TEST_PSK]
@@ -309,6 +317,33 @@ def run_transfer(proto: str, path: Path, size: int, sha: str, rate_mbit: float, 
         raise ValueError(proto)
 
     tunnel: List[subprocess.Popen] = []
+    if proto in ("nltp-c-enc", "nltp-c-enc-lz4"):
+        nltp_cli_bin = "/opt/kcpbench/bin/nltp_cli"
+        out_rx = Path(f"/tmp/nlb_crx_{port}.bin")
+        sh(f"rm -f {out_rx}")
+        srv = _spawn_cmd(NS_B, [nltp_cli_bin, "recv", IP_B, str(port), str(out_rx), "--psk", NLTP_TEST_PSK])
+        _wait_ready(srv)
+        reset_counters()
+        c_argv = [nltp_cli_bin, "send", IP_B, str(port), str(path), "--psk", NLTP_TEST_PSK]
+        if proto.endswith("-lz4"):
+            c_argv.append("--compress")
+        cli = _spawn_cmd(NS_A, c_argv)
+        cres = _result(cli, TRANSFER_TIMEOUT_S + 30)
+        counters = read_counters()
+        sres = _result(srv, 20)
+        ok = bool(cres.get("ok")) and bool(sres.get("ok")) and _same_file(path, out_rx)
+        sh(f"rm -f {out_rx}", check=False)
+        el = float(cres.get("elapsed_s", TRANSFER_TIMEOUT_S))
+        wire = counters["client_tx_bytes"] + counters["server_tx_bytes"]
+        return {
+            "ok": ok,
+            "elapsed_s": round(el, 3),
+            "goodput_mbps": round(size * 8 / 1e6 / el, 3) if ok else 0.0,
+            "link_utilization": round(size * 8 / 1e6 / el / rate_mbit, 3) if ok else 0.0,
+            "wire_bytes_total": wire,
+            "wire_overhead_x": round(wire / size, 3),
+            **counters,
+        }
     if proto == "udt":
         srv = _spawn_cmd(NS_B, [UDT_XFER, "server", IP_B, str(port), str(path)])
         _wait_ready(srv)
@@ -464,9 +499,34 @@ def run_fairness(rate_mbit: float = 10, rtt_ms: float = 40, seconds: int = 20) -
     return out
 
 
+def _make_structured_aqms_log(size: int) -> bytes:
+    """Realistic multi-sensor AQMS JSONL log with varying timestamps & readings (not constant padding)."""
+    import random
+    rng = random.Random(20261112)
+    chunks: List[bytes] = []
+    cur = 0
+    seq = 1
+    ts = 1762900000
+    while cur < size:
+        line = (
+            f'{{"station":"AQMS-RUT200-VDR07","ts":{ts},"seq":{seq},'
+            f'"pm25":{38.4 + rng.gauss(0, 6.2):.2f},"pm10":{84.1 + rng.gauss(0, 11.5):.2f},'
+            f'"so2_ppb":{11.2 + rng.gauss(0, 1.8):.2f},"no2_ppb":{24.6 + rng.gauss(0, 3.4):.2f},'
+            f'"o3_ppb":{31.0 + rng.gauss(0, 4.1):.2f},"co_ppm":{0.82 + rng.gauss(0, 0.09):.3f},'
+            f'"temp_c":{29.4 + rng.gauss(0, 0.4):.2f},"rh_pct":{61.5 + rng.gauss(0, 1.2):.1f},'
+            f'"vbat_v":{12.68 + rng.gauss(0, 0.03):.2f},"rssi_dbm":{-67 + rng.randint(-4, 4)}}}\n'
+        ).encode("utf-8")
+        chunks.append(line)
+        cur += len(line)
+        seq += 1
+        ts += 1
+    raw = b"".join(chunks)[:size]
+    return raw
+
+
 def main(quick: bool, protocols: Optional[List[str]] = None, tag: str = "", fairness_test: bool = True,
          conditions: Optional[List[str]] = None, sizes: Optional[List[int]] = None, reps: Optional[int] = None,
-         extended: bool = False) -> None:
+         extended: bool = False, structured_log: bool = False) -> None:
     global PROTOCOLS
     if os.geteuid() != 0:
         sys.exit("run as root (netns + tc)")
@@ -484,8 +544,8 @@ def main(quick: bool, protocols: Optional[List[str]] = None, tag: str = "", fair
     t_start = time.time()
     try:
         for size in sizes:
-            path = BLOB_DIR / f"blob_{size}.bin"
-            path.write_bytes(os.urandom(size))
+            path = BLOB_DIR / (f"aqms_log_{size}.jsonl" if structured_log else f"blob_{size}.bin")
+            path.write_bytes(_make_structured_aqms_log(size) if structured_log else os.urandom(size))
             sha = hashlib.sha256(path.read_bytes()).hexdigest()
             for cond in conds:
                 name, rate, rtt, loss, mode = cond[:5]
@@ -533,9 +593,11 @@ if __name__ == "__main__":
             "tcp-server": lambda: role_tcp_server(int(a[0]), int(a[1]), a[2]),
             "tcp-client": lambda: role_tcp_client(int(a[0]), a[1], a[2], *a[3:4]),
             "nltp-server": lambda: role_nltp_server(int(a[0]), cap(a[1]), int(a[2]) if len(a) > 2 else 1,
-                                                    a[3] if len(a) > 3 else None),
+                                                    a[3] if len(a) > 3 and a[3] else None),
             "nltp-client": lambda: role_nltp_client(int(a[0]), a[1], cap(a[2]), int(a[3]) if len(a) > 3 else 0,
-                                                    len(a) > 4 and a[4] == "warm", a[5] if len(a) > 5 else None),
+                                                    len(a) > 4 and a[4] == "warm",
+                                                    a[5] if len(a) > 5 and a[5] else None,
+                                                    len(a) > 6 and a[6] == "lz4"),
             "quic-server": lambda: role_quic_server(int(a[0])),
             "quic-client": lambda: role_quic_client(int(a[0]), a[1]),
         }[role]()
@@ -550,9 +612,10 @@ if __name__ == "__main__":
         ap.add_argument("--reps", type=int, default=None, help="runs per cell (default 3)")
         ap.add_argument("--timeout", type=float, default=None, help="per-transfer timeout in seconds (default 90)")
         ap.add_argument("--extended", action="store_true", help="use EXTENDED_CONDITIONS (jitter, reorder, GEO sat, asymmetric)")
+        ap.add_argument("--structured-log", action="store_true", help="use realistic multi-sensor AQMS JSONL payload instead of os.urandom")
         ap.add_argument("--size-list", nargs="*", type=int, help=argparse.SUPPRESS)
         args = ap.parse_args()
         if args.timeout:
             TRANSFER_TIMEOUT_S = args.timeout
         main(args.quick, args.protocols, args.tag, args.fairness == "yes", args.conditions, args.sizes, args.reps,
-             args.extended)
+             args.extended, args.structured_log)

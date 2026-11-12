@@ -1,5 +1,5 @@
 /*
- * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.4.0).
+ * NLTP.h — Arduino IDE & PlatformIO C++ wrapper for the portable C99 NLTP core (library v1.6.0).
  *
  * Hardware-tested on ESP32 (D0WDQ6 / D0WD-V3; UDP and ESP-NOW). UDP mode uses
  * Arduino's standard <WiFiUdp.h> interface (other Wi-Fi boards are not yet
@@ -156,6 +156,18 @@ public:
     }
 
     /*
+     * LZ4-compressed asynchronous send using caller-supplied `compScratch[0..compCap-1]`.
+     * Shrinks JSON/CSV/sensor logs 3x-6x; if incompressible, transparently sends raw `data`.
+     * Both `data` and `compScratch` must remain valid until `isSendComplete()` returns true.
+     */
+    bool sendBytesCompressed(const uint8_t *data, uint32_t len,
+                             uint8_t *compScratch, uint32_t compCap,
+                             const char *filename = "payload.bin") {
+        if (!_ep || !_hasPeer) return false;
+        return nltp_send_buffer_lz4(_ep, data, len, compScratch, compCap, filename) != 0u;
+    }
+
+    /*
      * Call inside Arduino `loop()` every iteration (~1 ms) to process incoming UDP packets,
      * emit Cauchy repair shards, and maintain NAT keepalives / relay registration.
      */
@@ -229,7 +241,24 @@ public:
 
     void clearReceived() { _fileReady = false; }
 
-    bool isSendComplete() const { return _ep ? (nltp_tx_done(_ep) != 0) : true; }
+    /* Reliable out-of-line reflex lane (bypasses bulk stream queue & pacer, retransmitted until ACKed). */
+    uint32_t sendReflex(const uint8_t *msg, uint16_t len) {
+        if (!_ep || !_hasPeer) return 0u;
+        return nltp_send_reflex(_ep, msg, len);
+    }
+    uint32_t sendReflex(const char *text) {
+        if (!text) return 0u;
+        size_t n = strlen(text);
+        return n <= NLTP_REFLEX_MAX_LEN ? sendReflex((const uint8_t *)text, (uint16_t)n) : 0u;
+    }
+    bool isReflexAcked(uint32_t seq) const { return _ep ? (nltp_reflex_acked(_ep, seq) != 0) : false; }
+    uint32_t reflexPending() const { return _ep ? nltp_reflex_pending(_ep) : 0u; }
+    bool popReflex(uint8_t *outBuf, uint16_t cap, uint16_t *outLen, uint32_t *outPeerCid = nullptr) {
+        return _ep ? (nltp_pop_reflex(_ep, outBuf, cap, outLen, outPeerCid) != 0) : false;
+    }
+
+    /* True when no transfer is currently in flight (either before the first send, or once completed). */
+    bool isSendComplete() const { return _ep ? (nltp_tx_idle(_ep) != 0) : true; }
     bool isSendVerified() const { return _ep ? (nltp_tx_verified(_ep) != 0) : false; }
     bool isRelayRegistered() const { return _relayAcked; }
     nltp_endpoint_t *endpoint() { return _ep; }
@@ -260,6 +289,11 @@ private:
         if (!_ep) {
             _ep = (nltp_endpoint_t *)malloc(sizeof(nltp_endpoint_t));
             if (!_ep) return false;
+        }
+        if (rxCapBytes == 0u) {
+            if (_rxBuf) { free(_rxBuf); _rxBuf = nullptr; }
+            _rxCap = 0u;
+            return true;
         }
         if (!_rxBuf || _rxCap != rxCapBytes) {
             if (_rxBuf) free(_rxBuf);
@@ -346,7 +380,10 @@ public:
             _node = (nltp_espnow_node_t *)malloc(sizeof(nltp_espnow_node_t));
             if (!_node) return false;
         }
-        if (!_rxBuf || _rxCap != rxCapBytes) {
+        if (rxCapBytes == 0u) {
+            if (_rxBuf) { free(_rxBuf); _rxBuf = nullptr; }
+            _rxCap = 0u;
+        } else if (!_rxBuf || _rxCap != rxCapBytes) {
             if (_rxBuf) free(_rxBuf);
             _rxBuf = (uint8_t *)malloc(rxCapBytes);
             if (!_rxBuf) return false;
@@ -380,6 +417,14 @@ public:
         return nltp_send_buffer(&_node->ep, data, len, filename) != 0u;
     }
 
+    bool sendBytesCompressed(const uint8_t *data, uint32_t len,
+                             uint8_t *compScratch, uint32_t compCap,
+                             const char *filename = "payload.bin") {
+        if (!_node || !_node->has_peer) return false;
+        if (_node->ep.tx.active && !_node->ep.tx.completed) return false;
+        return nltp_send_buffer_lz4(&_node->ep, data, len, compScratch, compCap, filename) != 0u;
+    }
+
     void poll() {
         if (!_node) return;
         nltp_espnow_node_poll(_node);
@@ -401,7 +446,23 @@ public:
 
     void clearReceived() { _fileReady = false; }
 
-    bool isSendComplete() const { return _node ? (nltp_tx_done(&_node->ep) != 0) : true; }
+    uint32_t sendReflex(const uint8_t *msg, uint16_t len) {
+        if (!_node || !_node->has_peer) return 0u;
+        return nltp_espnow_node_send_reflex(_node, msg, len);
+    }
+    uint32_t sendReflex(const char *text) {
+        if (!text) return 0u;
+        size_t n = strlen(text);
+        return n <= NLTP_REFLEX_MAX_LEN ? sendReflex((const uint8_t *)text, (uint16_t)n) : 0u;
+    }
+    bool isReflexAcked(uint32_t seq) const { return _node ? (nltp_reflex_acked(&_node->ep, seq) != 0) : false; }
+    uint32_t reflexPending() const { return _node ? nltp_reflex_pending(&_node->ep) : 0u; }
+    bool popReflex(uint8_t *outBuf, uint16_t cap, uint16_t *outLen, uint32_t *outPeerCid = nullptr) {
+        return _node ? (nltp_espnow_node_pop_reflex(_node, outBuf, cap, outLen, outPeerCid) != 0) : false;
+    }
+
+    /* True when no transfer is currently in flight (either before the first send, or once completed). */
+    bool isSendComplete() const { return _node ? (nltp_tx_idle(&_node->ep) != 0) : true; }
     bool isSendVerified() const { return _node ? (nltp_tx_verified(&_node->ep) != 0) : false; }
     nltp_endpoint_t *endpoint() { return _node ? &_node->ep : nullptr; }
     nltp_espnow_node_t *rawNode() { return _node; }

@@ -76,10 +76,14 @@ public final class NLTPServer extends NLTPSocketBase {
     }
 
     public boolean sendBytes(InetSocketAddress clientAddr, byte[] data, long timeoutMs) {
+        return sendBytes(clientAddr, data, timeoutMs, false);
+    }
+
+    public boolean sendBytes(InetSocketAddress clientAddr, byte[] data, long timeoutMs, boolean compress) {
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();
         try {
-            xfer = engine.startTransfer(clientAddr, data, "bytes", "", NLTPEndpoint.monoNowS());
+            xfer = engine.startTransfer(clientAddr, data, "bytes", "", compress, NLTPEndpoint.monoNowS());
         } finally {
             lock.unlock();
         }
@@ -88,12 +92,16 @@ public final class NLTPServer extends NLTPSocketBase {
     }
 
     public boolean sendFile(InetSocketAddress clientAddr, Path filepath, long timeoutMs) throws IOException {
+        return sendFile(clientAddr, filepath, timeoutMs, false);
+    }
+
+    public boolean sendFile(InetSocketAddress clientAddr, Path filepath, long timeoutMs, boolean compress) throws IOException {
         byte[] raw = Files.readAllBytes(filepath);
         String name = filepath.getFileName().toString();
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();
         try {
-            xfer = engine.startTransfer(clientAddr, raw, "file", name, NLTPEndpoint.monoNowS());
+            xfer = engine.startTransfer(clientAddr, raw, "file", name, compress, NLTPEndpoint.monoNowS());
         } finally {
             lock.unlock();
         }

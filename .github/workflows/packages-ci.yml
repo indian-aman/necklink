@@ -80,12 +80,16 @@ jobs:
           java-version: "21"
       - name: C99 core self-tests (-Werror) and ESP-NOW hub simulation
         run: make -C csrc clean all test espnow-sim
-      - name: C99 self-tests under AddressSanitizer + UBSan
+      - name: C99 self-tests under AddressSanitizer + UBSan (full + 4.7 KB NLTP_TX_ONLY)
         run: |
           gcc -O1 -g -std=c99 -Wall -Wextra -pedantic -Werror -fsanitize=address,undefined \
               -fno-sanitize-recover=undefined -Icsrc -o /tmp/nltp_selftest_asan \
               csrc/tools/nltp_selftest.c csrc/nltp_core.c csrc/nltp_sha256.c
           /tmp/nltp_selftest_asan
+          gcc -O1 -g -std=c99 -Wall -Wextra -pedantic -Werror -DNLTP_TX_ONLY=1 -fsanitize=address,undefined \
+              -fno-sanitize-recover=undefined -Icsrc -o /tmp/nltp_txonly_asan \
+              csrc/tools/nltp_txonly_selftest.c csrc/nltp_core.c csrc/nltp_sha256.c
+          /tmp/nltp_txonly_asan
       - name: Python package (wheel install) and tests
         run: |
           python -m pip install --upgrade pip build pytest
@@ -98,8 +102,8 @@ jobs:
         run: npm test
       - name: Java SDK build and self-tests
         working-directory: packages/nltp/java
-        run: mvn -B package   # the test phase runs NLTPSelfTest (7 self-tests) before the JAR is built
-      - name: Cross-language interop (C <-> Python 72, Python/C/JS/Java 216)
+        run: mvn -B package   # the test phase runs NLTPSelfTest (8 self-tests) before the JAR is built
+      - name: Cross-language interop (C <-> Python 72, Python/C/JS/Java 248 incl. 4x4 LZ4)
         run: |
           python scripts/c_interop_test.py
           python scripts/multilang_interop_test.py

@@ -157,6 +157,7 @@ def cmd_serve(args: argparse.Namespace) -> int:
                     f"file={item.saved_path or item.filename or '-'}"
                 )
                 if args.max_items > 0 and count >= args.max_items:
+                    time.sleep(1.5)
                     break
     return 0
 
@@ -172,9 +173,10 @@ def cmd_send_file(args: argparse.Namespace) -> int:
         max_tx_kbps=args.max_kbps,
         loss_drop_sim=args.loss,
     ) as cli:
-        receipt = cli.send_file(args.file, timeout=args.timeout)
+        receipt = cli.send_file(args.file, timeout=args.timeout, compress=bool(args.compress))
+        comp_str = f" (LZ4->{receipt['wire_payload_bytes']:,} B)" if receipt.get("compressed") else ""
         print(
-            f"File={receipt['filename']} ({receipt['bytes']:,} B) | Encrypted={receipt['encrypted']} | "
+            f"File={receipt['filename']} ({receipt['bytes']:,} B{comp_str}) | Encrypted={receipt['encrypted']} | "
             f"SHA256_OK={receipt['verified_sha256']} | Time={receipt['elapsed_s']:.3f}s | "
             f"Goodput={receipt['goodput_kbps']:.1f} kbps | EstLoss={receipt['estimated_link_loss_pct']:.1f}%"
         )
@@ -269,6 +271,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     p_sf.add_argument("--max-kbps", type=float, default=50000.0, help="Router-safe max TX rate in kbps")
     p_sf.add_argument("--loss", type=float, default=0.0)
     p_sf.add_argument("--timeout", type=float, default=60.0)
+    p_sf.add_argument("-z", "--compress", action="store_true", help="Compress payload with built-in LZ4 (auto-bypasses if incompressible)")
     p_sf.set_defaults(func=cmd_send_file)
 
     p_prod = sub.add_parser("products", help="List all 5 Drosophila CNS-inspired packages in the NeckLink brand suite")

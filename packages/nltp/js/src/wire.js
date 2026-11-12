@@ -288,17 +288,35 @@ export function gf256Inv(a) {
   return GF_EXP[255 - GF_LOG[a]];
 }
 
+const GF_MUL_SCRATCH = new Uint8Array(256);
+
 export function gf256Axpy(dst, src, factor) {
   if (factor === 0) return;
   const n = dst.length;
+  let i = 0;
   if (factor === 1) {
-    for (let i = 0; i < n; i++) dst[i] ^= src[i];
+    for (; i + 4 <= n; i += 4) {
+      dst[i] ^= src[i];
+      dst[i + 1] ^= src[i + 1];
+      dst[i + 2] ^= src[i + 2];
+      dst[i + 3] ^= src[i + 3];
+    }
+    for (; i < n; i++) dst[i] ^= src[i];
     return;
   }
   const lf = GF_LOG[factor];
-  for (let i = 0; i < n; i++) {
-    const sv = src[i];
-    if (sv !== 0) dst[i] ^= GF_EXP[lf + GF_LOG[sv]];
+  GF_MUL_SCRATCH[0] = 0;
+  for (let x = 1; x < 256; x++) {
+    GF_MUL_SCRATCH[x] = GF_EXP[lf + GF_LOG[x]];
+  }
+  for (; i + 4 <= n; i += 4) {
+    dst[i] ^= GF_MUL_SCRATCH[src[i]];
+    dst[i + 1] ^= GF_MUL_SCRATCH[src[i + 1]];
+    dst[i + 2] ^= GF_MUL_SCRATCH[src[i + 2]];
+    dst[i + 3] ^= GF_MUL_SCRATCH[src[i + 3]];
+  }
+  for (; i < n; i++) {
+    dst[i] ^= GF_MUL_SCRATCH[src[i]];
   }
 }
 
@@ -308,11 +326,187 @@ export function gf256Scale(buf, factor) {
     buf.fill(0);
     return;
   }
+  const n = buf.length;
   const lf = GF_LOG[factor];
-  for (let i = 0; i < buf.length; i++) {
-    const v = buf[i];
-    if (v !== 0) buf[i] = GF_EXP[lf + GF_LOG[v]];
+  GF_MUL_SCRATCH[0] = 0;
+  for (let x = 1; x < 256; x++) {
+    GF_MUL_SCRATCH[x] = GF_EXP[lf + GF_LOG[x]];
   }
+  let i = 0;
+  for (; i + 4 <= n; i += 4) {
+    buf[i] = GF_MUL_SCRATCH[buf[i]];
+    buf[i + 1] = GF_MUL_SCRATCH[buf[i + 1]];
+    buf[i + 2] = GF_MUL_SCRATCH[buf[i + 2]];
+    buf[i + 3] = GF_MUL_SCRATCH[buf[i + 3]];
+  }
+  for (; i < n; i++) {
+    buf[i] = GF_MUL_SCRATCH[buf[i]];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Zero-Dependency Standard LZ4 Raw Block Codec (NLTP 1.6)
+// ---------------------------------------------------------------------------
+
+export const MAX_LZ4_RAW_BYTES = 64 * 1024 * 1024;
+
+export function lz4Compress(srcInput, hashLog = 12) {
+  const src = toUint8Array(srcInput);
+  const srcLen = src.length;
+  if (srcLen < 16 || hashLog < 8 || hashLog > 16) return null;
+
+  const htab = new Int32Array(1 << hashLog);
+  const shift = 32 - hashLog;
+  const limit = srcLen - 12;
+  const matchLimit = srcLen - 5;
+  const out = new Uint8Array(srcLen);
+  let op = 0;
+  let anchor = 0;
+  let ip = 1;
+
+  while (ip <= limit) {
+    let step = 1;
+    let searchMatchNb = 1 << 6;
+    let ref = 0;
+    while (true) {
+      const v = readU32LE(src, ip);
+      const h = (Math.imul(v, 0x9e3779b1) >>> shift);
+      ref = htab[h];
+      htab[h] = ip;
+      if (ip - ref <= 65535 && readU32LE(src, ref) === v) break;
+      ip += step;
+      if (ip > limit) break;
+      searchMatchNb += 1;
+      step = searchMatchNb >>> 6;
+    }
+    if (ip > limit) break;
+
+    while (ip > anchor && ref > 0 && src[ip - 1] === src[ref - 1]) {
+      ip -= 1;
+      ref -= 1;
+    }
+
+    const litLen = ip - anchor;
+    let mlen = 4;
+    while (ip + mlen < matchLimit && src[ip + mlen] === src[ref + mlen]) {
+      mlen += 1;
+    }
+
+    const mlCode = mlen - 4;
+    const need = 1 + Math.trunc(litLen / 255) + 1 + litLen + 2 + Math.trunc(mlCode / 255) + 1;
+    if (op + need >= srcLen) return null;
+
+    out[op++] = ((litLen >= 15 ? 15 : litLen) << 4) | (mlCode >= 15 ? 15 : mlCode);
+    if (litLen >= 15) {
+      let rem = litLen - 15;
+      while (rem >= 255) {
+        out[op++] = 255;
+        rem -= 255;
+      }
+      out[op++] = rem;
+    }
+    if (litLen > 0) {
+      out.set(src.subarray(anchor, anchor + litLen), op);
+      op += litLen;
+    }
+
+    const off = ip - ref;
+    out[op++] = off & 0xff;
+    out[op++] = (off >>> 8) & 0xff;
+
+    if (mlCode >= 15) {
+      let rem = mlCode - 15;
+      while (rem >= 255) {
+        out[op++] = 255;
+        rem -= 255;
+      }
+      out[op++] = rem;
+    }
+
+    ip += mlen;
+    anchor = ip;
+    if (ip <= limit) {
+      const vp = readU32LE(src, ip - 2);
+      htab[Math.imul(vp, 0x9e3779b1) >>> shift] = ip - 2;
+    }
+  }
+
+  const lastLit = srcLen - anchor;
+  if (op + 1 + Math.trunc(lastLit / 255) + 1 + lastLit >= srcLen) return null;
+  out[op++] = (lastLit >= 15 ? 15 : lastLit) << 4;
+  if (lastLit >= 15) {
+    let rem = lastLit - 15;
+    while (rem >= 255) {
+      out[op++] = 255;
+      rem -= 255;
+    }
+    out[op++] = rem;
+  }
+  if (lastLit > 0) {
+    out.set(src.subarray(anchor, anchor + lastLit), op);
+    op += lastLit;
+  }
+  return op < srcLen ? out.slice(0, op) : null;
+}
+
+export function lz4Decompress(srcInput, expectedRawLen) {
+  const src = toUint8Array(srcInput);
+  if (expectedRawLen === 0) return src.length === 0 ? new Uint8Array(0) : null;
+  if (!Number.isInteger(expectedRawLen) || expectedRawLen < 0 || expectedRawLen > MAX_LZ4_RAW_BYTES || src.length === 0) {
+    return null;
+  }
+  const srcLen = src.length;
+  const out = new Uint8Array(expectedRawLen);
+  let ip = 0;
+  let op = 0;
+
+  while (ip < srcLen) {
+    const token = src[ip++];
+    let litLen = (token >>> 4) & 0x0f;
+    if (litLen === 15) {
+      while (true) {
+        if (ip >= srcLen) return null;
+        const s = src[ip++];
+        litLen += s;
+        if (op + litLen > expectedRawLen) return null;
+        if (s !== 255) break;
+      }
+    }
+    if (ip + litLen > srcLen || op + litLen > expectedRawLen) return null;
+    if (litLen > 0) {
+      out.set(src.subarray(ip, ip + litLen), op);
+      ip += litLen;
+      op += litLen;
+    }
+    if (ip === srcLen) break;
+    if (ip + 2 > srcLen) return null;
+    const off = src[ip] | (src[ip + 1] << 8);
+    ip += 2;
+    if (off === 0 || off > op) return null;
+
+    let mlen = (token & 0x0f) + 4;
+    if ((token & 0x0f) === 15) {
+      while (true) {
+        if (ip >= srcLen) return null;
+        const s = src[ip++];
+        mlen += s;
+        if (op + mlen > expectedRawLen) return null;
+        if (s !== 255) break;
+      }
+    }
+    if (op + mlen > expectedRawLen) return null;
+
+    let ref = op - off;
+    if (off >= mlen) {
+      out.copyWithin(op, ref, ref + mlen);
+      op += mlen;
+    } else {
+      for (let i = 0; i < mlen; i++) {
+        out[op++] = out[ref++];
+      }
+    }
+  }
+  return op === expectedRawLen ? out : null;
 }
 
 export function cauchyRow(parityOffset, kShards) {
@@ -553,6 +747,9 @@ export function deriveAeadKey(psk) {
   return sha256Bytes(cat);
 }
 
+const REPLAY_WINDOW_BITS = 512n;
+const REPLAY_WINDOW_MASK = (1n << 512n) - 1n;
+
 export class ReplayWindow64 {
   constructor() {
     this.highestSeq = 0n;
@@ -564,7 +761,7 @@ export class ReplayWindow64 {
     if (seq <= 0n) return false;
     if (seq > this.highestSeq) return true;
     const diff = this.highestSeq - seq;
-    if (diff >= 64n) return false;
+    if (diff >= REPLAY_WINDOW_BITS) return false;
     return (this.bitmap & (1n << diff)) === 0n;
   }
 
@@ -573,10 +770,10 @@ export class ReplayWindow64 {
     if (!this.wouldAccept(seq)) return false;
     if (seq > this.highestSeq) {
       const shift = seq - this.highestSeq;
-      if (shift >= 64n) {
+      if (shift >= REPLAY_WINDOW_BITS) {
         this.bitmap = 1n;
       } else {
-        this.bitmap = ((this.bitmap << shift) | 1n) & 0xffffffffffffffffn;
+        this.bitmap = ((this.bitmap << shift) | 1n) & REPLAY_WINDOW_MASK;
       }
       this.highestSeq = seq;
     } else {
@@ -779,6 +976,120 @@ export function bytesEqual(a, b) {
   let d = 0;
   for (let i = 0; i < a.length; i++) d |= a[i] ^ b[i];
   return d === 0;
+}
+
+// ---------------------------------------------------------------------------
+// 7. Pure-JS RFC 7748 X25519 Ephemeral Key Exchange (Zero Dependencies)
+// ---------------------------------------------------------------------------
+
+const P25519 = (1n << 255n) - 19n;
+const A24_25519 = 121665n;
+const X25519_BASEPOINT = (() => {
+  const b = new Uint8Array(32);
+  b[0] = 9;
+  return b;
+})();
+
+function add25519(a, b) {
+  const s = a + b;
+  return s >= P25519 ? s - P25519 : s;
+}
+
+function sub25519(a, b) {
+  const d = a - b;
+  return d < 0n ? d + P25519 : d;
+}
+
+function mul25519(a, b) {
+  return (a * b) % P25519;
+}
+
+function inv25519(z) {
+  let res = 1n;
+  let base = z % P25519;
+  let exp = P25519 - 2n;
+  while (exp > 0n) {
+    if ((exp & 1n) === 1n) res = (res * base) % P25519;
+    base = (base * base) % P25519;
+    exp >>= 1n;
+  }
+  return res;
+}
+
+export function x25519ScalarMult(scalar32Input, u32Input) {
+  const kBytes = toUint8Array(scalar32Input);
+  const uBytes = toUint8Array(u32Input);
+  if (kBytes.length !== 32 || uBytes.length !== 32) return null;
+
+  const k = new Uint8Array(kBytes);
+  k[0] &= 248;
+  k[31] &= 127;
+  k[31] |= 64;
+
+  const uArr = new Uint8Array(uBytes);
+  uArr[31] &= 127;
+
+  let scalar = 0n;
+  let u = 0n;
+  for (let i = 31; i >= 0; i--) {
+    scalar = (scalar << 8n) | BigInt(k[i]);
+    u = (u << 8n) | BigInt(uArr[i]);
+  }
+  k.fill(0);
+  u %= P25519;
+
+  const x1 = u;
+  let x2 = 1n;
+  let z2 = 0n;
+  let x3 = u;
+  let z3 = 1n;
+  let swap = 0n;
+
+  for (let t = 254n; t >= 0n; t--) {
+    const kt = (scalar >> t) & 1n;
+    swap ^= kt;
+    if (swap === 1n) {
+      let tmp = x2; x2 = x3; x3 = tmp;
+      tmp = z2; z2 = z3; z3 = tmp;
+    }
+    swap = kt;
+
+    const A = add25519(x2, z2);
+    const AA = mul25519(A, A);
+    const B = sub25519(x2, z2);
+    const BB = mul25519(B, B);
+    const E = sub25519(AA, BB);
+    const C = add25519(x3, z3);
+    const D = sub25519(x3, z3);
+    const DA = mul25519(D, A);
+    const CB = mul25519(C, B);
+    const sum = add25519(DA, CB);
+    const diff = sub25519(DA, CB);
+    x3 = mul25519(sum, sum);
+    z3 = mul25519(x1, mul25519(diff, diff));
+    x2 = mul25519(AA, BB);
+    z2 = mul25519(E, add25519(AA, mul25519(A24_25519, E)));
+  }
+
+  if (swap === 1n) {
+    let tmp = x2; x2 = x3; x3 = tmp;
+    tmp = z2; z2 = z3; z3 = tmp;
+  }
+
+  let outVal = mul25519(x2, inv25519(z2));
+  const out = new Uint8Array(32);
+  let nonZero = 0;
+  for (let i = 0; i < 32; i++) {
+    const b = Number(outVal & 0xffn);
+    out[i] = b;
+    nonZero |= b;
+    outVal >>= 8n;
+  }
+  return nonZero === 0 ? null : out;
+}
+
+export function x25519PublicFromPrivate(scalar32Input) {
+  return x25519ScalarMult(scalar32Input, X25519_BASEPOINT);
 }
 
 export function buildStunBindingRequest(txId = null) {

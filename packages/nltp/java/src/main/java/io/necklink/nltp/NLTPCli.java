@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.Locale;
 
 /**
- * NLTP v1.2 Java CLI ({@code java -jar nltp-1.4.0.jar ...}).
+ * NLTP v1.6 Java CLI ({@code java -jar nltp-1.6.0.jar ...}).
  *
  * Supports both user commands ({@code gen-key}, {@code stun}, {@code relay}, {@code serve}, {@code send-file})
  * and cross-language interop driver commands ({@code send}, {@code recv}) matching {@code nltp_cli}.
@@ -40,14 +40,14 @@ public final class NLTPCli {
 
     public static void main(String[] args) throws Exception {
         if (args.length == 0 || "--help".equals(args[0]) || "-h".equals(args[0])) {
-            System.out.println("NLTP v1.2 Java CLI\n"
+            System.out.println("NLTP v1.6 Java CLI\n"
                     + "Commands:\n"
                     + "  gen-key\n"
                     + "  stun [--show-ip]\n"
                     + "  relay [--host 0.0.0.0] [--port 9000] [--duration 0]\n"
                     + "  serve [--host 0.0.0.0] [--port 9000] [--psk KEY] [--save-dir ./inbox] [--relay IP:PORT --room NAME] [--max-items N]\n"
-                    + "  send-file --file PATH [--host 127.0.0.1] [--port 9000] [--psk KEY] [--relay IP:PORT --room NAME]\n"
-                    + "  send <host> <port> <file> [--loss PCT] [--psk KEY] [--relay IP:PORT --room NAME]\n"
+                    + "  send-file --file PATH [--host 127.0.0.1] [--port 9000] [--psk KEY] [--compress|-z] [--relay IP:PORT --room NAME]\n"
+                    + "  send <host> <port> <file> [--loss PCT] [--psk KEY] [--compress|-z] [--relay IP:PORT --room NAME]\n"
                     + "  recv <bind_ip> <port> <out_file> [--loss PCT] [--psk KEY] [--relay IP:PORT --room NAME]");
             return;
         }
@@ -115,7 +115,7 @@ public final class NLTPCli {
                     }
                 }
                 // Keep answering briefly so late retransmissions (reflexes, final FECs) still get their ACK
-                Thread.sleep(500L);
+                Thread.sleep(1500L);
             }
             return;
         }
@@ -129,6 +129,7 @@ public final class NLTPCli {
             InetSocketAddress relay = parseRelay(getOpt(args, "--relay", null));
             String room = getOpt(args, "--room", null);
             double loss = Double.parseDouble(getOpt(args, "--loss", "0"));
+            boolean compress = hasFlag(args, "--compress") || hasFlag(args, "-z");
 
             try (NLTPClient cli = NLTPClient.builder()
                     .server(host, port)
@@ -136,7 +137,7 @@ public final class NLTPCli {
                     .relay(relay, room)
                     .lossDropSim(loss)
                     .build()) {
-                TransferReceipt r = cli.sendFile(Paths.get(fileStr), 90000L);
+                TransferReceipt r = cli.sendFile(Paths.get(fileStr), 90000L, compress);
                 System.out.println(r.toJson());
                 System.exit(r.verifiedSha256() ? 0 : 1);
             }
@@ -170,6 +171,7 @@ public final class NLTPCli {
             InetSocketAddress relay = parseRelay(getOpt(args, "--relay", null));
             String room = getOpt(args, "--room", null);
             double maxKbps = Double.parseDouble(getOpt(args, "--max-kbps", "50000"));
+            boolean compress = hasFlag(args, "--compress") || hasFlag(args, "-z");
 
             try (NLTPClient cli = NLTPClient.builder()
                     .server(host, port)
@@ -178,7 +180,7 @@ public final class NLTPCli {
                     .maxTxKbps(maxKbps)
                     .lossDropSim(lossPct / 100.0)
                     .build()) {
-                TransferReceipt r = cli.sendFile(file, 90000L);
+                TransferReceipt r = cli.sendFile(file, 90000L, compress);
                 System.out.println("RESULT " + r.toJson());
                 System.exit(r.verifiedSha256() ? 0 : 1);
             }

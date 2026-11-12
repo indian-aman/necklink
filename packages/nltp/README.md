@@ -2,13 +2,13 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NLTP (`pynltp` v1.4.0)
+# NLTP (`pynltp` v1.6.0)
 
-**Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
+**Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `X25519 + PSK` ephemeral forward secrecy, built-in zero-dependency `LZ4` block compression, `< 4.8 KB` RAM MCU sensor profile, and `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
 
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/pynltp/)
-[![Version](https://img.shields.io/badge/version-1.4.0-0EA5E9?style=flat-square)](#8-changelog)
-[![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-216%2F216%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=180&v=160)](https://pypi.org/project/pynltp/)
+[![Version](https://img.shields.io/badge/version-1.6.0-0EA5E9?style=flat-square)](#8-changelog)
+[![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-248%2F248%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 + ESP8266 Mesh](https://img.shields.io/badge/ESP32%20%2B%20ESP8266%20ESP--NOW-100%25%20SHA--256%20%40%2035%25%20loss-00979D?style=flat-square&logo=espressif&logoColor=white)](#6-benchmarks--hardware-verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
@@ -40,9 +40,11 @@
 
 **NLTP unifies embedded boards, laptops, and servers under one unmodified `"NL"` binary wire format:**
 
-- **Forward Error Correction (`GF(2^8)` Cauchy Reed-Solomon)**: Reconstructs lost packets algebraically inside 8-shard generations without waiting for per-packet retransmission timeouts — delivering `100%` `SHA-256`-verified payloads across `0–35%` packet loss.
-- **256-Bit Authenticated Encryption (`ChaCha20-Poly1305`) with Per-Session Keys**: Built-in `RFC 8439` AEAD with 20-byte header authentication and an `RFC 6479` 64-packet anti-replay window. Since `1.4`, a 1-RTT handshake gives every session fresh keys from both sides' random values, so recorded traffic is rejected even after a restart (see [2.4](#24-encrypted-sessions--security-model-v14) for what this does and does not protect). End-to-end `SHA-256` stream receipts (`216/216` cross-language tests passed).
-- **Priority Out-of-Band Command Lane (`send_reflex`)**: Urgent control frames (`STOP`, `RESET`, `PING_ACTUATOR`) bypass bulk file transfers with zero head-of-line blocking and retransmit until explicitly acknowledged (`PT_REFLEX_ACK`).
+- **Forward Error Correction (`GF(2^8)` Cauchy Reed-Solomon)**: Reconstructs lost packets algebraically inside 8-shard generations without waiting for per-packet retransmission timeouts — delivering `100%` `SHA-256`-verified payloads across `0–35%` packet loss, with a branchless 256-entry row-table `gf_axpy` and zero-`GF(2^8)` systematic fast-path when clean generations arrive without drops.
+- **Built-In Zero-Dependency `LZ4` Block Compression (`v1.6.0`)**: Standard Yann Collet `LZ4` raw block compressor & decompressor built directly into Python, ANSI C99, Arduino/`ESP32`/`ESP8266`, JavaScript, and Java 11+ (`compress=True` / `--compress` / `-z` / `sendBytesCompressed`). Shrinks JSONL/CSV/NMEA sensor logs `4×–20×` before Cauchy FEC slicing and **automatically bypasses compression** (`0` byte inflation) on incompressible JPEGs, ZIPs, or encrypted blobs.
+- **Ultra-Light `4.76 KB` RAM MCU Sensor Profile (`-DNLTP_TX_ONLY=1`, `v1.6.0`)**: Strips bulk receive slots down to `4,760 B` (`4.65 KB`) RAM while keeping full `X25519 + PSK` forward secrecy, `LZ4` + Cauchy FEC uploads, NAT keepalives, CGNAT relay, and **bidirectional confirmed Reflex commands** (`ESP8266` default full TX+RX profile also drops from `68 KB` to `~20 KB` RAM).
+- **256-Bit Authenticated Encryption (`ChaCha20-Poly1305`) with Ephemeral Forward Secrecy (`X25519 + PSK`)**: Built-in `RFC 8439` AEAD with 20-byte header authentication and a widened `RFC 6479` **512-packet** anti-replay window. Since `1.5.0`, a 1-RTT `X25519` (`RFC 7748`) + PSK handshake derives fresh per-session keys and immediately wipes ephemeral private scalars, so **even a later compromise of the long-term PSK cannot decrypt recorded sessions** (see [2.4](#24-encrypted-sessions--security-model-v15) for what this does and does not protect). End-to-end `SHA-256` stream receipts (`248/248` cross-language tests passed).
+- **Priority Out-of-Band Command Lane (`send_reflex`) Across All 5 Targets**: Urgent control frames (`STOP`, `RESET`, `PING_ACTUATOR`) bypass bulk file transfers with zero head-of-line blocking and retransmit until explicitly acknowledged (`PT_REFLEX_ACK`) across Python, ANSI C99, Arduino/`ESP32`/`ESP8266`, Node.js, and Java.
 - **One Protocol Across 5 Runtimes & 2 Physical Transports**: Identical wire bytes run over **UDP/IP** (including built-in `RFC 5389` STUN hole-punching and zero-knowledge 1-port CGNAT relay) and directly inside **IEEE 802.11 ESP-NOW** frames on `ESP32` and `ESP8266`.
 
 ---
@@ -74,7 +76,7 @@ Every NLTP packet — whether carried inside a UDP datagram, a CGNAT relay envel
 
 | Mode | Header Size | Wire Layout | Integrity & Replay Protection |
 | :--- | :--- | :--- | :--- |
-| **Encrypted (`FLAG_ENCRYPTED`, version nibble `2`)** | `20 B` + `16 B` tag | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `seq64` (`8 B`) \| `ts_ms` (`4 B`) \| `ciphertext` \| `poly1305_tag` (`16 B`) | 256-bit `ChaCha20-Poly1305` (`RFC 8439`) under per-session keys, header as AAD, nonce = `conn_id` \|\| `seq64`, + `RFC 6479` 64-packet sliding anti-replay bitmap |
+| **Encrypted (`FLAG_ENCRYPTED`, version nibble `2`)** | `20 B` + `16 B` tag | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `seq64` (`8 B`) \| `ts_ms` (`4 B`) \| `ciphertext` \| `poly1305_tag` (`16 B`) | 256-bit `ChaCha20-Poly1305` (`RFC 8439`) under forward-secret `X25519 + PSK` session keys, header as AAD, nonce = `conn_id` \|\| `seq64`, + `RFC 6479` **512-packet** sliding anti-replay bitmap |
 | **Plaintext** | `16 B` | `"NL"` (`2 B`) \| `ver_type` (`1 B`) \| `flags` (`1 B`) \| `conn_id` (`4 B`) \| `ts_ms` (`4 B`) \| `crc32` (`4 B`) \| `payload` | IEEE `CRC-32` over header + payload (rejects RF corruption; encryption endpoints reject plaintext downgrades) |
 
 Key derivation is identical across Python, C99, JS, Java, and Arduino: a 32-byte raw/Base64 key is used directly (`nltp gen-key`), while any human passphrase is hashed once with `SHA-256` into a 256-bit key. **Use `nltp gen-key`:** a single SHA-256 is fast to brute-force, so a weak passphrase can be guessed offline from one captured packet.
@@ -92,28 +94,30 @@ Key derivation is identical across Python, C99, JS, Java, and Arduino: a 32-byte
 
 ### 2.3 Priority Reflex Lane (`PT_REFLEX_MSG` / `PT_REFLEX_ACK`)
 
-Calling `send_reflex()` / `sendReflex()` emits a standalone encrypted control packet outside the bulk generation queue:
+Calling `send_reflex()` / `sendReflex()` / `nltp_send_reflex()` emits a standalone encrypted control packet outside the bulk generation queue across **all 5 runtimes** (Python, ANSI C99, Arduino/`ESP32`/`ESP8266`, Node.js, and Java):
 - **Zero head-of-line blocking**: Delivered immediately even while a multi-megabyte file transfer is repairing lost shards.
-- **Confirmed exactly-once delivery**: Retransmitted with exponential backoff (`15–60 ms` initial, up to `250 ms`, `3 s` budget) until `PT_REFLEX_ACK` arrives; receivers deduplicate by `(conn_id, seq)`.
+- **Confirmed exactly-once delivery**: Emits a cryptic twin (`2` initial frames) and retransmits with exponential backoff (`45–150 ms` initial, up to `250 ms`) until `PT_REFLEX_ACK` arrives; receivers deduplicate by `(conn_id, seq)`.
 
-### 2.4 Encrypted Sessions & Security Model (`v1.4`)
+### 2.4 Encrypted Sessions & Security Model (`v1.5`)
 
-In `1.3.x` every frame was sealed directly with the long-term key, using the nonce `conn_id || counter`, where the counter restarted at 1 whenever a program started. Two consequences: **recorded traffic was accepted again after the receiver restarted** (its replay window lived only in memory), and **two sessions with the same `conn_id` reused nonces**. Arduino Wi-Fi nodes picked `conn_id` from the boot clock, which made repeats likely. Since `1.4`, every session gets its own keys:
+Since `1.4` every session derives fresh keys from a 1-RTT handshake, and since **`1.5.0`** both peers mix an ephemeral **`X25519` (`RFC 7748`) Diffie-Hellman shared secret** into the `HMAC-SHA256` key schedule with **zero external dependencies** across C99, Arduino/`ESP32`/`ESP8266`, JavaScript, Java 11+, and Python:
 
 ```text
-initiator -> responder   HELLO      { n_i (16 B) }              sealed with the long-term key K
-responder -> initiator   HELLO_ACK  { n_i (16 B) || n_r (16 B) } sealed with K
-prk   = HMAC-SHA256(K,   "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r))
+initiator -> responder   HELLO      { n_i (16 B) || pk_i (32 B) }               sealed with K  (84 B wire)
+responder -> initiator   HELLO_ACK  { n_i (16 B) || n_r (16 B) || pk_r (32 B) } sealed with K  (100 B wire <= 250 B ESP-NOW v1)
+dh    = X25519(sk_i, pk_r) == X25519(sk_r, pk_i)   (rejected if all-zero low-order point per RFC 7748 s6.1)
+prk   = HMAC-SHA256(K,   "NLTP-1.5-X25519" || dh || n_i || n_r || LE32(cid_i) || LE32(cid_r))
 k_i2r = HMAC-SHA256(prk, "i2r")      k_r2i = HMAC-SHA256(prk, "r2i")
 ```
 
-- **Replay after restart is rejected**: the responder adds a fresh random `n_r` to every session, so frames recorded in an earlier session never authenticate again (demonstrated in `tests/test_session_security.py` and C self-test 15).
-- **Nonce reuse is gone**: counters restart at 1 per session, but every session has new keys, so equal `conn_id`s or reboots no longer repeat keystreams (C self-test 16).
-- **Restarts recover in about one round trip**: a receiver that gets a frame for a session it does not have replies with a small, rate-limited `NO_SESSION` hint, and the sender re-keys at once. The hint is unauthenticated, so a forged one costs at most an extra handshake.
-- **Replayed `HELLO`s cannot knock out a live session**: each peer keeps the live session plus one candidate, and a candidate only takes over once real traffic arrives under it.
-- **Random sources**: Python `os.urandom`, Java `SecureRandom`, JS `crypto.getRandomValues` (it refuses to fall back to `Math.random`), C/Arduino `esp_fill_random` (ESP32), the hardware RNG register (ESP8266), `/dev/urandom` (Linux/macOS), or `rp2040.hwrand32()` under `ARDUINO_ARCH_RP2040` *(untested on RP2040 hardware)*. On other boards call `nltp_set_random()`; without a random source an encrypted endpoint does not send.
+- **Ephemeral forward secrecy (`PFS`)**: Both `sk_i`, `sk_r`, and `dh` are zeroized immediately once `k_i2r` and `k_r2i` are derived. If the long-term PSK `K` is later extracted from a captured device or server, previously recorded `1.5` packet captures remain undecryptable (verified in `tests/test_session_security.py`, JS, Java, and C99 self-test 19).
+- **Replay after restart & heavy packet reordering handled**: Responder randomness `n_r` prevents cross-session replay, while the widened **512-packet** `RFC 6479` anti-replay bitmap tolerates heavy wireless jitter (`±20 ms`) and explicit `10%` packet reordering without dropping valid encrypted shards.
+- **Nonce reuse is gone**: Counters restart at 1 per session under fresh keys, so equal `conn_id`s or reboots never repeat keystreams.
+- **Restarts recover in about one round trip**: A receiver without a matching session replies with a rate-limited `NO_SESSION` hint (`0x0D`), triggering immediate 1-RTT re-keying.
+- **Replayed `HELLO`s cannot knock out a live session**: Each peer keeps the live session plus a candidate slot that only promotes once authenticated session data arrives.
+- **Random sources**: Python `os.urandom`, Java `SecureRandom`, JS `crypto.getRandomValues` (never `Math.random`), C/Arduino `esp_fill_random` (ESP32), hardware RNG register (ESP8266), `/dev/urandom` (Linux/macOS), or `rp2040.hwrand32()` under `ARDUINO_ARCH_RP2040` *(untested on RP2040 hardware)*. On other boards call `nltp_set_random()`; without a random source an encrypted endpoint fails closed.
 
-**What this does not protect against** (it would need public-key cryptography): a leaked key decrypts recorded sessions (**no forward secrecy**); **every holder of the shared key is trusted**, so dumping one device's flash exposes the whole fleet; an on-path attacker can still drop or delay packets; the relay sees who talks to whom, when and how much. The protocol has **not been independently reviewed**, and an NLTP E-stop must never be the only way to stop a machine. Encrypted `1.4` and `1.3.x` endpoints do not interoperate (plaintext mode still does), so upgrade every device together.
+**What this does not protect against**: **active impersonation with a stolen fleet key** — every holder of the shared PSK `K` can authenticate a new handshake, so dumping one device's flash still lets an active attacker join future sessions until `K` is rotated (per-device asymmetric identity certificates are not built in); an on-path attacker can drop or delay packets; a CGNAT relay sees peer IP metadata and byte counts. The protocol and its portable `X25519` / `ChaCha20-Poly1305` implementations have **not been independently audited**, and an NLTP E-stop must never be the sole safety interlock on machinery. Encrypted `1.5` endpoints do not interoperate with `1.4` or `1.3.x` encrypted endpoints (plaintext mode still does), so upgrade peers together.
 
 ### 2.5 NAT, Firewall & 4G/5G CGNAT Traversal
 
@@ -121,6 +125,14 @@ k_i2r = HMAC-SHA256(prk, "i2r")      k_r2i = HMAC-SHA256(prk, "r2i")
 - **Low-TTL UDP Hole-Punching (`punch_p2p`)**: Opens local NAT pinholes (`TTL=2`) before full-TTL authenticated `PING`/`PONG` probing.
 - **Connection Migration (`0-RTT` Roaming)**: Sessions track peers by authenticated `conn_id`, allowing a client or phone switching between Wi-Fi and cellular (`rebind_socket()`) to continue mid-transfer without dropping state.
 - **Zero-Knowledge 1-Port Relay (`NLTPRelayHub`)**: When both peers sit behind symmetric carrier CGNAT, a lightweight UDP relay routes packets by 16-byte hashed room tag (`BLAKE2s`/`SHA-256`) while holding **zero encryption keys**.
+
+### 2.6 Built-In Zero-Dependency `LZ4` Block Codec & Smart Auto-Bypass (`v1.6.0`)
+
+Passing `compress=True` (Python), `{ compress: true }` (Node.js), `compress = true` (Java), `nltp_send_buffer_lz4()` / `sendBytesCompressed()` (C99 / Arduino), or `--compress` / `-z` on any CLI activates standard `LZ4` raw block compression before Cauchy FEC slicing:
+
+- **100% Backward-Compatible Wire Contract**: Uncompressed transfers omit `"codec"` in `PT_STREAM_META` (identical to `v1.5.0`). When `LZ4` shrinks the payload (`compressed_len < raw_len` and `raw_len >= 32`), `PT_STREAM_META` sets `"codec": "lz4"`, `"raw_bytes": len(raw)`, `total_bytes = len(compressed)`, and `"sha256" = SHA256(raw)`.
+- **Zero Inflation on Binary/Random Files**: If `LZ4` does not shrink the buffer (e.g. JPEGs, `.zip`/`.gz` firmware, or random bytes), the sender automatically falls back to raw uncompressed transmission (`0 B` extra wire overhead).
+- **Zero-Heap In-Place Decompression & Bomb Guard**: Receivers verify decompression bounds (`raw_bytes <= out_cap` on C99/MCU, `<= 64 MB` on Python/JS/Java), decompress automatically (zero-heap in-place on C99/Arduino when `out_cap` includes the small `NLTP_LZ4_INPLACE_MARGIN`), and verify `SHA256(decompressed) == sha256` before emitting `PT_STREAM_FIN_ACK`.
 
 ---
 
@@ -219,9 +231,9 @@ with NLTPServer(("0.0.0.0", 9000), save_dir="./inbox", psk=key) as server:
 nltp gen-key
 nltp stun
 
-# Direct UDP transfer
+# Direct UDP transfer (add --compress / -z to LZ4-compress structured JSONL/CSV/text logs)
 nltp serve --host 0.0.0.0 --port 9000 --psk "<KEY>" --save-dir ./inbox
-nltp send-file --host <SERVER_IP> --port 9000 --psk "<KEY>" --file firmware.bin
+nltp send-file --host <SERVER_IP> --port 9000 --psk "<KEY>" --file telemetry.jsonl --compress
 
 # Behind 4G/5G Carrier CGNAT (run relay on any 1-port cloud VM — holds zero keys)
 nltp relay --host 0.0.0.0 --port 9000
@@ -293,7 +305,7 @@ const received = await endpoint.waitInbox(5000);
 **How it works:** Pure Java 11 (`--release 11`) with **zero external Maven/Gradle dependencies**. Uses a non-blocking `java.nio.channels.DatagramChannel` + `Selector` background loop, portable constant-time `RFC 8439` `ChaCha20-Poly1305`, and thread-safe queues.
 
 ```bash
-mvn -f packages/nltp/java/pom.xml package   # Produces packages/nltp/java/target/nltp-1.4.0.jar
+mvn -f packages/nltp/java/pom.xml package   # Produces packages/nltp/java/target/nltp-1.6.0.jar
 ```
 
 **Basic Java Connection:**
@@ -345,7 +357,7 @@ public class Example {
 
 **1. Gradle & Manifest Setup:**
 
-Copy `nltp-1.4.0.jar` into `app/libs/` and add to `app/build.gradle.kts`:
+Copy `nltp-1.6.0.jar` into `app/libs/` and add to `app/build.gradle.kts`:
 
 ```kotlin
 android {
@@ -357,7 +369,7 @@ android {
 }
 
 dependencies {
-    implementation(files("libs/nltp-1.4.0.jar"))
+    implementation(files("libs/nltp-1.6.0.jar"))
 }
 ```
 
@@ -411,6 +423,8 @@ suspend fun syncWithDevice(deviceIp: String, sharedKey: String, configBytes: Byt
 ; platformio.ini
 lib_deps =
     symlink://../necklink/packages/nltp/arduino/NLTP
+; Optional ultra-light 4.76 KB RAM sensor profile (full X25519 + LZ4 TX + bidirectional Reflex):
+; build_flags = -DNLTP_TX_ONLY=1
 ```
 *(For Arduino IDE: zip `packages/nltp/arduino/NLTP` and add via **Sketch → Include Library → Add .ZIP Library...**)*
 
@@ -515,16 +529,16 @@ if (espNow.hasReceivedFile() && espNow.isReceivedShaOk() && wifiUdp.isSendComple
 
 ## 5. Protocol Comparison: NLTP vs. MQTT vs. Raw ESP-NOW vs. TCP / QUIC
 
-| Capability | **NLTP (`v1.4.0`)** | **MQTT (over TCP/TLS)** | **Raw ESP-NOW (`v1` / `v2`)** | **TCP BBR / QUIC** |
+| Capability | **NLTP (`v1.6.0`)** | **MQTT (over TCP/TLS)** | **Raw ESP-NOW (`v1` / `v2`)** | **TCP BBR / QUIC** |
 | :--- | :--- | :--- | :--- | :--- |
 | **Underlying Transport** | UDP/IP, CGNAT Relay, L2 ESP-NOW, or custom byte callbacks | TCP/IP (or QUIC in niche brokers) | IEEE 802.11 L2 vendor action frames only | TCP/IP or UDP/IP (`QUIC`) |
 | **Central Broker Needed?** | **No** — direct P2P, hub, or optional 1-port relay | **Yes** — requires an MQTT broker (Mosquitto, EMQX, AWS IoT) | **No** — direct peer MAC to MAC | **No** — direct client/server |
 | **Works Without Wi-Fi Router?** | **Yes** (`ESP32` & `ESP8266` via ESP-NOW) | **No** — requires full IP + TCP stack | **Yes** (`ESP32` & `ESP8266`) | **No** — requires IP stack |
 | **Crosses Internet & 4G CGNAT?** | **Yes** (built-in STUN punch + zero-key relay) | **Yes** (if broker is hosted on a public IP) | **No** — single 2.4 GHz RF hop only | **Yes** (requires public IP or separate TURN/VPN) |
 | **10–35% Packet Loss Behaviour** | **Forward heals via `GF(2^8)` Cauchy FEC** (`100%` SHA-256 @ `35%` loss) | TCP head-of-line stalls, broker keepalive drops & reconnect storms | **`0%` multi-KB file delivery** from `10%+` loss (no chunk repair) | Retransmission backoff (`2–7×` slower on bursty fades) |
-| **Urgent Command During Upload** | **`send_reflex()` bypasses queue (`0` HOL blocking)** | Blocked behind in-flight TCP socket send buffer | Immediate single frame (unconfirmed at app layer) | TCP: blocked; QUIC: multi-stream capable |
+| **Urgent Command During Upload** | **`send_reflex()` bypasses queue (`0` HOL blocking, all 5 runtimes)** | Blocked behind in-flight TCP socket send buffer | Immediate single frame (unconfirmed at app layer) | TCP: blocked; QUIC: multi-stream capable |
 | **Payload Size & Integrity** | Multi-MB files & batches + mandatory `SHA-256` receipt | Up to `256 MB` messages (broker-limited, no built-in file hash) | Single `250 B` (`v1`) or `1,470 B` (`v2`) frame only | Arbitrary byte stream (TLS MAC, no file receipt) |
-| **Encryption & Peer Limit** | `ChaCha20-Poly1305` (256-bit) — **unlimited peers** | TLS 1.2/1.3 (`~40–60 KB` RAM on MCU) | `AES-128 CCMP` capped at **6–17 encrypted peers** | TLS 1.3 (`QUIC` too heavy for `80–320 KB` MCUs) |
+| **Encryption & Forward Secrecy** | `ChaCha20-Poly1305` (256-bit) + `X25519` PFS — **unlimited peers** | TLS 1.2/1.3 (`~40–60 KB` RAM on MCU) | `AES-128 CCMP` capped at **6–17 encrypted peers** (no PFS) | TLS 1.3 (`QUIC` too heavy for `80–320 KB` MCUs) |
 | **Pub/Sub Topic Routing (`a/+/c`)** | **No** (transport layer, not a message bus) | **Yes — MQTT's core superpower** (1-to-10,000 fan-out, QoS, retained state) | **No** | **No** |
 
 ### When to Use NLTP — and When Not To
@@ -613,36 +627,55 @@ Measured over 2 Wi-Fi hops (`ESP32-D0WDQ6 ↔ Router ↔ PC`) on `58–60 KB` en
 
 ---
 
-### 6.4 Linux `tc netem` `1 MB`, `10 MB` & Satellite Benchmarks vs. 7 Protocols (`v1.4.0`)
+### 6.4 Linux `tc netem` `1 MB` Binary, Structured `LZ4` Telemetry, Jitter, Reordering & Satellite Benchmarks (`v1.6.0`)
 
-Measured on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss and rate limits in both directions, `iptables` wire-byte ratio in parentheses; [`results/fair_transport_benchmark_v140_core.json`](results/fair_transport_benchmark_v140_core.json), [`results/fair_transport_benchmark_v140_warm64.json`](results/fair_transport_benchmark_v140_warm64.json)):
+Measured on `Linux 6.18` network namespaces (`tc netem` + `tbf`, symmetric loss and rate limits in both directions, `iptables` wire-byte ratio in parentheses; [`results/fair_transport_benchmark_v160_core.json`](results/fair_transport_benchmark_v160_core.json), [`results/fair_transport_benchmark_v160_warm64.json`](results/fair_transport_benchmark_v160_warm64.json), [`results/fair_transport_benchmark_v160_extended.json`](results/fair_transport_benchmark_v160_extended.json), [`results/fair_transport_benchmark_v160_lz4_telemetry.json`](results/fair_transport_benchmark_v160_lz4_telemetry.json)):
 
-| Emulated Symmetric Link (`1 MB` File) | **`NLTP 1.4.0` (Plain)** | **`NLTP 1.4.0` (AEAD Session)** | `TCP BBR` | `QUIC` (`ngtcp2`) | `KCP` (`w128`) | `kcptun` (`FEC`) | `UDT4` | `SRT` |
-| :--- | :---: | :---: | :--- | :--- | :--- | :--- | :--- | :--- |
-| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.23x`) | `0.62 s` (`1.25x`) | **`0.51 s` (`1.04x`)** | `0.57 s` (`1.05x`) | `0.58 s` (`1.50x`) | `0.74 s` (`2.25x`) | `0.94 s` (`1.15x`) | `0.87 s` (`1.15x`) |
-| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | `0.59 s` (`1.21x`) | `0.65 s` (`1.24x`) | **`0.59 s` (`1.06x`)** | `0.70 s` (`1.07x`) | `0.85 s` (`1.25x`) | `0.84 s` (`1.63x`) | `3.05 s` (`1.07x`) | `1.39 s` (`1.05x`) |
-| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.27 s` (`1.31x`)** | **`1.31 s` (`1.28x`)** | `1.49 s` (`1.08x`) | `1.59 s` (`1.09x`) | `1.74 s` (`1.45x`) | `1.56 s` (`1.74x`) | `10.17 s` (`1.18x`) | `6.57 s` (`1.24x`) |
-| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | **`2.65 s` (`1.40x`)** | **`2.79 s` (`1.41x`)** | `3.39 s` (`1.13x`) | `4.41 s` (`1.16x`) | `4.08 s` (`1.61x`) | `3.15 s` (`1.72x`) | `26.57 s` (`1.38x`) | `14.70 s` *(1/3)* |
-| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`5.89 s` (`1.47x`)** | **`6.06 s` (`1.49x`)** | `8.55 s` (`1.31x`) | `11.87 s` (`1.26x`) | `8.98 s` (`2.11x`) | `8.74 s` (`2.18x`) | `FAIL (0/3)` | `FAIL (0/3)` |
-| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | **`1.86 s` (`1.56x`)** | **`2.16 s` (`1.59x`)** | `13.48 s` *(2/3)* | `3.48 s` (`CUBIC`) | `2.16 s` (`1.63x`) | `2.07 s` (`1.71x`) | `10.02 s` (`1.33x`) | `3.79 s` *(2/3)* |
+#### A. Incompressible Random Binary (`1 MB` `os.urandom`, 3 Trials / Cell)
 
-Additional link profiles & `64 KB` warm session reuse (`v1.4.0`):
-- **Warm vs. Cold 1-RTT Session (`64 KB`, `nltp-enc-warm` vs. `nltp-enc`)**: Reusing an established `1.4.0` session saves the initial `HELLO` / `HELLO_ACK` RTT — **`0.062 s` warm vs. `0.088 s` cold** on `clean` (`1.42×`), **`0.227 s` warm vs. `0.363 s` cold** on `moderate` (`1.60×`, beating `TCP BBR` `0.413 s` and `QUIC` `0.422 s`), and **`0.506 s` warm vs. `0.556 s` cold** on `heavy` (`1.10×`, beating `TCP BBR` `0.818 s` and `QUIC` `1.224 s`).
-- **GEO Satellite (`2 Mbit`, `600 ms` RTT, `3%` loss)**: **`0.91 s`** (`nltp`) / **`1.52 s`** (`nltp-enc` cold) on `64 KB` (vs. `2.77 s` `TCP BBR` / `2.67 s` `QUIC`) and **`5.97 s`** (`nltp`) / **`6.07 s`** (`nltp-enc`) on `1 MB` (vs. `8.85 s` `TCP BBR` / `7.29 s` `QUIC`).
-- **`10 MB` Bursty Fades (`10 Mbit`, `100 ms`, `10%` burst)**: **`13.79 s` (`3/3` passed)** vs. `TCP BBR` (`1/3` passed) and `QUIC` (`1/3` passed).
-- **Where `TCP BBR` / `QUIC` / `kcptun` Win**: On `10 MB` clean (`4.45 s` `TCP BBR` vs. `5.64 s` `NLTP`), `10 MB` steady `5%` loss (`9.81 s` `TCP BBR` vs. `11.28 s` `NLTP`), and heavy `±20 ms` jitter (`1.39 s` `kcptun` / `1.52 s` `QUIC` vs. `3.32 s` `NLTP`).
+| Emulated Symmetric Link (`1 MB` Random) | **`NLTP 1.6.0` (Plain)** | **`NLTP 1.6.0` (`X25519` Py)** | **`NLTP 1.6.0` (`X25519` C99)** | `TCP BBR` | `QUIC` (`ngtcp2`) | `kcptun` (`FEC`) | `UDT4` | `SRT` |
+| :--- | :---: | :---: | :---: | :--- | :--- | :--- | :--- | :--- |
+| **Clean** (`20 Mbit`, `20 ms`, `0%`) | `0.58 s` (`1.38x`) | `0.63 s` (`1.46x`) | `0.61 s` (`1.66x`) | **`0.50 s` (`1.04x`)** | `0.72 s` (`1.05x`) | `0.74 s` (`2.23x`) | `0.94 s` (`1.15x`) | `0.87 s` (`1.15x`) |
+| **Light Loss** (`20 Mbit`, `40 ms`, `2%`) | **`0.61 s` (`1.22x`)** | `0.66 s` (`1.25x`) | `0.67 s` (`1.32x`) | `0.65 s` (`1.07x`) | `0.77 s` (`1.08x`) | `0.81 s` (`1.61x`) | `3.05 s` (`1.07x`) | `1.39 s` (`1.05x`) |
+| **Moderate Loss** (`10 Mbit`, `100 ms`, `5%`) | **`1.30 s` (`1.29x`)** | `1.49 s` (`1.32x`) | **`1.44 s` (`1.26x`)** | `1.55 s` (`1.12x`) | `1.59 s` (`1.15x`) | `1.70 s` (`1.89x`) | `10.17 s` (`1.18x`) | `6.57 s` (`1.24x`) |
+| **Heavy Loss** (`5 Mbit`, `200 ms`, `10%`) | `3.12 s` (`1.36x`) | **`2.99 s` (`1.43x`)** | `3.27 s` (`1.38x`) | `5.31 s` (`1.16x`) | `3.86 s` (`1.18x`) | `3.60 s` (`1.72x`) | `26.57 s` (`1.38x`) | `14.70 s` *(1/3)* |
+| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | **`6.65 s` (`1.60x`)** | `6.84 s` (`1.65x`) | **`6.68 s` (`1.61x`)** | `11.90 s` (`1.35x`) | `16.09 s` (`1.34x`) | `8.12 s` (`2.19x`) | `FAIL (0/3)` | `FAIL (0/3)` |
+| **Bursty Fades** (`10 Mbit`, `100 ms`, `10%` burst) | `1.40 s` (`1.34x`) | `2.55 s` (`1.63x`) | `1.66 s` (`1.48x`) | **`1.39 s` (`1.16x`)** | `1.53 s` (`1.05x`) | `2.24 s` (`1.60x`) | `10.02 s` (`1.33x`) | `3.79 s` *(2/3)* |
+| **Heavy Jitter** (`10 Mbit`, `100±20 ms`, `5%`) | `1.65 s` (`1.36x`) | `1.88 s` (`1.45x`) | — | `1.98 s` (`1.11x`) | `1.79 s` (`1.11x`) | **`1.41 s` (`1.48x`)** | — | — |
+| **10% Reordering** (`10 Mbit`, `60 ms`, `2%`, `r10%`) | **`1.17 s` (`1.29x`)** | `1.30 s` (`1.34x`) | — | **`1.17 s` (`1.16x`)** | `1.22 s` (`1.20x`) | `1.73 s` (`1.94x`) | — | — |
+| **GEO Satellite** (`2 Mbit`, `600 ms`, `3%`) | **`6.27 s` (`1.27x`)** | **`7.18 s` (`1.29x`)** | — | `9.51 s` (`1.10x`) | `7.93 s` (`1.09x`) | `7.52 s` (`1.79x`) | — | — |
+
+*(Note: `UDT4` and `SRT` columns are from [`results/fair_transport_benchmark_competitors.json`](results/fair_transport_benchmark_competitors.json) on the same 6 core `tc netem` links.)*
+
+#### B. Structured Multi-Sensor Telemetry (`1 MB` Gaussian AQMS JSONL, `X25519 + LZ4` vs. Raw Protocols)
+
+When `--compress` / `compress=True` is enabled on structured telemetry (varying timestamps + Gaussian PM2.5/PM10/SO2/NO2/O3/CO/temp/RH/battery/RSSI JSONL), NLTP's built-in `LZ4` codec shrinks the wire payload before Cauchy FEC slicing — **beating even clean-link `TCP BBR` and `QUIC` while cutting cellular wire bytes by `55–63%`** ([`results/fair_transport_benchmark_v160_lz4_telemetry.json`](results/fair_transport_benchmark_v160_lz4_telemetry.json)):
+
+| Emulated Symmetric Link (`1 MB` AQMS JSONL) | **`NLTP 1.6.0` (`C99 + X25519 + LZ4`)** | **`NLTP 1.6.0` (`Py + X25519 + LZ4`)** | `NLTP 1.6.0` (`X25519` Raw) | `TCP BBR` (Raw) | `QUIC` (`ngtcp2`, Raw) | `kcptun` (`FEC`, Raw) |
+| :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Clean** (`20 Mbit`, `20 ms`, `0%`) | **`0.245 s` (`34.3 Mbps`, `0.42x` wire)** | `0.555 s` (`15.1 Mbps`, `0.38x` wire) | `0.633 s` (`1.41x`) | `0.507 s` (`1.04x`) | `0.566 s` (`1.05x`) | `0.781 s` (`2.26x`) |
+| **Moderate / 4G** (`10 Mbit`, `100 ms`, `5%`) | **`0.642 s` (`13.1 Mbps`, `0.44x` wire)** | `0.842 s` (`10.0 Mbps`, `0.41x` wire) | `1.350 s` (`1.31x`) | `1.645 s` (`1.11x`) | `1.420 s` (`1.11x`) | `1.577 s` (`1.78x`) |
+| **Heavy / Radio** (`5 Mbit`, `200 ms`, `10%`) | **`1.516 s` (`5.53 Mbps`, `0.47x` wire)** | `1.735 s` (`4.84 Mbps`, `0.46x` wire) | `2.893 s` (`1.46x`) | `3.728 s` (`1.18x`) | `3.198 s` (`1.18x`) | `3.254 s` (`1.68x`) |
+| **Severe Loss** (`2 Mbit`, `300 ms`, `20%`) | `3.003 s` (`2.79 Mbps`, `0.50x` wire) | **`2.648 s` (`3.17 Mbps`, `0.50x` wire)** | `7.157 s` (`1.64x`) | `18.352 s` (`1.34x`) | `9.899 s` (`1.37x`) | `8.296 s` (`2.18x`) |
+
+Additional `v1.6.0` RAM, CPU & warm-session highlights:
+- **MCU Endpoint RAM Footprint (`v1.6.0` `NLTP_TX_ONLY=1` & `ESP8266` Defaults)**: Compiling with `-DNLTP_TX_ONLY=1` strips bulk receive slots down to **`4,760 B`** (`4.65 KB`) RAM — **`15.0×` lighter** than default `ESP32` (`71,216 B`, 8 slots) and **`28.2×` lighter** than desktop (`134,128 B`, 16 slots), while saving **`11.1 KB` of Xtensa ESP32 Flash** (`987,636 B` vs. `998,964 B`) and keeping full `X25519 + PSK` forward secrecy, `LZ4` + Cauchy FEC TX, CGNAT relay, and bidirectional reliable Reflexes. Default full TX+RX `ESP8266` RAM (`NLTP_RX_SLOTS = 2`) also drops to **`24,320 B`** (`< 24 KB`).
+- **C99 CPU Throughput (`v1.6.0`)**: Branchless 4×-unrolled 256-entry `gf_axpy` row lookup reaches **`956.0 MB/s`** (`1.12×` vs. `852.5 MB/s` branched `log`/`exp`, with zero data-dependent branch mispredictions on in-order MCUs), while built-in C99 `LZ4` compresses structured JSONL at **`1,163.9 MB/s`** and decompresses at **`1,242.6 MB/s`**.
+- **Warm vs. Cold 1-RTT Session (`64 KB`, `v1.6.0` BDP Window Cap)**: Bounding the `CRUISE` inflight window to `<= ceil(2.2 * BDP / gen_bytes) + 2` fixed `v1.5.0`'s shallow-queue warm-burst tail-drop on `clean_20M_20ms` (**`0.224 s` -> `0.052 s`**, **`4.31×` faster** than `v1.5.0` and **`1.79×` faster** than `TCP BBR` `0.093 s`), while leading `TCP BBR` across every lossy `64 KB` link: **`0.107 s` vs. `0.182 s`** (`wifi`), **`0.305 s` vs. `0.536 s`** (`moderate`), **`0.342 s` vs. `1.293 s`** (`heavy`, `3.78×`), and **`0.667 s` vs. `3.296 s`** (`severe`, `4.94×`).
+- **TCP CUBIC Bottleneck Coexistence (`10 Mbit`, `40 ms` RTT, `0%` loss)**: A concurrent `4 MB` NLTP upload leaves **`6.66 Mbps` (`nltp-default`) / `7.35 Mbps` (`nltp-ratecap`)** to a competing `TCP CUBIC` flow (`9.48 Mbps` alone), avoiding UDP starvation while completing its own verified upload at `6.21–6.68 Mbps`.
+- **Where `TCP BBR` / `QUIC` Win**: On uncompressed random binary over clean links (`0.50 s` `TCP BBR` vs. `0.58–0.63 s` `NLTP`), `10 MB` bulk clean/steady binary transfers, and `10:1` asymmetric uplinks (`1 Mbit` up / `10 Mbit` down).
 
 ---
 
-### 6.5 `216/216` 4-Language Wire Interop & `18/18` Dual-NAT / CGNAT Suite
+### 6.5 `248/248` 4-Language Wire Interop & `18/18` Dual-NAT / CGNAT Suite
 
-- **`216/216` Cross-Language Matrix ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py))**:
+- **`248/248` Cross-Language Matrix ([`scripts/multilang_interop_test.py`](scripts/multilang_interop_test.py))**:
   - `192/192` full 4×4 directional matrix (`Python ↔ C99 ↔ JS ↔ Java`) across plaintext, Base64 256-bit keys, and passphrases at `0%` and `15%` packet loss (`1 KB` and `64 KB`).
-  - `8/8` `256 KB` lossy cross-language streams + `6/6` cross-language zero-knowledge `NLTPRelayHub` rooms + `4/4` out-of-band `send_reflex` checks at `0%` loss + `6/6` reliable-reflex pairs at `15%` loss (5 reflexes each, every one delivered once and acknowledged).
-  - Separately, during development: `300/300` reflexes delivered at `15%` and at `30%` loss each way in each of Python, JS and Java (not part of the repo's test suites).
+  - `8/8` `256 KB` lossy cross-language streams + `6/6` cross-language zero-knowledge `NLTPRelayHub` rooms + `8/8` out-of-band `send_reflex` checks across all 4 languages at `0%` loss + `14/14` reliable-reflex pairs across all 4 languages at `15%` bidirectional loss (`70/70` reflexes delivered exactly once and acknowledged).
+  - `16/16` full 4×4 encrypted `X25519 + LZ4` block compression transfers across all 4 languages at `15%` bidirectional loss (`94,390 B -> 4,643 B` wire payload, `20.3×` ratio) + `4/4` incompressible random-binary auto-bypass transfers (`0 B` inflation) at `10%` loss.
 - **`18/18` Dual-NAT & Symmetric-CGNAT Suite ([`scripts/virtual_nat_test.py`](scripts/virtual_nat_test.py))**:
-  - `9/9` direct STUN + `TTL=2` UDP hole-punching across two separate Linux NAT routers (`1 MB` in `1.22–2.26 s` at `5%` last-mile loss).
-  - Automatic 3-second fallback to `NLTPRelayHub` under symmetric CGNAT (`MASQUERADE --random-fully`, `1.80 s`) and NAT mapping preservation across idle gaps.
+  - `9/9` direct STUN + `TTL=2` UDP hole-punching across two separate Linux NAT routers (`1 MB` in `1.30–2.15 s` at `5%` last-mile loss with `X25519 + PSK` sessions).
+  - Automatic 3-second fallback to `NLTPRelayHub` under symmetric CGNAT (`MASQUERADE --random-fully`, `1.93–2.34 s`) and NAT mapping preservation across idle gaps (`1.48 s` with 1 s keepalives).
 
 ---
 
@@ -650,11 +683,11 @@ Additional link profiles & `64 KB` warm session reuse (`v1.4.0`):
 
 | Path | Contents |
 | :--- | :--- |
-| [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python SDK & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPEndpoint`, `NLTPRelayHub`, STUN, `nltp` CLI) |
+| [`necklink/`](necklink/) & [`nltp/`](nltp/) | Python SDK & `import nltp` alias (`NLTPServer`, `NLTPClient`, `NLTPEndpoint`, `NLTPRelayHub`, STUN, `LZ4`, `nltp` CLI) |
 | [`js/`](js/) | Zero-dependency JavaScript / TypeScript SDK (`ESM` + `CommonJS` + `.d.ts` + transport-agnostic `nltp/core` + Node.js UDP + `nltp-js` CLI) |
-| [`java/`](java/) | Zero-dependency Java 11+ SDK (`io.necklink:nltp`, Maven `pom.xml`, NIO UDP, portable `ChaCha20-Poly1305`, `NLTPCli`) |
-| [`arduino/NLTP/`](arduino/NLTP/) | Arduino IDE & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) & `NLTPESPNowNode` (ESP-NOW), plus 6 example sketches |
-| [`csrc/`](csrc/) | Zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_espnow.h`), POSIX CLI & host simulator |
+| [`java/`](java/) | Zero-dependency Java 11+ SDK (`io.necklink:nltp`, Maven `pom.xml`, NIO UDP, portable `ChaCha20-Poly1305` + `X25519` + `LZ4`, `NLTPCli`) |
+| [`arduino/NLTP/`](arduino/NLTP/) | Arduino IDE & PlatformIO library (`#include <NLTP.h>`): `NLTPWiFiNode` (UDP) & `NLTPESPNowNode` (ESP-NOW), `-DNLTP_TX_ONLY=1` `4.76 KB` profile, plus 7 example sketches |
+| [`csrc/`](csrc/) | Zero-heap, zero-float ANSI C99 core (`nltp_core.{h,c}`, `nltp_net.{h,c}`, `nltp_sha256.{h,c}`, `nltp_espnow.h`), `LZ4` codec, POSIX CLI & host simulator |
 | [`esp32/`](esp32/) & [`esp32_mesh/`](esp32_mesh/) | Hardware firmware for `ESP32` Wi-Fi UDP, `ESP32` ESP-NOW v2 multi-peer hubs, and `ESP8266EX` (`NodeMCU`) cross-chip v1 mesh nodes |
 | [`examples/`](examples/) | End-to-end runnable Python, Node.js, Java, and Arduino examples ([`examples/README.md`](examples/README.md)) |
 | [`scripts/`](scripts/) & [`results/`](results/) | Multi-language interop, live field-test tool, NAT harnesses, and hardware JSON benchmark logs |
@@ -666,17 +699,17 @@ Additional link profiles & `64 KB` warm session reuse (`v1.4.0`):
 # Python unit & integration tests
 pytest
 
-# C99 self-tests (crypto, FEC, tampering, replay, stream takeover, ESP-NOW v1) + simulated radio hub
+# C99 self-tests (crypto, FEC, LZ4, TX-only 4.76 KB profile, tampering, replay, ESP-NOW v1) + simulated radio hub
 make -C csrc all test espnow-sim
 
-# JavaScript & Java self-tests (`mvn test` runs the 7 Java self-tests)
+# JavaScript & Java self-tests (`mvn test` runs the 8 Java self-tests)
 npm --prefix js test
 mvn -f java/pom.xml test
 
 # ESP32 example sketches end to end on the simulated ESP-NOW radio (sensor -> gateway -> Python server)
 python scripts/esp32_sketch_e2e_test.py
 
-# Full 216/216 4-language interoperability suite
+# Full 248/248 4-language interoperability suite (including 4x4 encrypted LZ4 @ 15% loss)
 python scripts/multilang_interop_test.py
 
 # Benchmark NLTP vs. kernel TCP over any real Wi-Fi, cellular, or radio link between two hosts
@@ -687,6 +720,18 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 ---
 
 ## 8. Changelog
+
+**`1.6.0`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)* — **lighter, faster release: zero-dependency `LZ4` codec, `4.76 KB` MCU TX-only RAM profile, branchless `GF(2^8)` & clean-link BDP cap (`100%` backward wire-compatible with `1.5.0` when `LZ4` is off)**
+- **Zero-Dependency Standard `LZ4` Block Compression (`#1`)**: Built bounds-checked Yann Collet `LZ4` raw block compressors and decompressors directly into all 5 SDKs (`compress=True` in Python, `{ compress: true }` in Node.js, `compress = true` in Java, `nltp_send_buffer_lz4()` / `sendBytesCompressed()` in C99/Arduino, and `--compress` / `-z` across all CLIs) with zero external libraries. Automatically bypasses compression (`0 B` inflation) on incompressible files, performs zero-heap in-place decompression on C99/Arduino, and verifies `SHA-256` on the uncompressed payload. On `1 MB` structured AQMS JSONL over `Linux tc netem`, `NLTP 1.6.0 + LZ4` cuts cellular wire bytes to **`0.38–0.50×`** and completes in **`0.245 s`** vs. `0.507 s` `TCP BBR` on clean `20 Mbit` (`2.07×`), **`0.642 s`** vs. `1.645 s` `TCP BBR` at `5%` loss (`2.56×`), **`1.516 s`** vs. `3.728 s` `TCP BBR` at `10%` loss (`2.46×`), and **`2.648 s`** vs. `18.352 s` `TCP BBR` at `20%` loss (`6.93×`).
+- **Branchless `GF(2^8)`, Zero-`GF(2^8)` Systematic Fast-Path & BDP Clean-Link Window Cap (`#2`)**: Replaced data-dependent branched `log`/`exp` loops with a 4×-unrolled 256-entry `gf_axpy` row lookup (`956.0 MB/s` in C99), lazily skips TX `data_mat` allocation and RX `8×8` Gauss-Jordan matrix inversion whenever systematic shards arrive intact, and bounds `CRUISE` inflight generations to `<= ceil(2.2 * BDP / gen_bytes) + 2` — accelerating warm `64 KB` clean-link sessions **`4.31×`** (`0.224 s -> 0.052 s`, `1.79×` faster than `TCP BBR`).
+- **Ultra-Light `4,760 B` (`4.65 KB`) MCU Sensor Profile & `ESP8266` Default RAM Reduction (`#3`)**: Added compile-time `-DNLTP_TX_ONLY=1` (with `nltp_init_txonly` link-time ABI guard) + `rxCapBytes = 0`, shrinking `sizeof(nltp_endpoint_t)` **`15.0×`** vs. `ESP32` (`71,216 B -> 4,760 B`) and saving **`11.1 KB` Flash** while preserving `X25519 + PSK` forward secrecy, `LZ4` + Cauchy FEC TX, CGNAT relay, and bidirectional reliable Reflexes; also lowered default `ESP8266` full TX+RX RAM (`NLTP_RX_SLOTS = 2`) to `24,320 B` and added [`ESP8266_UltraLight_LZ4_Sensor.ino`](arduino/NLTP/examples/ESP8266_UltraLight_LZ4_Sensor/ESP8266_UltraLight_LZ4_Sensor.ino).
+- **Verification**: `22/22` C99 self-tests + `NLTP_TX_ONLY=1` self-test pass under `AddressSanitizer + UBSan` (`-Werror`), `38/38` Python `pytest`, `10/10` JS, `8/8` Java, `72/72` C↔Python interop, `248/248` 4-language live interop (including `16/16` 4×4 encrypted `LZ4` @ `15%` loss + `4/4` auto-bypass), `18/18` Dual-NAT & Symmetric-CGNAT suite, `3/3` ESP32 sensor→gateway→shore simulations, and `7/7` PlatformIO `ESP32`/`ESP-NOW` example builds.
+
+**`1.5.0`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)* — **forward-secrecy, C99/ESP reflex parity & jitter/reordering release; encrypted mode requires `1.5.0` on both peers**
+- **Ephemeral Forward Secrecy (`X25519 + PSK`, `RFC 7748`) Across All 5 Targets**: Upgraded the 1-RTT session handshake (`PT_HELLO` = `48 B` `n_i || pk_i`, `PT_HELLO_ACK` = `64 B` `n_i || n_r || pk_r` -> `100 B` wire frame `<= 250 B` ESP-NOW v1 MTU, `KDF_LABEL = "NLTP-1.5-X25519"`) with portable, constant-time `X25519` in C99/Arduino, pure JS, and pure Java 11+ (zero external dependencies) plus `cryptography` in Python. Rejects low-order all-zero shared secrets (`RFC 7748` §6.1) and immediately wipes ephemeral private scalars (`sk_i`, `sk_r`, `dh`), ensuring recorded sessions stay undecryptable even if the long-term PSK is later compromised.
+- **512-Packet Anti-Replay Window & Jitter/Reordering Rate-Control Fix**: Widened the `RFC 6479` sliding replay bitmap from `64` to **`512` packets** across all 5 runtimes and replaced single-packet `min_rtt_ms` pacing checks with jitter-padded (`2.5 * rttvar_ms`) per-ACK `min_mean_rtt_ms`, softer congestion backoff (`0.82` vs. `0.72`), and a BDP-derived rate floor (`0.35 * est_bw_kbps`). Eliminates `1.4.0`'s encrypted timeouts under `±20 ms` jitter (`0/3` -> `3/3` in `1.76 s`) and eliminates reordering rate-collapse outliers (`53.0 s` -> `20/20` runs in `1.12–1.41 s` on `1 MB`).
+- **Full C99 / Arduino / ESP-NOW Reliable Reflex Parity & `isSendComplete()` Fix**: Ported confirmed priority reflexes (`PT_REFLEX_MSG` `0x06` / `PT_REFLEX_ACK` `0x0A`, cryptic twin + exponential backoff + `(conn_id, seq)` deduplication) to `csrc/nltp_core.{h,c}`, `nltp_espnow.h`, `NLTPWiFiNode`, `NLTPESPNowNode`, and `nltp_cli` (`228/228` 4-language interop passed). Added `nltp_tx_idle()` so `NLTPWiFiNode::isSendComplete()` and `NLTPESPNowNode::isSendComplete()` return `true` before the first transfer starts instead of stranding boot-time loops.
+- **Verification**: `20/20` C99 self-tests pass under `AddressSanitizer + UBSan` (`-Werror`), `32/32` Python `pytest`, `9/9` JS, `7/7` Java, `72/72` C↔Python interop, `228/228` 4-language interop, `18/18` Dual-NAT & Symmetric-CGNAT suite, `3/3` ESP32 sensor→gateway→shore simulations, and clean firmware builds on `ESP32` (`46.8–60.4 KB` RAM) and `ESP8266EX` (`62.2 / 80.2 KB` RAM).
 
 **`1.4.0`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)* — **security release; encrypted mode is not compatible with `1.3.x`**
 - **Per-session keys (fixes replay and nonce reuse)**: encrypted endpoints run a 1-RTT `HELLO` / `HELLO_ACK` handshake (`0x0B` / `0x0C`, wire version `2`) and seal every frame with keys derived from both sides' fresh random values ([2.4](#24-encrypted-sessions--security-model-v14)). Before this, recorded encrypted traffic was accepted again after the receiver restarted, and sessions that repeated a `conn_id` reused nonces under the shared key.

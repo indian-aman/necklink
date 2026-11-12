@@ -1,5 +1,5 @@
 """
-4-Language NLTP v1.2 Live Wire & Encryption Interoperability Suite:
+4-Language NLTP v1.6 Live Wire, Encryption & LZ4 Interoperability Suite:
 Python <-> ANSI C99 <-> JavaScript (Node.js ESM) <-> Java (JDK 11+ NIO).
 
 Verifies:
@@ -9,11 +9,13 @@ Verifies:
   2. 8 heterogeneous 256 KB encrypted cross-language transfers under 15% packet loss.
   3. 6 cross-language Zero-Knowledge NLTPRelayHub CGNAT traversals (Python, JS, and Java hubs)
      under 10% packet loss.
-  4. 4 cross-language out-of-line `send_reflex` urgent frame deliveries (Python, JS, Java).
-  5. 6 cross-language reliable-reflex runs at 15% loss each way: 5 reflexes per pair, each must be
-     delivered exactly once and acknowledged (v1.3.2 reliable reflex lane).
+  4. 8 cross-language out-of-line `send_reflex` urgent frame deliveries (py, c, js, java).
+  5. 14 cross-language reliable-reflex runs at 15% loss each way: 5 reflexes per pair, each must be
+     delivered exactly once and acknowledged (reliable reflex lane).
+  6. 16 full 4x4 encrypted X25519 + LZ4 block compression transfers @ 15% loss + 4 incompressible
+     auto-bypass transfers @ 10% loss = 20 LZ4 wire-contract checks.
 
-Total: 216 live cross-language protocol verifications.
+Total: 248 live cross-language protocol verifications.
 """
 from __future__ import annotations
 
@@ -157,12 +159,15 @@ def _wait_line_prefix(proc: subprocess.Popen, prefixes: Tuple[str, ...], timeout
 
 
 def _cli_cmd(lang: str, mode: str, host: str, port: int, file_arg: str, loss_pct: int,
-             psk: Optional[str], relay_spec: Optional[str] = None, room: Optional[str] = None) -> List[str]:
+             psk: Optional[str], relay_spec: Optional[str] = None, room: Optional[str] = None,
+             compress: bool = False) -> List[str]:
     extra: List[str] = ["--loss", str(loss_pct)]
     if psk:
         extra += ["--psk", psk]
     if relay_spec and room:
         extra += ["--relay", relay_spec, "--room", room]
+    if compress and mode == "send":
+        extra.append("--compress")
 
     if lang == "c":
         return [*C_PREFIX, mode, host, str(port), file_arg, *extra]
@@ -182,6 +187,7 @@ def run_pair(
     port: int,
     psk: Optional[str] = None,
     relay_ports: Optional[Tuple[int, str]] = None,
+    compress: bool = False,
 ) -> Dict:
     """
     Runs a single live UDP transfer from `sender` to `receiver`.
@@ -235,18 +241,23 @@ def run_pair(
                 ) as cli:
                     if relay_ports:
                         time.sleep(0.05)
-                    rep = cli.send_file(src_path, timeout=90.0)
+                    rep = cli.send_file(src_path, timeout=90.0, compress=compress)
                 tx_ok = bool(rep["verified_sha256"])
+                tx_compressed = bool(rep.get("compressed", False))
+                tx_wire_payload = int(rep.get("wire_payload_bytes", len(expected_bytes)))
                 elapsed_s = time.perf_counter() - t0
             else:
                 cmd = _cli_cmd(
                     sender, "send", target_ip, 9 if relay_ports else port,
                     _path_for(sender, src_path), loss_pct, psk,
                     relay_spec=relay_spec_for(sender), room=room_name,
+                    compress=compress,
                 )
                 tx_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 tx_res = _parse_result(tx_proc, timeout=90.0)
                 tx_ok = bool(tx_res.get("ok"))
+                tx_compressed = bool(tx_res.get("compressed", False))
+                tx_wire_payload = int(tx_res.get("wire_payload_bytes", len(expected_bytes)))
                 elapsed_s = float(tx_res.get("elapsed_s", time.perf_counter() - t0))
 
             item = srv.recv(timeout=10.0)
@@ -282,18 +293,23 @@ def run_pair(
                 ) as cli:
                     if relay_ports:
                         time.sleep(0.05)
-                    rep = cli.send_file(src_path, timeout=90.0)
+                    rep = cli.send_file(src_path, timeout=90.0, compress=compress)
                 tx_ok = bool(rep["verified_sha256"])
+                tx_compressed = bool(rep.get("compressed", False))
+                tx_wire_payload = int(rep.get("wire_payload_bytes", len(expected_bytes)))
                 elapsed_s = time.perf_counter() - t0
             else:
                 cmd = _cli_cmd(
                     sender, "send", target_ip, 9 if relay_ports else port,
                     _path_for(sender, src_path), loss_pct, psk,
                     relay_spec=relay_spec_for(sender), room=room_name,
+                    compress=compress,
                 )
                 tx_proc = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
                 tx_res = _parse_result(tx_proc, timeout=90.0)
                 tx_ok = bool(tx_res.get("ok"))
+                tx_compressed = bool(tx_res.get("compressed", False))
+                tx_wire_payload = int(tx_res.get("wire_payload_bytes", len(expected_bytes)))
                 elapsed_s = float(tx_res.get("elapsed_s", time.perf_counter() - t0))
 
             if use_wait_stdin and rx_proc.stdin is not None:
@@ -315,41 +331,57 @@ def run_pair(
 
     key_mode = "plain" if not psk else ("b64-key" if len(psk) == 44 else "passphrase")
     return {
-        "category": "relay" if relay_ports else "direct",
+        "category": "lz4" if compress else ("relay" if relay_ports else "direct"),
         "sender": sender,
         "receiver": receiver,
         "loss_pct": loss_pct,
         "size": len(expected_bytes),
+        "wire_payload_bytes": tx_wire_payload,
+        "compressed": tx_compressed,
         "key_mode": key_mode,
         "ok": bool(tx_ok and rx_ok),
         "elapsed_s": round(elapsed_s, 4),
     }
 
 
+def _cli_base(lang: str) -> List[str]:
+    if lang == "js":
+        return [NODE_BIN, JS_CLI]
+    if lang == "java":
+        return [JAVA_BIN, "-jar", JAVA_JAR]
+    if lang == "c":
+        return list(C_PREFIX)
+    raise ValueError(f"Unsupported CLI lang: {lang}")
+
+
 def run_reflex_pair(sender: str, receiver: str, port: int, psk: str) -> Dict:
     msg = f"ESTOP_{sender.upper()}_TO_{receiver.upper()}"
     t0 = time.perf_counter()
     if receiver == "py":
-        with NLTPServer(("127.0.0.1", port), psk=psk) as srv:
-            cmd = (
-                [NODE_BIN, JS_CLI, "send-reflex", "127.0.0.1", str(port), msg, "--psk", psk]
-                if sender == "js"
-                else [JAVA_BIN, "-jar", JAVA_JAR, "send-reflex", "127.0.0.1", str(port), msg, "--psk", psk]
-            )
+        bind_ip = "0.0.0.0" if (sender == "c" and C_USES_WSL) else "127.0.0.1"
+        dst_ip = HOST_IP_FROM_C if (sender == "c" and C_USES_WSL) else "127.0.0.1"
+        with NLTPServer((bind_ip, port), psk=psk) as srv:
+            cmd = [*_cli_base(sender), "send-reflex", dst_ip, str(port), msg, "--psk", psk]
             subprocess.check_call(cmd, stdout=subprocess.DEVNULL)
             item = srv.recv(timeout=5.0)
             ok = item is not None and item.kind == "reflex" and item.data.decode("utf-8") == msg
     else:
-        rx_cmd = (
-            [NODE_BIN, JS_CLI, "serve", "--host", "127.0.0.1", "--port", str(port), "--psk", psk, "--max-items", "1"]
-            if receiver == "js"
-            else [JAVA_BIN, "-jar", JAVA_JAR, "serve", "--host", "127.0.0.1", "--port", str(port), "--psk", psk, "--max-items", "1"]
-        )
+        bind_ip = "0.0.0.0" if (receiver == "c" and C_USES_WSL) else "127.0.0.1"
+        dst_ip = C_TARGET_IP if (receiver == "c" and C_USES_WSL) else "127.0.0.1"
+        rx_cmd = [*_cli_base(receiver), "serve", "--host", bind_ip, "--port", str(port), "--psk", psk, "--max-items", "1"]
         rx_proc = subprocess.Popen(rx_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         try:
             _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
-            with NLTPClient(("127.0.0.1", port), psk=psk) as cli:
-                cli.wait_reflex_ack(cli.send_reflex(msg), timeout=5.0)   # the documented way to confirm delivery
+            if sender == "py":
+                with NLTPClient((dst_ip, port), psk=psk) as cli:
+                    cli.wait_reflex_ack(cli.send_reflex(msg), timeout=5.0)   # the documented way to confirm delivery
+            else:
+                tx_dst = (
+                    HOST_IP_FROM_C if (sender == "c" and receiver != "c" and C_USES_WSL)
+                    else (C_TARGET_IP if (receiver == "c" and sender != "c" and C_USES_WSL) else "127.0.0.1")
+                )
+                subprocess.check_call([*_cli_base(sender), "send-reflex", tx_dst, str(port), msg, "--psk", psk],
+                                      stdout=subprocess.DEVNULL)
             out, _ = rx_proc.communicate(timeout=10.0)
         finally:
             if rx_proc.poll() is None:
@@ -375,18 +407,20 @@ def run_reflex_loss_pair(sender: str, receiver: str, port: int, psk: str, n: int
     t0 = time.perf_counter()
     acks = 0
 
-    def cli_send(lang: str, msg: str) -> bool:
-        base = [NODE_BIN, JS_CLI] if lang == "js" else [JAVA_BIN, "-jar", JAVA_JAR]
+    def cli_send(lang: str, msg: str, dst_ip: str) -> bool:
+        base = _cli_base(lang)
         proc = subprocess.run(
-            [*base, "send-reflex", "127.0.0.1", str(port), msg, "--psk", psk, "--loss", str(loss)],
+            [*base, "send-reflex", dst_ip, str(port), msg, "--psk", psk, "--loss", str(loss)],
             capture_output=True, text=True, timeout=30,
         )
         return '"acked":true' in proc.stdout.replace(" ", "")
 
     if receiver == "py":
-        with NLTPServer(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as srv:
+        bind_ip = "0.0.0.0" if (sender == "c" and C_USES_WSL) else "127.0.0.1"
+        dst_ip = HOST_IP_FROM_C if (sender == "c" and C_USES_WSL) else "127.0.0.1"
+        with NLTPServer((bind_ip, port), psk=psk, loss_drop_sim=loss) as srv:
             for m in msgs:
-                acks += cli_send(sender, m)
+                acks += cli_send(sender, m, dst_ip)
             got = []
             while True:
                 item = srv.recv(timeout=1.0)
@@ -396,21 +430,27 @@ def run_reflex_loss_pair(sender: str, receiver: str, port: int, psk: str, n: int
                     got.append(item.data.decode("utf-8"))
         ok = sorted(got) == sorted(msgs) and acks == n
     else:
-        base = [NODE_BIN, JS_CLI] if receiver == "js" else [JAVA_BIN, "-jar", JAVA_JAR]
+        bind_ip = "0.0.0.0" if (receiver == "c" and C_USES_WSL) else "127.0.0.1"
+        dst_ip = (
+            HOST_IP_FROM_C if (sender == "c" and receiver != "c" and C_USES_WSL)
+            else (C_TARGET_IP if (receiver == "c" and sender != "c" and C_USES_WSL) else "127.0.0.1")
+        )
+        base = _cli_base(receiver)
         rx_proc = subprocess.Popen(
-            [*base, "serve", "--host", "127.0.0.1", "--port", str(port), "--psk", psk,
+            [*base, "serve", "--host", bind_ip, "--port", str(port), "--psk", psk,
              "--max-items", str(n), "--loss", str(loss)],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True,
         )
         try:
             _wait_line_prefix(rx_proc, ("NLTP ",), timeout=15.0)
             if sender == "py":
-                with NLTPClient(("127.0.0.1", port), psk=psk, loss_drop_sim=loss) as cli:
+                py_dst = C_TARGET_IP if (receiver == "c" and C_USES_WSL) else "127.0.0.1"
+                with NLTPClient((py_dst, port), psk=psk, loss_drop_sim=loss) as cli:
                     for m in msgs:
                         acks += cli.wait_reflex_ack(cli.send_reflex(m), timeout=5.0)
             else:
                 for m in msgs:
-                    acks += cli_send(sender, m)
+                    acks += cli_send(sender, m, dst_ip)
             out, _ = rx_proc.communicate(timeout=25.0)
         except subprocess.TimeoutExpired:
             rx_proc.kill()
@@ -448,7 +488,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 1. Full 4x4 Matrix: 16 pairs x 3 key modes x 2 sizes x 2 losses = 192
         # ------------------------------------------------------------------
-        print("=== Part 1/5: Full 4x4 Language Matrix (py, c, js, java) — 192 Live Transfers ===", flush=True)
+        print("=== Part 1/6: Full 4x4 Language Matrix (py, c, js, java) — 192 Live Transfers ===", flush=True)
         files = {}
         for sz in (1000, 65536, 262144):
             fp = work_dir / f"payload_{sz}.bin"
@@ -466,7 +506,7 @@ def main() -> None:
                             rows.append(res)
                             status = "OK  " if res["ok"] else "FAIL"
                             print(
-                                f"  [{len(rows):>3}/216] {res['key_mode']:>10}  {s:>4} -> {r:<4}  "
+                                f"  [{len(rows):>3}/248] {res['key_mode']:>10}  {s:>4} -> {r:<4}  "
                                 f"{sz:>7} B  loss {loss:>2}%  {status}  {res['elapsed_s']:.3f}s",
                                 flush=True,
                             )
@@ -476,7 +516,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 2. 256 KB Encrypted Lossy Stress (15% loss) across 8 cross-lang pairs
         # ------------------------------------------------------------------
-        print("\n=== Part 2/5: 256 KB Encrypted Multi-Window Stress @ 15% Loss (8 Cross-Language Pairs) ===", flush=True)
+        print("\n=== Part 2/6: 256 KB Encrypted Multi-Window Stress @ 15% Loss (8 Cross-Language Pairs) ===", flush=True)
         stress_pairs = [
             ("py", "js"), ("js", "java"), ("java", "c"), ("c", "py"),
             ("py", "java"), ("java", "js"), ("js", "c"), ("c", "java"),
@@ -487,7 +527,7 @@ def main() -> None:
             res["category"] = "stress_256k"
             rows.append(res)
             print(
-                f"  [{len(rows):>3}/216]   256KB-enc  {s:>4} -> {r:<4}  "
+                f"  [{len(rows):>3}/248]   256KB-enc  {s:>4} -> {r:<4}  "
                 f"262144 B  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s",
                 flush=True,
             )
@@ -497,7 +537,7 @@ def main() -> None:
         # ------------------------------------------------------------------
         # 3. Cross-Language Zero-Knowledge NLTPRelayHub CGNAT Traversal (10% loss)
         # ------------------------------------------------------------------
-        print("\n=== Part 3/5: Cross-Language Zero-Knowledge NLTPRelayHub @ 10% Loss (Python / JS / Java Hubs) ===", flush=True)
+        print("\n=== Part 3/6: Cross-Language Zero-Knowledge NLTPRelayHub @ 10% Loss (Python / JS / Java Hubs) ===", flush=True)
         # 3a. Python NLTPRelayHub
         with NLTPRelayHub(("0.0.0.0", 0)) as py_hub:
             hub_port = py_hub.getsockname()[1]
@@ -509,7 +549,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "py"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/216]  py-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/248]  py-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"Python RelayHub failure: {res}")
 
@@ -530,7 +570,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "js"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/216]  js-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/248]  js-relay   {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"JS RelayHub failure: {res}")
         finally:
@@ -554,7 +594,7 @@ def main() -> None:
                 )
                 res["relay_hub"] = "java"
                 rows.append(res)
-                print(f"  [{len(rows):>3}/216] java-relay  {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+                print(f"  [{len(rows):>3}/248] java-relay  {s:>4} -> {r:<4}   65536 B  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
                 if not res["ok"]:
                     raise RuntimeError(f"Java RelayHub failure: {res}")
         finally:
@@ -562,25 +602,75 @@ def main() -> None:
             java_hub.communicate()
 
         # ------------------------------------------------------------------
-        # 4. Cross-Language Out-of-Line Reflex Messages
+        # 4. Cross-Language Out-of-Line Reflex Messages (All 4 Languages)
         # ------------------------------------------------------------------
-        print("\n=== Part 4/5: Cross-Language Out-of-Line Reflex Verification ===", flush=True)
-        for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py")):
+        print("\n=== Part 4/6: Cross-Language Out-of-Line Reflex Verification (py, c, js, java) ===", flush=True)
+        reflex_pairs = (("py", "c"), ("c", "py"), ("py", "js"), ("py", "java"), ("js", "py"), ("java", "py"), ("c", "js"), ("java", "c"))
+        for s, r in reflex_pairs:
             port = _next_free_udp_port(port + 1)
             res = run_reflex_pair(s, r, port, b64_key)
             rows.append(res)
-            print(f"  [{len(rows):>3}/216]    reflex   {s:>4} -> {r:<4}      {res['size']:>2} B  loss  0%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+            print(f"  [{len(rows):>3}/248]    reflex   {s:>4} -> {r:<4}      {res['size']:>2} B  loss  0%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
             if not res["ok"]:
                 raise RuntimeError(f"Reflex interop failure: {res}")
 
-        print("\n=== Part 5/5: Reliable Reflex Lane @ 15% Loss (5 reflexes per pair, delivered once + acked) ===", flush=True)
-        for s, r in (("py", "js"), ("py", "java"), ("js", "py"), ("java", "py"), ("js", "java"), ("java", "js")):
+        print("\n=== Part 5/6: Reliable Reflex Lane @ 15% Loss (5 reflexes per pair, delivered once + acked, all 4 langs) ===", flush=True)
+        reflex_loss_pairs = (
+            ("py", "c"), ("c", "py"), ("py", "js"), ("py", "java"), ("js", "py"),
+            ("java", "py"), ("js", "java"), ("java", "js"), ("c", "js"), ("js", "c"),
+            ("c", "java"), ("java", "c"), ("c", "c"), ("js", "js"),
+        )
+        for s, r in reflex_loss_pairs:
             port = _next_free_udp_port(port + 1)
             res = run_reflex_loss_pair(s, r, port, b64_key)
             rows.append(res)
-            print(f"  [{len(rows):>3}/216] reflex x5  {s:>4} -> {r:<4}  acked {res['acked']}/5  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
+            print(f"  [{len(rows):>3}/248] reflex x5  {s:>4} -> {r:<4}  acked {res['acked']}/5  loss 15%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s", flush=True)
             if not res["ok"]:
                 raise RuntimeError(f"Reliable reflex interop failure: {res}")
+
+        # ------------------------------------------------------------------
+        # 6. Full 4x4 Encrypted LZ4 Block Codec Matrix @ 15% Loss + Auto-Bypass
+        # ------------------------------------------------------------------
+        print("\n=== Part 6/6: Full 4x4 Encrypted LZ4 Compression Matrix @ 15% Loss + Auto-Bypass (20 Live Transfers) ===", flush=True)
+        jsonl_lines = [
+            f'{{"station":"AQMS-RUT200-04","seq":{i},"pm25":42.5,"pm10":89.1,"so2":12.3,"no2":24.8,"o3":31.2,"co":0.82}}\n'
+            for i in range(900)
+        ]
+        jsonl_file = work_dir / "telemetry_aqms.jsonl"
+        jsonl_bytes = "".join(jsonl_lines).encode("utf-8")
+        jsonl_file.write_bytes(jsonl_bytes)
+
+        for s in langs:
+            for r in langs:
+                port = _next_free_udp_port(port + 1)
+                res = run_pair(s, r, jsonl_file, work_dir, 15, port, psk=b64_key, compress=True)
+                lz4_ok = res["ok"] and res["compressed"] and (res["wire_payload_bytes"] * 3 < len(jsonl_bytes))
+                res["ok"] = bool(lz4_ok)
+                rows.append(res)
+                ratio = len(jsonl_bytes) / max(1, res["wire_payload_bytes"])
+                print(
+                    f"  [{len(rows):>3}/248]    lz4-enc  {s:>4} -> {r:<4}  "
+                    f"{len(jsonl_bytes):>6}->{res['wire_payload_bytes']:<5}B ({ratio:.1f}x)  loss 15%  "
+                    f"{'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s",
+                    flush=True,
+                )
+                if not res["ok"]:
+                    raise RuntimeError(f"LZ4 interop failure: {res}")
+
+        for s, r in (("py", "c"), ("c", "js"), ("js", "java"), ("java", "py")):
+            port = _next_free_udp_port(port + 1)
+            res = run_pair(s, r, files[65536], work_dir, 10, port, psk=b64_key, compress=True)
+            res["category"] = "lz4-bypass"
+            bypass_ok = res["ok"] and (not res["compressed"]) and (res["wire_payload_bytes"] == 65536)
+            res["ok"] = bool(bypass_ok)
+            rows.append(res)
+            print(
+                f"  [{len(rows):>3}/248] lz4-bypass  {s:>4} -> {r:<4}  "
+                f" 65536->65536B (1.0x)  loss 10%  {'OK  ' if res['ok'] else 'FAIL'}  {res['elapsed_s']:.3f}s",
+                flush=True,
+            )
+            if not res["ok"]:
+                raise RuntimeError(f"LZ4 auto-bypass interop failure: {res}")
 
     finally:
         if work_dir.exists():
@@ -596,7 +686,7 @@ def main() -> None:
     }
     out_json = ROOT / "results" / "multilang_interop_test.json"
     out_json.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    print(f"\nVERIFIED {n_ok}/{len(rows)} 4-language NLTP v1.2 pairings -> {out_json.name}")
+    print(f"\nVERIFIED {n_ok}/{len(rows)} 4-language NLTP v1.6 pairings -> {out_json.name}")
     sys.exit(0 if n_ok == len(rows) else 1)
 
 

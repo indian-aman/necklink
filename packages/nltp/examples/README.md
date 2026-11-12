@@ -52,9 +52,10 @@ JavaScript (`examples/javascript/`, run with `node`): `encrypted_file_and_reflex
 
 ### Option A — Install in Arduino IDE (`.ZIP` Library)
 
-1. Zip the `arduino/NLTP` directory: `cd arduino && zip -r NLTP-Arduino-1.4.0.zip NLTP`.
-2. In Arduino IDE, click **Sketch → Include Library → Add .ZIP Library...** and select `NLTP-Arduino-1.4.0.zip`.
+1. Zip the `arduino/NLTP` directory: `cd arduino && zip -r NLTP-Arduino-1.6.0.zip NLTP`.
+2. In Arduino IDE, click **Sketch → Include Library → Add .ZIP Library...** and select `NLTP-Arduino-1.6.0.zip`.
 3. Open ready-made sketches via **File → Examples → NLTP**:
+   - **`ESP8266_UltraLight_LZ4_Sensor`**: Ultra-light `< 4.8 KB` RAM (`-DNLTP_TX_ONLY=1` + `rxCapBytes = 0`) AQMS/buoy telemetry sender with built-in zero-heap `LZ4` compression (`sendBytesCompressed`) and bidirectional Reflex commands on `ESP8266` or `ESP32`.
    - **`ESP32_Encrypted_Receiver`**: Receives encrypted config/OTA files from Python (`04_talk_to_arduino_esp32.py send`).
    - **`ESP32_Marine_Buoy_Sender`**: Collects packed 16-byte sensor records and uploads encrypted batches to shore every 10 s with 15 s NAT keepalives.
    - **`ESP32_Relay_CGNAT_Node`**: Connects an ESP32 behind a 4G SIM router to a cloud `NLTPRelayHub` room with zero port forwarding.

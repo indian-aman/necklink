@@ -1,15 +1,25 @@
-"""Security properties of encrypted NLTP sessions (NLTP 1.4, wire version 2; see necklink/session.py)."""
+"""Security properties of encrypted NLTP sessions (NLTP 1.5, wire version 2, X25519+PSK PFS; see necklink/session.py)."""
 import socket
 import struct
 import threading
 import time
 
 import pytest
+from cryptography.exceptions import InvalidTag
+from cryptography.hazmat.primitives.ciphers.aead import ChaCha20Poly1305
 
 from nltp import NLTPClient, NLTPServer, generate_nltp_key
-from necklink.internet import AEADCipherContext
+from necklink.internet import AEADCipherContext, ReplayWindow64, derive_aead_key
 from necklink.nltp import NLTPEndpoint, pack_nltp_frame
-from necklink.session import PT_HELLO, SESSION_VERSION
+from necklink.session import (
+    HELLO_ACK_PT_BYTES,
+    HELLO_PT_BYTES,
+    PT_HELLO,
+    PT_HELLO_ACK,
+    SESSION_VERSION,
+    derive_session_keys,
+    x25519_scalarmult,
+)
 
 
 def _free_port() -> int:
@@ -190,3 +200,57 @@ def test_reflex_sent_right_before_close_still_goes_out():
             cli.send_reflex("LAST_WORDS")      # no wait: the client closes immediately
         item = srv.recv(2.0)
         assert item is not None and item.kind == "reflex" and item.data == b"LAST_WORDS"
+
+
+def test_rfc7748_x25519_vector_and_low_order_rejection():
+    """Verifies RFC 7748 Section 5.2 Test Vector 1 and rejects the all-zero low-order point."""
+    alice_sk = bytes.fromhex("a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4")
+    bob_pk = bytes.fromhex("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c")
+    expected = bytes.fromhex("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552")
+    assert x25519_scalarmult(alice_sk, bob_pk) == expected
+    assert x25519_scalarmult(alice_sk, b"\x00" * 32) is None
+
+
+def test_forward_secrecy_compromised_psk_cannot_decrypt_recorded_session():
+    """Even an eavesdropper who records both directions (HELLO + HELLO_ACK + data) AND later steals the
+    static PSK cannot reconstruct the ephemeral X25519 shared secret or decrypt any session frame."""
+    key = generate_nltp_key()
+    a, b, wire, pump = _pair(key, 0xCAFE1111, 0xBEEF2222)
+    a.send_reflex("B", b"CONFIDENTIAL_TELEMETRY_42")
+    pump()
+    assert b.completed_inbox and b.completed_inbox[0].data == b"CONFIDENTIAL_TELEMETRY_42"
+
+    # Ephemeral private keys are wiped from both endpoints after establishment
+    assert a._sessions.pending == {} and b._sessions.pending == {}
+    for s in (*a._sessions.by_addr.values(), *b._sessions.by_addr.values()):
+        assert s.sk_i is None
+
+    # Attacker steals long-term PSK and unseals captured HELLO & HELLO_ACK
+    k_long = derive_aead_key(key)
+    hs_aead = ChaCha20Poly1305(k_long)
+    hello_raw = next(w for w in wire if (w[2] & 0x0F) == PT_HELLO)
+    ack_raw = next(w for w in wire if (w[2] & 0x0F) == PT_HELLO_ACK)
+    data_raw = next(w for w in wire if (w[2] & 0x0F) == 0x06)
+
+    _, _, _, cid_i, seq_h, _ = struct.unpack("<2sBBIQI", hello_raw[:20])
+    _, _, _, cid_r, seq_a, _ = struct.unpack("<2sBBIQI", ack_raw[:20])
+    hello_pt = hs_aead.decrypt(struct.pack("<IQ", cid_i, seq_h), hello_raw[20:], hello_raw[:20])
+    ack_pt = hs_aead.decrypt(struct.pack("<IQ", cid_r, seq_a), ack_raw[20:], ack_raw[:20])
+    assert len(hello_pt) == HELLO_PT_BYTES and len(ack_pt) == HELLO_ACK_PT_BYTES
+    n_i, pk_i = hello_pt[:16], hello_pt[16:48]
+    n_r, pk_r = ack_pt[16:32], ack_pt[32:64]
+
+    # Without sk_i or sk_r, any guessed DH value fails ChaCha20-Poly1305 authentication on recorded data
+    _, _, _, cid_d, seq_d, _ = struct.unpack("<2sBBIQI", data_raw[:20])
+    for wrong_dh in (b"\x00" * 32, pk_i, pk_r, k_long):
+        k_i2r, _ = derive_session_keys(k_long, wrong_dh, n_i, n_r, cid_i, cid_r)
+        with pytest.raises(InvalidTag):
+            ChaCha20Poly1305(k_i2r).decrypt(struct.pack("<IQ", cid_d, seq_d), data_raw[20:], data_raw[:20])
+
+
+def test_replay_window_absorbs_512_packet_reordering():
+    rw = ReplayWindow64()
+    assert rw.accept(600)
+    assert rw.accept(89)         # 600 - 89 == 511 -> accepted inside 512-packet window
+    assert not rw.accept(89)     # duplicate blocked
+    assert not rw.accept(88)     # 600 - 88 == 512 -> outside 512-packet window

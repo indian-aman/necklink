@@ -241,18 +241,122 @@ static int do_punch(double *punch_ms) {
     return g_ep.pongs_rx != pongs0;
 }
 
+static unsigned parse_loss_pct(const char *v) {
+    double d = atof(v);
+    if (strchr(v, '.') && d > 0.0 && d < 1.0) return (unsigned)(d * 100.0 + 0.5);
+    return (unsigned)atoi(v);
+}
+
 int main(int argc, char **argv) {
     uint32_t max_kbps = 50000, max_bytes = 16u << 20, keepalive_ms = 0;
-    int i, count = 1, idle_ms = 0, punch = 0, bind_port = 0, sending;
+    int i, count = 1, idle_ms = 0, punch = 0, bind_port = 0, sending, compress_lz4 = 0;
     const char *relay = NULL, *room = NULL, *stun = NULL;
     double punch_ms = 0;
+    {
+        struct timespec ts_seed;
+        clock_gettime(CLOCK_MONOTONIC, &ts_seed);
+        srand((unsigned)getpid() ^ (unsigned)time(NULL) ^ (unsigned)ts_seed.tv_nsec);
+    }
+    setvbuf(stdout, NULL, _IOLBF, 0);
+
+    if (argc >= 2 && !strcmp(argv[1], "serve")) {
+        const char *bind_ip = "127.0.0.1";
+        int port = 0, max_items = 0, got = 0;
+        uint32_t last_sid = 0, last_cid = 0;
+        double t_start, t_done;
+        for (i = 2; i < argc; ++i) {
+            const char *v = i + 1 < argc ? argv[i + 1] : "";
+            if (!strcmp(argv[i], "--host")) bind_ip = v, ++i;
+            else if (!strcmp(argv[i], "--port")) port = atoi(v), ++i;
+            else if (!strcmp(argv[i], "--psk")) g_psk = v, ++i;
+            else if (!strcmp(argv[i], "--max-items")) max_items = atoi(v), ++i;
+            else if (!strcmp(argv[i], "--loss")) g_loss_pct = parse_loss_pct(v), ++i;
+            else if (!strcmp(argv[i], "--max-kbps")) max_kbps = (uint32_t)atoi(v), ++i;
+            else if (!strcmp(argv[i], "--max-bytes")) max_bytes = (uint32_t)atoi(v), ++i;
+        }
+        if (port <= 0) return 2;
+        g_sock = open_udp(bind_ip, port);
+        nltp_init(&g_ep, ((uint32_t)rand() << 1) | 1u, max_kbps, send_cb, now_ms_cb, NULL);
+        g_rx_buf = malloc(max_bytes);
+        if (!g_rx_buf) return 2;
+        nltp_set_rx_buffer(&g_ep, g_rx_buf, max_bytes);
+        if (g_psk && g_psk[0]) {
+            uint8_t key[32];
+            nltp_key_from_psk(g_psk, key);
+            nltp_set_key(&g_ep, key);
+        }
+        printf("NLTP C99 server listening on %s:%d\n", bind_ip, port);
+        t_start = now_s();
+        while ((max_items <= 0 || got < max_items) && now_s() - t_start < 120.0) {
+            uint8_t rbuf[NLTP_REFLEX_MAX_LEN];
+            uint16_t rlen = 0;
+            uint32_t rcid = 0;
+            pump(2);
+            while (nltp_pop_reflex(&g_ep, rbuf, sizeof(rbuf), &rlen, &rcid)) {
+                got++;
+                printf("RECEIVED kind=reflex bytes=%u sha256_ok=true\n", (unsigned)rlen);
+                if (max_items > 0 && got >= max_items) break;
+            }
+            if ((max_items <= 0 || got < max_items) && nltp_rx_done(&g_ep) &&
+                (g_ep.rx.stream_id != last_sid || g_ep.rx.peer_cid != last_cid)) {
+                last_sid = g_ep.rx.stream_id;
+                last_cid = g_ep.rx.peer_cid;
+                got++;
+                printf("RECEIVED kind=file bytes=%u sha256_ok=%s\n",
+                       (unsigned)nltp_rx_len(&g_ep), nltp_rx_sha_ok(&g_ep) ? "true" : "false");
+            }
+        }
+        t_done = now_s();
+        while (now_s() - t_done < 1.5) pump(2);
+        printf("RESULT {\"ok\": %s, \"items\": %d}\n",
+               (max_items <= 0 || got >= max_items) ? "true" : "false", got);
+        return (max_items <= 0 || got >= max_items) ? 0 : 1;
+    }
+
+    if (argc >= 5 && !strcmp(argv[1], "send-reflex")) {
+        const char *msg = argv[4];
+        size_t mlen = strlen(msg);
+        uint32_t seq;
+        double t0, el;
+        int acked = 0;
+        if (mlen > NLTP_REFLEX_MAX_LEN) return 2;
+        for (i = 5; i < argc; ++i) {
+            const char *v = i + 1 < argc ? argv[i + 1] : "";
+            if (!strcmp(argv[i], "--loss")) g_loss_pct = parse_loss_pct(v), ++i;
+            else if (!strcmp(argv[i], "--psk")) g_psk = v, ++i;
+            else if (!strcmp(argv[i], "--bind-port")) bind_port = atoi(v), ++i;
+        }
+        g_sock = open_udp("0.0.0.0", bind_port);
+        nltp_init(&g_ep, ((uint32_t)rand() << 1) | 1u, max_kbps, send_cb, now_ms_cb, NULL);
+        if (g_psk && g_psk[0]) {
+            uint8_t key[32];
+            nltp_key_from_psk(g_psk, key);
+            nltp_set_key(&g_ep, key);
+        }
+        memset(&g_peer, 0, sizeof(g_peer));
+        g_peer.sin_family = AF_INET;
+        g_peer.sin_port = htons((unsigned short)atoi(argv[3]));
+        inet_pton(AF_INET, argv[2], &g_peer.sin_addr);
+        g_have_peer = 1;
+        t0 = now_s();
+        seq = nltp_send_reflex(&g_ep, (const uint8_t *)msg, (uint16_t)mlen);
+        while (seq != 0u && !nltp_reflex_acked(&g_ep, seq) && now_s() - t0 < 10.0) {
+            pump(2);
+        }
+        acked = seq != 0u && nltp_reflex_acked(&g_ep, seq);
+        el = now_s() - t0;
+        printf("RESULT {\"ok\": %s, \"acked\": %s, \"seq\": %u, \"elapsed_s\": %.6f}\n",
+               acked ? "true" : "false", acked ? "true" : "false", (unsigned)seq, el);
+        return acked ? 0 : 1;
+    }
+
     if (argc < 5) {
-        fprintf(stderr, "usage: %s send|recv <ip> <port> <file> [options]  (see source header)\n", argv[0]);
+        fprintf(stderr, "usage: %s send|recv|send-reflex|serve <ip> <port> <file|msg> [options]\n", argv[0]);
         return 2;
     }
     for (i = 5; i < argc; ++i) {
         const char *v = i + 1 < argc ? argv[i + 1] : "";
-        if (!strcmp(argv[i], "--loss")) g_loss_pct = (unsigned)atoi(v), ++i;
+        if (!strcmp(argv[i], "--loss")) g_loss_pct = parse_loss_pct(v), ++i;
         else if (!strcmp(argv[i], "--max-kbps")) max_kbps = (uint32_t)atoi(v), ++i;
         else if (!strcmp(argv[i], "--max-bytes")) max_bytes = (uint32_t)atoi(v), ++i;
         else if (!strcmp(argv[i], "--psk")) g_psk = v, ++i;
@@ -265,9 +369,8 @@ int main(int argc, char **argv) {
         else if (!strcmp(argv[i], "--bind-port")) bind_port = atoi(v), ++i;
         else if (!strcmp(argv[i], "--punch")) punch = 1;
         else if (!strcmp(argv[i], "--punch-ttl")) g_punch_ttl = atoi(v), ++i;
+        else if (!strcmp(argv[i], "--compress") || !strcmp(argv[i], "-z")) compress_lz4 = 1;
     }
-    srand((unsigned)getpid() ^ (unsigned)time(NULL));
-    setvbuf(stdout, NULL, _IOLBF, 0);
     sending = !strcmp(argv[1], "send");
 
     g_sock = sending ? open_udp("0.0.0.0", bind_port) : open_udp(argv[2], atoi(argv[3]));
@@ -323,9 +426,11 @@ int main(int argc, char **argv) {
     if (sending) {
         FILE *f = fopen(argv[4], "rb");
         long n;
-        uint8_t *data;
+        uint8_t *data, *comp_scratch = NULL;
+        uint32_t comp_cap = 0;
         int k, all_ok = 1;
         double t0 = 0, last_el = 0;
+        const char *fname = strrchr(argv[4], '/') ? strrchr(argv[4], '/') + 1 : argv[4];
         if (!f) return 2;
         fseek(f, 0, SEEK_END);
         n = ftell(f);
@@ -333,20 +438,32 @@ int main(int argc, char **argv) {
         data = malloc(n > 0 ? (size_t)n : 1u);
         if (n > 0 && fread(data, 1, (size_t)n, f) != (size_t)n) return 2;
         fclose(f);
+        if (compress_lz4 && n > 0) {
+            comp_cap = (uint32_t)n;
+            comp_scratch = malloc(comp_cap);
+        }
         for (k = 0; k < count; ++k) {
             if (k > 0 && idle_ms > 0) {
                 double ti = now_s();
                 while ((now_s() - ti) * 1000.0 < idle_ms) pump(10);
             }
             t0 = now_s();
-            nltp_send_buffer(&g_ep, data, (uint32_t)n, strrchr(argv[4], '/') ? strrchr(argv[4], '/') + 1 : argv[4]);
+            if (compress_lz4 && comp_scratch) {
+                nltp_send_buffer_lz4(&g_ep, data, (uint32_t)n, comp_scratch, comp_cap, fname);
+            } else {
+                nltp_send_buffer(&g_ep, data, (uint32_t)n, fname);
+            }
             while (!nltp_tx_done(&g_ep) && now_s() - t0 < 60.0) pump(1);
             last_el = now_s() - t0;
             if (!nltp_tx_verified(&g_ep)) all_ok = 0;
             printf("SENT %d ok=%d elapsed=%.3f\n", k + 1, nltp_tx_verified(&g_ep), last_el);
         }
-        printf("RESULT {\"ok\": %s, \"elapsed_s\": %.6f, \"pkts_tx\": %u, \"punch_ms\": %.1f}\n",
-               all_ok ? "true" : "false", last_el, (unsigned)g_ep.pkts_tx, punch_ms);
+        int was_compressed = (compress_lz4 && comp_scratch != NULL && g_ep.tx.data == comp_scratch);
+        uint32_t wire_payload_bytes = g_ep.tx.len;
+        free(comp_scratch);
+        free(data);
+        printf("RESULT {\"ok\": %s, \"bytes\": %ld, \"wire_payload_bytes\": %u, \"compressed\": %s, \"elapsed_s\": %.6f, \"pkts_tx\": %u, \"punch_ms\": %.1f}\n",
+               all_ok ? "true" : "false", n, (unsigned)wire_payload_bytes, was_compressed ? "true" : "false", last_el, (unsigned)g_ep.pkts_tx, punch_ms);
         return 0;
     } else {
         uint8_t *buf = g_rx_buf;

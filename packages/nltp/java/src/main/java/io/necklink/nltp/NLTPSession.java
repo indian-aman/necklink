@@ -14,17 +14,16 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Encrypted NLTP sessions (wire version 2, NLTP 1.4); same protocol as {@code necklink/session.py}:
+ * Encrypted NLTP sessions with Ephemeral Forward Secrecy (wire version 2, NLTP 1.5);
+ * same protocol as {@code necklink/session.py}:
  *
  * <pre>
- *   initiator -> responder  HELLO      { n_i (16 B) }              sealed with the long-term key K
- *   responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) } sealed with K
- *   prk   = HMAC-SHA256(K,   "NLTP-1.4 session" || n_i || n_r || LE32(cid_i) || LE32(cid_r))
+ *   initiator -> responder  HELLO      { n_i (16 B) || pk_i (32 B) }               sealed with K
+ *   responder -> initiator  HELLO_ACK  { n_i (16 B) || n_r (16 B) || pk_r (32 B) } sealed with K
+ *   dh    = X25519(sk_i, pk_r) == X25519(sk_r, pk_i)   (reject all-zero)
+ *   prk   = HMAC-SHA256(K,   "NLTP-1.5-X25519" || dh || n_i || n_r || LE32(cid_i) || LE32(cid_r))
  *   k_i2r = HMAC-SHA256(prk, "i2r"),   k_r2i = HMAC-SHA256(prk, "r2i")
  * </pre>
- *
- * Data frames keep the 20-byte header (version nibble 2) and are sealed with the session key for their
- * direction. Recorded traffic fails after any restart; counter restarts and conn_id collisions are harmless.
  */
 final class NLTPSession<P> {
     static final int SESSION_VERSION = 2;
@@ -32,6 +31,9 @@ final class NLTPSession<P> {
     static final int PT_HELLO_ACK = 0x0C;
     static final int PT_NO_SESSION = 0x0D;
     static final int NONCE_BYTES = 16;
+    static final int X25519_BYTES = 32;
+    static final int HELLO_PT_BYTES = NONCE_BYTES + X25519_BYTES;
+    static final int HELLO_ACK_PT_BYTES = 2 * NONCE_BYTES + X25519_BYTES;
 
     private static final double HELLO_FIRST_RETX_S = 0.06;
     private static final double HELLO_MAX_RETX_S = 0.20;
@@ -42,7 +44,7 @@ final class NLTPSession<P> {
     private static final int MAX_SESSIONS_PER_CID = 2;
     private static final int MAX_CIDS = 4096;
     private static final int MAX_QUEUED = 64;
-    private static final byte[] KDF_LABEL = "NLTP-1.4 session".getBytes(StandardCharsets.US_ASCII);
+    private static final byte[] KDF_LABEL = "NLTP-1.5-X25519".getBytes(StandardCharsets.US_ASCII);
 
     /** Result of {@link #open} for a handshake frame that was handled (nothing to deliver). */
     static final NLTPWire.Frame HANDLED = new NLTPWire.Frame(0, 0, 0, 0, new byte[0]);
@@ -61,6 +63,8 @@ final class NLTPSession<P> {
         int peerCid;
         final byte[] nI;
         byte[] nR;
+        byte[] skI;
+        byte[] pkI;
         byte[] kTx, kRx;
         long txSeq = 0L;
         final NLTPWire.ReplayWindow64 replay = new NLTPWire.ReplayWindow64();
@@ -68,12 +72,20 @@ final class NLTPSession<P> {
         byte[] ackFrame;
         List<Queued> queued = new ArrayList<>();
 
-        Session(char role, P peer, byte[] nI, double now) {
-            this.role = role; this.peer = peer; this.nI = nI;
+        Session(char role, P peer, byte[] nI, double now, byte[] skI, byte[] pkI) {
+            this.role = role; this.peer = peer; this.nI = nI; this.skI = skI; this.pkI = pkI;
             this.estS = now; this.lastRxS = now; this.helloNextS = now; this.deadlineS = now + HELLO_GIVE_UP_S;
         }
 
+        void wipeEphemeral() {
+            if (skI != null) {
+                Arrays.fill(skI, (byte) 0);
+                skI = null;
+            }
+        }
+
         void setKeys(byte[][] k, double now) {
+            wipeEphemeral();
             if (role == 'i') { kTx = k[0]; kRx = k[1]; } else { kTx = k[1]; kRx = k[0]; }
             estS = now; lastRxS = now;
         }
@@ -108,11 +120,11 @@ final class NLTPSession<P> {
     }
 
     /** Returns {k_i2r, k_r2i}. */
-    static byte[][] deriveSessionKeys(byte[] kLong, byte[] nI, byte[] nR, int cidI, int cidR) {
+    static byte[][] deriveSessionKeys(byte[] kLong, byte[] dh, byte[] nI, byte[] nR, int cidI, int cidR) {
         byte[] cids = new byte[8];
         NLTPWire.writeU32LE(cids, 0, cidI);
         NLTPWire.writeU32LE(cids, 4, cidR);
-        byte[] prk = hmacSha256(kLong, KDF_LABEL, nI, nR, cids);
+        byte[] prk = hmacSha256(kLong, KDF_LABEL, dh, nI, nR, cids);
         return new byte[][] {
             hmacSha256(prk, "i2r".getBytes(StandardCharsets.US_ASCII)),
             hmacSha256(prk, "r2i".getBytes(StandardCharsets.US_ASCII)),
@@ -175,12 +187,17 @@ final class NLTPSession<P> {
 
     // ------------------------------------------------------------------ TX side
     private void sendHello(Session<P> s, int tsMs) {
-        sendRaw.accept(seal(kLong, PT_HELLO, 0, randomSeq(), tsMs, s.nI), s.peer);
+        byte[] body = new byte[HELLO_PT_BYTES];
+        System.arraycopy(s.nI, 0, body, 0, NONCE_BYTES);
+        System.arraycopy(s.pkI, 0, body, NONCE_BYTES, X25519_BYTES);
+        sendRaw.accept(seal(kLong, PT_HELLO, 0, randomSeq(), tsMs, body), s.peer);
         hellosTx++;
     }
 
     private Session<P> startHandshake(P peer, double now) {
-        Session<P> s = new Session<>('i', peer, NLTPWire.randomBytes(NONCE_BYTES), now);
+        byte[] skI = NLTPWire.randomBytes(X25519_BYTES);
+        byte[] pkI = NLTPWire.x25519PublicFromPrivate(skI);
+        Session<P> s = new Session<>('i', peer, NLTPWire.randomBytes(NONCE_BYTES), now, skI, pkI);
         pending.put(peer, s);
         sendHello(s, (int) (long) (now * 1000.0));
         s.helloNextS = now + s.helloInterval;
@@ -218,6 +235,7 @@ final class NLTPSession<P> {
         while (it.hasNext()) {
             Session<P> s = it.next().getValue();
             if (now >= s.deadlineS) {
+                s.wipeEphemeral();
                 it.remove();
             } else if (now >= s.helloNextS) {
                 sendHello(s, (int) (long) (now * 1000.0));
@@ -273,12 +291,26 @@ final class NLTPSession<P> {
         if (pktType == PT_HELLO || pktType == PT_HELLO_ACK) {
             byte[] pt = open(kLong, raw, rawLen, cid, seq);
             if (pt == null) return null;
-            if (pktType == PT_HELLO && pt.length >= NONCE_BYTES) {
-                onHello(cid, Arrays.copyOf(pt, NONCE_BYTES), peer, now, tsMs);
+            if (pktType == PT_HELLO && pt.length >= HELLO_PT_BYTES) {
+                onHello(
+                        cid,
+                        Arrays.copyOf(pt, NONCE_BYTES),
+                        Arrays.copyOfRange(pt, NONCE_BYTES, HELLO_PT_BYTES),
+                        peer,
+                        now,
+                        tsMs
+                );
                 return HANDLED;
             }
-            if (pktType == PT_HELLO_ACK && pt.length >= 2 * NONCE_BYTES) {
-                onAck(cid, Arrays.copyOf(pt, NONCE_BYTES), Arrays.copyOfRange(pt, NONCE_BYTES, 2 * NONCE_BYTES), peer, now);
+            if (pktType == PT_HELLO_ACK && pt.length >= HELLO_ACK_PT_BYTES) {
+                onAck(
+                        cid,
+                        Arrays.copyOf(pt, NONCE_BYTES),
+                        Arrays.copyOfRange(pt, NONCE_BYTES, 2 * NONCE_BYTES),
+                        Arrays.copyOfRange(pt, 2 * NONCE_BYTES, HELLO_ACK_PT_BYTES),
+                        peer,
+                        now
+                );
                 return HANDLED;
             }
             return null;
@@ -310,32 +342,44 @@ final class NLTPSession<P> {
         }
     }
 
-    private void onHello(int cid, byte[] nI, P peer, double now, int tsMs) {
+    private void onHello(int cid, byte[] nI, byte[] pkI, P peer, double now, int tsMs) {
         List<Session<P>> lst = byCid.get(cid);
         if (lst != null) {
             for (Session<P> s : lst) {
-                if (s.role == 'r' && Arrays.equals(s.nI, nI) && s.ackFrame != null) {
+                if (s.role == 'r' && Arrays.equals(s.nI, nI) && s.pkI != null && Arrays.equals(s.pkI, pkI) && s.ackFrame != null) {
                     sendRaw.accept(s.ackFrame, peer);
                     acksTx++;
                     return;
                 }
             }
         }
+        byte[] skR = NLTPWire.randomBytes(X25519_BYTES);
+        byte[] pkR = NLTPWire.x25519PublicFromPrivate(skR);
+        byte[] dh = NLTPWire.x25519ScalarMult(skR, pkI);
+        Arrays.fill(skR, (byte) 0);
+        if (dh == null) return;
+
         Session<P> mine = pending.get(peer);
         if (mine != null) {
-            if (lessUnsigned(mine.nI, nI)) return;   // simultaneous open: our HELLO wins
+            if (lessUnsigned(mine.nI, nI)) {
+                Arrays.fill(dh, (byte) 0);
+                return;   // simultaneous open: our HELLO wins
+            }
+            mine.wipeEphemeral();
             pending.remove(peer);
         }
-        Session<P> s = new Session<>('r', peer, nI, now);
+        Session<P> s = new Session<>('r', peer, nI, now, null, pkI);
         s.peerCid = cid;
         s.nR = NLTPWire.randomBytes(NONCE_BYTES);
-        s.setKeys(deriveSessionKeys(kLong, nI, s.nR, cid, myCid), now);
+        s.setKeys(deriveSessionKeys(kLong, dh, nI, s.nR, cid, myCid), now);
+        Arrays.fill(dh, (byte) 0);
         remember(cid, s, false);
         Session<P> cur = byAddr.get(peer);
         if (cur == null || now - cur.lastRxS >= TAKEOVER_SILENCE_S) byAddr.put(peer, s);
-        byte[] body = new byte[2 * NONCE_BYTES];
+        byte[] body = new byte[HELLO_ACK_PT_BYTES];
         System.arraycopy(nI, 0, body, 0, NONCE_BYTES);
         System.arraycopy(s.nR, 0, body, NONCE_BYTES, NONCE_BYTES);
+        System.arraycopy(pkR, 0, body, 2 * NONCE_BYTES, X25519_BYTES);
         s.ackFrame = seal(kLong, PT_HELLO_ACK, 0, randomSeq(), tsMs, body);
         sendRaw.accept(s.ackFrame, peer);
         acksTx++;
@@ -343,18 +387,22 @@ final class NLTPSession<P> {
         if (mine != null && !mine.queued.isEmpty() && byAddr.get(peer) == s) flush(s, mine.queued, peer);
     }
 
-    private void onAck(int cid, byte[] nI, byte[] nR, P peer, double now) {
+    private void onAck(int cid, byte[] nI, byte[] nR, byte[] pkR, P peer, double now) {
         Session<P> s = pending.get(peer);
         if (s == null || !Arrays.equals(s.nI, nI)) {
             s = null;
             for (Session<P> p : pending.values()) if (Arrays.equals(p.nI, nI)) s = p;
-            if (s == null) return;
+            if (s == null || s.skI == null) return;
         }
+        if (s.skI == null) return;
+        byte[] dh = NLTPWire.x25519ScalarMult(s.skI, pkR);
+        if (dh == null) return;
         pending.values().remove(s);
         s.peerCid = cid;
         s.nR = nR;
         s.peer = peer;
-        s.setKeys(deriveSessionKeys(kLong, nI, nR, myCid, cid), now);
+        s.setKeys(deriveSessionKeys(kLong, dh, nI, nR, myCid, cid), now);
+        Arrays.fill(dh, (byte) 0);
         remember(cid, s, true);
         byAddr.put(peer, s);
         established++;

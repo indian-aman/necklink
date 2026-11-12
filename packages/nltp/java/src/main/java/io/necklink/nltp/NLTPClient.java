@@ -121,16 +121,24 @@ public final class NLTPClient extends NLTPSocketBase {
     }
 
     public TransferReceipt sendBytes(byte[] data, long timeoutMs) {
-        return sendBytes(data, "", timeoutMs);
+        return sendBytes(data, "", timeoutMs, false);
+    }
+
+    public TransferReceipt sendBytes(byte[] data, long timeoutMs, boolean compress) {
+        return sendBytes(data, "", timeoutMs, compress);
     }
 
     public TransferReceipt sendBytes(byte[] data, String filename, long timeoutMs) {
+        return sendBytes(data, filename, timeoutMs, false);
+    }
+
+    public TransferReceipt sendBytes(byte[] data, String filename, long timeoutMs, boolean compress) {
         String safeName = (filename != null) ? filename : "";
         String kind = safeName.isEmpty() ? "bytes" : "file";
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();
         try {
-            xfer = engine.startTransfer(serverAddr, data, kind, safeName, NLTPEndpoint.monoNowS());
+            xfer = engine.startTransfer(serverAddr, data, kind, safeName, compress, NLTPEndpoint.monoNowS());
         } finally {
             lock.unlock();
         }
@@ -140,15 +148,23 @@ public final class NLTPClient extends NLTPSocketBase {
     }
 
     public TransferReceipt sendMessage(String text, long timeoutMs) {
-        return sendBytes(text.getBytes(StandardCharsets.UTF_8), timeoutMs);
+        return sendBytes(text.getBytes(StandardCharsets.UTF_8), timeoutMs, false);
+    }
+
+    public TransferReceipt sendMessage(String text, long timeoutMs, boolean compress) {
+        return sendBytes(text.getBytes(StandardCharsets.UTF_8), timeoutMs, compress);
     }
 
     public TransferReceipt sendJson(String jsonString, long timeoutMs) {
+        return sendJson(jsonString, timeoutMs, false);
+    }
+
+    public TransferReceipt sendJson(String jsonString, long timeoutMs, boolean compress) {
         byte[] raw = jsonString.getBytes(StandardCharsets.UTF_8);
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();
         try {
-            xfer = engine.startTransfer(serverAddr, raw, "json", "", NLTPEndpoint.monoNowS());
+            xfer = engine.startTransfer(serverAddr, raw, "json", "", compress, NLTPEndpoint.monoNowS());
         } finally {
             lock.unlock();
         }
@@ -158,12 +174,16 @@ public final class NLTPClient extends NLTPSocketBase {
     }
 
     public TransferReceipt sendFile(Path filepath, long timeoutMs) throws IOException {
+        return sendFile(filepath, timeoutMs, false);
+    }
+
+    public TransferReceipt sendFile(Path filepath, long timeoutMs, boolean compress) throws IOException {
         byte[] raw = Files.readAllBytes(filepath);
         String name = filepath.getFileName().toString();
         NLTPEndpoint.OutboundTransfer<InetSocketAddress> xfer;
         lock.lock();
         try {
-            xfer = engine.startTransfer(serverAddr, raw, "file", name, NLTPEndpoint.monoNowS());
+            xfer = engine.startTransfer(serverAddr, raw, "file", name, compress, NLTPEndpoint.monoNowS());
         } finally {
             lock.unlock();
         }
@@ -202,7 +222,9 @@ public final class NLTPClient extends NLTPSocketBase {
                 elapsed,
                 kbps,
                 engine.peerLossEma() * 100.0,
-                engine.isEncrypted()
+                engine.isEncrypted(),
+                xfer.wirePayloadBytes,
+                xfer.compressed
         );
     }
 }

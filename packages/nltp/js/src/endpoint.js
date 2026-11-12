@@ -24,8 +24,11 @@ import {
   PT_STREAM_FIN_ACK,
   PT_STREAM_META,
   SHARD_HDR_SIZE,
+  MAX_LZ4_RAW_BYTES,
   cauchyRow,
   gf256Axpy,
+  lz4Compress,
+  lz4Decompress,
   packNltpFrame,
   randomBytes,
   readU16LE,
@@ -136,7 +139,10 @@ export class DeliveryRateController {
     this.rateKbps = Math.min(DeliveryRateController.INIT_KBPS, this.capKbps);
     this.mode = DeliveryRateController.STARTUP;
     this.minRttMs = Infinity;
+    this.minMeanRttMs = Infinity;
     this.roundMinRttMs = Infinity;
+    this.roundRttSum = 0.0;
+    this.roundRttCnt = 0;
     this.nRttSamples = 0;
     this.startupExitPending = false;
     this.trackedStream = null;
@@ -169,6 +175,12 @@ export class DeliveryRateController {
     return m;
   }
 
+  _baseRttMs() {
+    if (Number.isFinite(this.minMeanRttMs)) return this.minMeanRttMs;
+    if (this.nRttSamples >= 2 && this.srttMs > 0.0) return this.srttMs;
+    return this.minRttMs;
+  }
+
   startStream(streamId, nowS) {
     this.trackedStream = streamId;
     this.trainProbeDone = this.mode === DeliveryRateController.CRUISE && this.btlbwRounds.length > 0;
@@ -178,6 +190,8 @@ export class DeliveryRateController {
     this.roundSent0 = this.sentBytes;
     this.prevRoundSent = 0;
     this.roundMinRttMs = Infinity;
+    this.roundRttSum = 0.0;
+    this.roundRttCnt = 0;
   }
 
   onSent(nBytes) {
@@ -187,6 +201,8 @@ export class DeliveryRateController {
   onRttSample(rttMs) {
     this.minRttMs = Math.min(this.minRttMs, rttMs);
     this.roundMinRttMs = Math.min(this.roundMinRttMs, rttMs);
+    this.roundRttSum += rttMs;
+    this.roundRttCnt += 1;
     this.nRttSamples += 1;
     if (this.nRttSamples === 1) {
       this.srttMs = rttMs;
@@ -196,15 +212,17 @@ export class DeliveryRateController {
       this.srttMs = 0.875 * this.srttMs + 0.125 * rttMs;
     }
     if (this.mode === DeliveryRateController.STARTUP && this.nRttSamples >= 4) {
-      if (rttMs > this.minRttMs + Math.max(4.0, this.minRttMs / 8.0, 2.0 * this.rttvarMs)) {
+      const base = this._baseRttMs();
+      if (rttMs > base + Math.max(6.0, base / 6.0, 2.5 * this.rttvarMs)) {
         this.startupExitPending = true;
       }
     }
   }
 
   _queueTargetMs() {
-    if (!Number.isFinite(this.minRttMs)) return 4.0;
-    return Math.max(4.0, 0.05 * this.minRttMs, 1.5 * this.rttvarMs);
+    const base = this._baseRttMs();
+    if (!Number.isFinite(base)) return 4.0;
+    return Math.max(4.0, 0.05 * base, 2.0 * this.rttvarMs);
   }
 
   _sentAt(t) {
@@ -245,9 +263,17 @@ export class DeliveryRateController {
         );
         return this.rateKbps !== old;
       }
+      if (this.roundsDone <= 1 && this.lastQueueMs <= this._queueTargetMs()) {
+        const cand = Math.min(this.capKbps, 1.05 * arrivalKbps);
+        if (cand > this.rateKbps) {
+          this.rateKbps = cand;
+          return true;
+        }
+      }
     }
 
-    const baseRtt = Number.isFinite(this.minRttMs) ? this.minRttMs : srttMs;
+    const baseCandidate = this._baseRttMs();
+    const baseRtt = Number.isFinite(baseCandidate) ? baseCandidate : srttMs;
     const dt = nowS - this.roundT0;
     const earlyExit = this.mode === DeliveryRateController.STARTUP && this.startupExitPending && dt >= 0.005;
     if (dt < Math.max(0.02, baseRtt / 1000.0) && !earlyExit) return false;
@@ -255,7 +281,14 @@ export class DeliveryRateController {
     const delivered = (rxBytes - this.roundRx0) >>> 0;
     const delivKbps = (delivered * 8.0) / 1000.0 / dt;
     const roundSent = this.sentBytes - this.roundSent0;
-    const queueMs = Number.isFinite(this.roundMinRttMs) ? this.roundMinRttMs - this.minRttMs : 0.0;
+    let queueMs = 0.0;
+    if (this.roundRttCnt >= 3) {
+      const roundMeanRtt = this.roundRttSum / this.roundRttCnt;
+      this.minMeanRttMs = Math.min(this.minMeanRttMs, roundMeanRtt);
+      queueMs = Math.max(0.0, roundMeanRtt - this.minMeanRttMs);
+    } else if (Number.isFinite(this.roundMinRttMs)) {
+      queueMs = Math.max(0.0, this.roundMinRttMs - this.minRttMs - 0.5 * this.rttvarMs);
+    }
     const targetMs = this._queueTargetMs();
     const old = this.rateKbps;
 
@@ -285,12 +318,19 @@ export class DeliveryRateController {
         this.rateKbps = Math.max(2.0 * this.rateKbps, 2.0 * delivKbps);
       }
     } else {
-      const cap = Math.max(this._capacityKbps(delivKbps), this.btlbwKbps());
+      const delivCap = this._capacityKbps(delivKbps);
+      const cap = Math.max(delivCap, this.btlbwKbps());
       if (queueMs > 2.0 * targetMs) {
-        this.rateKbps = cap > 0 ? Math.min(this.rateKbps * 0.9, 0.95 * cap) : this.rateKbps * 0.85;
+        const floorKbps = delivCap > 0.0 ? 0.55 * delivCap : DeliveryRateController.MIN_KBPS;
+        const cut = cap > 0 ? Math.min(this.rateKbps * 0.9, 0.95 * cap) : this.rateKbps * 0.85;
+        this.rateKbps = Math.max(floorKbps, cut);
       } else if (queueMs < targetMs) {
-        const ceiling = cap > 0 ? 1.25 * cap : this.rateKbps * 1.1;
-        this.rateKbps = Math.min(this.rateKbps * 1.1, Math.max(this.rateKbps, ceiling));
+        const cleanPipe = this.roundsDone >= 2 && this.randomLoss < 0.01;
+        const fastProbe = !cleanPipe && queueMs < 0.5 * targetMs && delivCap >= 0.8 * this.rateKbps;
+        const gain = fastProbe ? 1.3 : (cleanPipe ? 1.08 : 1.12);
+        const ceilMult = fastProbe ? 1.35 : (cleanPipe ? 1.12 : 1.25);
+        const ceiling = cap > 0 ? ceilMult * cap : this.rateKbps * gain;
+        this.rateKbps = Math.min(this.rateKbps * gain, Math.max(this.rateKbps, ceiling));
       }
     }
 
@@ -303,10 +343,12 @@ export class DeliveryRateController {
     this.roundRx0 = rxBytes;
     this.roundSent0 = this.sentBytes;
     this.roundMinRttMs = Infinity;
+    this.roundRttSum = 0.0;
+    this.roundRttCnt = 0;
     this.startupExitPending = false;
-    if (this.roundArrivalMax > 0.0) {
+    if (this.roundArrivalMax > 0.0 && (this.btlbwRounds.length === 0 || this.roundArrivalMax >= 0.85 * this.rateKbps)) {
       this.btlbwRounds.push(this.roundArrivalMax);
-      if (this.btlbwRounds.length > 6) this.btlbwRounds.shift();
+      if (this.btlbwRounds.length > 10) this.btlbwRounds.shift();
     }
     this.roundArrivalMax = 0.0;
     return this.rateKbps !== old;
@@ -391,20 +433,50 @@ class RxGeneration {
     this.kShards = kShards;
     this.rowWidth = rowWidth;
     this.seenIndices = new Set();
+    this._sysOnly = true;
+    this._sysRows = new Array(kShards).fill(null);
+    this._sysCount = 0;
     this.rowsCoeff = [];
     this.rowsData = [];
     this.solvedBytes = null;
   }
 
+  get haveShards() {
+    if (this.solvedBytes !== null) return this.kShards;
+    return this._sysOnly ? this._sysCount : this.rowsCoeff.length;
+  }
+
   get neededDof() {
     if (this.solvedBytes !== null) return 0;
-    return Math.max(0, this.kShards - this.rowsCoeff.length);
+    return Math.max(0, this.kShards - this.haveShards);
   }
 
   addShard(shardIdx, shardBuf) {
     if (this.solvedBytes !== null || shardBuf.length !== this.rowWidth) return false;
     if (this.seenIndices.has(shardIdx)) return false;
     this.seenIndices.add(shardIdx);
+
+    if (this._sysOnly && shardIdx < this.kShards) {
+      this._sysRows[shardIdx] = new Uint8Array(shardBuf);
+      this._sysCount += 1;
+      if (this._sysCount >= this.kShards) {
+        return this._trySolve();
+      }
+      return false;
+    }
+
+    if (this._sysOnly) {
+      this._sysOnly = false;
+      for (let s = 0; s < this.kShards; s++) {
+        if (this._sysRows[s] !== null) {
+          const cVec = new Uint8Array(this.kShards);
+          cVec[s] = 1;
+          this.rowsCoeff.push(cVec);
+          this.rowsData.push(this._sysRows[s]);
+          this._sysRows[s] = null;
+        }
+      }
+    }
 
     let coeff;
     if (shardIdx < this.kShards) {
@@ -424,6 +496,27 @@ class RxGeneration {
 
   _trySolve() {
     const k = this.kShards;
+    if (this._sysOnly) {
+      let totalLen = 0;
+      for (let i = 0; i < k; i++) {
+        const r = this._sysRows[i];
+        const actualLen = readU16LE(r, 0);
+        if (actualLen > this.rowWidth - 2) return false;
+        totalLen += actualLen;
+      }
+      const out = new Uint8Array(totalLen);
+      let pos = 0;
+      for (let i = 0; i < k; i++) {
+        const r = this._sysRows[i];
+        const actualLen = readU16LE(r, 0);
+        out.set(r.subarray(2, 2 + actualLen), pos);
+        pos += actualLen;
+        this._sysRows[i] = null;
+      }
+      this.solvedBytes = out;
+      return true;
+    }
+
     if (k === 1) {
       const rawRow = this.rowsData[0];
       const actualLen = readU16LE(rawRow, 0);
@@ -499,6 +592,9 @@ class InboundStreamState {
     this.totalBytes = 0;
     this.totalGens = 0;
     this.expectedSha256 = '';
+    this.isLz4 = false;
+    this.rawBytes = 0;
+    this.codecInvalid = false;
     this.metaReceived = false;
     this.gens = new Map();
     this.solvedGens = new Map();
@@ -515,6 +611,8 @@ class InboundStreamState {
     this.genKMap = new Map();
     this.genMaxSysSeen = new Map();
     this.maxGenSeen = -1;
+    this.maxSysOrd = -1;
+    this.reorderWnd = 0;
   }
 
   ingestMeta(meta) {
@@ -523,6 +621,21 @@ class InboundStreamState {
     this.totalBytes = Number(meta.total_bytes);
     this.totalGens = Number(meta.total_gens);
     this.expectedSha256 = String(meta.sha256);
+    const codec = meta.codec;
+    if (codec === undefined || codec === null || codec === '' || codec === 'none') {
+      this.isLz4 = false;
+      this.rawBytes = this.totalBytes;
+    } else if (codec === 'lz4') {
+      const rawB = Number(meta.raw_bytes);
+      if (!Number.isInteger(rawB) || rawB < 0 || rawB > MAX_LZ4_RAW_BYTES) {
+        this.codecInvalid = true;
+      } else {
+        this.isLz4 = true;
+        this.rawBytes = rawB;
+      }
+    } else {
+      this.codecInvalid = true;
+    }
     this.metaReceived = true;
   }
 
@@ -536,6 +649,10 @@ class InboundStreamState {
     if (this.completed || !this.metaReceived) return null;
     if (this.totalGens === 0) {
       this.completed = true;
+      if (this.codecInvalid || (this.isLz4 && this.rawBytes !== 0)) {
+        this.sha256Ok = false;
+        return { fullBytes: new Uint8Array(0), shaOk: false };
+      }
       this.sha256Ok = sha256Hex(new Uint8Array(0)) === this.expectedSha256;
       return { fullBytes: new Uint8Array(0), shaOk: this.sha256Ok };
     }
@@ -554,13 +671,27 @@ class InboundStreamState {
       cat.set(b, pos);
       pos += b.length;
     }
-    const full = cat.subarray(0, this.totalBytes);
-    const digest = sha256Hex(full);
-    this.completed = true;
-    this.sha256Ok = digest === this.expectedSha256;
+    let full = cat.subarray(0, this.totalBytes);
     this.gens.clear();
     this.solvedGens.clear();
-    return { fullBytes: new Uint8Array(full), shaOk: this.sha256Ok };
+    this.completed = true;
+    if (this.codecInvalid) {
+      this.sha256Ok = false;
+      return { fullBytes: new Uint8Array(0), shaOk: false };
+    }
+    if (this.isLz4) {
+      const dec = lz4Decompress(full, this.rawBytes);
+      if (dec === null) {
+        this.sha256Ok = false;
+        return { fullBytes: new Uint8Array(0), shaOk: false };
+      }
+      full = dec;
+    } else {
+      full = new Uint8Array(full);
+    }
+    const digest = sha256Hex(full);
+    this.sha256Ok = digest === this.expectedSha256;
+    return { fullBytes: full, shaOk: this.sha256Ok };
   }
 }
 
@@ -706,31 +837,45 @@ export class NLTPEndpoint {
     return this.rateCtl !== null ? this.rateCtl.lossForFec(this.peerLossEma) : this.peerLossEma;
   }
 
-  startTransfer(peer, dataInput, { kind = 'bytes', filename = '', nowS = null } = {}) {
+  startTransfer(peer, dataInput, { kind = 'bytes', filename = '', compress = false, nowS = null } = {}) {
     const data = toUint8Array(dataInput);
     const tNow = nowS === null ? this._nowS() : nowS;
     const sid = this._nextStreamId++;
-    const genSliceLen = this.shardBytes * this.genK;
-    const gens = [];
-    if (data.length === 0) {
-      gens.push(new TxGeneration(sid, 0, new Uint8Array(0), this.shardBytes));
-    } else {
-      let gIdx = 0;
-      for (let off = 0; off < data.length; off += genSliceLen) {
-        gens.push(new TxGeneration(sid, gIdx++, data.subarray(off, Math.min(data.length, off + genSliceLen)), this.shardBytes));
+    const shaHex = sha256Hex(data);
+    let wireData = data;
+    let usedLz4 = false;
+    if (compress && data.length >= 32) {
+      const comp = lz4Compress(data);
+      if (comp !== null && comp.length < data.length) {
+        wireData = comp;
+        usedLz4 = true;
       }
     }
 
-    const shaHex = sha256Hex(data);
+    const genSliceLen = this.shardBytes * this.genK;
+    const gens = [];
+    if (wireData.length === 0) {
+      gens.push(new TxGeneration(sid, 0, new Uint8Array(0), this.shardBytes));
+    } else {
+      let gIdx = 0;
+      for (let off = 0; off < wireData.length; off += genSliceLen) {
+        gens.push(new TxGeneration(sid, gIdx++, wireData.subarray(off, Math.min(wireData.length, off + genSliceLen)), this.shardBytes));
+      }
+    }
+
     const cleanFilename = basenameSafe(filename);
     const metaObj = {
       stream_id: sid,
       kind,
       filename: cleanFilename,
-      total_bytes: data.length,
+      total_bytes: wireData.length,
       total_gens: gens.length,
       sha256: shaHex,
     };
+    if (usedLz4) {
+      metaObj.codec = 'lz4';
+      metaObj.raw_bytes = data.length;
+    }
     const metaBytes = utf8Encode(JSON.stringify(metaObj));
 
     const targetKey = normalizePeerKey(peer);
@@ -754,6 +899,8 @@ export class NLTPEndpoint {
       kind,
       filename: cleanFilename,
       totalBytes: data.length,
+      wirePayloadBytes: wireData.length,
+      compressed: usedLz4,
       sha256Hex: shaHex,
       generations: gens,
       metaPayload: metaBytes,
@@ -779,7 +926,7 @@ export class NLTPEndpoint {
     if (this.rateCtl !== null && this.pacer !== null && !anyActive) {
       const burst = this.rateCtl.initialBurst(this.initialBurstBytes);
       if (burst > 0) {
-        this.pacer.grantBurst(Math.min(burst, data.length + 2 * this.shardBytes));
+        this.pacer.grantBurst(Math.min(burst, wireData.length + 2 * this.shardBytes));
       }
       this.rateCtl.startStream(sid, tNow);
     }
@@ -857,13 +1004,23 @@ export class NLTPEndpoint {
   }
 
   _effectiveWindowGenerations() {
+    let eff = this.windowGenerations;
+    if (this._hasRttSample && this.rateCtl !== null && this.rateCtl.mode === DeliveryRateController.CRUISE) {
+      const genBytes = Math.max(1, this.genK * this.shardBytes);
+      const bdpBytes = ((this.rateCtl.rateKbps * 1000.0) / 8.0) * (this.srttMs / 1000.0);
+      const bdpGens = Math.ceil((2.2 * bdpBytes) / genBytes) + 2;
+      eff = Math.min(eff, Math.max(4, bdpGens));
+    }
     if (this._hasRttSample && this.minRttMs < 900000.0) {
-      const queueThresh = Math.max(this.minRttMs * 2.0, this.minRttMs + 35.0);
+      const base =
+        this.rateCtl !== null && this.rateCtl.minMeanRttMs < 900000.0 ? this.rateCtl.minMeanRttMs : this.minRttMs;
+      const jitterPad = this.rateCtl !== null ? 2.5 * this.rateCtl.rttvarMs : 0.0;
+      const queueThresh = Math.max(base * 2.0, base + 35.0 + jitterPad);
       if (this.srttMs > queueThresh) {
         return Math.max(3, Math.floor(this.windowGenerations / 4));
       }
     }
-    return this.windowGenerations;
+    return eff;
   }
 
   stepTx(nowS = null) {
@@ -1097,7 +1254,7 @@ export class NLTPEndpoint {
       return;
     }
 
-    const { pktType, connId: peerConnId, tsMs: pktTsMs, payload } = parsed;
+    const { pktType, flags: pktFlags, connId: peerConnId, tsMs: pktTsMs, payload } = parsed;
     this._updatePeerRoute(peerConnId, peer);
 
     if (pktType === PT_REFLEX_MSG && payload.length >= 6) {
@@ -1231,7 +1388,15 @@ export class NLTPEndpoint {
       if (pktType === PT_DATA_SHARD && shardIdx < kShards) {
         const rxExisting = st.gens.get(genId);
         const alreadySeen = st.solvedGens.has(genId) || (rxExisting !== undefined && rxExisting.seenIndices.has(shardIdx));
-        if (!alreadySeen) st.sysShardsRcvd += 1;
+        if (!alreadySeen) {
+          st.sysShardsRcvd += 1;
+          const sysOrd = genId * this.genK + shardIdx;
+          if (sysOrd < st.maxSysOrd) {
+            st.reorderWnd = Math.min(16, Math.max(st.reorderWnd, st.maxSysOrd - sysOrd));
+          } else {
+            st.maxSysOrd = sysOrd;
+          }
+        }
         const prevMax = st.genMaxSysSeen.get(genId) ?? -1;
         if (shardIdx > prevMax) st.genMaxSysSeen.set(genId, shardIdx);
       } else if (pktType === PT_CRYPTIC_PARITY) {
@@ -1278,7 +1443,11 @@ export class NLTPEndpoint {
       if (!this._ackFromTransferPeer(xfer, peerConnId, peer)) return;
       xfer.peerConnId = peerConnId;
       xfer.peerAddr = peer;
-      xfer.metaAcked = true;
+      if ((pktFlags & 0x02) !== 0) {
+        if ((pktFlags & 0x01) !== 0) xfer.metaAcked = true;
+      } else {
+        xfer.metaAcked = true;
+      }
 
       const nowMs = Math.floor(tNow * 1000.0) >>> 0;
       const rtt = (nowMs - echoTs) >>> 0;
@@ -1365,6 +1534,8 @@ export class NLTPEndpoint {
     }
 
     const maxG = st.maxGenSeen;
+    const isFinalGen = st.metaReceived && maxG >= st.totalGens - 1;
+    const rGuard = isFinalGen ? 0 : Math.min(st.reorderWnd, 6);
     let expectedSys = 0;
     for (let gI = 0; gI < maxG; gI++) {
       expectedSys += st.genKMap.get(gI) ?? this.genK;
@@ -1372,25 +1543,29 @@ export class NLTPEndpoint {
     if (maxG >= 0) {
       expectedSys += (st.genMaxSysSeen.get(maxG) ?? 0) + 1;
     }
-    expectedSys = Math.max(1, expectedSys);
-    const estLoss = Math.max(0.0, Math.min(0.92, 1.0 - st.sysShardsRcvd / expectedSys));
+    const adjExpected = Math.max(1, Math.max(st.sysShardsRcvd, expectedSys - rGuard));
+    const estLoss = Math.max(0.0, Math.min(0.92, 1.0 - st.sysShardsRcvd / adjExpected));
     const lossQ8 = Math.round(estLoss * 255.0) & 0xff;
 
+    const maxGLead = maxG >= 0 ? (st.genMaxSysSeen.get(maxG) ?? -1) + 1 : 0;
     const reports = [];
     for (let gId = st.baseGen; gId <= maxG; gId++) {
       if (st.solvedGens.has(gId)) continue;
       const rxG = st.gens.get(gId);
-      const have = rxG ? rxG.rowsCoeff.length : 0;
+      const have = rxG ? rxG.haveShards : 0;
       const need = rxG ? rxG.neededDof : this.genK;
       if (gId < maxG && need > 0) {
-        reports.push([gId - st.baseGen, have, need]);
+        if (rGuard === 0 || gId <= maxG - 2 || maxGLead >= rGuard) {
+          reports.push([gId - st.baseGen, have, need]);
+        }
       } else if (gId === maxG && rxG && rxG.seenIndices.size > 0) {
         let maxIdx = 0;
         for (const idx of rxG.seenIndices) {
           if (idx > maxIdx) maxIdx = idx;
         }
         const maxSeenIdx = Math.min(rxG.kShards, maxIdx + 1);
-        const confirmedMissing = Math.min(need, Math.max(0, maxSeenIdx - have));
+        const effSeen = Math.max(0, maxSeenIdx - Math.min(rGuard, 4));
+        const confirmedMissing = Math.min(need, Math.max(0, effSeen - have));
         if (confirmedMissing > 0) {
           reports.push([gId - st.baseGen, have, confirmedMissing]);
         }
@@ -1416,7 +1591,7 @@ export class NLTPEndpoint {
       writeU32LE(ackBuf, pos, st.bytesRcvd >>> 0);
       writeU32LE(ackBuf, pos + 4, Math.min(0xffffffff, Math.trunc(st.arrivalKbps)) >>> 0);
 
-      this._emit(PT_PROPRIOCEPTIVE_ACK, peer, ackBuf, 0, tNow);
+      this._emit(PT_PROPRIOCEPTIVE_ACK, peer, ackBuf, st.metaReceived ? 0x03 : 0x02, tNow);
       this._lastAckEmit.set(`${peerConnId}:${st.streamId}`, tNow);
     }
   }

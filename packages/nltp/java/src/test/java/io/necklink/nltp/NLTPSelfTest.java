@@ -20,6 +20,14 @@ import java.util.Random;
 public final class NLTPSelfTest {
     private static int passed = 0;
 
+    private static byte[] fromHex(String hex) {
+        byte[] out = new byte[hex.length() / 2];
+        for (int i = 0; i < out.length; i++) {
+            out[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+        }
+        return out;
+    }
+
     private static void check(boolean cond, String msg) {
         if (!cond) {
             throw new AssertionError("ASSERTION FAILED: " + msg);
@@ -40,7 +48,7 @@ public final class NLTPSelfTest {
     }
 
     public static void main(String[] args) throws Exception {
-        System.out.println("=== NLTP v1.2 Java SDK Self-Test Suite ===");
+        System.out.println("=== NLTP v1.6 Java SDK Self-Test Suite ===");
 
         runTest("1. Pure-Java RFC 8439 ChaCha20-Poly1305 matches JCE Cipher byte-for-byte", () -> {
             byte[] key = NLTPWire.randomBytes(32);
@@ -85,9 +93,16 @@ public final class NLTPSelfTest {
             check(!rw.accept(5L), "seq 5 replay must be rejected");
             check(rw.accept(3L), "seq 3 out-of-order accept");
             check(!rw.accept(3L), "seq 3 replay reject");
-            check(rw.accept(100L), "seq 100 advance");
-            check(!rw.accept(36L), "seq 36 outside 64-pkt window");
-            check(rw.accept(37L), "seq 37 inside 64-pkt window");
+            check(rw.accept(600L), "seq 600 advance");
+            check(!rw.accept(88L), "seq 88 outside 512-pkt window");
+            check(rw.accept(89L), "seq 89 inside 512-pkt window");
+            check(!rw.accept(89L), "seq 89 replay reject");
+
+            byte[] aliceSk = fromHex("a546e36bf0527c9d3b16154b82465edd62144c0ac1fc5a18506a2244ba449ac4");
+            byte[] bobPk = fromHex("e6db6867583030db3594c1a424b15f7c726624ec26b3353b10a903a6d0ab1c4c");
+            byte[] expectedShared = fromHex("c3da55379de9c6908e94ea4df28d084f32eccf03491c71f754b4075577a28552");
+            check(Arrays.equals(NLTPWire.x25519ScalarMult(aliceSk, bobPk), expectedShared), "RFC 7748 X25519 vector mismatch");
+            check(NLTPWire.x25519ScalarMult(aliceSk, new byte[32]) == null, "Expected null on all-zero X25519 point");
         });
 
         runTest("3. Frame AEAD rejects tampering, replays, wrong keys & plaintext downgrades", () -> {
@@ -260,6 +275,60 @@ public final class NLTPSelfTest {
             }
         });
 
-        System.out.printf("%nALL %d/7 NLTP JAVA SELF-TESTS PASSED!%n", passed);
+        runTest("8. NLTP 1.6 LZ4 block codec, RLE overlap, auto-bypass & encrypted E2E at 12% loss", () -> {
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < 600; i++) {
+                sb.append("{\"station\":\"AQMS-VADODARA-07\",\"seq\":")
+                        .append(i)
+                        .append(",\"pm25\":41.8,\"pm10\":88.2,\"so2\":11.4,\"no2\":23.7,\"co\":0.84}\n");
+            }
+            byte[] jsonl = sb.toString().getBytes(StandardCharsets.UTF_8);
+            byte[] comp = NLTPWire.lz4Compress(jsonl);
+            check(comp != null && comp.length * 4 < jsonl.length, "Expected >4x LZ4 compression on structured JSONL");
+            byte[] dec = NLTPWire.lz4Decompress(comp, jsonl.length);
+            check(dec != null && Arrays.equals(dec, jsonl), "LZ4 JSONL roundtrip mismatch");
+
+            byte[] rle = new byte[12000];
+            for (int i = 0; i < rle.length; i++) rle[i] = (byte) ("ABCD".charAt(i % 4));
+            byte[] rleComp = NLTPWire.lz4Compress(rle);
+            check(rleComp != null && rleComp.length < 150, "Expected extreme RLE overlap compression");
+            check(Arrays.equals(NLTPWire.lz4Decompress(rleComp, rle.length), rle), "LZ4 overlapping copy mismatch");
+
+            byte[] rnd = NLTPWire.randomBytes(8192);
+            check(NLTPWire.lz4Compress(rnd) == null, "Expected smart auto-bypass (null) on incompressible random bytes");
+            check(NLTPWire.lz4Compress(new byte[16]) == null, "Expected auto-bypass on tiny <32B payload");
+
+            for (int f = 0; f < 64; f++) {
+                byte[] junk = NLTPWire.randomBytes(1 + (f % 40));
+                byte[] res = NLTPWire.lz4Decompress(junk, 256);
+                check(res == null || res.length == 256, "Fuzz decompressor violated bounds");
+            }
+
+            String key = NLTPWire.generateNltpKey();
+            try (NLTPServer srv = NLTPServer.builder()
+                    .bind("127.0.0.1", 0)
+                    .psk(key)
+                    .lossDropSim(0.12)
+                    .build();
+                 NLTPClient cli = NLTPClient.builder()
+                         .server("127.0.0.1", srv.localAddress().getPort())
+                         .psk(key)
+                         .lossDropSim(0.12)
+                         .build()) {
+                TransferReceipt rLz4 = cli.sendBytes(jsonl, "aqms.jsonl", 20000L, true);
+                check(rLz4.verifiedSha256() && rLz4.compressed(), "Expected compressed=true receipt");
+                check(rLz4.bytes() == jsonl.length && rLz4.wirePayloadBytes() == comp.length, "Receipt byte lengths mismatch");
+                ReceivedItem<InetSocketAddress> rx1 = srv.recv(5000L);
+                check(rx1 != null && rx1.sha256Verified() && Arrays.equals(rx1.data(), jsonl), "Encrypted LZ4 RX mismatch");
+
+                TransferReceipt rBypass = cli.sendBytes(rnd, "random.bin", 20000L, true);
+                check(rBypass.verifiedSha256() && !rBypass.compressed(), "Expected auto-bypass compressed=false on random");
+                check(rBypass.wirePayloadBytes() == rnd.length, "Expected zero inflation on random bytes");
+                ReceivedItem<InetSocketAddress> rx2 = srv.recv(5000L);
+                check(rx2 != null && rx2.sha256Verified() && Arrays.equals(rx2.data(), rnd), "Auto-bypass RX mismatch");
+            }
+        });
+
+        System.out.printf("%nALL %d/8 NLTP JAVA SELF-TESTS PASSED!%n", passed);
     }
 }

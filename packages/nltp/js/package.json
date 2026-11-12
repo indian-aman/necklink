@@ -1,7 +1,7 @@
 {
   "name": "nltp",
-  "version": "1.4.0",
-  "description": "NeckLink Transport Protocol (NLTP v1.4.0) — Loss-resilient, ChaCha20-Poly1305 encrypted bidirectional UDP file & confirmed reflex transport with GF(2^8) Cauchy FEC, 1-RTT pacing, STUN & 4G CGNAT relay.",
+  "version": "1.6.0",
+  "description": "NeckLink Transport Protocol (NLTP v1.6.0) — Loss-resilient, X25519+PSK forward-secret ChaCha20-Poly1305 encrypted bidirectional UDP file, LZ4-compressed log & confirmed reflex transport with GF(2^8) Cauchy FEC, 1-RTT pacing, STUN & 4G CGNAT relay.",
   "license": "MIT",
   "author": "Amandeep Singh Bains (@indian-aman)",
   "repository": {
