@@ -50,7 +50,15 @@ class ESCObserverResult:
 
 
 class ESCObserver:
-    """Proprioceptive thrust & fault observer from ESC `RPM + Current` telemetry."""
+    """Proprioceptive thrust & fault observer from ESC `RPM + Current` telemetry.
+
+    Provenance (`PROVENANCE = "engineering"`):
+      Sensorless brushless ESC `RPM + Current` cubic load modeling, open-phase stall detection,
+      free-spinning broken-blade estimation, and overcurrent weed-fouling triggers are
+      non-biological electromechanical actuator engineering.
+    """
+
+    PROVENANCE: str = "engineering"
 
     def __init__(
         self,

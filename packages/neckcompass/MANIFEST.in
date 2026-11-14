@@ -2,6 +2,7 @@ include LICENSE
 include README.md
 include pyproject.toml
 recursive-include neckcompass *.py
+recursive-include neckcompass/data *.npz
 recursive-include csrc *.h *.c Makefile
 recursive-include arduino *.properties *.h *.c *.ino
 prune assets

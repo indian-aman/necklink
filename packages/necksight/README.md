@@ -2,7 +2,7 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSight (`necksight` v2.0.0)
+# NeckSight (`necksight` v3.0.0, research beta)
 
 **A collision and thin-obstacle (pole/wire) avoidance reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` radial & `LC4` bar looming neurons + `DNa02` directional dodge), in Python (NumPy), zero-heap/zero-float ANSI C99 (`14.3 KB` state), and Arduino / ESP32-CAM.**
 
@@ -16,11 +16,15 @@
 [**Quick start**](#quick-start) ·
 [**Turning platforms**](#turning-platforms-feed-the-gyro) ·
 [**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·
-[**Benchmarks**](#benchmarks) ·
+[**v3.0.0 results**](#v300-connectome-derived-receptive-fields-audited-results) ·
+[**Benchmarks**](#benchmarks-analytic-detectors-pre-v3) ·
 [**When to use it**](#when-to-use-necksight-and-when-not-to) ·
 [**Changelog**](#changelog)
 
 </div>
+
+> [!NOTE]
+> **v3.0.0: the looming detectors now use receptive fields compiled from the `BANC v888` connectome** — `64` of the `181` right-eye `LPLC2` neurons and `32` of the `114` `LC4` neurons, with their `T4/T5` inputs and lateral inhibition (about `18,700` numbers). Retinal positions are *inferred* from connectivity, not measured. The retina, `T4/T5` motion detectors and thresholds are hand-designed. `connectome_weights="banc_v888"` is the default; `connectome_weights="v2_analytic"` gives the earlier uniform detector grid, which scores higher. See [v3.0.0 results](#v300-connectome-derived-receptive-fields-audited-results). The older benchmarks further down were measured with the analytic detectors before v3 and have not been re-run.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/necksight/assets/necksight_benchmarks.png" alt="NeckSight benchmarks" width="100%">
@@ -175,7 +179,44 @@ The self-test covers a translating grating, a fast pan, 20× brightness steps, d
 
 ---
 
-## Benchmarks
+## v3.0.0: connectome-derived receptive fields (audited results)
+
+```python
+import numpy as np
+from necksight import NeckSightPipeline
+
+for weights in ("banc_v888", "v2_analytic"):  # banc_v888 is the default in 3.0.0
+    pipe = NeckSightPipeline(grid_size=64, threshold=0.045, connectome_weights=weights)
+    yy, xx = np.mgrid[0:64, 0:64]
+    peak = 0.0
+    for t in range(30):  # a dark disc expanding toward the camera
+        frame = np.where(np.hypot(xx - 32, yy - 32) < 2 + t, 15.0, 180.0)
+        peak = max(peak, pipe.step(frame, dt=1 / 60).looming_score)
+    print(weights, "peak looming score:", round(peak, 3))
+```
+
+Benchmark: `56` episodes rendered in 3D MuJoCo (EGL, `64×64`, `38` frames each) — `28` approaching obstacles (boulder, thin pole, thin wire, low-contrast wall) and `28` hard negatives (receding object, lateral pass-by, strong wave rotation, hover jitter) — all with camera rotation. Every method gets the same frames, the same 3-DOF gyro derotation and the same warm-up. Compared against `K = 100` degree-preserving (Maslov–Sneppen) shuffles of the raw optic-lobe matrices compiled with the identical pipeline; one-sided permutation `p = (1 + r) / (K + 1)`. Code and raw JSON: [`benchmarks/v3/`](https://github.com/indian-aman/necklink/tree/main/benchmarks/v3).
+
+| Detector (AUROC, episode peak score) | All obstacles | Thin poles + wires |
+| :--- | :---: | :---: |
+| `banc_v888`, LPLC2 + LC4 (default) | `0.806` | `0.755` |
+| Shuffled wiring, LPLC2 + LC4 (mean of 100) | `0.763` (`r = 7`, `p = 0.079`) | `0.672` (`r = 3`, `p = 0.040`) |
+| `banc_v888`, LPLC2 only | `0.624` | — |
+| Shuffled wiring, LPLC2 only (mean of 100) | `0.729` (`r = 99`, `p = 0.99`) | — |
+| **`v2_analytic`**, LPLC2 + LC4 | **`0.890`** | **`0.987`** |
+| `v2_analytic`, LPLC2 only | `0.707` | — |
+| Gyro-derotated Farneback + CLAHE | `0.818` | `0.635` |
+| Gyro-derotated pyramidal Lucas–Kanade + CLAHE | `0.740` | `0.480` |
+
+What this shows:
+- **`LC4` is what makes thin obstacles detectable.** The 4-arm `LPLC2` gate alone does poorly; adding the 2-arm `LC4` bar channel lifts every variant.
+- **The real wiring is not clearly better than shuffled wiring.** With `LC4` it trends better (`p = 0.040` on thin obstacles, `0.079` overall — neither passes the pre-registered `0.01`); the real `LPLC2` receptive fields alone are *worse* than shuffled ones.
+- **The analytic model wins**, and derotated Farneback beats the connectome detectors on all obstacles (it loses on thin poles and wires).
+- **Caveats:** synthetic scenes, `56` episodes; retinotopy is inferred; the pipeline was tuned while looking at real-wiring results.
+
+---
+
+## Benchmarks (analytic detectors, pre-v3)
 
 ```bash
 python scripts/benchmark_necksight.py    # ~45 s; needs matplotlib, make and a C compiler
@@ -257,6 +298,10 @@ Correlation-type motion detectors mix speed with contrast and spatial frequency.
 ---
 
 ## Changelog
+
+**3.0.0**
+- *Connectome-derived receptive fields:* `LPLC2LoomingReflex` / `NeckSightPipeline` use `64` `LPLC2` and `32` `LC4` receptive fields, `T4/T5` input fractions, `LPi` and `Li` inhibition compiled from `BANC v888` by default (`connectome_weights="banc_v888"`), in Python and C99 (`necksight_banc_weights.h`). The earlier uniform detector grid remains available as `connectome_weights="v2_analytic"`.
+- *Audited benchmark:* 3D MuJoCo comparison against `K = 100` shuffled wirings and gyro-derotated Farneback / Lucas–Kanade baselines (see above).
 
 **2.0.0**
 - *Thin-obstacle looming (`LC4`/`LPLC1`) + `BANC v888` `T5/T4` weighting:* added split-strip 2-arm opponent expansion channel (`enable_lc4_bar=True`, `lc4_weight=0.42` / `108` in Q8 matching `2,053 / (2,896 + 2,053)` `BANC v888` DN synapses) with `Li` lateral surround inhibition to catch thin vertical poles and horizontal wires missed by the 4-arm `LPLC2` gate, plus `t5_off_gain=1.35` (`346` in Q8, grounded in `6,586` `T5→LPLC2` vs `3,330` `T4→LPLC2` synapses) while preserving `0%` pan/glare/flicker false alarms.

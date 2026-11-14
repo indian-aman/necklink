@@ -82,6 +82,7 @@ class VibrationFrontEnd:
         `csrc/necksense.c`.
     """
 
+    PROVENANCE: str = "engineering"
     n_channels: int = NS_VIB_CHANNELS
     channel_names: tuple[str, ...] = VIBRATION_CHANNEL_NAMES
 

@@ -63,14 +63,19 @@ class _CircularEKF2State:
         return self.psi
 
 
-def _run_demo(seed: int = 42, n_wedges: int = 16, as_json: bool = False) -> dict:
+def _run_demo(
+    seed: int = 42,
+    n_wedges: int = 16,
+    connectome_weights: str = "banc_v888",
+    as_json: bool = False,
+) -> dict:
     rng = np.random.default_rng(seed)
     dt = 0.02
     speed = 1.6  # m/s
     gyro_bias = math.radians(1.0)  # 1.0 deg/s steady MEMS drift
 
-    compass = RingCompass(n_wedges=n_wedges)
-    nav = FanBodyNavigator(n_columns=16, compass=compass)
+    compass = RingCompass(n_wedges=n_wedges, connectome_weights=connectome_weights)
+    nav = FanBodyNavigator(n_columns=16, compass=compass, connectome_weights=connectome_weights)
 
     true_x, true_y, true_psi = 0.0, 0.0, 0.35
     compass.reset(true_psi + rng.normal(0.0, math.radians(2.0)))
@@ -87,10 +92,10 @@ def _run_demo(seed: int = 42, n_wedges: int = 16, as_json: bool = False) -> dict
 
         omega_meas = omega_true + gyro_bias + rng.normal(0.0, math.radians(1.2))
         spike = 0.0
-        if 25.0 <= t <= 26.6:
-            spike = math.radians(118.0) * math.sin(math.pi * (t - 25.0) / 1.6)
-        elif 58.0 <= t <= 59.8:
-            spike = -math.radians(136.0) * math.sin(math.pi * (t - 58.0) / 1.8)
+        if 25.0 <= t <= 25.45:
+            spike = math.radians(118.0)
+        elif 58.0 <= t <= 58.40:
+            spike = -math.radians(136.0)
         mag_meas = float(wrap_angle(true_psi + spike + rng.normal(0.0, math.radians(2.5))))
 
         est_psi, _, _ = nav.step_with_compass(omega_meas, speed, dt, mag_heading_rad=mag_meas)
@@ -113,17 +118,14 @@ def _run_demo(seed: int = 42, n_wedges: int = 16, as_json: bool = False) -> dict
         true_y += step_v * math.sin(true_psi) * dt
 
         omega_meas = omega_cmd + gyro_bias + rng.normal(0.0, math.radians(1.2))
-        spike = (
-            math.radians(125.0) * math.sin(math.pi * (t - 115.0) / 1.5)
-            if 115.0 <= t <= 116.5
-            else 0.0
-        )
+        spike = math.radians(125.0) if 115.0 <= t <= 115.45 else 0.0
         mag_meas = float(wrap_angle(true_psi + spike + rng.normal(0.0, math.radians(2.5))))
         nav.step_with_compass(omega_meas, step_v, dt, mag_heading_rad=mag_meas)
 
     miss_m = math.hypot(true_x, true_y)
     summary = {
         "version": __version__,
+        "connectome_mode": compass.connectome_mode,
         "n_wedges": n_wedges,
         "outbound_distance_from_origin_m": round(outbound_dist, 2),
         "max_error_during_136deg_spike_deg": round(max(spike_errs_deg) if spike_errs_deg else 0.0, 2),
@@ -144,7 +146,11 @@ def _run_demo(seed: int = 42, n_wedges: int = 16, as_json: bool = False) -> dict
     return summary
 
 
-def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
+def _run_quick_benchmark(
+    seed: int = 101,
+    connectome_weights: str = "banc_v888",
+    as_json: bool = False,
+) -> dict:
     rng = np.random.default_rng(seed)
     dt = 0.02
     steps = int(120.0 / dt)
@@ -159,7 +165,11 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
         gyro_bias = gyro_bias_init
         init_mag = float(wrap_angle(psi_true + local_rng.normal(0.0, mag_std)))
 
-        nc = RingCompass(n_wedges=16, initial_heading_rad=init_mag)
+        nc = RingCompass(
+            n_wedges=16,
+            initial_heading_rad=init_mag,
+            connectome_weights=connectome_weights,
+        )
         ekf = _CircularEKF2State(
             init_mag,
             gyro_std_rad_s=gyro_std,
@@ -193,7 +203,7 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
                 if 6.0 <= phase <= 7.4:
                     sign = 1.0 if (int(t // 15.0) % 2 == 0) else -1.0
                     amp = math.radians(115.0 if sign > 0 else 135.0)
-                    anom = sign * amp * math.sin(math.pi * (phase - 6.0) / 1.4)
+                    anom = sign * amp
 
             mag_meas = float(wrap_angle(psi_true + anom + local_rng.normal(0.0, mag_std)))
 
@@ -271,6 +281,13 @@ def build_parser() -> argparse.ArgumentParser:
     p_demo = sub.add_parser("demo", help="Run GPS-denied outbound + PFL3 homebound navigation demo")
     p_demo.add_argument("--seed", type=int, default=42, help="Random seed (default: 42)")
     p_demo.add_argument("--wedges", type=int, default=16, choices=[16, 32], help="Ring wedges (16 or 32)")
+    p_demo.add_argument(
+        "--weights",
+        type=str,
+        default="banc_v888",
+        choices=["banc_v888", "v2_analytic"],
+        help="Connectome weights mode (default: banc_v888)",
+    )
     p_demo.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
 
     p_bench = sub.add_parser(
@@ -278,6 +295,13 @@ def build_parser() -> argparse.ArgumentParser:
         help="Run fast head-to-head comparison (Clean Gaussian vs Ferromagnetic Spikes)",
     )
     p_bench.add_argument("--seed", type=int, default=101, help="Random seed (default: 101)")
+    p_bench.add_argument(
+        "--weights",
+        type=str,
+        default="banc_v888",
+        choices=["banc_v888", "v2_analytic"],
+        help="Connectome weights mode (default: banc_v888)",
+    )
     p_bench.add_argument("--json", action="store_true", help="Emit machine-readable JSON")
     return parser
 
@@ -286,10 +310,19 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     if args.command == "demo":
-        _run_demo(seed=args.seed, n_wedges=args.wedges, as_json=args.json)
+        _run_demo(
+            seed=args.seed,
+            n_wedges=args.wedges,
+            connectome_weights=args.weights,
+            as_json=args.json,
+        )
         return 0
     if args.command == "benchmark-quick":
-        _run_quick_benchmark(seed=args.seed, as_json=args.json)
+        _run_quick_benchmark(
+            seed=args.seed,
+            connectome_weights=args.weights,
+            as_json=args.json,
+        )
         return 0
     return 1
 

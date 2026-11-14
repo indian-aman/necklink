@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necksense"
-version = "2.0.0"
+version = "3.0.0"
 description = "Drosophila Antennal Lobe, Chordotonal Organ & Mushroom Body load/concentration-invariant sparse hashing, 1-shot vibration & gas anomaly detection, and zero-forgetting associative classification in Python, ANSI C99 (< 6 KB MCU SRAM), and Arduino"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -35,7 +35,7 @@ keywords = [
   "tinyml",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -73,3 +73,6 @@ necksense = "necksense.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["necksense*"]
+
+[tool.setuptools.package-data]
+necksense = ["data/*.npz"]

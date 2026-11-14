@@ -1,4 +1,4 @@
-"""Comprehensive test suite for `necklink-cns` (`v2.0.0`)."""
+"""Comprehensive test suite for `necklink-cns` (`v3.0.0`)."""
 
 from __future__ import annotations
 
@@ -23,6 +23,7 @@ from necklink_cns import (
     __version__,
 )
 from necklink_cns.cli import main as cli_main
+from necklink_cns.connectome import _load_default_dn_bundle
 
 
 def _strip_c_comments(src: str) -> str:
@@ -32,7 +33,7 @@ def _strip_c_comments(src: str) -> str:
 
 
 def test_version_and_banc_v888_priors() -> None:
-    assert __version__ == "2.0.0"
+    assert __version__ == "3.0.0"
     assert BANC_V888_PRIORS["total_neurons"] == 157789
     assert BANC_V888_PRIORS["cell_counts"]["DN_all"] == 1316
     assert BANC_V888_PRIORS["cell_counts"]["AN_all"] == 1849
@@ -130,6 +131,50 @@ def test_ros2_adapter_and_continual_chemical_memory() -> None:
     assert cli_main(["demo"]) == 0
 
 
+def test_banc_dn_causality_and_v2_fallback() -> None:
+    yy, xx = np.mgrid[0:32, 0:32]
+    bg = 155.0 + 18.0 * np.sin(xx * 0.35) * np.cos(yy * 0.35)
+
+    cns_real = NeckLinkCNS(vehicle="usv_t200", grid_size=32, connectome_weights="banc_v888")
+    cns_v2 = NeckLinkCNS(vehicle="usv_t200", grid_size=32, connectome_weights="v2_analytic")
+
+    dn_mirror = _load_default_dn_bundle()
+    w_leg_mirror = dn_mirror["W_dn_leg"].copy()
+    w_leg_mirror[[0, 1, 2, 3, 4, 5]] = w_leg_mirror[[1, 0, 3, 2, 5, 4]]
+    dn_mirror["W_dn_leg"] = w_leg_mirror
+    cns_mirror = NeckLinkCNS(
+        vehicle="usv_t200",
+        grid_size=32,
+        connectome_weights={"necklink_cns": dn_mirror},
+    )
+
+    assert cns_real.arbitrator.PROVENANCE == "connectome"
+    assert cns_v2.arbitrator.PROVENANCE == "v2_analytic"
+
+    out_real = out_mirror = out_v2 = None
+    for k in range(22):
+        frame = bg.copy()
+        if k >= 5:
+            hw = 1 + (k - 5) // 3
+            frame[:, max(0, 8 - hw) : min(32, 8 + hw + 1)] = 8.0  # Left obstacle -> must dodge right (turn_yaw < 0)
+        kw = dict(
+            dt=0.02,
+            speed_m_s=1.2,
+            gyro_xyz=np.zeros(3),
+            accel_xyz=np.array([0.0, 0.0, 9.81]),
+            mag_xyz=np.array([0.45, 0.0, 0.89]),
+            camera_frame=frame,
+        )
+        out_real = cns_real.step(**kw)
+        out_mirror = cns_mirror.step(**kw)
+        out_v2 = cns_v2.step(**kw)
+
+    assert out_real is not None and out_mirror is not None and out_v2 is not None
+    assert out_real.descending.turn_yaw < 0.0
+    assert out_mirror.descending.turn_yaw > 0.0  # Swapping L/R leg MN rows flips dodge direction!
+    assert out_v2.descending.turn_yaw < 0.0
+
+
 def test_c99_zero_float_zero_heap_and_arduino_sha256_parity() -> None:
     root = Path(__file__).resolve().parents[1]
     csrc = root / "csrc"
@@ -138,12 +183,40 @@ def test_c99_zero_float_zero_heap_and_arduino_sha256_parity() -> None:
     assert (ard / "src" / "NeckLinkCNS.h").is_file()
 
     forbidden = re.compile(r"\b(float|double|malloc|calloc|realloc|free)\b")
-    for fname in ("nl_mavlink.h", "nl_mavlink.c", "necklink_cns.h", "necklink_cns.c"):
+    top_files = (
+        "nl_mavlink.h",
+        "nl_mavlink.c",
+        "necklink_cns.h",
+        "necklink_cns.c",
+        "necklink_cns_banc_weights.h",
+    )
+    organ_files = (
+        "necksight.h",
+        "necksight.c",
+        "necksight_banc_weights.h",
+        "neckcompass.h",
+        "neckcompass.c",
+        "neckcompass_banc_weights.h",
+        "neckcord.h",
+        "neckcord.c",
+        "neckcord_banc_weights.h",
+        "necksense.h",
+        "necksense.c",
+        "necksense_banc_weights.h",
+    )
+    for fname in top_files:
         p_csrc = csrc / fname
         p_ard = ard / "src" / "csrc" / fname
         assert hashlib.sha256(p_csrc.read_bytes()).hexdigest() == hashlib.sha256(p_ard.read_bytes()).hexdigest()
         hits = forbidden.findall(_strip_c_comments(p_csrc.read_text(encoding="utf-8")))
         assert hits == [], f"Forbidden tokens {hits} in {fname}"
+
+    for fname in organ_files:
+        p_csrc = csrc / "organs" / fname
+        p_ard = ard / "src" / "csrc" / fname
+        assert hashlib.sha256(p_csrc.read_bytes()).hexdigest() == hashlib.sha256(p_ard.read_bytes()).hexdigest()
+        hits = forbidden.findall(_strip_c_comments(p_csrc.read_text(encoding="utf-8")))
+        assert hits == [], f"Forbidden tokens {hits} in organs/{fname}"
 
 
 def test_readme_python_examples_execute() -> None:

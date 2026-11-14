@@ -51,6 +51,8 @@ class AntennalNormalizer:
     100x+ concentration or load swings without amplifying dark sensor noise.
     """
 
+    PROVENANCE: str = "literature"
+
     def __init__(
         self,
         n_channels: int,

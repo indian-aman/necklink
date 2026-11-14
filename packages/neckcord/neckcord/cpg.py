@@ -1,22 +1,33 @@
-"""Segmental Ventral Nerve Cord (`VNC`) 6-limb phase-coupled CPG (`SegmentalCPGCord`).
+"""Segmental Ventral Nerve Cord (`VNC`) 6-limb connectome CPG (`SegmentalCPGCord`).
 
-Inspired by the *Drosophila* `BANC`/`MANC` thoracic premotor connectome:
-  - Contralateral commissural anti-phase inhibition (`T1`, `T2`, `T3` left-right pairs)
-  - Ipsilateral intersegmental phase-lag couplings (`L3 -> L2 -> L1`, `R3 -> R2 -> R1`)
-  - Smooth descending-drive transitions across **Metachronal Wave**, **Tetrapod**, and **Tripod**
-    gaits from scalar `drive_fwd` (`DNp09` / `MDN`), `turn_yaw` (`DNa02`), and `strafe_lat`
-  - `Giant Fiber` instant `freeze_reflex` stance lock
-  - Self-healing proprioceptive limb-loss adaptation: when 1 leg (e.g., `L2`) jams or loses
-    campaniform load feedback, presynaptic shunting decouples the damaged oscillator while
-    surviving limbs reorganize into a 5-phase ring (`Delta_phi = 2*pi/5`, duty `0.82`) with
-    ipsilateral postural gap-closure so the robot's CoM remains inside a `>=3`-leg static
-    support polygon throughout the stride cycle.
+Driven in `v3.0.0` (`PROVENANCE = "connectome"`) by empirical `BANC v888` adult *Drosophila*
+thoracic premotor mutual-inhibition (`C_vnc_inh`, 6x6) and descending neuron recruitment
+(`W_dn_leg`, 6x10) matrices (`neckcord/data/banc_vnc_v3.npz`):
+  - **Emergent Tripod Coordination (`"connectome"`)**: Repulsive phase coupling over `C_vnc_inh`
+    (`dphi_i = omega_dir + K_rep * sum_{j != i} C_vnc_inh[i, j] * h_j * sin(phi_i - phi_j)`,
+    `K_rep = 6.5`) spontaneously locks non-tripod symmetry-breaking initial phases into an
+    alternating tripod (`(L1, R2, L3)` vs `(R1, L2, R3)`, `tripod_order > 0.90`) with zero
+    hand-coded `[0, pi, pi, 0, 0, pi]` phase tables.
+  - **Continuous Damage Re-Spacing (`"connectome"`)**: When a leg jams or loses campaniform
+    load (`h_j < fault_threshold`), it drops out of the repulsive sum while surviving limbs
+    repel via `C_vnc_inh + 0.6 * sin(phi_i - phi_j)` plus ipsilateral postural gap-closure,
+    continuously re-spacing 5 (pentapod, 100% static CoM polygon stability across all 6
+    single-leg losses) or 4 (quadrupod, >=3 grounded feet across 100% of the cycle) survivors.
+  - **Bilateral Steering Recruitment (`"connectome"`)**: Per-leg steering sensitivity is derived
+    directly from `W_dn_leg[:, 4:8]` (`DNa02_L/R + DNa01_L/R` columns).
+  - **Slow-Speed Tetrapod & Wave Modes (`"literature"`)**: Explicit `GaitMode.TETRAPOD` and
+    `GaitMode.WAVE` (and low-speed `GaitMode.AUTO`) follow canonical *Drosophila* kinematic
+    phase lags from Mendes et al., *eLife* 2013.
+  - **Giant Fiber `freeze_reflex` (`"connectome"`)**: Instant `DNp01`-mediated stance lock.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import math
+from pathlib import Path
+from typing import Any
 import numpy as np
 
 from .cervical import DescendingFrame, GaitMode, decode_descending_4b
@@ -37,12 +48,22 @@ NOMINAL_FOOTHOLDS_XY = np.array(
     dtype=np.float64,
 )
 
-# Canonical target phase offsets (radians, L1 anchored at 0.0)
-_OFFSETS_TRIPOD = np.array(
+# Small non-tripod symmetry-breaking initial phases [rad] for BANC v888 C_vnc_inh emergence
+INIT_SYMMETRY_BREAK_RAD = np.array(
+    [0.0, 0.45, 0.85, 0.15, 0.30, 0.70],
+    dtype=np.float64,
+)
+
+# Tripod bipartition signs: +1 on {L1, R2, L3}, -1 on {R1, L2, R3}
+_TRIPOD_BIPARTITION_SIGNS = np.array([1.0, -1.0, -1.0, 1.0, 1.0, -1.0], dtype=np.float64)
+_OFF_DIAG_6 = 1.0 - np.eye(6, dtype=np.float64)
+
+# Literature phase-lag tables (Mendes et al., eLife 2013) & legacy v2_analytic fallback tables
+_OFFSETS_TRIPOD_ANALYTIC = np.array(
     [0.0, math.pi, math.pi, 0.0, 0.0, math.pi],
     dtype=np.float64,
 )
-_OFFSETS_TETRAPOD = np.array(
+_OFFSETS_TETRAPOD_LIT = np.array(
     [
         0.0,
         2.0 * math.pi / 3.0,
@@ -53,7 +74,7 @@ _OFFSETS_TETRAPOD = np.array(
     ],
     dtype=np.float64,
 )
-_OFFSETS_WAVE = np.array(
+_OFFSETS_WAVE_LIT = np.array(
     [
         0.0,
         math.pi,
@@ -65,10 +86,63 @@ _OFFSETS_WAVE = np.array(
     dtype=np.float64,
 )
 
+# Backward-compatible aliases
+_OFFSETS_TRIPOD = _OFFSETS_TRIPOD_ANALYTIC
+_OFFSETS_TETRAPOD = _OFFSETS_TETRAPOD_LIT
+_OFFSETS_WAVE = _OFFSETS_WAVE_LIT
+
 _DUTY_TRIPOD = 0.54
 _DUTY_TETRAPOD = 0.68
 _DUTY_WAVE = 0.82
 _DUTY_PENTAPOD = 0.82
+_DUTY_QUADRUPOD = 0.85
+
+_BANC_CACHE: dict[str, np.ndarray] | None = None
+
+
+def load_banc_vnc_weights() -> dict[str, np.ndarray]:
+    """Load real `BANC v888` VNC mutual-inhibition and DN->leg recruitment arrays."""
+    global _BANC_CACHE
+    if _BANC_CACHE is None:
+        npz_path = Path(__file__).resolve().parent / "data" / "banc_vnc_v3.npz"
+        with np.load(npz_path, allow_pickle=False) as archive:
+            _BANC_CACHE = {key: np.array(archive[key], copy=True) for key in archive.files}
+    return {key: arr.copy() for key, arr in _BANC_CACHE.items()}
+
+
+def compute_tripod_order(phases: np.ndarray) -> float:
+    """Compute circular tripod order parameter `R_tripod in [0, 1]` for 6 limb phases [rad]."""
+    phi = np.asarray(phases, dtype=np.float64)
+    if phi.shape != (6,):
+        raise ValueError(f"phases must have shape (6,), got {phi.shape}")
+    re_part = float(np.mean(_TRIPOD_BIPARTITION_SIGNS * np.cos(phi)))
+    im_part = float(np.mean(_TRIPOD_BIPARTITION_SIGNS * np.sin(phi)))
+    return float(math.hypot(re_part, im_part))
+
+
+def maslov_sneppen_shuffle_vnc(
+    c_vnc_inh: np.ndarray,
+    rng: np.random.Generator | None = None,
+    *,
+    n_swaps: int = 60,
+) -> np.ndarray:
+    """Degree- and weight-distribution-preserving 4-node symmetric Maslov-Sneppen rewiring."""
+    c_in = np.asarray(c_vnc_inh, dtype=np.float64)
+    if c_in.shape != (6, 6):
+        raise ValueError(f"c_vnc_inh must have shape (6, 6), got {c_in.shape}")
+    gen = np.random.default_rng() if rng is None else rng
+    c_shuf = c_in.copy()
+    np.fill_diagonal(c_shuf, 0.0)
+    for _ in range(max(1, int(n_swaps))):
+        a, b, c, d = (int(x) for x in gen.choice(6, size=4, replace=False))
+        w_ab = c_shuf[a, b]
+        w_cd = c_shuf[c, d]
+        c_shuf[a, b] = c_shuf[b, a] = c_shuf[a, d]
+        c_shuf[c, d] = c_shuf[d, c] = c_shuf[c, b]
+        c_shuf[a, d] = c_shuf[d, a] = w_ab
+        c_shuf[c, b] = c_shuf[b, c] = w_cd
+    np.fill_diagonal(c_shuf, 0.0)
+    return c_shuf
 
 
 def compute_support_margin(grounded_xy: np.ndarray) -> float:
@@ -135,17 +209,37 @@ class CPGState:
     support_margin_m: float
     is_statically_stable: bool
     leg_ik: LegIKResult | None = None
+    gait_provenance: str = "connectome"
+
+    @property
+    def tripod_order(self) -> float:
+        """Instantaneous circular tripod order parameter `R_tripod in [0, 1]`."""
+        return compute_tripod_order(self.phases)
 
 
 class SegmentalCPGCord:
-    """6-limb phase-coupled Kuramoto CPG with self-healing single-leg-loss adaptation."""
+    """6-limb BANC v888 connectome-driven VNC CPG with emergent tripod & damage re-spacing."""
+
+    PROVENANCE: str = "connectome"
+
+    GAIT_PROVENANCE: dict[str, str] = {
+        "tripod": "connectome",
+        "adaptive_pentapod": "connectome",
+        "adaptive_quadrupod": "connectome",
+        "freeze": "connectome",
+        "tetrapod": "literature",
+        "wave": "literature",
+    }
 
     def __init__(
         self,
         *,
+        connectome_weights: str | Mapping[str, Any] | None = "banc_v888",
         base_freq_hz: float = 0.8,
         max_freq_hz: float = 2.8,
         stride_length_m: float = 0.08,
+        k_rep: float = 6.5,
+        k_ring_damage: float = 0.6,
         k_contra: float = 15.0,
         k_ipsi: float = 12.0,
         k_cross: float = 6.5,
@@ -156,6 +250,8 @@ class SegmentalCPGCord:
         self.base_freq_hz = float(base_freq_hz)
         self.max_freq_hz = float(max_freq_hz)
         self.stride_length_m = float(stride_length_m)
+        self.k_rep = float(k_rep)
+        self.k_ring_damage = float(k_ring_damage)
         self.k_contra = float(k_contra)
         self.k_ipsi = float(k_ipsi)
         self.k_cross = float(k_cross)
@@ -163,9 +259,96 @@ class SegmentalCPGCord:
         self.fault_threshold = float(fault_threshold)
         self.ik = ik
 
-        self.phases = _OFFSETS_TRIPOD.copy()
         self.limb_health = np.ones(6, dtype=np.float64)
         self._coupling_matrix = self._build_coupling_topology()
+
+        self.c_vnc_inh: np.ndarray | None = None
+        self.w_dn_leg: np.ndarray | None = None
+        self.steer_gain = np.full(6, 0.65, dtype=np.float64)
+        self._use_connectome = False
+        self.connectome_mode = "v2_analytic"
+
+        self._configure_connectome(connectome_weights)
+
+    def _configure_connectome(self, connectome_weights: str | Mapping[str, Any] | None) -> None:
+        if connectome_weights is None or connectome_weights == "v2_analytic":
+            self._use_connectome = False
+            self.connectome_mode = "v2_analytic"
+            self.c_vnc_inh = None
+            self.w_dn_leg = None
+            self.steer_gain = np.full(6, 0.65, dtype=np.float64)
+            self.phases = _OFFSETS_TRIPOD_ANALYTIC.copy()
+            return
+
+        if isinstance(connectome_weights, str):
+            if connectome_weights != "banc_v888":
+                raise ValueError(
+                    f"Unknown connectome_weights={connectome_weights!r}; "
+                    "expected 'banc_v888', a dict, or 'v2_analytic'"
+                )
+            bundle = load_banc_vnc_weights()
+            self.connectome_mode = "banc_v888"
+        elif isinstance(connectome_weights, Mapping):
+            bundle = dict(connectome_weights)
+            self.connectome_mode = "custom_dict"
+        else:
+            raise TypeError(
+                f"connectome_weights must be str, Mapping, or None, got {type(connectome_weights)!r}"
+            )
+
+        if "C_vnc_inh" in bundle:
+            c_mat = np.asarray(bundle["C_vnc_inh"], dtype=np.float64).copy()
+        elif "C_vnc_inh_q12" in bundle:
+            c_mat = np.asarray(bundle["C_vnc_inh_q12"], dtype=np.float64) / 4096.0
+        else:
+            raise KeyError("connectome_weights mapping must contain 'C_vnc_inh' or 'C_vnc_inh_q12'")
+
+        if c_mat.shape != (6, 6):
+            raise ValueError(f"C_vnc_inh must have shape (6, 6), got {c_mat.shape}")
+        np.fill_diagonal(c_mat, 0.0)
+        self.c_vnc_inh = c_mat
+
+        if "W_dn_leg" in bundle:
+            w_dn = np.asarray(bundle["W_dn_leg"], dtype=np.float64).copy()
+        elif "W_dn_leg_q12" in bundle:
+            w_dn = np.asarray(bundle["W_dn_leg_q12"], dtype=np.float64) / 4096.0
+        else:
+            w_dn = load_banc_vnc_weights()["W_dn_leg"]
+
+        if w_dn.shape != (6, 10):
+            raise ValueError(f"W_dn_leg must have shape (6, 10), got {w_dn.shape}")
+        self.w_dn_leg = w_dn
+        self.steer_gain = self._compute_dn_steering_gains(w_dn)
+        self._use_connectome = True
+        self.phases = self._warmstart_connectome_phases(c_mat)
+
+    def _warmstart_connectome_phases(self, c_mat: np.ndarray) -> np.ndarray:
+        """Relax non-tripod symmetry-breaking initial angles over `C_vnc_inh` (15 substeps)."""
+        phi = INIT_SYMMETRY_BREAK_RAD.copy()
+        for _ in range(15):
+            diff = phi[:, None] - phi[None, :]
+            dphi = self.k_rep * np.sum(c_mat * np.sin(diff), axis=1)
+            phi = np.mod(phi + 0.02 * dphi, 2.0 * math.pi)
+        # Global U(1) time-origin shift anchoring L1 at 0 rad (preserves all phi_i - phi_j exactly)
+        return np.mod(phi - phi[0], 2.0 * math.pi)
+
+    @staticmethod
+    def _compute_dn_steering_gains(w_dn_leg: np.ndarray) -> np.ndarray:
+        """Compute per-leg ipsilateral steering sensitivity from `W_dn_leg[:, 4:8]` (`DNa02 + DNa01`)."""
+        # Columns 4..7: [DNa02_L, DNa02_R, DNa01_L, DNa01_R]
+        w_left_turn = w_dn_leg[:, 4] + w_dn_leg[:, 6]
+        w_right_turn = w_dn_leg[:, 5] + w_dn_leg[:, 7]
+        ipsi = np.zeros(6, dtype=np.float64)
+        for i in range(6):
+            contrast = (w_left_turn[i] - w_right_turn[i]) if (i % 2 == 0) else (w_right_turn[i] - w_left_turn[i])
+            ipsi[i] = max(0.05, float(contrast))
+        mean_ipsi = max(1e-3, float(np.mean(ipsi)))
+        return 0.65 * (ipsi / mean_ipsi)
+
+    @property
+    def tripod_order(self) -> float:
+        """Current circular tripod order parameter `R_tripod in [0, 1]`."""
+        return compute_tripod_order(self.phases)
 
     def _build_coupling_topology(self) -> np.ndarray:
         k_mat = np.full((6, 6), self.k_cross, dtype=np.float64)
@@ -178,7 +361,7 @@ class SegmentalCPGCord:
         for a, b in ((0, 2), (2, 4), (1, 3), (3, 5)):
             k_mat[a, b] = self.k_ipsi
             k_mat[b, a] = self.k_ipsi
-        # Ipsilateral T1-T3 long-propriospinal link (weaker than nearest-neighbor so Tripod->Wave has no saddle)
+        # Ipsilateral T1-T3 long-propriospinal link (used by literature Wave/Tetrapod modes)
         for a, b in ((0, 4), (1, 5)):
             k_mat[a, b] = 0.55 * self.k_ipsi
             k_mat[b, a] = 0.55 * self.k_ipsi
@@ -225,15 +408,12 @@ class SegmentalCPGCord:
         self.limb_health = np.clip(self.limb_health, 0.0, 1.0)
         return self.limb_health.copy()
 
-    def _compute_pentapod_offsets(self, damaged_idx: int) -> np.ndarray:
-        """Construct 5-limb metachronal phase ring separating damaged-side survivors by 144 deg."""
-        dmg_side = damaged_idx % 2  # 0 = Left, 1 = Right
+    def _compute_pentapod_offsets_analytic(self, damaged_idx: int) -> np.ndarray:
+        """Legacy v2_analytic 5-limb metachronal phase ring."""
+        dmg_side = damaged_idx % 2
         intact_side = 1 - dmg_side
-
         dmg_survivors = [i for i in (dmg_side, dmg_side + 2, dmg_side + 4) if i != damaged_idx]
-        # Hind-to-front on intact side
         intact_limbs = [intact_side + 4, intact_side + 2, intact_side]
-
         ring_order = [
             dmg_survivors[0],
             intact_limbs[0],
@@ -248,37 +428,36 @@ class SegmentalCPGCord:
         offsets[damaged_idx] = 0.0
         return offsets
 
-    def _select_target_gait(
+    def _select_target_gait_analytic(
         self,
         speed_cmd: float,
         gait_mode: int,
     ) -> tuple[np.ndarray, float, str]:
+        """Legacy v2_analytic target-offset selector."""
         healthy_mask = self.limb_health >= self.fault_threshold
         n_healthy = int(np.sum(healthy_mask))
 
         if self.adapt_to_damage and n_healthy == 5:
             damaged_idx = int(np.argmin(self.limb_health))
             return (
-                self._compute_pentapod_offsets(damaged_idx),
+                self._compute_pentapod_offsets_analytic(damaged_idx),
                 _DUTY_PENTAPOD,
                 "adaptive_pentapod",
             )
-
         if self.adapt_to_damage and n_healthy < 5:
-            return _OFFSETS_WAVE.copy(), 0.85, "wave"
+            return _OFFSETS_WAVE_LIT.copy(), _DUTY_QUADRUPOD, "wave"
 
         if gait_mode == int(GaitMode.TRIPOD):
-            return _OFFSETS_TRIPOD.copy(), _DUTY_TRIPOD, "tripod"
+            return _OFFSETS_TRIPOD_ANALYTIC.copy(), _DUTY_TRIPOD, "tripod"
         if gait_mode == int(GaitMode.TETRAPOD):
-            return _OFFSETS_TETRAPOD.copy(), _DUTY_TETRAPOD, "tetrapod"
+            return _OFFSETS_TETRAPOD_LIT.copy(), _DUTY_TETRAPOD, "tetrapod"
         if gait_mode == int(GaitMode.WAVE):
-            return _OFFSETS_WAVE.copy(), _DUTY_WAVE, "wave"
+            return _OFFSETS_WAVE_LIT.copy(), _DUTY_WAVE, "wave"
 
-        # AUTO mode: continuous speed-driven transition Wave -> Tetrapod -> Tripod
         if speed_cmd <= 0.30:
-            return _OFFSETS_WAVE.copy(), _DUTY_WAVE, "wave"
+            return _OFFSETS_WAVE_LIT.copy(), _DUTY_WAVE, "wave"
         if speed_cmd >= 0.75:
-            return _OFFSETS_TRIPOD.copy(), _DUTY_TRIPOD, "tripod"
+            return _OFFSETS_TRIPOD_ANALYTIC.copy(), _DUTY_TRIPOD, "tripod"
 
         if speed_cmd < 0.525:
             u = (speed_cmd - 0.30) / 0.225
@@ -290,14 +469,14 @@ class SegmentalCPGCord:
             label = "tetrapod" if u < 0.65 else "tripod"
 
         sin_sum = (
-            w_wave * np.sin(_OFFSETS_WAVE)
-            + w_tetra * np.sin(_OFFSETS_TETRAPOD)
-            + w_tri * np.sin(_OFFSETS_TRIPOD)
+            w_wave * np.sin(_OFFSETS_WAVE_LIT)
+            + w_tetra * np.sin(_OFFSETS_TETRAPOD_LIT)
+            + w_tri * np.sin(_OFFSETS_TRIPOD_ANALYTIC)
         )
         cos_sum = (
-            w_wave * np.cos(_OFFSETS_WAVE)
-            + w_tetra * np.cos(_OFFSETS_TETRAPOD)
-            + w_tri * np.cos(_OFFSETS_TRIPOD)
+            w_wave * np.cos(_OFFSETS_WAVE_LIT)
+            + w_tetra * np.cos(_OFFSETS_TETRAPOD_LIT)
+            + w_tri * np.cos(_OFFSETS_TRIPOD_ANALYTIC)
         )
         blended_offsets = np.mod(np.arctan2(sin_sum, cos_sum), 2.0 * math.pi)
         blended_duty = (
@@ -319,7 +498,6 @@ class SegmentalCPGCord:
             loss_hind = 1.0 - self.limb_health[i_hind]
 
             if loss_mid > 0.2:
-                # Front shifts caudally & hind shifts rostrally to close middle-leg gap
                 anchors[i_front, 0] -= 0.09 * loss_mid
                 anchors[i_hind, 0] += 0.09 * loss_mid
                 anchors[i_front, 1] += 0.02 * y_sign * loss_mid
@@ -348,6 +526,113 @@ class SegmentalCPGCord:
             solver = HexapodLegIK()
         return solver.solve_cpg_state(state, fault_threshold=self.fault_threshold)
 
+    def _step_connectome_phases(
+        self,
+        *,
+        omega: float,
+        speed_mag: float,
+        gait_mode: int,
+        healthy_mask: np.ndarray,
+        n_healthy: int,
+        dt: float,
+    ) -> tuple[float, str, str]:
+        """Advance phases under `BANC v888` `C_vnc_inh` repulsive dynamics (or slow literature gaits)."""
+        assert self.c_vnc_inh is not None
+        n_sub = max(1, int(math.ceil(max(dt, 0.0) / 0.005)))
+        sub_dt = float(dt) / n_sub
+        shunt_gate = np.where(healthy_mask, self.limb_health, 0.0) if self.adapt_to_damage else np.ones(6, dtype=np.float64)
+
+        # Determine weights between connectome repulsive C_vnc_inh and slow-speed literature gaits
+        w_conn = 0.0
+        w_tetra = 0.0
+        w_wave = 0.0
+        damage_ring = False
+
+        if self.adapt_to_damage and n_healthy < 6:
+            w_conn = 1.0
+            damage_ring = True
+            if n_healthy == 5:
+                duty = _DUTY_PENTAPOD
+                gait_name = "adaptive_pentapod"
+            else:
+                duty = _DUTY_QUADRUPOD
+                gait_name = "adaptive_quadrupod"
+            provenance = "connectome"
+        elif gait_mode == int(GaitMode.TRIPOD):
+            w_conn = 1.0
+            duty = _DUTY_TRIPOD
+            gait_name = "tripod"
+            provenance = "connectome"
+        elif gait_mode == int(GaitMode.TETRAPOD):
+            w_tetra = 1.0
+            duty = _DUTY_TETRAPOD
+            gait_name = "tetrapod"
+            provenance = "literature"
+        elif gait_mode == int(GaitMode.WAVE):
+            w_wave = 1.0
+            duty = _DUTY_WAVE
+            gait_name = "wave"
+            provenance = "literature"
+        else:
+            # GaitMode.AUTO: Wave (literature) -> Tetrapod (literature) -> Tripod (connectome C_vnc_inh)
+            if speed_mag <= 0.30:
+                w_wave = 1.0
+                duty = _DUTY_WAVE
+                gait_name = "wave"
+                provenance = "literature"
+            elif speed_mag >= 0.75:
+                w_conn = 1.0
+                duty = _DUTY_TRIPOD
+                gait_name = "tripod"
+                provenance = "connectome"
+            elif speed_mag < 0.525:
+                u = (speed_mag - 0.30) / 0.225
+                w_wave = 1.0 - u
+                w_tetra = u
+                duty = w_wave * _DUTY_WAVE + w_tetra * _DUTY_TETRAPOD
+                gait_name = "wave" if u < 0.35 else "tetrapod"
+                provenance = "literature"
+            else:
+                u = (speed_mag - 0.525) / 0.225
+                w_tetra = 1.0 - u
+                w_conn = u
+                duty = w_tetra * _DUTY_TETRAPOD + w_conn * _DUTY_TRIPOD
+                gait_name = "tetrapod" if u < 0.65 else "tripod"
+                provenance = "literature" if u < 0.65 else "connectome"
+
+        c_rep_mat = (
+            self.c_vnc_inh + self.k_ring_damage * _OFF_DIAG_6
+            if damage_ring
+            else self.c_vnc_inh
+        )
+
+        psi_wave_diff = _OFFSETS_WAVE_LIT[None, :] - _OFFSETS_WAVE_LIT[:, None]
+        psi_tetra_diff = _OFFSETS_TETRAPOD_LIT[None, :] - _OFFSETS_TETRAPOD_LIT[:, None]
+
+        for _ in range(n_sub):
+            coup = np.zeros(6, dtype=np.float64)
+            if w_conn > 0.0:
+                # Pure repulsive Kuramoto over real BANC v888 C_vnc_inh (phi_i - phi_j)
+                diff_rep = self.phases[:, None] - self.phases[None, :]
+                coup_conn = self.k_rep * np.sum(
+                    c_rep_mat * shunt_gate[None, :] * np.sin(diff_rep),
+                    axis=1,
+                )
+                coup += w_conn * coup_conn
+
+            if w_wave > 0.0 or w_tetra > 0.0:
+                phi_diff = self.phases[None, :] - self.phases[:, None]
+                sin_lit = np.zeros((6, 6), dtype=np.float64)
+                if w_wave > 0.0:
+                    sin_lit += w_wave * np.sin(phi_diff - psi_wave_diff)
+                if w_tetra > 0.0:
+                    sin_lit += w_tetra * np.sin(phi_diff - psi_tetra_diff)
+                coup += np.sum(self._coupling_matrix * shunt_gate[None, :] * sin_lit, axis=1)
+
+            self.phases = np.mod(self.phases + sub_dt * (omega + coup), 2.0 * math.pi)
+
+        return float(duty), gait_name, provenance
+
     def step(
         self,
         command: DescendingFrame | bytes | bytearray | float = 0.0,
@@ -373,6 +658,7 @@ class SegmentalCPGCord:
             )
 
         healthy_mask = self.limb_health >= self.fault_threshold
+        n_healthy = int(np.sum(healthy_mask))
         anchors = self._compute_postural_anchors()
 
         if frame.freeze_reflex:
@@ -393,6 +679,7 @@ class SegmentalCPGCord:
                 active_gait="freeze",
                 support_margin_m=margin,
                 is_statically_stable=(int(np.sum(stance_mask)) >= 3 and margin > 0.005),
+                gait_provenance="connectome" if self._use_connectome else "analytic",
             )
             if self.ik is not None:
                 st_freeze.leg_ik = self.ik.solve_cpg_state(
@@ -408,9 +695,6 @@ class SegmentalCPGCord:
                 0.55 * abs(frame.turn_yaw),
             ),
         )
-        target_offsets, duty, gait_name = self._select_target_gait(
-            speed_mag, frame.gait_mode
-        )
 
         # Intrinsic frequency signed by forward/reverse drive (`MDN` negative drive reverses wave)
         dir_sign = -1.0 if frame.drive_fwd < -1e-4 else 1.0
@@ -421,21 +705,31 @@ class SegmentalCPGCord:
         )
         omega = 2.0 * math.pi * freq_hz * dir_sign
 
-        # Sub-step Kuramoto integration for stiff coupling accuracy at arbitrary dt
-        n_sub = max(1, int(math.ceil(max(dt, 0.0) / 0.005)))
-        sub_dt = float(dt) / n_sub
-        shunt_gate = np.where(healthy_mask, self.limb_health, 0.0)
-
-        for _ in range(n_sub):
-            # Pairwise differences: diff[i, j] = phi_j - phi_i - (psi_j - psi_i)
-            phi_diff = self.phases[None, :] - self.phases[:, None]
-            psi_diff = target_offsets[None, :] - target_offsets[:, None]
-            coupling = np.sum(
-                self._coupling_matrix * shunt_gate[None, :] * np.sin(phi_diff - psi_diff),
-                axis=1,
+        if self._use_connectome:
+            duty, gait_name, gait_prov = self._step_connectome_phases(
+                omega=omega,
+                speed_mag=speed_mag,
+                gait_mode=frame.gait_mode,
+                healthy_mask=healthy_mask,
+                n_healthy=n_healthy,
+                dt=dt,
             )
-            dphi = omega + coupling
-            self.phases = np.mod(self.phases + sub_dt * dphi, 2.0 * math.pi)
+        else:
+            target_offsets, duty, gait_name = self._select_target_gait_analytic(
+                speed_mag, frame.gait_mode
+            )
+            gait_prov = "analytic"
+            n_sub = max(1, int(math.ceil(max(dt, 0.0) / 0.005)))
+            sub_dt = float(dt) / n_sub
+            shunt_gate = np.where(healthy_mask, self.limb_health, 0.0)
+            for _ in range(n_sub):
+                phi_diff = self.phases[None, :] - self.phases[:, None]
+                psi_diff = target_offsets[None, :] - target_offsets[:, None]
+                coupling = np.sum(
+                    self._coupling_matrix * shunt_gate[None, :] * np.sin(phi_diff - psi_diff),
+                    axis=1,
+                )
+                self.phases = np.mod(self.phases + sub_dt * (omega + coupling), 2.0 * math.pi)
 
         # Compute stance vs swing, foot trajectories, and 3-joint motor targets
         stance_span = 2.0 * math.pi * duty
@@ -446,10 +740,8 @@ class SegmentalCPGCord:
         joints = np.zeros((6, 3), dtype=np.float64)
         foot_xy = anchors.copy()
 
-        # Differential bilateral step amplitude from DNa02 `turn_yaw`
+        # Bilateral stride modulation from real BANC v888 `W_dn_leg[:, 4:8]` (`DNa02 + DNa01`)
         # Positive `turn_yaw` (CCW left turn) -> right legs longer stride, left legs shorter
-        left_scale = max(-1.2, min(1.4, frame.drive_fwd - 0.65 * frame.turn_yaw))
-        right_scale = max(-1.2, min(1.4, frame.drive_fwd + 0.65 * frame.turn_yaw))
         lat_shift = 0.035 * frame.strafe_lat
 
         for i in range(6):
@@ -460,10 +752,14 @@ class SegmentalCPGCord:
                 continue
 
             phi = float(self.phases[i])
-            amp_x = 0.5 * self.stride_length_m * (left_scale if (i % 2 == 0) else right_scale)
+            yaw_sign = -1.0 if (i % 2 == 0) else 1.0
+            leg_scale = max(
+                -1.2,
+                min(1.4, frame.drive_fwd + yaw_sign * float(self.steer_gain[i]) * frame.turn_yaw),
+            )
+            amp_x = 0.5 * self.stride_length_m * leg_scale
 
             if phi < stance_span:
-                # Stance phase: foot sweeps from anterior (+amp_x) to posterior (-amp_x)
                 stance_mask[i] = True
                 u_st = phi / max(stance_span, 1e-6)
                 coxa_norm = 1.0 - 2.0 * u_st
@@ -471,7 +767,6 @@ class SegmentalCPGCord:
                 foot_xy[i, 0] = anchors[i, 0] + amp_x * coxa_norm
                 foot_xy[i, 1] = anchors[i, 1] + lat_shift * (1.0 - 2.0 * u_st)
             else:
-                # Swing phase: foot lifts and returns from posterior (-amp_x) to anterior (+amp_x)
                 stance_mask[i] = False
                 u_sw = (phi - stance_span) / swing_span
                 swing_prog[i] = u_sw
@@ -480,7 +775,7 @@ class SegmentalCPGCord:
                 foot_xy[i, 0] = anchors[i, 0] + amp_x * coxa_norm
                 foot_xy[i, 1] = anchors[i, 1] - lat_shift * (1.0 - 2.0 * u_sw)
 
-            joints[i, 0] = coxa_norm * (left_scale if (i % 2 == 0) else right_scale)
+            joints[i, 0] = coxa_norm * leg_scale
             joints[i, 1] = femur_lift
             joints[i, 2] = 0.25 * coxa_norm + 0.15 * frame.strafe_lat
 
@@ -499,6 +794,7 @@ class SegmentalCPGCord:
             active_gait=gait_name,
             support_margin_m=margin,
             is_statically_stable=stable,
+            gait_provenance=gait_prov,
         )
         if self.ik is not None:
             out_state.leg_ik = self.ik.solve_cpg_state(

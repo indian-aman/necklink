@@ -1,17 +1,17 @@
 /*
- * NeckCord v2.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
+ * NeckCord v3.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
  *
  * Implements:
  *   1. 4-byte Descending Cervical Command Frame codec + CRC-4 verification
- *   2. 6-limb phase-coupled Kuramoto VNC CPG with single-leg-loss pentapod adaptation
- *   3. 4..8 channel presynaptic-shunting 3-DOF & 4-DOF box-constrained active-set allocator
+ *   2. 6-limb BANC v888 connectome-driven VNC CPG (emergent tripod & damage re-spacing)
+ *   3. 4..8 channel box-constrained 3-DOF & 4-DOF active-set allocator [engineering]
  *      (unidirectional [0, u_max] multicopters + asymmetric T200 marine thrusters)
- *   4. Sensorless ESC RPM + Current proprioceptive fault observer (stall, broken blade, foul)
- *   5. Exact 3-DOF 18-servo hexapod leg inverse kinematics (integer atan2, isqrt, acos LUT)
+ *   4. Sensorless ESC RPM + Current proprioceptive fault observer [engineering]
+ *   5. Exact 3-DOF 18-servo hexapod leg inverse kinematics [engineering]
  *
  * Memory guarantees:
  *   - Zero dynamic allocation (no stdlib heap calls)
- *   - Pure integer Q20 / Q15 / Q14 / 16-bit BAM arithmetic (zero FP instructions)
+ *   - Pure integer Q20 / Q15 / Q14 / Q12 / 16-bit BAM arithmetic (zero FP instructions)
  *   - Total runtime state < 1 KB (< 3 KB static RAM budget)
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
@@ -22,17 +22,33 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "neckcord_banc_weights.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+#define NC_CORD_VERSION_MAJOR 3
+#define NC_CORD_VERSION_MINOR 0
+#define NC_CORD_VERSION_PATCH 0
+#define NC_CORD_VERSION_STR   "3.0.0"
+
+#define NECKCORD_VERSION_MAJOR 3
+#define NECKCORD_VERSION_MINOR 0
+#define NECKCORD_VERSION_PATCH 0
+#define NECKCORD_VERSION_STR   "3.0.0"
+
 #ifndef NC_VERSION_MAJOR
-#define NC_VERSION_MAJOR 2
+#define NC_VERSION_MAJOR 3
 #define NC_VERSION_MINOR 0
 #define NC_VERSION_PATCH 0
 #endif
-#define NC_VERSION_STR   "2.0.0"
+#define NC_VERSION_STR   "3.0.0"
+
+static inline const nc_banc_vnc_weights_t *nc_banc_vnc_default_weights(void)
+{
+    return &k_nc_banc_vnc_default;
+}
 
 #ifndef NC_Q15_ONE
 #define NC_Q15_ONE       32767
@@ -94,8 +110,9 @@ int nc_decode_descending_4b(
     nc_descending_frame_t *out_frame
 );
 
-/* 2. 6-Limb Segmental VNC CPG Cord */
+/* 2. 6-Limb Segmental VNC CPG Cord (BANC v888 Connectome-Driven) */
 typedef struct {
+    const nc_banc_vnc_weights_t *weights;   /* BANC v888 weights (NULL = legacy v2 analytic) */
     uint16_t phases_bam[NC_NUM_LIMBS];      /* 0..65535 -> [0, 2*pi) */
     int16_t  limb_health_q15[NC_NUM_LIMBS]; /* 0..32767 */
     uint16_t base_freq_milli_hz;            /* e.g. 800 = 0.80 Hz */
@@ -117,8 +134,10 @@ typedef struct {
     uint8_t  is_statically_stable;           /* 1 if >=3 grounded limbs strictly enclose CoM */
 } nc_cpg_state_t;
 
-void nc_cpg_init(nc_cpg_cord_t *cord, uint8_t adapt_to_damage);
-int  nc_cpg_set_limb_health(nc_cpg_cord_t *cord, uint8_t limb_idx, int16_t health_q15);
+void    nc_cpg_init(nc_cpg_cord_t *cord, uint8_t adapt_to_damage);
+void    nc_cpg_set_weights(nc_cpg_cord_t *cord, const nc_banc_vnc_weights_t *w);
+int16_t nc_cpg_tripod_order_q15(const uint16_t phases_bam[NC_NUM_LIMBS]);
+int     nc_cpg_set_limb_health(nc_cpg_cord_t *cord, uint8_t limb_idx, int16_t health_q15);
 int  nc_cpg_step(
     nc_cpg_cord_t *cord,
     const nc_descending_frame_t *cmd,

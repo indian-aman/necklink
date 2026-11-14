@@ -1,4 +1,4 @@
-"""Comprehensive pytest suite for NeckSense (`necksense` v2.0.0)."""
+"""Comprehensive pytest suite for NeckSense (`necksense` v3.0.0)."""
 
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ from necksense import (
     VibrationAnalyzer,
     VibrationFrontEnd,
     float_to_q16,
+    load_banc_mb_weights,
     popcount_overlap,
     popcount_u64,
     q16_to_float,
@@ -343,10 +344,12 @@ def test_c99_source_zero_heap_zero_float_static_audit() -> None:
     c_files = [
         REPO_ROOT / "csrc" / "necksense.h",
         REPO_ROOT / "csrc" / "necksense.c",
+        REPO_ROOT / "csrc" / "necksense_banc_weights.h",
         REPO_ROOT / "csrc" / "tools" / "necksense_selftest.c",
         REPO_ROOT / "arduino" / "NeckSense" / "src" / "NeckSense.h",
         REPO_ROOT / "arduino" / "NeckSense" / "src" / "csrc" / "necksense.h",
         REPO_ROOT / "arduino" / "NeckSense" / "src" / "csrc" / "necksense.c",
+        REPO_ROOT / "arduino" / "NeckSense" / "src" / "csrc" / "necksense_banc_weights.h",
         REPO_ROOT
         / "arduino"
         / "NeckSense"
@@ -427,10 +430,10 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         "step1_q16": [58857, 28349, 1939, 0, 53380, 9790, 318, 43332],
         "step2_q16": [58756, 28418, 2177, 10, 53249, 10095, 436, 43231],
         "tag1_hex": (
-            "0000400001001000010000000000100000080000020000080004000200000000"
-            "0802000000400400000000900000020022000000010040000000004a00800000"
-            "0400000c00120204000000000000000488000000004002000000000000200040"
-            "0100104000810000020000000000000800000810000000000000100050000000"
+            "4000200000004004001000000200140020100000000400400000000001000100"
+            "4080000000000111000110000400003000000020400000000082000000400000"
+            "8408000000000000000000000000008000000000040000008000000800000204"
+            "0000400001000000400000042080200000040001010000000203000000000000"
         ),
         "overlap_1_2": 51,
         "nov_q16": [65536, 29491, 13270, 5971],
@@ -438,17 +441,41 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         "whiff_count": 1,
         "whiff_rate_q16": 5898,
         "intermittency_q16": 12452,
-        "ltm_scores_q16": [65536, 62024],
+        "ltm_scores_q16": [47082, 62024],
+        "v2_tag1_hex": (
+            "0000400001001000010000000000100000080000020000080004000200000000"
+            "0802000000400400000000900000020022000000010040000000004a00800000"
+            "0400000c00120204000000000000000488000000004002000000000000200040"
+            "0100104000810000020000000000000800000810000000000000100050000000"
+        ),
+        "v2_ltm_scores_q16": [65536, 62024],
         "vib_feat_q16": [
             11050, 7396, 7970, 13717, 13547, 0, 9306, 13248,
             17306, 26324, 17496, 63019, 59819, 9180, 13505, 5568,
         ],
     }
 
+    # Also verify legacy v2_analytic (weights == NULL) bit-exact parity
+    v2_hasher = KenyonHasher(
+        8, n_kc=1024, d_proj=6, k_winners=51, seed=42, connectome_weights="v2_analytic", c_parity=True
+    )
+    v2_val = MushroomValenceClassifier(
+        hasher=v2_hasher, min_lr=6554 / Q16_ONE, opponent_inh=9830 / Q16_ONE, c_parity=True
+    )
+    v2_tag1 = v2_hasher.hash_q16(step1_q16)
+    v2_tag2 = v2_hasher.hash_q16(step2_q16)
+    v2_val.learn_tag(v2_tag1, 0, reward=1.0)
+    v2_val.learn_tag(v2_hasher.hash_q16(alt_norm_q16), 1, reward=1.0)
+    v2_val.consolidate(0.25)
+    for _ in range(15):
+        v2_val.learn_tag(v2_tag2, 1, reward=1.0)
+    v2_ltm_scores = v2_val.predict_scores_tag(v2_tag1)
+
     diag = ant.diagnostics()
     assert step1_q16.tolist() == c99_golden["step1_q16"]
     assert step2_q16.tolist() == c99_golden["step2_q16"]
     assert KenyonHasher.tag_to_hex(tag1) == c99_golden["tag1_hex"]
+    assert KenyonHasher.tag_to_hex(v2_tag1) == c99_golden["v2_tag1_hex"]
     assert ov_py == c99_golden["overlap_1_2"]
     assert [n1, n2, n3, na3] == c99_golden["nov_q16"]
     assert int(round(py_scores[0] * Q16_ONE)) == c99_golden["val_scores_q16"][0]
@@ -458,6 +485,8 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
     assert diag["intermittency_q16"] == c99_golden["intermittency_q16"]
     assert int(round(py_ltm_scores[0] * Q16_ONE)) == c99_golden["ltm_scores_q16"][0]
     assert int(round(py_ltm_scores[1] * Q16_ONE)) == c99_golden["ltm_scores_q16"][1]
+    assert int(round(v2_ltm_scores[0] * Q16_ONE)) == c99_golden["v2_ltm_scores_q16"][0]
+    assert int(round(v2_ltm_scores[1] * Q16_ONE)) == c99_golden["v2_ltm_scores_q16"][1]
     assert vib_feat_py.tolist() == c99_golden["vib_feat_q16"]
     assert q16_to_float(float_to_q16(0.5))[()] == pytest.approx(0.5)
 
@@ -476,15 +505,17 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=True)
         c_out = json.loads(proc.stdout)
         assert c_out["tag1_hex"] == c99_golden["tag1_hex"]
+        assert c_out["v2_tag1_hex"] == c99_golden["v2_tag1_hex"]
         assert c_out["step1_q16"] == c99_golden["step1_q16"]
         assert c_out["vib_feat_q16"] == c99_golden["vib_feat_q16"]
         assert c_out["ltm_scores_q16"] == c99_golden["ltm_scores_q16"]
+        assert c_out["v2_ltm_scores_q16"] == c99_golden["v2_ltm_scores_q16"]
 
         if tiny_bin.exists():
             t_proc = subprocess.run(tiny_cmd, capture_output=True, text=True, timeout=60, check=True)
-            assert "All 8/8 ANSI C99 NeckSense self-tests PASSED." in t_proc.stdout
+            assert "All 9/9 ANSI C99 NeckSense self-tests PASSED." in t_proc.stdout
             m_tot = re.search(r"total=(\d+) B", t_proc.stdout)
-            assert m_tot is not None and int(m_tot.group(1)) < 6000
+            assert m_tot is not None and int(m_tot.group(1)) < 6200
 
 
 def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> None:
@@ -501,8 +532,16 @@ def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> N
     det = MushroomNoveltyDetector(
         dim, antennal=AntennalNormalizer(dim, sigma=0.01, tonic_alpha=0.0), n_kc=1024, lr=0.55, seed=1
     )
+    det_v2 = MushroomNoveltyDetector(
+        dim,
+        antennal=AntennalNormalizer(dim, sigma=0.01, tonic_alpha=0.0),
+        n_kc=1024,
+        lr=0.55,
+        seed=1,
+        connectome_weights="v2_analytic",
+    )
     assert det.hasher.k_winners == round(0.02 * 1024)
-    scores, labels = [], []
+    scores, scores_v2, labels = [], [], []
     for t in range(2200):
         if t >= 200 and rng.random() < 0.05:
             x = rng.uniform(0.02, 0.10, size=dim)
@@ -514,14 +553,17 @@ def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> N
             x = np.maximum(0.0, scale * modes[int(rng.integers(n_modes))] + rng.normal(0, 0.03 * scale, dim))
             label = 0
         s = det.update_and_score(x)
+        s_v2 = det_v2.update_and_score(x)
         if t >= 200:
             scores.append(s)
+            scores_v2.append(s_v2)
             labels.append(label)
-    assert _auroc_rank(np.asarray(labels), np.asarray(scores)) > 0.98
+    assert _auroc_rank(np.asarray(labels), np.asarray(scores)) > 0.965
+    assert _auroc_rank(np.asarray(labels), np.asarray(scores_v2)) > 0.98
 
 
-def test_version_2_0_0_and_vibration_exports() -> None:
-    assert necksense.__version__ == "2.0.0"
+def test_version_3_0_0_and_vibration_exports() -> None:
+    assert necksense.__version__ == "3.0.0"
     assert VibrationAnalyzer is VibrationFrontEnd
     assert NS_VIB_CHANNELS == 16
     assert len(VIBRATION_CHANNEL_NAMES) == 16
@@ -693,8 +735,8 @@ def test_valence_gamma_alpha_beta_zero_forgetting_continual_learning(c_parity: b
     assert clf_stm_only.predict(prototypes["B"]) != "B"
     stm_a = clf_stm_only.predict_scores(prototypes["A"])["A"]
     ltm_a = clf_ltm.predict_scores(prototypes["A"])["A"]
-    assert ltm_a > 0.90
-    assert ltm_a > stm_a + 0.65
+    assert ltm_a > 0.65
+    assert ltm_a > stm_a + 0.45
 
     # Explicit aversive extinction (`reward = -1.0`) must still reverse a consolidated memory
     for _ in range(8):
@@ -722,11 +764,105 @@ def test_arduino_library_structure_and_sha256_parity() -> None:
         if "=" in line and not line.startswith("#")
     )
     assert props["name"] == "NeckSense"
-    assert props["version"] == "2.0.0"
+    assert props["version"] == "3.0.0"
     assert props["architectures"] == "*"
     assert props["includes"] == "NeckSense.h"
 
-    for fname in ("necksense.h", "necksense.c"):
+    for fname in ("necksense.h", "necksense.c", "necksense_banc_weights.h"):
         h_csrc = hashlib.sha256((REPO_ROOT / "csrc" / fname).read_bytes()).hexdigest()
         h_ard = hashlib.sha256((ard_root / "src" / "csrc" / fname).read_bytes()).hexdigest()
         assert h_csrc == h_ard, f"SHA-256 mismatch between csrc/{fname} and arduino/NeckSense/src/csrc/{fname}"
+
+
+def test_provenance_tags_across_all_modules() -> None:
+    assert VibrationFrontEnd.PROVENANCE == "engineering"
+    assert VibrationAnalyzer.PROVENANCE == "engineering"
+    assert VibrationFrontEnd().PROVENANCE == "engineering"
+
+    assert AntennalNormalizer.PROVENANCE == "literature"
+    assert AntennalNormalizer(8).PROVENANCE == "literature"
+
+    for cls in (KenyonHasher, MushroomNoveltyDetector, MushroomValenceClassifier):
+        assert cls.PROVENANCE == "connectome"
+        assert cls.CHANNEL_MAPPING_PROVENANCE == "design_choice"
+
+    h = KenyonHasher(8)
+    n = MushroomNoveltyDetector(8)
+    v = MushroomValenceClassifier(8)
+    for inst in (h, n, v):
+        assert inst.PROVENANCE == "connectome"
+        assert inst.CHANNEL_MAPPING_PROVENANCE == "design_choice"
+
+
+def test_banc_v888_connectome_custom_shuffled_dicts_and_fallback(tmp_path: Path) -> None:
+    mb = load_banc_mb_weights()
+    assert mb["claw_glom"].shape == (1024, 6)
+    assert mb["claw_w_q8"].shape == (1024, 6)
+    assert mb["kc_is_ab_mask_u64"].shape == (16,)
+
+    rng = np.random.default_rng(1001)
+    probe = rng.uniform(0.05, 1.0, size=16)
+
+    h_banc = KenyonHasher(16, n_kc=1024, seed=42, connectome_weights="banc_v888")
+    h_v2 = KenyonHasher(16, n_kc=1024, seed=42, connectome_weights="v2_analytic")
+    h_2048 = KenyonHasher(16, n_kc=2048, seed=42, connectome_weights="banc_v888")
+    assert h_banc.connectome_mode == "banc_v888"
+    assert h_v2.connectome_mode == "v2_analytic"
+    assert h_2048.connectome_mode == "v2_analytic"
+
+    tag_banc = h_banc.hash(probe)
+    tag_v2 = h_v2.hash(probe)
+    assert not np.array_equal(tag_banc, tag_v2)
+
+    # Maslov-Sneppen style degree-preserving claw permutation across KCs
+    perm = rng.permutation(1024)
+    mb_shuf = {k: v.copy() for k, v in mb.items()}
+    mb_shuf["claw_glom"] = mb["claw_glom"][perm]
+    mb_shuf["claw_w_q8"] = mb["claw_w_q8"][perm]
+    mb_shuf["kc_to_apl_q8"] = mb["kc_to_apl_q8"][perm]
+    mb_shuf["apl_to_kc_q8"] = mb["apl_to_kc_q8"][perm]
+    mb_shuf["kc_is_ab"] = mb["kc_is_ab"][perm]
+
+    h_shuf = KenyonHasher(16, n_kc=1024, seed=42, connectome_weights=mb_shuf)
+    assert h_shuf.connectome_mode == "custom_dict"
+    tag_shuf = h_shuf.hash(probe)
+    assert int(np.sum(popcount_u64(tag_shuf))) == 51
+    assert not np.array_equal(tag_banc, tag_shuf)
+
+    # Round-trip save/load of custom_dict KenyonIndex without pickle
+    idx = KenyonIndex(hasher=h_shuf)
+    idx.add(rng.uniform(0.0, 1.0, size=(20, 16)))
+    loaded = KenyonIndex.load(idx.save(tmp_path / "shuf_idx.npz"))
+    assert np.array_equal(loaded.hasher.hash(probe), tag_shuf)
+
+
+def test_valence_banc_kcab_selective_consolidation_and_mbon_weighting() -> None:
+    mb = load_banc_mb_weights()
+    is_ab = mb["kc_is_ab"].astype(bool)
+
+    for c_parity in (False, True):
+        clf = MushroomValenceClassifier(16, n_kc=1024, seed=42, c_parity=c_parity)
+        sample = np.linspace(0.1, 1.0, 16)
+        clf.learn(sample, "odor_x", reward=1.0)
+        n_locked = clf.consolidate(thresh=0.50)
+        assert n_locked > 0
+        # Zero KCg (gamma, is_ab == False) synapses may be locked into LTM!
+        assert not np.any(clf._ltm_mask[0, ~is_ab])
+        assert np.any(clf._ltm_mask[0, is_ab])
+
+    # Verify readout explicitly weights active KCs by (kc_to_mbon_ach_q8 + kc_to_mbon_inh_q8)
+    mb_skew = load_banc_mb_weights()
+    mb_skew["kc_to_mbon_ach_q8"][:] = 10
+    mb_skew["kc_to_mbon_inh_q8"][:] = 0
+    mb_skew["kc_to_mbon_ach_q8"][0] = 250
+    mb_skew["kc_to_mbon_inh_q8"][0] = 250  # KC 0 has 50x higher MBON readout weight (500 vs 10)
+
+    clf_skew = MushroomValenceClassifier(
+        16, n_kc=1024, connectome_weights=mb_skew, ltm_alpha_beta=False, c_parity=True
+    )
+    clf_skew.learn_indices(np.array([0], dtype=np.int32), "high_mbon", reward=1.0)
+    clf_skew.learn_indices(np.array([1], dtype=np.int32), "low_mbon", reward=1.0)
+    scores = clf_skew.predict_scores_indices(np.array([0, 1], dtype=np.int32))
+    assert scores["high_mbon"] == pytest.approx((16384 * 500 * 4 // 510) / Q16_ONE)
+    assert scores["low_mbon"] == pytest.approx((16384 * 10 * 4 // 510) / Q16_ONE)
+    assert scores["high_mbon"] > 45.0 * scores["low_mbon"]

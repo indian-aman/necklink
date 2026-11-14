@@ -1,5 +1,5 @@
 /*
- * necklink_cns.c - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v2.0.0)
+ * necklink_cns.c - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v3.0.0)
  *
  * Zero dynamic heap allocation. Strictly integer fixed-point arithmetic.
  * Copyright (c) 2026 Amandeep Singh Bains. SPDX-License-Identifier: MIT
@@ -7,6 +7,11 @@
 
 #include "necklink_cns.h"
 #include <string.h>
+
+const nl_banc_dn_weights_t *nl_banc_dn_default_weights(void)
+{
+    return &k_nl_banc_dn_default;
+}
 
 static int32_t nl_clamp_i32(int32_t v, int32_t lo, int32_t hi)
 {
@@ -38,6 +43,7 @@ void nl_cns_init(nl_cns_t *cns, nl_vehicle_mode_t vehicle_mode)
         k_win = 4u;
     }
 
+    cns->dn_weights = &k_nl_banc_dn_default;
     cns->vehicle_mode = (uint8_t)vehicle_mode;
     cns->mav_sysid = 42u;
     cns->mav_compid = 191u;
@@ -51,6 +57,7 @@ void nl_cns_init(nl_cns_t *cns, nl_vehicle_mode_t vehicle_mode)
     /* 2. Central Complex */
     nc_tilt_init(&cns->tilt);
     nc_plastic_ring_init(&cns->plastic_ring);
+    nc_compass_set_weights(&cns->plastic_ring.comp, nc_banc_default_weights());
     nc_navigator_init(&cns->nav, 1500); /* 1.5 m arrival taper radius */
 
     /* 3. Antennal Lobe, Chordotonal Organ & Mushroom Body */
@@ -85,12 +92,27 @@ void nl_cns_init(nl_cns_t *cns, nl_vehicle_mode_t vehicle_mode)
     nl_mav_parser_init(&cns->mav_rx);
 }
 
-void nl_cns_reset(nl_cns_t *cns)
+void nl_cns_set_dn_weights(nl_cns_t *cns, const nl_banc_dn_weights_t *dn_weights)
 {
     if (cns == NULL) {
         return;
     }
+    cns->dn_weights = dn_weights;
+    nc_compass_set_weights(
+        &cns->plastic_ring.comp,
+        (dn_weights != NULL) ? nc_banc_default_weights() : NULL
+    );
+}
+
+void nl_cns_reset(nl_cns_t *cns)
+{
+    const nl_banc_dn_weights_t *saved_dn;
+    if (cns == NULL) {
+        return;
+    }
+    saved_dn = cns->dn_weights;
     nl_cns_init(cns, (nl_vehicle_mode_t)cns->vehicle_mode);
+    nl_cns_set_dn_weights(cns, saved_dn);
 }
 
 int nl_cns_learn_chemical(
@@ -146,6 +168,7 @@ int nl_cns_step(
     int32_t strafe_q15 = 0;
     int32_t drive_q15 = 0;
     int32_t yaw_q15 = 0;
+    int32_t best_chem_sc_q16 = 0;
     uint8_t mode = (uint8_t)NL_MODE_CRUISE_HOME;
     int16_t min_health = NC_Q15_ONE;
     uint8_t i;
@@ -171,10 +194,15 @@ int nl_cns_step(
     imu9.mz = in->mz;
 
     if (in->enable_plastic_cal && in->mag_valid) {
+        nc_compass_set_weights(&cns->plastic_ring.comp, NULL);
         hdg_bam = nc_plastic_ring_update_9dof(
             &cns->plastic_ring, &cns->tilt, &imu9, dt_ms, 0, 0u, 1u
         );
     } else {
+        nc_compass_set_weights(
+            &cns->plastic_ring.comp,
+            (cns->dn_weights != NULL) ? nc_banc_default_weights() : NULL
+        );
         hdg_bam = nc_compass_update_9dof(
             &cns->plastic_ring.comp,
             &cns->tilt,
@@ -194,7 +222,9 @@ int nl_cns_step(
     out->heading_cdeg = nc_bam_to_cdeg(hdg_bam);
 
     if (in->return_home) {
-        cx_turn_bam_s = nc_navigator_steering_cmd(&cns->nav, hdg_bam, max_turn_bam_s);
+        cx_turn_bam_s = nc_navigator_steering_cmd_with_compass(
+            &cns->nav, &cns->plastic_ring.comp, hdg_bam, max_turn_bam_s
+        );
         cx_yaw_q15 = nl_clamp_i32((cx_turn_bam_s * NC_Q15_ONE) / max_turn_bam_s, -NC_Q15_ONE, NC_Q15_ONE);
     }
 
@@ -227,11 +257,10 @@ int nl_cns_step(
     if (in->chem8_q16 != NULL) {
         int32_t norm_q16[NS_MAX_CHANNELS];
         uint64_t kc_words[NS_MAX_WORDS];
-        int32_t best_sc = 0;
         if (ns_antennal_step_whiff(&cns->chem_ant, in->chem8_q16, norm_q16, &out->whiff_rate_q16) == NS_OK) {
             if (ns_kenyon_hash(&cns->chem_kc, norm_q16, kc_words) == NS_OK) {
                 out->chem_novelty_q16 = ns_novelty_update_and_score(&cns->chem_nov, kc_words);
-                (void)ns_valence_predict(&cns->valence_clf, kc_words, &out->predicted_class, &best_sc);
+                (void)ns_valence_predict(&cns->valence_clf, kc_words, &out->predicted_class, &best_chem_sc_q16);
             }
         }
     }
@@ -249,100 +278,281 @@ int nl_cns_step(
         }
     }
 
-    /* ---------------------------------------------------------------------
-     * 4. Empirical BANC v888 Descending Neuron Arbitration (Cervical Neck)
-     *    LPLC2 (58.5% DN syn) + LC4/LPLC1 (41.5% DN syn) -> DNp01, DNa02, MDN
-     * --------------------------------------------------------------------- */
-    {
-        uint32_t weighted_q10 = ((uint32_t)out->looming_score_q10 * 150u
-                               + (uint32_t)out->lc4_bar_score_q10 * 106u) >> 8;
-        eff_loom_q10 = (out->looming_score_q10 > weighted_q10)
-                     ? out->looming_score_q10
-                     : (uint16_t)weighted_q10;
-    }
-    thresh_q10 = (cns->sight.threshold_q10 > 0u) ? cns->sight.threshold_q10 : NECKSIGHT_DEFAULT_THRESHOLD_Q10;
-
-    if (eff_loom_q10 > thresh_q10) {
-        uint32_t span = (cns->loom_reverse_q10 > thresh_q10)
-                      ? (uint32_t)(cns->loom_reverse_q10 - thresh_q10)
-                      : 64u;
-        dnp01_q15 = nl_clamp_i32(
-            (int32_t)(((uint32_t)(eff_loom_q10 - thresh_q10) * (uint32_t)NC_Q15_ONE) / span),
-            0,
-            NC_Q15_ONE
-        );
-    }
-
-    if (eff_loom_q10 > cns->loom_reverse_q10) {
-        int32_t ax_abs = (out->avoid_x_q7 < 0) ? -(int32_t)out->avoid_x_q7 : (int32_t)out->avoid_x_q7;
-        /* Central collision triggers Moonwalker (MDN) backward escape */
-        if (ax_abs < 96) {
-            mdn_q15 = nl_clamp_i32(
-                (int32_t)(((uint32_t)(eff_loom_q10 - cns->loom_reverse_q10) * (uint32_t)NC_Q15_ONE) / 80u),
-                8192,
-                NC_Q15_ONE
-            );
-        }
-    }
-
-    /* Contralateral DNa02 avoidance: NeckSight avoid_x_q7 > 0 means dodge RIGHT (yaw < 0 in CCW-positive) */
-    if (eff_loom_q10 >= thresh_q10 || out->loom_triggered) {
-        int32_t dodge_dir = (out->avoid_x_q7 >= 0) ? -1 : +1;
-        int32_t mag_q7 = (out->avoid_x_q7 < 0) ? -(int32_t)out->avoid_x_q7 : (int32_t)out->avoid_x_q7;
-        if (mag_q7 < 48) {
-            mag_q7 = 96;
-        }
-        evade_yaw_q15 = dodge_dir * nl_clamp_i32((mag_q7 * NC_Q15_ONE) / 127, 0, NC_Q15_ONE);
-        strafe_q15 = (-dodge_dir) * nl_clamp_i32((mag_q7 * 24576) / 127, 0, 24576);
-    }
-
     /* Inspect minimum VNC actuator health from previous tick */
     for (i = 0u; i < cns->thruster_cord.n_actuators; ++i) {
         if (cns->thruster_cord.health_q15[i] < min_health) {
             min_health = cns->thruster_cord.health_q15[i];
         }
     }
-
     cns->cast_phase_bam = (uint16_t)(cns->cast_phase_bam + (uint16_t)(82u * dt_ms));
+    thresh_q10 = (cns->sight.threshold_q10 > 0u) ? cns->sight.threshold_q10 : NECKSIGHT_DEFAULT_THRESHOLD_Q10;
 
-    {
-        uint8_t severe_fault = (out->vib_novelty_q16 > cns->vib_fault_thresh_q16) || (min_health < 14745);
-        uint8_t plume_cast = (out->chem_novelty_q16 > cns->nov_alert_q16);
-        int32_t base_drive = (int32_t)nl_clamp_i32(in->cruise_drive_q15, 0, NC_Q15_ONE);
-        if (severe_fault) {
-            base_drive = (base_drive * 18022) >> 15; /* 55% limp-home power cap */
+    if (cns->dn_weights != NULL) {
+        /* -----------------------------------------------------------------
+         * 4A. v3.0.0 BANC v888 Synaptic Competition (11 Brain -> 10 DN -> 6 Leg MN)
+         *     Strictly integer Q12 fixed-point (4096 = 1.0), zero floats.
+         * ----------------------------------------------------------------- */
+        const int16_t *Wb = cns->dn_weights->W_brain_dn_q12;
+        const int16_t *Wl = cns->dn_weights->W_dn_leg_q12;
+        int32_t u_brain_q12[11];
+        int32_t r_dn_q12[10];
+        int32_t r_eff_q12[10];
+        int32_t jump_leg_q12[6];
+        int32_t rev_leg_q12[6];
+        int32_t steer_leg_q12[6];
+        int32_t fx_q12, abs_fx_q12, w_left_q12, w_right_q12;
+        int32_t half_th_q10, rev_q10, loom_sup_q12, lc4_sup_q12, loom_extra_q12;
+        int32_t lplc2_drv_q12, lc4_drv_q12, lplc1_drv_q12, cruise_q12, taper_q12;
+        int32_t nov_q12, nov_th_q12, nov_exc_q12, vib_q12, vib_exc_q12;
+        int32_t mbon_ach_q12, mbon_inh_q12, health_gate_q12;
+        int32_t jump_asym_q12, steer_asym_q12, rev_pos_sum_q12;
+        int32_t dnp01_q12, mdn_q12, dnp09_q12, fwd_surv_q12, drive_q12, yaw_q12, strafe_q12;
+        uint8_t d, b_idx;
+
+        if (out->avoid_x_q7 != 0) {
+            fx_q12 = nl_clamp_i32(-((int32_t)out->avoid_x_q7 * 4096) / 127, -4096, 4096);
+        } else {
+            fx_q12 = (((int32_t)cns->last_sight.focus_x * 8192) / 31) - 4096;
+        }
+        abs_fx_q12 = (fx_q12 < 0) ? -fx_q12 : fx_q12;
+
+        /* Compound-eye hemifields with +-15% frontal binocular overlap */
+        w_left_q12  = nl_clamp_i32(((655 - fx_q12) * 4096) / 2662, 0, 4096);
+        w_right_q12 = nl_clamp_i32(((573 + fx_q12) * 4096) / 2662, 0, 4096);
+
+        half_th_q10 = (int32_t)(thresh_q10 >> 1);
+        rev_q10 = (cns->loom_reverse_q10 > 16u) ? (int32_t)cns->loom_reverse_q10 : 143;
+        loom_sup_q12 = ((int32_t)out->looming_score_q10 > half_th_q10)
+                     ? ((((int32_t)out->looming_score_q10 - half_th_q10) * 4096) / rev_q10)
+                     : 0;
+        lc4_sup_q12  = ((int32_t)out->lc4_bar_score_q10 > half_th_q10)
+                     ? ((((int32_t)out->lc4_bar_score_q10 - half_th_q10) * 4096) / rev_q10)
+                     : 0;
+        lplc2_drv_q12 = nl_clamp_i32(loom_sup_q12, 0, 10240);
+        loom_extra_q12 = (loom_sup_q12 > 2048) ? (((loom_sup_q12 - 2048) * 2458) >> 12) : 0;
+        lc4_drv_q12 = nl_clamp_i32(lc4_sup_q12 + loom_extra_q12, 0, 10240);
+        lplc1_drv_q12 = (lplc2_drv_q12 + lc4_drv_q12) >> 1;
+
+        cruise_q12 = (nl_clamp_i32(in->cruise_drive_q15, 0, NC_Q15_ONE) * 4096) / NC_Q15_ONE;
+
+        u_brain_q12[0] = (lplc2_drv_q12 * w_left_q12) >> 12;   /* LPLC2_L */
+        u_brain_q12[1] = (lplc2_drv_q12 * w_right_q12) >> 12;  /* LPLC2_R */
+        u_brain_q12[2] = (lc4_drv_q12 * w_left_q12) >> 12;     /* LC4_L   */
+        u_brain_q12[3] = (lc4_drv_q12 * w_right_q12) >> 12;    /* LC4_R   */
+        u_brain_q12[4] = (lplc1_drv_q12 * w_left_q12) >> 12;   /* LPLC1_L */
+        u_brain_q12[5] = (lplc1_drv_q12 * w_right_q12) >> 12;  /* LPLC1_R */
+
+        if (in->return_home) {
+            taper_q12 = (cns->nav.arrival_radius_mm > 0 && out->home_dist_mm < (uint32_t)cns->nav.arrival_radius_mm)
+                      ? (int32_t)((out->home_dist_mm * 4096u) / (uint32_t)cns->nav.arrival_radius_mm)
+                      : 4096;
+            if (cns->nav.weights != NULL) {
+                u_brain_q12[6] = nl_clamp_i32(((((int32_t)cns->nav.last_pfl3_left_q12 * 6554) >> 12) * taper_q12) >> 12, 0, 10240);
+                u_brain_q12[7] = nl_clamp_i32(((((int32_t)cns->nav.last_pfl3_right_q12 * 6554) >> 12) * taper_q12) >> 12, 0, 10240);
+                u_brain_q12[8] = nl_clamp_i32(((((int32_t)cns->nav.last_pfl2_q12 * 6554) >> 12) * taper_q12) >> 12, 0, 8192);
+            } else {
+                u_brain_q12[6] = (cx_yaw_q15 < 0) ? nl_clamp_i32((-cx_yaw_q15) >> 3, 0, 6144) : 0;
+                u_brain_q12[7] = (cx_yaw_q15 > 0) ? nl_clamp_i32(cx_yaw_q15 >> 3, 0, 6144) : 0;
+                u_brain_q12[8] = 0;
+            }
+        } else {
+            u_brain_q12[6] = 0;
+            u_brain_q12[7] = 0;
+            u_brain_q12[8] = 0;
         }
 
-        if (mdn_q15 > 0) {
-            drive_q15 = -((mdn_q15 * 21299) >> 15);
-            yaw_q15 = evade_yaw_q15;
+        nov_q12 = nl_clamp_i32(out->chem_novelty_q16 >> 4, 0, 4096);
+        nov_th_q12 = nl_clamp_i32(cns->nov_alert_q16 >> 4, 256, 3840);
+        nov_exc_q12 = (nov_q12 > nov_th_q12) ? (((nov_q12 - nov_th_q12) * 4096) / (4096 - nov_th_q12)) : 0;
+        vib_q12 = nl_clamp_i32(out->vib_novelty_q16 >> 4, 0, 4096);
+        vib_exc_q12 = (vib_q12 > 2253) ? (((vib_q12 - 2253) * 4096) / 1843) : 0;
+
+        mbon_ach_q12 = nl_clamp_i32(((nov_exc_q12 * 1843) + (vib_exc_q12 * 2662)) >> 12, 0, 8192);
+        mbon_inh_q12 = (in->chem8_q16 != NULL && best_chem_sc_q16 > 0)
+                     ? nl_clamp_i32(best_chem_sc_q16 >> 4, 0, 6144)
+                     : 0;
+        u_brain_q12[9]  = mbon_ach_q12;
+        u_brain_q12[10] = mbon_inh_q12;
+
+        health_gate_q12 = ((out->vib_novelty_q16 > cns->vib_fault_thresh_q16) || (min_health < 14745))
+                        ? 2253 /* 0.55 in Q12 */
+                        : 4096;
+
+        for (d = 0u; d < 10u; ++d) {
+            int64_t acc = 0;
+            int32_t tonic_q12 = 0;
+            for (b_idx = 0u; b_idx < 11u; ++b_idx) {
+                acc += (int64_t)Wb[d * 11u + b_idx] * (int64_t)u_brain_q12[b_idx];
+            }
+            if (d == 2u || d == 3u) {
+                /* Reciprocal forward-walking inhibition onto MDN (Bidaye et al., Nature 2020) */
+                tonic_q12 = -((cruise_q12 * 2662) >> 12);
+            } else if (d == 8u || d == 9u) {
+                tonic_q12 = (cruise_q12 * health_gate_q12) >> 12;
+            } else if ((d == 4u || d == 5u) && nov_exc_q12 > 205) {
+                int32_t cast_sin = (int32_t)nc_sin_q15((nc_bam_t)cns->cast_phase_bam);
+                int32_t cast_q12 = ((nov_exc_q12 * cast_sin) >> 15) >> 2;
+                if (d == 4u && cast_q12 > 0) {
+                    tonic_q12 = cast_q12;
+                } else if (d == 5u && cast_q12 < 0) {
+                    tonic_q12 = -cast_q12;
+                }
+            }
+            acc = (acc >> 12) + (int64_t)tonic_q12;
+            if ((d == 2u || d == 3u) && loom_sup_q12 > 3891 && abs_fx_q12 < 3072) {
+                int32_t mdn_boost_q12 = (((loom_sup_q12 - 3891) * (4096 - abs_fx_q12)) >> 12) * 9011 >> 12;
+                int32_t col_sum_q12 = (d == 2u)
+                    ? ((int32_t)Wb[2u * 11u + 0u] + (int32_t)Wb[2u * 11u + 2u] + (int32_t)Wb[2u * 11u + 9u])
+                    : ((int32_t)Wb[3u * 11u + 1u] + (int32_t)Wb[3u * 11u + 3u] + (int32_t)Wb[3u * 11u + 9u]);
+                if (col_sum_q12 > 0) {
+                    acc += ((int64_t)mdn_boost_q12 * (int64_t)col_sum_q12) >> 12;
+                }
+            }
+            r_dn_q12[d] = nl_clamp_i32((int32_t)acc, 0, 8192);
+            if (d == 4u || d == 5u) {
+                /* Supralinear DNa02 input-output curve (Westeinde et al., Nature 2024): r * (0.5 + 1.5 * r) */
+                int64_t gain_q12 = 2048LL + (((int64_t)r_dn_q12[d] * 6144LL) >> 12);
+                r_eff_q12[d] = (int32_t)(((int64_t)r_dn_q12[d] * gain_q12) >> 12);
+            } else {
+                r_eff_q12[d] = r_dn_q12[d];
+            }
+        }
+
+        for (i = 0u; i < 6u; ++i) {
+            int64_t j_acc = (int64_t)Wl[i * 10u + 0u] * r_eff_q12[0] + (int64_t)Wl[i * 10u + 1u] * r_eff_q12[1];
+            int64_t r_acc = (int64_t)Wl[i * 10u + 2u] * r_eff_q12[2] + (int64_t)Wl[i * 10u + 3u] * r_eff_q12[3];
+            int64_t s_acc = (int64_t)Wl[i * 10u + 4u] * r_eff_q12[4] + (int64_t)Wl[i * 10u + 5u] * r_eff_q12[5]
+                          + (int64_t)Wl[i * 10u + 6u] * r_eff_q12[6] + (int64_t)Wl[i * 10u + 7u] * r_eff_q12[7];
+            jump_leg_q12[i]  = (int32_t)(j_acc >> 12);
+            rev_leg_q12[i]   = (int32_t)(r_acc >> 12);
+            steer_leg_q12[i] = (int32_t)(s_acc >> 12);
+        }
+
+        jump_asym_q12  = (jump_leg_q12[0] + jump_leg_q12[2] + jump_leg_q12[4])
+                       - (jump_leg_q12[1] + jump_leg_q12[3] + jump_leg_q12[5]);
+        steer_asym_q12 = (steer_leg_q12[0] + steer_leg_q12[2] + steer_leg_q12[4])
+                       - (steer_leg_q12[1] + steer_leg_q12[3] + steer_leg_q12[5]);
+
+        rev_pos_sum_q12 = 0;
+        for (i = 0u; i < 6u; ++i) {
+            if (rev_leg_q12[i] > 0) {
+                rev_pos_sum_q12 += rev_leg_q12[i];
+            }
+        }
+
+        dnp01_q12 = nl_clamp_i32((r_dn_q12[0] + r_dn_q12[1]) >> 1, 0, 4096);
+        mdn_q12   = nl_clamp_i32((rev_pos_sum_q12 * 2662) >> 12, 0, 4096);
+        dnp09_q12 = nl_clamp_i32((r_dn_q12[8] + r_dn_q12[9]) >> 1, 0, 4096);
+
+        fwd_surv_q12 = (dnp09_q12 * nl_clamp_i32(4096 - ((dnp01_q12 * 2867) >> 12), 0, 4096)) >> 12;
+        drive_q12  = nl_clamp_i32(fwd_surv_q12 - ((mdn_q12 * 3482) >> 12), -4096, 4096);
+        yaw_q12    = nl_clamp_i32(((steer_asym_q12 * 4506) - (jump_asym_q12 * 5530)) >> 12, -4096, 4096);
+        strafe_q12 = nl_clamp_i32((jump_asym_q12 * 5734) >> 12, -3482, 3482);
+
+        dnp01_q15  = (dnp01_q12 * NC_Q15_ONE) >> 12;
+        mdn_q15    = (mdn_q12 * NC_Q15_ONE) >> 12;
+        drive_q15  = (drive_q12 * NC_Q15_ONE) >> 12;
+        yaw_q15    = (yaw_q12 * NC_Q15_ONE) >> 12;
+        strafe_q15 = (strafe_q12 * NC_Q15_ONE) >> 12;
+
+        if (drive_q12 < -205) {
             mode = (uint8_t)NL_MODE_MOONWALK_REVERSE;
-        } else if (eff_loom_q10 >= thresh_q10 || out->loom_triggered) {
-            int32_t brake_keep = NC_Q15_ONE - ((dnp01_q15 * 22937) >> 15);
-            drive_q15 = nl_clamp_i32((base_drive * brake_keep) >> 15, 2048, NC_Q15_ONE);
-            yaw_q15 = nl_clamp_i32(((evade_yaw_q15 * 26214) + (cx_yaw_q15 * 6554)) >> 15, -NC_Q15_ONE, NC_Q15_ONE);
+        } else if (dnp01_q12 > 492 || jump_asym_q12 > 328 || jump_asym_q12 < -328) {
             mode = (uint8_t)NL_MODE_DODGE_LOOM;
-        } else if (severe_fault) {
-            drive_q15 = base_drive;
-            yaw_q15 = cx_yaw_q15;
+        } else if (health_gate_q12 < 4096) {
             mode = (uint8_t)NL_MODE_LIMP_HOME;
-        } else if (plume_cast) {
-            int32_t cast_sin = nc_sin_q15((nc_bam_t)cns->cast_phase_bam);
-            drive_q15 = (base_drive * 26214) >> 15;
-            yaw_q15 = nl_clamp_i32(cx_yaw_q15 + ((cast_sin * 9175) >> 15), -NC_Q15_ONE, NC_Q15_ONE);
+        } else if (nov_exc_q12 > 205) {
             mode = (uint8_t)NL_MODE_PLUME_CAST;
         } else {
-            drive_q15 = base_drive;
-            yaw_q15 = cx_yaw_q15;
             mode = (uint8_t)NL_MODE_CRUISE_HOME;
         }
-    }
 
-    out->dnp01_brake_q15 = nl_clamp_q15(dnp01_q15);
-    out->mdn_reverse_q15 = nl_clamp_q15(mdn_q15);
-    out->dna02_left_q15 = (yaw_q15 > 0) ? nl_clamp_q15(yaw_q15) : 0;
-    out->dna02_right_q15 = (yaw_q15 < 0) ? nl_clamp_q15(-yaw_q15) : 0;
-    out->behavior_mode = mode;
+        out->dnp01_brake_q15 = nl_clamp_q15(dnp01_q15);
+        out->mdn_reverse_q15 = nl_clamp_q15(mdn_q15);
+        out->dna02_left_q15  = nl_clamp_q15((nl_clamp_i32(r_dn_q12[4], 0, 4096) * NC_Q15_ONE) >> 12);
+        out->dna02_right_q15 = nl_clamp_q15((nl_clamp_i32(r_dn_q12[5], 0, 4096) * NC_Q15_ONE) >> 12);
+        out->behavior_mode = mode;
+    } else {
+        /* -----------------------------------------------------------------
+         * 4B. Legacy v2_analytic Fallback (when dn_weights == NULL)
+         * ----------------------------------------------------------------- */
+        uint32_t weighted_q10 = ((uint32_t)out->looming_score_q10 * 150u
+                               + (uint32_t)out->lc4_bar_score_q10 * 106u) >> 8;
+        eff_loom_q10 = (out->looming_score_q10 > weighted_q10)
+                     ? out->looming_score_q10
+                     : (uint16_t)weighted_q10;
+
+        if (eff_loom_q10 > thresh_q10) {
+            uint32_t span = (cns->loom_reverse_q10 > thresh_q10)
+                          ? (uint32_t)(cns->loom_reverse_q10 - thresh_q10)
+                          : 64u;
+            dnp01_q15 = nl_clamp_i32(
+                (int32_t)(((uint32_t)(eff_loom_q10 - thresh_q10) * (uint32_t)NC_Q15_ONE) / span),
+                0,
+                NC_Q15_ONE
+            );
+        }
+
+        if (eff_loom_q10 > cns->loom_reverse_q10) {
+            int32_t ax_abs = (out->avoid_x_q7 < 0) ? -(int32_t)out->avoid_x_q7 : (int32_t)out->avoid_x_q7;
+            if (ax_abs < 96) {
+                mdn_q15 = nl_clamp_i32(
+                    (int32_t)(((uint32_t)(eff_loom_q10 - cns->loom_reverse_q10) * (uint32_t)NC_Q15_ONE) / 80u),
+                    8192,
+                    NC_Q15_ONE
+                );
+            }
+        }
+
+        if (eff_loom_q10 >= thresh_q10 || out->loom_triggered) {
+            int32_t dodge_dir = (out->avoid_x_q7 >= 0) ? -1 : +1;
+            int32_t mag_q7 = (out->avoid_x_q7 < 0) ? -(int32_t)out->avoid_x_q7 : (int32_t)out->avoid_x_q7;
+            if (mag_q7 < 48) {
+                mag_q7 = 96;
+            }
+            evade_yaw_q15 = dodge_dir * nl_clamp_i32((mag_q7 * NC_Q15_ONE) / 127, 0, NC_Q15_ONE);
+            strafe_q15 = (-dodge_dir) * nl_clamp_i32((mag_q7 * 24576) / 127, 0, 24576);
+        }
+
+        {
+            uint8_t severe_fault = (out->vib_novelty_q16 > cns->vib_fault_thresh_q16) || (min_health < 14745);
+            uint8_t plume_cast = (out->chem_novelty_q16 > cns->nov_alert_q16);
+            int32_t base_drive = (int32_t)nl_clamp_i32(in->cruise_drive_q15, 0, NC_Q15_ONE);
+            if (severe_fault) {
+                base_drive = (base_drive * 18022) >> 15;
+            }
+
+            if (mdn_q15 > 0) {
+                drive_q15 = -((mdn_q15 * 21299) >> 15);
+                yaw_q15 = evade_yaw_q15;
+                mode = (uint8_t)NL_MODE_MOONWALK_REVERSE;
+            } else if (eff_loom_q10 >= thresh_q10 || out->loom_triggered) {
+                int32_t brake_keep = NC_Q15_ONE - ((dnp01_q15 * 22937) >> 15);
+                drive_q15 = nl_clamp_i32((base_drive * brake_keep) >> 15, 2048, NC_Q15_ONE);
+                yaw_q15 = nl_clamp_i32(((evade_yaw_q15 * 26214) + (cx_yaw_q15 * 6554)) >> 15, -NC_Q15_ONE, NC_Q15_ONE);
+                mode = (uint8_t)NL_MODE_DODGE_LOOM;
+            } else if (severe_fault) {
+                drive_q15 = base_drive;
+                yaw_q15 = cx_yaw_q15;
+                mode = (uint8_t)NL_MODE_LIMP_HOME;
+            } else if (plume_cast) {
+                int32_t cast_sin = nc_sin_q15((nc_bam_t)cns->cast_phase_bam);
+                drive_q15 = (base_drive * 26214) >> 15;
+                yaw_q15 = nl_clamp_i32(cx_yaw_q15 + ((cast_sin * 9175) >> 15), -NC_Q15_ONE, NC_Q15_ONE);
+                mode = (uint8_t)NL_MODE_PLUME_CAST;
+            } else {
+                drive_q15 = base_drive;
+                yaw_q15 = cx_yaw_q15;
+                mode = (uint8_t)NL_MODE_CRUISE_HOME;
+            }
+        }
+
+        out->dnp01_brake_q15 = nl_clamp_q15(dnp01_q15);
+        out->mdn_reverse_q15 = nl_clamp_q15(mdn_q15);
+        out->dna02_left_q15 = (yaw_q15 > 0) ? nl_clamp_q15(yaw_q15) : 0;
+        out->dna02_right_q15 = (yaw_q15 < 0) ? nl_clamp_q15(-yaw_q15) : 0;
+        out->behavior_mode = mode;
+    }
 
     out->desc_cmd.drive_fwd_q15 = nl_clamp_q15(drive_q15);
     out->desc_cmd.turn_yaw_q15 = nl_clamp_q15(yaw_q15);
@@ -450,6 +660,7 @@ size_t nl_cns_encode_mavlink_control(
 /* =========================================================================
  * WebAssembly / FFI Singleton & Flat Telemetry Interface
  * ========================================================================= */
+#if defined(__EMSCRIPTEN__) || defined(__wasm__) || defined(NL_CNS_WASM_SINGLETON)
 static nl_cns_t        g_wasm_cns;
 static uint8_t         g_wasm_cam_64x64[64 * 64];
 static nl_cns_outputs_t g_wasm_last_out;
@@ -561,3 +772,4 @@ const int32_t *nl_wasm_get_telemetry(void)
 {
     return g_wasm_telem;
 }
+#endif

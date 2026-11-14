@@ -1,4 +1,4 @@
-"""Comprehensive test suite for `neckcord` v2.0.0 (including 100% v1.1.0 backward compatibility)."""
+"""Comprehensive test suite for `neckcord` v3.0.0 (including 100% v1.x/v2.x backward compatibility)."""
 
 from __future__ import annotations
 
@@ -22,8 +22,11 @@ from neckcord import (
     LIMB_NAMES,
     SegmentalCPGCord,
     ShuntingThrusterCord,
+    compute_tripod_order,
     decode_descending_4b,
     encode_descending_4b,
+    load_banc_vnc_weights,
+    maslov_sneppen_shuffle_vnc,
 )
 from neckcord.cli import main as cli_main
 
@@ -130,20 +133,29 @@ def test_cervical_bottleneck_link_rolling_seq_and_bandwidth() -> None:
 
 
 def test_cpg_tripod_antiphase_convergence() -> None:
-    """Perturbed oscillator phases converge to strict Tripod anti-phase lock at fast speed."""
+    """Perturbed oscillator phases converge to emergent BANC Tripod (>0.90) & v2 analytic lock."""
     rng = np.random.default_rng(7)
-    cpg = SegmentalCPGCord()
-    cpg.phases = rng.uniform(0.0, 2.0 * math.pi, size=6)
+    cpg_banc = SegmentalCPGCord()
+    cpg_banc.phases = rng.uniform(0.0, 2.0 * math.pi, size=6)
 
     for _ in range(250):
-        st = cpg.step(0.90, dt=0.01)
+        st_banc = cpg_banc.step(0.90, dt=0.01)
 
-    assert st.active_gait == "tripod"
-    # Tripod A: {0=L1, 3=R2, 4=L3}; Tripod B: {1=R1, 2=L2, 5=R3}
-    assert _circ_dist(st.phases[0], st.phases[3]) < 0.08
-    assert _circ_dist(st.phases[0], st.phases[4]) < 0.08
-    assert abs(_circ_dist(st.phases[0], st.phases[1]) - math.pi) < 0.08
-    assert abs(_circ_dist(st.phases[2], st.phases[3]) - math.pi) < 0.08
+    assert st_banc.active_gait == "tripod"
+    assert st_banc.gait_provenance == "connectome"
+    assert st_banc.tripod_order > 0.90
+    assert abs(_circ_dist(st_banc.phases[2], st_banc.phases[3]) - math.pi) < 0.15
+
+    rng_v2 = np.random.default_rng(7)
+    cpg_v2 = SegmentalCPGCord(connectome_weights="v2_analytic")
+    cpg_v2.phases = rng_v2.uniform(0.0, 2.0 * math.pi, size=6)
+    for _ in range(250):
+        st_v2 = cpg_v2.step(0.90, dt=0.01)
+    assert st_v2.active_gait == "tripod"
+    assert _circ_dist(st_v2.phases[0], st_v2.phases[3]) < 0.08
+    assert _circ_dist(st_v2.phases[0], st_v2.phases[4]) < 0.08
+    assert abs(_circ_dist(st_v2.phases[0], st_v2.phases[1]) - math.pi) < 0.08
+    assert abs(_circ_dist(st_v2.phases[2], st_v2.phases[3]) - math.pi) < 0.08
 
 
 def test_cpg_gait_transitions_wave_tetrapod_tripod() -> None:
@@ -457,8 +469,8 @@ def test_crc4_documented_multibit_escape_rate() -> None:
 
 
 def test_v2_version_and_cervical_wrench_4d() -> None:
-    """Verify v2.0.0 version string and 4-DOF aerial wrench decoding."""
-    assert neckcord.__version__ == "2.0.0"
+    """Verify v3.0.0 version string and 4-DOF aerial wrench decoding."""
+    assert neckcord.__version__ == "3.0.0"
     f_nom = DescendingFrame(drive_fwd=0.5, turn_yaw=-0.4, strafe_lat=0.25)
     w4 = f_nom.to_wrench_4d(hover_thrust=36.0, max_pitch=3.0, max_roll=3.0, max_yaw=0.6)
     assert w4.shape == (4,)
@@ -658,7 +670,7 @@ def test_v2_arduino_library_structure_and_sha256_c99_parity() -> None:
         if "=" in line and not line.strip().startswith("#")
     )
     assert props["name"] == "NeckCord"
-    assert props["version"] == "2.0.0"
+    assert props["version"] == "3.0.0"
     assert props["architectures"] == "*"
 
     sketch = (
@@ -671,11 +683,171 @@ def test_v2_arduino_library_structure_and_sha256_c99_parity() -> None:
     assert (ard / "src" / "NeckCord.h").is_file()
 
     forbidden = re.compile(r"\b(float|double|malloc|calloc|realloc|free)\b")
-    for rel in (Path("NeckCord.h"), Path("csrc/neckcord.h"), Path("csrc/neckcord.c")):
+    for rel in (
+        Path("NeckCord.h"),
+        Path("csrc/neckcord.h"),
+        Path("csrc/neckcord.c"),
+        Path("csrc/neckcord_banc_weights.h"),
+    ):
         text = (ard / "src" / rel).read_text(encoding="utf-8")
         assert forbidden.findall(text) == [], f"Forbidden token in arduino/NeckCord/src/{rel}"
 
-    for mirrored in ("neckcord.h", "neckcord.c"):
+    for mirrored in ("neckcord.h", "neckcord.c", "neckcord_banc_weights.h"):
         h_csrc = hashlib.sha256((csrc / mirrored).read_bytes()).hexdigest()
         h_ard = hashlib.sha256((ard / "src" / "csrc" / mirrored).read_bytes()).hexdigest()
         assert h_csrc == h_ard, f"SHA-256 mismatch between csrc/{mirrored} and arduino mirror"
+
+
+# =========================================================================
+# NeckCord v3.0.0 Connectome & Honest Provenance Test Suite
+# =========================================================================
+
+
+def test_v3_provenance_tags_and_literature_gait_labels() -> None:
+    """Verify honest connectome vs engineering PROVENANCE tags and literature gait labels."""
+    assert SegmentalCPGCord.PROVENANCE == "connectome"
+    assert ShuntingThrusterCord.PROVENANCE == "engineering"
+    assert ESCObserver.PROVENANCE == "engineering"
+    assert HexapodLegIK.PROVENANCE == "engineering"
+
+    cpg = SegmentalCPGCord()
+    st_tri = cpg.step(DescendingFrame(drive_fwd=0.85, gait_mode=int(GaitMode.TRIPOD)), dt=0.01)
+    assert st_tri.active_gait == "tripod"
+    assert st_tri.gait_provenance == "connectome"
+
+    st_tet = cpg.step(DescendingFrame(drive_fwd=0.50, gait_mode=int(GaitMode.TETRAPOD)), dt=0.01)
+    assert st_tet.active_gait == "tetrapod"
+    assert st_tet.gait_provenance == "literature"
+
+    st_wav = cpg.step(DescendingFrame(drive_fwd=0.20, gait_mode=int(GaitMode.WAVE)), dt=0.01)
+    assert st_wav.active_gait == "wave"
+    assert st_wav.gait_provenance == "literature"
+
+    cpg.inject_limb_fault("L2")
+    st_pent = cpg.step(DescendingFrame(drive_fwd=0.85), dt=0.01)
+    assert st_pent.active_gait == "adaptive_pentapod"
+    assert st_pent.gait_provenance == "connectome"
+
+
+def test_v3_banc_v888_emergent_tripod_vs_maslov_sneppen_shuffled_null() -> None:
+    """Prove real BANC v888 C_vnc_inh emerges Tripod (>0.88) while K=120 MS-shuffles fail (<0.60)."""
+    banc = load_banc_vnc_weights()
+    assert banc["C_vnc_inh"].shape == (6, 6)
+    assert banc["W_dn_leg"].shape == (6, 10)
+
+    cpg_real = SegmentalCPGCord(connectome_weights="banc_v888")
+    assert cpg_real.tripod_order > 0.88  # Warm-start emergence from non-tripod symmetry break
+
+    cmd = DescendingFrame(drive_fwd=0.85, gait_mode=int(GaitMode.TRIPOD))
+    for _ in range(200):
+        st_real = cpg_real.step(cmd, dt=0.01)
+    assert st_real.tripod_order > 0.90
+
+    # K = 120 (>= 100) Maslov-Sneppen degree/weight-preserving shuffled C_vnc_inh null trials
+    rng = np.random.default_rng(2026)
+    null_orders: list[float] = []
+    for _ in range(120):
+        c_shuf = maslov_sneppen_shuffle_vnc(banc["C_vnc_inh"], rng=rng, n_swaps=60)
+        cpg_null = SegmentalCPGCord(
+            connectome_weights={"C_vnc_inh": c_shuf, "W_dn_leg": banc["W_dn_leg"]}
+        )
+        for _ in range(120):
+            st_null = cpg_null.step(cmd, dt=0.01)
+        null_orders.append(st_null.tripod_order)
+
+    null_mean = float(np.mean(null_orders))
+    assert null_mean < 0.60
+    assert st_real.tripod_order - null_mean > 0.45
+
+
+def test_v3_banc_w_dn_leg_bilateral_steering_and_quadrupod_damage_respacing() -> None:
+    """Verify W_dn_leg[:, 4:8] steering profile and continuous 5-leg / 4-leg damage re-spacing."""
+    cpg = SegmentalCPGCord()
+    assert cpg.steer_gain.shape == (6,)
+    assert float(np.mean(cpg.steer_gain)) == pytest.approx(0.65, abs=1e-6)
+    # In BANC v888, DNa02+DNa01 recruit pro/mesothoracic T1/T2 more strongly than metathoracic T3
+    assert float(np.mean(cpg.steer_gain[:4])) > float(np.mean(cpg.steer_gain[4:]))
+
+    # Diagonal 2-leg loss (L1 + R3 -> 4 surviving legs: R1, L2, R2, L3) re-spaces into 4 quadrants
+    cpg_quad = SegmentalCPGCord(adapt_to_damage=True)
+    cpg_quad_unadapted = SegmentalCPGCord(adapt_to_damage=False)
+    for cord in (cpg_quad, cpg_quad_unadapted):
+        cord.inject_limb_fault("L1")
+        cord.inject_limb_fault("R3")
+
+    cmd = DescendingFrame(drive_fwd=0.80)
+    for _ in range(180):
+        cpg_quad.step(cmd, dt=0.01)
+        cpg_quad_unadapted.step(cmd, dt=0.01)
+
+    quad_stable = 0
+    unadapted_stable = 0
+    min_grounded_adapt = 6
+    min_grounded_unadapt = 6
+    for _ in range(300):
+        st_q = cpg_quad.step(cmd, dt=0.01)
+        st_u = cpg_quad_unadapted.step(cmd, dt=0.01)
+        assert st_q.active_gait == "adaptive_quadrupod"
+        assert not st_q.stance_mask[0] and not st_q.stance_mask[5]
+        min_grounded_adapt = min(min_grounded_adapt, int(np.sum(st_q.stance_mask)))
+        min_grounded_unadapt = min(min_grounded_unadapt, int(np.sum(st_u.stance_mask)))
+        if st_q.is_statically_stable:
+            quad_stable += 1
+        if st_u.is_statically_stable:
+            unadapted_stable += 1
+
+    # Re-spaced 4-leg quadrupod maintains >= 3 grounded feet 100% of the cycle (~70% polygon stability
+    # without active body-CoM sway, vs collapsing to 1 grounded foot and ~4% stability unadapted)
+    assert min_grounded_adapt >= 3
+    assert min_grounded_unadapt <= 2
+    assert quad_stable / 300.0 >= 0.65
+    assert unadapted_stable / 300.0 < 0.15
+    surv_sorted = np.sort(np.mod(cpg_quad.phases[[1, 2, 3, 4]] - cpg_quad.phases[1], 2.0 * math.pi))
+    surv_gaps_deg = np.rad2deg(np.diff(np.append(surv_sorted, 2.0 * math.pi)))
+    assert float(np.min(surv_gaps_deg)) > 60.0
+
+
+def test_v3_python_c99_banc_weights_and_dynamics_parity() -> None:
+    """Verify exact Q12 weights parity between banc_vnc_v3.npz and csrc/neckcord_banc_weights.h."""
+    root = Path(__file__).resolve().parents[1]
+    hdr_h = (root / "csrc" / "neckcord.h").read_text(encoding="utf-8")
+    assert "#define NC_CORD_VERSION_MAJOR 3" in hdr_h
+    assert '#include "neckcord_banc_weights.h"' in hdr_h
+
+    weights_h = (root / "csrc" / "neckcord_banc_weights.h").read_text(encoding="utf-8")
+    init_body = weights_h.split("k_nc_banc_vnc_default", 1)[1]
+    blocks = re.findall(r"\{([^{}]+)\}", init_body)
+    # Extract C_vnc_inh_q12 (36 uint16) and W_dn_leg_q12 (60 int16)
+    c_tokens = [int(tok.rstrip("u")) for tok in re.findall(r"-?\d+u?", blocks[0])]
+    w_tokens = [int(tok) for tok in re.findall(r"-?\d+", blocks[1])]
+    assert len(c_tokens) == 36
+    assert len(w_tokens) == 60
+
+    banc = load_banc_vnc_weights()
+    assert np.array_equal(np.array(c_tokens, dtype=np.uint16).reshape(6, 6), banc["C_vnc_inh_q12"])
+    assert np.array_equal(np.array(w_tokens, dtype=np.int16).reshape(6, 10), banc["W_dn_leg_q12"])
+
+    # Verify C99 Q12/BAM warm-start phases match Python warm-start phases within < 0.5 deg
+    c_q12 = banc["C_vnc_inh_q12"].astype(np.int64)
+    phi_bam = np.array([0, 4694, 8866, 1565, 3129, 7301], dtype=np.int64)
+    for _ in range(15):
+        next_bam = np.zeros(6, dtype=np.int64)
+        for i in range(6):
+            acc = 0
+            for j in range(6):
+                if i == j:
+                    continue
+                ang_rad = ((phi_bam[i] - phi_bam[j]) & 0xFFFF) * (2.0 * math.pi / 65536.0)
+                s_q15 = int(round(math.sin(ang_rad) * 32767.0))
+                acc += (67797 * int(c_q12[i, j]) * s_q15) // (1 << 27)
+            next_bam[i] = (phi_bam[i] + (acc * 20) // 1000) & 0xFFFF
+        phi_bam = next_bam
+    phi_bam = (phi_bam - phi_bam[0]) & 0xFFFF
+    phi_c_rad = phi_bam * (2.0 * math.pi / 65536.0)
+
+    cpg_py = SegmentalCPGCord()
+    max_deg_diff = max(
+        math.degrees(_circ_dist(float(cpg_py.phases[i]), float(phi_c_rad[i]))) for i in range(6)
+    )
+    assert max_deg_diff < 0.5
+    assert abs(cpg_py.tripod_order - compute_tripod_order(phi_c_rad)) < 0.005

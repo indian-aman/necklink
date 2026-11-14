@@ -1,22 +1,20 @@
 /*
- * NeckCompass v2.0.0 ANSI C99 Embedded Core (Zero-Heap, Zero-Floating-Point, Q15/Q12 Fixed-Point)
+ * NeckCompass v3.0.0 ANSI C99 Embedded Core (Zero-Heap, Zero-Floating-Point, Q15/Q12 Fixed-Point)
  *
- * Biophysical Drosophila Central Complex navigation stack grounded in BANC v888 connectome counts:
- *   - 50 EPG compass neurons (45 EPG + 5 EPGt) tiled across 16 Ellipsoid Body wedges
- *   - 42 PEN angular-velocity shifter neurons (24 PEN_b + 18 PEN_a; 7,998 PEN -> EPG synapses)
- *   - 40 Delta7 glutamatergic bridge neurons (6,998 EPG -> Delta7, 4,646 Delta7 -> EPG,
- *     6,066 Delta7 -> PFL3 synapses) enforcing anti-phase sinusoidal bump sharpening
+ * Biophysical Drosophila Central Complex navigation stack driven by real BANC v888 synaptic matrices:
+ *   - 50 EPG compass neurons (45 EPG + 5 EPGt) tiled across 16 Ellipsoid Body wedges (M_exc_q12)
+ *   - 42 PEN angular-velocity shifter neurons (24 PEN_b + 18 PEN_a; M_pa_diff_q12, fixed gain 10.2)
+ *   - 40 Delta7 glutamatergic bridge neurons (M_ed7_q12, M_d7e_q12, M_d7_pfl3_q12, M_d7_pfl2_q12)
  *   - 32 R2/R4d sensory Ring Neurons with Q12 Hebbian/anti-Hebbian online soft-iron learning
  *   - 16-column opponent CPU4 Fan-Shaped Body path integrator
- *   - 25 PFL3 bilateral steering neurons (259 direct synapses onto DNa02) +
- *     12 PFL2 180-deg anti-goal turn-boost neurons breaking the sin(180 deg) == 0 dead-zone
+ *   - 25 PFL3 bilateral steering neurons (W_pfl3_dna02_q12 -> DNa02) +
+ *     12 PFL2 180-deg anti-goal turn-boost neurons breaking the anti-home dead-zone
  *   - 9-DOF 3D gravity-gated complementary tilt compensator for pitching boats & banking drones
  *
  * Designed for 32-bit/16-bit MCUs (ESP32, STM32, RP2040, Teensy, AVR, flight controllers, USVs):
  *   - 0 bytes heap allocation
  *   - 0 hardware/software FPU instructions
- *   - 60 B compass + 16 B 9-DOF tilt + 264 B navigator + 1,104 B plastic soft-iron ring
- *   - 260 B Flash LUT (quarter-wave sin + octant atan)
+ *   - Pass weights = NULL via nc_compass_set_weights / nc_navigator_set_weights for legacy v2 mode
  *
  * SPDX-License-Identifier: MIT
  */
@@ -27,14 +25,16 @@
 #include <stdint.h>
 #include <stddef.h>
 
+#include "neckcompass_banc_weights.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define NC_VERSION_MAJOR     2
+#define NC_VERSION_MAJOR     3
 #define NC_VERSION_MINOR     0
 #define NC_VERSION_PATCH     0
-#define NC_VERSION_STRING    "2.0.0"
+#define NC_VERSION_STRING    "3.0.0"
 
 #define NC_NUM_WEDGES        16
 #define NC_NUM_R_NEURONS     32
@@ -47,6 +47,9 @@ extern "C" {
 #define NC_BANC_DELTA7_COUNT 40
 #define NC_BANC_PFL3_COUNT   25
 #define NC_BANC_PFL2_COUNT   12
+
+/* Accessor for the compiled-in BANC v888 Central Complex synaptic weight table */
+const nc_banc_cx_weights_t *nc_banc_default_weights(void);
 
 /*
  * 16-bit Binary Angular Measurement (BAM):
@@ -94,19 +97,22 @@ typedef struct {
 } nc_tilt_t;
 
 typedef struct {
-    int16_t  wedges_q15[NC_NUM_WEDGES]; /* Non-negative 16-wedge E-PG activity in [0, 32767] */
-    int32_t  phase_sub_bam;             /* Q8 sub-BAM accumulator (1/256 BAM = 0.00002 deg) */
-    int32_t  pen_bias_bam_s;            /* Homeostatic P-EN gyro bias estimate (BAM / sec)  */
-    int16_t  mag_gain_q8;               /* R2 magnetic pull gain in Q8 (256 = 1.0 s^-1)     */
-    int16_t  sun_gain_q8;               /* R4d sun/sky pull gain in Q8 (256 = 1.0 s^-1)     */
-    int16_t  bias_rate_q8;              /* P-EN homeostatic bias rate in Q8 (256 = 1.0 s^-2)*/
-    int16_t  last_mag_gate_q15;         /* Latest dendritic coincidence gate in [0, 32767]  */
-    int16_t  gate_dist_q15;             /* Basin edge: gate = 0 where (1 - cos d) >= this   */
-    int16_t  offbasin_c_q15;            /* Low-pass off-basin innovation phasor (cos)       */
-    int16_t  offbasin_s_q15;            /* Low-pass off-basin innovation phasor (sin)       */
-    uint16_t offbasin_ms;               /* Time the cue has sat consistently off-basin      */
-    uint16_t reanchor_ms;               /* Re-anchor after this long off-basin (0 = never)  */
-    uint8_t  initialized;               /* 1 once E-PG bump has been seeded                 */
+    const nc_banc_cx_weights_t *weights; /* BANC v888 CX weights (default &k_nc_banc_cx_default; NULL=v2) */
+    int16_t  wedges_q15[NC_NUM_WEDGES];  /* Non-negative 16-wedge E-PG activity (Q11 in BANC, Q15 in v2)  */
+    int32_t  phase_sub_bam;              /* Q8 sub-BAM accumulator (1/256 BAM = 0.00002 deg)              */
+    int32_t  pen_bias_bam_s;             /* Homeostatic P-EN gyro bias estimate (BAM / sec)               */
+    int32_t  bias_ref_sub_bam;           /* Q8 sub-BAM kinematic observer phase for P-EN bias trim        */
+    int16_t  mag_gain_q8;                /* R2 magnetic pull gain in Q8 (256 = 1.0 s^-1)                  */
+    int16_t  sun_gain_q8;                /* R4d sun/sky pull gain in Q8 (256 = 1.0 s^-1)                  */
+    int16_t  bias_rate_q8;               /* P-EN homeostatic bias rate in Q8 (256 = 1.0 s^-2)             */
+    int16_t  last_mag_gate_q15;          /* Latest dendritic coincidence gate in [0, 32767]               */
+    int16_t  gate_dist_q15;              /* Basin edge (v2 mode): gate = 0 where (1 - cos d) >= this      */
+    int16_t  offbasin_c_q15;             /* Low-pass off-basin innovation phasor (cos)                    */
+    int16_t  offbasin_s_q15;             /* Low-pass off-basin innovation phasor (sin)                    */
+    uint16_t offbasin_ms;                /* Time the cue has sat consistently off-basin                   */
+    uint16_t reanchor_ms;                /* Re-anchor after this long off-basin (0 = never)               */
+    int16_t  bias_frac_q12;              /* Fractional sub-BAM/s accumulator for zero-deadband bias trim  */
+    uint8_t  initialized;                /* 1 once E-PG bump has been seeded                              */
 } nc_compass_t;
 
 /*
@@ -116,23 +122,27 @@ typedef struct {
  */
 typedef struct {
     int16_t      weights_q12[NC_NUM_WEDGES][NC_NUM_R_NEURONS]; /* 16x32 weights in Q12 [-8..+8) (1024 B) */
-    nc_compass_t comp;              /* Embedded 16-wedge E-PG ring attractor compass (60 B)          */
-    int32_t      bias_rem_accum;    /* Sub-BAM/s remainder accumulator for smooth bias tracking      */
-    uint32_t     learn_steps;       /* Plasticity step count for periodic zero-mean recentering      */
-    int16_t      lr_q8;             /* Hebbian learning rate in Q8 (default 1024 = 4.0)              */
-    int16_t      anchor_scale_q15;  /* Self-supervised magnetic pull scale in Q15 (default 8192=0.25)*/
-    nc_bam_t     map_offset_bam;    /* Circular zero-mean offset in self-supervised mode             */
-    nc_bam_t     prev_raw_bam;      /* Previous raw magnetic heading for movement-gated learning     */
-    uint8_t      has_prev_raw;      /* 1 once prev_raw_bam has been captured                         */
-    uint8_t      has_abs_ref;       /* 1 once a supervised reference cue has locked absolute azimuth */
+    nc_compass_t comp;              /* Embedded 16-wedge E-PG ring attractor compass                     */
+    int32_t      bias_rem_accum;    /* Sub-BAM/s remainder accumulator for smooth bias tracking          */
+    uint32_t     learn_steps;       /* Plasticity step count for periodic zero-mean recentering          */
+    int16_t      lr_q8;             /* Hebbian learning rate in Q8 (default 1024 = 4.0)                  */
+    int16_t      anchor_scale_q15;  /* Self-supervised magnetic pull scale in Q15 (default 8192=0.25)    */
+    nc_bam_t     map_offset_bam;    /* Circular zero-mean offset in self-supervised mode                 */
+    nc_bam_t     prev_raw_bam;      /* Previous raw magnetic heading for movement-gated learning         */
+    uint8_t      has_prev_raw;      /* 1 once prev_raw_bam has been captured                             */
+    uint8_t      has_abs_ref;       /* 1 once a supervised reference cue has locked absolute azimuth     */
 } nc_plastic_ring_t;
 
 typedef struct {
-    int64_t  cpu4_pos_q15mm[NC_NUM_WEDGES]; /* Excitatory Fan-Shaped Body CPU4 columns      */
-    int64_t  cpu4_neg_q15mm[NC_NUM_WEDGES]; /* Opponent 180-deg hDelta CPU4 columns         */
-    int32_t  arrival_radius_mm;             /* Smooth deceleration/taper radius (mm)        */
-    nc_bam_t last_heading_bam;              /* Latest E-PG heading in BAM                   */
-    int16_t  steering_gain_q8;              /* PFL3/PFL2 motor gain in Q8                   */
+    const nc_banc_cx_weights_t *weights;    /* BANC v888 CX weights (default &k_nc_banc_cx_default; NULL=v2) */
+    int64_t  cpu4_pos_q15mm[NC_NUM_WEDGES]; /* Excitatory Fan-Shaped Body CPU4 columns                       */
+    int64_t  cpu4_neg_q15mm[NC_NUM_WEDGES]; /* Opponent 180-deg hDelta CPU4 columns                          */
+    int32_t  arrival_radius_mm;             /* Smooth deceleration/taper radius (mm)                         */
+    nc_bam_t last_heading_bam;              /* Latest E-PG heading in BAM                                    */
+    int16_t  steering_gain_q8;              /* PFL3/PFL2 motor gain in Q8                                    */
+    int16_t  last_pfl3_left_q12;            /* Latest mean Left PFL3 firing rate in Q12                      */
+    int16_t  last_pfl3_right_q12;           /* Latest mean Right PFL3 firing rate in Q12                     */
+    int16_t  last_pfl2_q12;                 /* Latest mean PFL2 anti-goal firing rate in Q12                 */
 } nc_navigator_t;
 
 /* Fixed-point angle & angular-rate conversions + LUT trigonometry (zero FPU) */
@@ -181,11 +191,12 @@ nc_bam_t nc_tilt_update_9dof(
 
 /* 16-wedge E-PG <-> Delta7 Ring Attractor Compass API */
 void     nc_compass_init(nc_compass_t *comp);
+void     nc_compass_set_weights(nc_compass_t *comp, const nc_banc_cx_weights_t *weights);
 
 /*
  * Tune the attractor basin to the 1-sigma noise of the heading cue (centidegrees).
  * Basin half-width (gate = 0.5) = 4 deg + noise. nc_compass_init() applies 3.00 deg.
- * Matches RingCompass(cue_noise_deg=...) in Python.
+ * Matches RingCompass(cue_noise_deg=...) in Python (legacy v2 mode).
  */
 void     nc_compass_set_cue_noise(nc_compass_t *comp, int32_t noise_cdeg);
 
@@ -194,6 +205,7 @@ void     nc_compass_set_cue_noise(nc_compass_t *comp, int32_t noise_cdeg);
 void     nc_compass_set_reanchor_ms(nc_compass_t *comp, uint16_t reanchor_ms);
 void     nc_compass_reset(nc_compass_t *comp, nc_bam_t heading_bam);
 nc_bam_t nc_compass_heading_bam(const nc_compass_t *comp);
+int16_t  nc_compass_coherence_q15(const nc_compass_t *comp);
 void     nc_compass_delta7_q15(const nc_compass_t *comp, int16_t out_delta7_q15[NC_NUM_WEDGES]);
 
 nc_bam_t nc_compass_update(
@@ -253,8 +265,9 @@ nc_bam_t nc_plastic_ring_update_9dof(
     uint8_t learn
 );
 
-/* 16-column Fan-Shaped Body CPU4 Path Integrator & PFL3/PFL2 Steering API */
+/* 16-column Fan-Shaped Body CPU4 Path Integrator & BANC PFL3/PFL2 -> DNa02 Steering API */
 void     nc_navigator_init(nc_navigator_t *nav, int32_t arrival_radius_mm);
+void     nc_navigator_set_weights(nc_navigator_t *nav, const nc_banc_cx_weights_t *weights);
 void     nc_navigator_reset(nc_navigator_t *nav);
 
 void     nc_navigator_update(
@@ -278,6 +291,13 @@ void     nc_navigator_home_vector(
 
 int32_t  nc_navigator_steering_cmd(
     const nc_navigator_t *nav,
+    nc_bam_t current_heading_bam,
+    int32_t max_turn_bam_s
+);
+
+int32_t  nc_navigator_steering_cmd_with_compass(
+    nc_navigator_t *nav,
+    const nc_compass_t *comp,
     nc_bam_t current_heading_bam,
     int32_t max_turn_bam_s
 );

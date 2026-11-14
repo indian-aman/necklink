@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neckcord"
-version = "2.0.0"
+version = "3.0.0"
 description = "Descending cervical 4-byte command bottleneck, 18-servo hexapod VNC CPG+IK, sensorless ESC fault observer, and box-constrained active-set thruster/multicopter allocator"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -35,7 +35,7 @@ keywords = [
   "arduino",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -69,3 +69,6 @@ neckcord = "neckcord.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["neckcord*"]
+
+[tool.setuptools.package-data]
+neckcord = ["data/*.npz"]

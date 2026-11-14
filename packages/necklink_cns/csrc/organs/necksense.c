@@ -1,5 +1,5 @@
 /*
- * NeckSense v2.0.0 - Zero-Heap, Zero-Float ANSI C99 Implementation
+ * NeckSense v3.0.0 - Zero-Heap, Zero-Float ANSI C99 Implementation
  *
  * Copyright (c) 2026 Amandeep Singh Bains
  * SPDX-License-Identifier: MIT
@@ -413,6 +413,21 @@ int ns_kenyon_init(
     ctx->d_proj = d_proj;
     ctx->k_winners = k_winners;
     ctx->seed = seed;
+    ctx->weights = (n_kc <= NS_BANC_MAX_KC) ? ns_banc_default_weights() : NULL;
+    return NS_OK;
+}
+
+int ns_kenyon_set_weights(
+    ns_kenyon_t *ctx,
+    const ns_banc_mb_weights_t *weights
+) {
+    if (ctx == NULL) {
+        return NS_ERR_ARG;
+    }
+    if (weights != NULL && ctx->n_kc > NS_BANC_MAX_KC) {
+        return NS_ERR_BOUNDS;
+    }
+    ctx->weights = weights;
     return NS_OK;
 }
 
@@ -422,7 +437,6 @@ int ns_kenyon_hash(
     uint64_t *out_words
 ) {
     ns_kc_cand_t heap[NS_MAX_WTA_WINNERS];
-    uint32_t state;
     uint32_t j;
     uint32_t c;
     uint32_t k;
@@ -432,36 +446,95 @@ int ns_kenyon_hash(
     }
 
     k = ctx->k_winners;
-    state = ctx->seed ^ 0x9E3779B9u;
-    if (state == 0u) {
-        state = 0x6D2B79F5u;
-    }
 
-    for (j = 0u; j < ctx->n_kc; ++j) {
-        int64_t acc = 0;
-        for (c = 0u; c < ctx->d_proj; ++c) {
-            uint32_t in_idx;
-            state ^= state << 13;
-            state ^= state >> 17;
-            state ^= state << 5;
-            in_idx = (uint32_t)(((uint64_t)state * (uint64_t)ctx->n_inputs) >> 32);
-            acc += (int64_t)x_q16[in_idx];
-        }
+    if (ctx->weights != NULL && ctx->n_kc <= NS_BANC_MAX_KC) {
+        const ns_banc_mb_weights_t *w = ctx->weights;
+        uint32_t glom_offset = (ctx->seed ^ 0x9E3779B9u) & 63u;
+        int64_t sum_apl_num = 0;
+        int64_t sum_apl_den = 0;
+        int64_t mean_apl;
 
-        if (j < k) {
-            heap[j].val = acc;
-            heap[j].idx = j;
-            if (j + 1u == k) {
-                uint32_t r = k >> 1;
-                while (r > 0u) {
-                    --r;
-                    ns_heap_sift_down(heap, k, r);
+        /* Pass 1: Pooled KC -> APL drive */
+        for (j = 0u; j < ctx->n_kc; ++j) {
+            int64_t raw_kc = 0;
+            uint32_t base_c = j * NS_BANC_MAX_CLAWS;
+            for (c = 0u; c < NS_BANC_MAX_CLAWS; ++c) {
+                uint32_t glom = (uint32_t)w->claw_glom[base_c + c];
+                if (glom < NS_BANC_GLOMERULI) {
+                    uint32_t in_idx = ((glom + glom_offset) & 63u) % ctx->n_inputs;
+                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)w->claw_w_q8[base_c + c];
                 }
             }
-        } else if (acc > heap[0].val) {
-            heap[0].val = acc;
-            heap[0].idx = j;
-            ns_heap_sift_down(heap, k, 0u);
+            sum_apl_num += raw_kc * (int64_t)w->kc_to_apl_q8[j];
+            sum_apl_den += (int64_t)w->kc_to_apl_q8[j];
+        }
+        if (sum_apl_den < 1) {
+            sum_apl_den = 1;
+        }
+        mean_apl = ns_div_floor_i64(sum_apl_num, sum_apl_den);
+
+        /* Pass 2: Inhomogeneous APL -> KC inhibition + exact top-k (val, -idx) WTA */
+        for (j = 0u; j < ctx->n_kc; ++j) {
+            int64_t raw_kc = 0;
+            int64_t eff_kc;
+            uint32_t base_c = j * NS_BANC_MAX_CLAWS;
+            for (c = 0u; c < NS_BANC_MAX_CLAWS; ++c) {
+                uint32_t glom = (uint32_t)w->claw_glom[base_c + c];
+                if (glom < NS_BANC_GLOMERULI) {
+                    uint32_t in_idx = ((glom + glom_offset) & 63u) % ctx->n_inputs;
+                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)w->claw_w_q8[base_c + c];
+                }
+            }
+            eff_kc = raw_kc - ns_shr_floor(mean_apl * (int64_t)w->apl_to_kc_q8[j] * 90, 15u);
+
+            if (j < k) {
+                heap[j].val = eff_kc;
+                heap[j].idx = j;
+                if (j + 1u == k) {
+                    uint32_t r = k >> 1;
+                    while (r > 0u) {
+                        --r;
+                        ns_heap_sift_down(heap, k, r);
+                    }
+                }
+            } else if (eff_kc > heap[0].val) {
+                heap[0].val = eff_kc;
+                heap[0].idx = j;
+                ns_heap_sift_down(heap, k, 0u);
+            }
+        }
+    } else {
+        uint32_t state = ctx->seed ^ 0x9E3779B9u;
+        if (state == 0u) {
+            state = 0x6D2B79F5u;
+        }
+
+        for (j = 0u; j < ctx->n_kc; ++j) {
+            int64_t acc = 0;
+            for (c = 0u; c < ctx->d_proj; ++c) {
+                uint32_t in_idx;
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                in_idx = (uint32_t)(((uint64_t)state * (uint64_t)ctx->n_inputs) >> 32);
+                acc += (int64_t)x_q16[in_idx];
+            }
+
+            if (j < k) {
+                heap[j].val = acc;
+                heap[j].idx = j;
+                if (j + 1u == k) {
+                    uint32_t r = k >> 1;
+                    while (r > 0u) {
+                        --r;
+                        ns_heap_sift_down(heap, k, r);
+                    }
+                }
+            } else if (acc > heap[0].val) {
+                heap[0].val = acc;
+                heap[0].idx = j;
+                ns_heap_sift_down(heap, k, 0u);
+            }
         }
     }
 
@@ -689,6 +762,21 @@ int ns_valence_init(
     ctx->min_lr_q16 = min_lr_q16;
     ctx->opponent_inh_q16 = opponent_inh_q16;
     ctx->ltm_floor_q14 = 9011; /* 0.55 * 16384 protected alpha/beta floor */
+    ctx->weights = (n_kc <= NS_BANC_MAX_KC) ? ns_banc_default_weights() : NULL;
+    return NS_OK;
+}
+
+int ns_valence_set_weights(
+    ns_valence_t *ctx,
+    const ns_banc_mb_weights_t *weights
+) {
+    if (ctx == NULL) {
+        return NS_ERR_ARG;
+    }
+    if (weights != NULL && ctx->n_kc > NS_BANC_MAX_KC) {
+        return NS_ERR_BOUNDS;
+    }
+    ctx->weights = weights;
     return NS_OK;
 }
 
@@ -738,7 +826,9 @@ int ns_valence_learn(
     reward_q14 = (int32_t)ns_shr_floor((int64_t)reward_q16, 2u);
     delta_q14 = (int32_t)ns_shr16_floor((int64_t)eta_q16 * (int64_t)reward_q14);
     opp_step_q16 = (int32_t)ns_shr16_floor((int64_t)eta_q16 * (int64_t)ctx->opponent_inh_q16);
-    floor_q14 = (int32_t)ctx->ltm_floor_q14;
+    floor_q14 = (ctx->weights != NULL)
+                    ? (int32_t)ns_clamp_i16((int64_t)ctx->ltm_floor_q14 * 2)
+                    : (int32_t)ctx->ltm_floor_q14;
 
     /* Homeostatic decay on target class, respecting consolidated KCab floors */
     for (w_idx = 0u; w_idx < ctx->n_words; ++w_idx) {
@@ -837,10 +927,42 @@ int ns_valence_consolidate(
         if (ctx->class_active[c] == 0u) {
             continue;
         }
-        for (kc = 0u; kc < ctx->n_kc; ++kc) {
-            int32_t w = (int32_t)ctx->weights_q14[c][kc];
-            if (w >= thresh_q14 || w <= -thresh_q14) {
-                ctx->ltm_ab[c][kc >> 6] |= (UINT64_C(1) << (kc & 63u));
+        if (ctx->weights != NULL) {
+            int has_new_ab = 0;
+            for (kc = 0u; kc < ctx->n_kc; ++kc) {
+                uint32_t w_idx = kc >> 6;
+                uint64_t mask = UINT64_C(1) << (kc & 63u);
+                int is_ab = ((ctx->weights->kc_is_ab_mask_u64[w_idx] & mask) != UINT64_C(0));
+                int is_locked = ((ctx->ltm_ab[c][w_idx] & mask) != UINT64_C(0));
+                int32_t w = (int32_t)ctx->weights_q14[c][kc];
+                if (is_ab && !is_locked && (w >= thresh_q14 || w <= -thresh_q14)) {
+                    has_new_ab = 1;
+                    break;
+                }
+            }
+            if (has_new_ab) {
+                for (kc = 0u; kc < ctx->n_kc; ++kc) {
+                    uint32_t w_idx = kc >> 6;
+                    uint64_t mask = UINT64_C(1) << (kc & 63u);
+                    int is_ab = ((ctx->weights->kc_is_ab_mask_u64[w_idx] & mask) != UINT64_C(0));
+                    int is_locked = ((ctx->ltm_ab[c][w_idx] & mask) != UINT64_C(0));
+                    int64_t w = (int64_t)ctx->weights_q14[c][kc];
+                    if (is_ab) {
+                        if (!is_locked && (w >= (int64_t)thresh_q14 || w <= -(int64_t)thresh_q14)) {
+                            ctx->weights_q14[c][kc] = ns_clamp_i16(w * 2);
+                            ctx->ltm_ab[c][w_idx] |= mask;
+                        }
+                    } else {
+                        ctx->weights_q14[c][kc] = ns_clamp_i16(ns_shr_floor(w, 2u));
+                    }
+                }
+            }
+        } else {
+            for (kc = 0u; kc < ctx->n_kc; ++kc) {
+                int32_t w = (int32_t)ctx->weights_q14[c][kc];
+                if (w >= thresh_q14 || w <= -thresh_q14) {
+                    ctx->ltm_ab[c][kc >> 6] |= (UINT64_C(1) << (kc & 63u));
+                }
             }
         }
     }
@@ -855,7 +977,7 @@ int ns_valence_scores(
     const uint64_t *kc_words,
     int32_t *out_scores_q16
 ) {
-    uint32_t active_cnt = 0u;
+    int64_t gain_den = 0;
     uint32_t w_idx;
     uint32_t c;
     int any_learned = 0;
@@ -875,11 +997,23 @@ int ns_valence_scores(
     }
 
     for (w_idx = 0u; w_idx < ctx->n_words; ++w_idx) {
-        active_cnt += ns_popcount_u64(kc_words[w_idx]);
+        uint64_t word = kc_words[w_idx];
+        if (ctx->weights != NULL) {
+            uint32_t base = w_idx << 6;
+            while (word != UINT64_C(0)) {
+                uint32_t bit = ns_ctz_u64(word);
+                uint32_t kc = base + bit;
+                gain_den += (int64_t)ctx->weights->kc_to_mbon_ach_q8[kc]
+                          + (int64_t)ctx->weights->kc_to_mbon_inh_q8[kc];
+                word &= (word - UINT64_C(1));
+            }
+        } else {
+            gain_den += (int64_t)ns_popcount_u64(word);
+        }
     }
 
     for (c = 0u; c < ctx->n_classes; ++c) {
-        if (ctx->class_active[c] == 0u || active_cnt == 0u) {
+        if (ctx->class_active[c] == 0u || gain_den <= 0) {
             out_scores_q16[c] = 0;
         } else {
             int64_t sum_q14 = 0;
@@ -888,12 +1022,17 @@ int ns_valence_scores(
                 uint32_t base = w_idx << 6;
                 while (word != UINT64_C(0)) {
                     uint32_t bit = ns_ctz_u64(word);
-                    sum_q14 += (int64_t)ctx->weights_q14[c][base + bit];
+                    uint32_t kc = base + bit;
+                    int64_t gain = (ctx->weights != NULL)
+                        ? ((int64_t)ctx->weights->kc_to_mbon_ach_q8[kc]
+                           + (int64_t)ctx->weights->kc_to_mbon_inh_q8[kc])
+                        : 1;
+                    sum_q14 += (int64_t)ctx->weights_q14[c][kc] * gain;
                     word &= (word - UINT64_C(1));
                 }
             }
-            /* Convert Q14 sum to Q16 (`* 4`) and divide (truncating toward zero) by active_cnt */
-            out_scores_q16[c] = ns_clamp_i32((sum_q14 * 4) / (int64_t)active_cnt);
+            /* Convert Q14 weighted sum to Q16 (`* 4`) and divide (truncating toward zero) by gain_den */
+            out_scores_q16[c] = ns_clamp_i32((sum_q14 * 4) / gain_den);
         }
     }
     return NS_OK;

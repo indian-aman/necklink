@@ -2,25 +2,28 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCompass (`neckcompass` v2.0.0)
+# NeckCompass (`neckcompass` v3.0.0, research beta)
 
 **A *Drosophila* central-complex 9-DOF tilt-compensated ring-attractor compass, self-calibrating soft-iron plastic ring, and GPS-denied path integrator — grounded in the BANC v888 connectome, in Python, Arduino, and zero-heap, zero-float ANSI C99 (`324 B` base RAM, `1,104 B` plastic ring).**
 
 [![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=180&v=200)](https://pypi.org/project/neckcompass/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcompass/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v2.0.0-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCompass/)
+[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v3.0.0-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCompass/)
 [![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-12%2F12-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)
 [![Pytest](https://img.shields.io/badge/pytest-46%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·
-[**Benchmarks**](#benchmarks-5-seeds-50-hz) ·
+[**Benchmarks**](#benchmarks-5-seeds-50-hz-analytic-model-pre-v3) ·
 [**When to use it**](#when-to-use-neckcompass-and-when-not-to) ·
 [**Changelog**](#changelog)
 
 </div>
+
+> [!NOTE]
+> **v3.0.0: the ring attractor and homing steering now run on weights compiled from the `BANC v888` connectome** (`50` EPG, `42` PEN, `40` Delta7, `25` PFL3, `12` PFL2 neurons → about `3,900` numbers, mapped onto `16` wedges). The dynamics, gains and wedge discretisation are still hand-designed. `connectome_weights="banc_v888"` is the default; `connectome_weights="v2_analytic"` gives the earlier symmetric model, which is **much more accurate as a compass**. See [v3.0.0 results](#v300-connectome-derived-weights-audited-results). The older benchmarks further down were measured with the analytic model before v3 and have not been re-run.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png" alt="NeckCompass benchmarks" width="100%">
@@ -182,7 +185,37 @@ int32_t autopilot_step_50hz(const nc_imu9_t *imu, int32_t speed_mm_s) {
 
 ---
 
-## Benchmarks (5 seeds, 50 Hz)
+## v3.0.0: connectome-derived weights (audited results)
+
+**What comes from the connectome:** the `EPG ↔ Delta7` recurrent ring (`M_exc`, `M_ed7`, `M_d7e`), the left/right `PEN` rotation matrix, and the `EPG/Delta7 → PFL3/PFL2 → DNa02` steering matrices, compiled from `BANC v888` synapse counts by [`necklink_cns.connectome.extract`](https://github.com/indian-aman/necklink/blob/main/packages/necklink_cns/necklink_cns/connectome/extract.py). **What is hand-designed:** the rate dynamics, gains, the 16-wedge mapping, the magnetometer basin gate, and the speed/arrival taper.
+
+```python
+from neckcompass import RingCompass
+
+bio = RingCompass(n_wedges=16, connectome_weights="banc_v888")      # default in 3.0.0
+analytic = RingCompass(n_wedges=16, connectome_weights="v2_analytic")  # most accurate heading
+for _ in range(50):  # 1 s turning at 0.2 rad/s with no magnetometer
+    h_bio = bio.update(omega_rad_s=0.2, dt=0.02, mag_heading_rad=None)
+    h_analytic = analytic.update(omega_rad_s=0.2, dt=0.02, mag_heading_rad=None)
+print(f"banc_v888: {h_bio:+.3f} rad, v2_analytic: {h_analytic:+.3f} rad (truth +0.200)")
+```
+
+Benchmark: `N = 30` seeds, compared against `K = 100` degree-preserving (Maslov–Sneppen) shuffles of the same raw neuron-to-neuron matrices, compiled with the identical pipeline. One-sided permutation `p = (1 + r) / (K + 1)`, where `r` = shuffles at least as good as the real wiring (smallest possible `p` is `0.0099`). Code and raw JSON: [`benchmarks/v3/`](https://github.com/indian-aman/necklink/tree/main/benchmarks/v3).
+
+| Task | `banc_v888` | Shuffled wiring (mean) | `r / 100`, `p`, `z` | `v2_analytic` | Classical |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| 9-DOF waves + `125°` magnetic spikes, heading RMS | `12.84°` | `62.82°` | `0`, `0.0099`, `+3.64` | **`0.99°`** | EKF + χ² gate **`0.81°`**, Madgwick `1.81°` |
+| 10 s darkness (gyro only), heading RMS | `73.6°` | `85.6°` | `31`, `0.32`, `+0.52` | **`0.54°`** | Gyro integration **`0.53°`** |
+| Closed-loop homing, arrival rate / closest approach | `100%` / `0.19 m` | `4.7%` / `8.66 m` | `0`, `0.0099`, `+13.07` | `100%` / **`0.06 m`** | — |
+
+What this shows:
+- **The ring structure matters.** Scrambling the wiring (same neuron degrees and synapse weights) breaks the compass and homing.
+- **The real wiring is a worse compass than the symmetric model.** Left/right asymmetries in the compiled weights (for example `8` vs `10` `PEN_a` cells) pin the bump to a few preferred headings. With no input it drifts toward them at up to `~10°/s` (mean `~4.5°/s`), and its rotation gain varies with turn rate (about `1×` to `4.6×` the gyro rate; the example above prints `~0.40 rad` for a true `0.20 rad`). It therefore only works as a compass with frequent magnetometer or landmark correction. Use `v2_analytic` when heading accuracy matters.
+- **Caveats:** synthetic sensor streams; the homing task gives a noisy heading cue every step; the pipeline was tuned while looking at real-wiring results, which favours the real wiring over the shuffles.
+
+---
+
+## Benchmarks (5 seeds, 50 Hz, analytic model, pre-v3)
 
 Reproduce every number, plus [`results/benchmark_summary.json`](results/benchmark_summary.json) and the chart, with:
 
@@ -253,6 +286,11 @@ All estimators see identical sensor streams (seeds 101–105): MEMS gyro bias (`
 ---
 
 ## Changelog
+
+**3.0.0**
+- *Connectome-derived weights:* `RingCompass` and `FanBodyNavigator` run on `BANC v888`-compiled `EPG/PEN/Delta7/PFL3/PFL2` matrices by default (`connectome_weights="banc_v888"`), in Python and zero-float C99 (`neckcompass_banc_weights.h`). The earlier symmetric model remains available as `connectome_weights="v2_analytic"` (C: `nc_compass_set_weights(..., NULL)`).
+- *Audited benchmark:* `K = 100` Maslov–Sneppen shuffle comparison (see above). The real wiring beats shuffled wiring on spike-robust heading and homing, but is less accurate than the analytic model and classical filters.
+- *Honest limits:* `PlasticLandmarkRing` self-supervised calibration still uses an internal analytic shadow compass; `W_pfl2_dna02` is compiled but `PFL2` acts as a scalar gain at runtime.
 
 **2.0.0**
 - **9-Axis 3D Tilt-Compensated IMU + Magnetometer Front-End:** Added `TiltCompensatedAHRS`, `TiltCompensatedCompass`, `RingCompass.update_9dof`, `PlasticLandmarkRing.update_9dof`, `FanBodyNavigator.step_with_compass_9dof`, and zero-float C99 `nc_tilt_t` (`16 B`) + `nc_imu9_t` (`36 B`) with `|‖a‖ - g| > 0.25g` wave-slam gravity gating (`< 0.25°` yaw error at `±25°` roll, `±20°` pitch under `65°` magnetic dip).

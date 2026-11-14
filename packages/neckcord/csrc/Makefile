@@ -5,7 +5,7 @@ BUILD    := build
 TARGET   := $(BUILD)/neckcord_selftest
 SANTGT   := $(BUILD)/neckcord_selftest_san
 
-.PHONY: all clean test test-sanitize
+.PHONY: all clean test test-sanitize sanitize
 
 all: $(TARGET)
 
@@ -23,6 +23,8 @@ test: $(TARGET)
 
 test-sanitize: $(SANTGT)
 	./$(SANTGT)
+
+sanitize: test-sanitize
 
 clean:
 	rm -rf $(BUILD)

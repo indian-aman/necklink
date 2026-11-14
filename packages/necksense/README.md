@@ -2,7 +2,7 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSense (`necksense` v2.0.0)
+# NeckSense (`necksense` v3.0.0, research beta)
 
 **Concentration- and load-invariant normalisation, zero-float vibration/acoustic spectrum conditioning, sparse binary hashing, one-shot novelty detection and continual associative classification, modelled on the *Drosophila* chordotonal organ, antennal lobe and two-compartment mushroom body (`BANC v888` / `MaleCNS`), in Python (NumPy), ANSI C99 (`< 6 KB` SRAM with `-DNS_TINY=1`) and Arduino.**
 
@@ -21,6 +21,9 @@
 [**Changelog**](#changelog)
 
 </div>
+
+> [!NOTE]
+> **v3.0.0: the mushroom-body projection now uses connectome wiring by default** — `1,024` of the `4,122` Kenyon cells, each with its real `6` projection-neuron inputs from `BANC v888`, plus real `APL` feedback and `KC → MBON` weights (about `10,000` numbers). How your sensor channels map onto fly glomeruli is a design choice with no biological meaning. **Result:** shuffled wiring performs the same as the real wiring on every task, and classical baselines win. See [v3.0.0 results](#v300-connectome-derived-projection-audited-results). The older benchmarks further down were measured with the `xorshift32` projection (now `connectome_weights="v2_analytic"`) before v3 and have not been re-run.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/necksense/assets/necksense_benchmarks.png" alt="NeckSense benchmarks" width="100%">
@@ -50,7 +53,7 @@ raw or spectral vector x(t)
 - **Concentration & motor-load invariance.** Channel *ratios* survive scaling: cosine similarity between `1×` and `100×` inputs exceeds `0.99999`, and `VibrationFrontEnd` uses homogeneous degree-1 integer features so 1-shot bearing/propeller/spindle fault signatures survive `10×+` throttle or load swings.
 - **Plume whiff intermittency.** `AntennalNormalizer.step_with_whiff()` and `diagnostics()` track phasic ORN up-crossings (`2–20 Hz` turbulent odor filaments vs static background clouds) for chemical source proximity.
 - **Two-compartment continual memory (`KCγ` + `KCα/β`).** Calling `clf.consolidate()` (`ns_valence_consolidate()` in C) protects consolidated `α/β`-lobe synapses from cross-class opponent erosion while preserving explicit opposite-sign reward extinction (`0%` catastrophic forgetting across sequential multi-class updates).
-- **No weight matrix & `< 6 KB` Tiny MCU SRAM.** Deterministic `xorshift32` projection uses `0 B` of weights and zero multiplications; the entire 5-struct C99 suite fits in **`20,284 B`** by default (`6.9×` smaller than `v1.1.0`) and **`5,804 B` (`< 6 KB`)** with `-DNS_TINY=1`.
+- **Weights.** With `connectome_weights="v2_analytic"`, a deterministic `xorshift32` projection uses `0 B` of weights and zero multiplications. With the v3 default (`"banc_v888"`, `n_kc <= 1024`), the Kenyon-cell claws, `APL` and `MBON` weights are `const` tables (`necksense_banc_weights.h`) that live in flash. The C99 suite state fits in **`20,284 B`** by default and **`5,804 B` (`< 6 KB`)** with `-DNS_TINY=1`.
 - **Bit-identical Python ↔ C.** With `c_parity=True`, Python reproduces the C core's `Q16.16` / `Q14` outputs, tags, whiff rates, vibration features and scores bit-for-bit.
 
 ---
@@ -175,7 +178,39 @@ Copy [`arduino/NeckSense`](arduino/NeckSense) into `~/Documents/Arduino/librarie
 
 ---
 
-## Benchmarks (5-seed mean)
+## v3.0.0: connectome-derived projection (audited results)
+
+```python
+import numpy as np
+from necksense import MushroomNoveltyDetector
+
+rng = np.random.default_rng(0)
+pattern = rng.uniform(0.2, 1.0, 16)                       # normal channel ratios
+normal = [pattern * rng.uniform(0.5, 5.0) * rng.normal(1.0, 0.03, 16) for _ in range(200)]
+novel = rng.permutation(pattern) * 2.0                    # same values, different ratios
+for weights in ("banc_v888", "v2_analytic"):  # banc_v888 is the default in 3.0.0
+    det = MushroomNoveltyDetector(n_inputs=16, n_kc=1024, seed=0, connectome_weights=weights)
+    for x in normal:
+        det.update_and_score(x)
+    print(weights, "familiar:", round(det.score(pattern * 3.0), 3), "novel:", round(det.score(novel), 3))
+```
+
+Benchmark: `N = 30` seeds on real public data with strict chronological / cross-load splits (no test data seen in training), against `K = 100` degree-preserving (Maslov–Sneppen) shuffles of the raw `ALPN → KC` matrices compiled with the identical pipeline; one-sided permutation `p = (1 + r) / (K + 1)`. Classical baselines get the same L2 normalisation, with scalers fit on training data only. Code and raw JSON: [`benchmarks/v3/`](https://github.com/indian-aman/necklink/tree/main/benchmarks/v3).
+
+| Task | `banc_v888` | Shuffled wiring (mean) | `r / 100`, `p` | `v2_analytic` | Classical |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| UCI gas drift: novel-gas detection, batches 1–2 → 3–10 (AUROC) | `0.666` | `0.672` | `74`, `0.74` | `0.642` | **One-Class SVM `0.698`**, Isolation Forest `0.694` |
+| UCI gas drift: 5-shot class-incremental, 6-class accuracy (task-1 retained) | `42.7%` (`51.4%`) | `43.2%` | `65`, `0.65` | `46.3%` (`54.1%`) | **Nearest centroid `60.1%` (`65.5%`)**; replay-free MLP `16.1%` (`0%`) |
+| CWRU bearings: train 0 HP normal → test 2 HP faults (AUROC) | `0.9995` | `0.99998` | `100`, `1.00` | `1.000` | One-Class SVM `1.000`, Isolation Forest `0.9985` |
+
+What this shows:
+- **The specific fly wiring does not matter here.** Any sparse expand-and-sparsify projection with the same degree distribution performs the same, consistent with Dasgupta et al. (2017). This is expected when sensor channels have no real correspondence to fly glomeruli.
+- **Classical methods win** on gas novelty and few-shot classification. CWRU is near the ceiling for every method, so it does not separate them.
+- **Where it helps:** it retains old classes far better than a naively trained replay-free network, in a few KB of integer state.
+
+---
+
+## Benchmarks (5-seed mean, `xorshift32` projection, pre-v3)
 
 ```bash
 python scripts/benchmark_necksense.py     # ~40 s; writes results/benchmark_summary.json and the chart
@@ -270,6 +305,10 @@ What this shows:
 ---
 
 ## Changelog
+
+**3.0.0**
+- *Connectome-derived projection:* `KenyonHasher`, `KenyonIndex`, `MushroomNoveltyDetector` and `MushroomValenceClassifier` use `BANC v888` `ALPN → KC` claws, `APL` feedback and `KC → MBON` weights by default (`connectome_weights="banc_v888"`, `n_kc <= 1024`), in Python and C99 (`necksense_banc_weights.h`). With `n_kc > 1024`, or `connectome_weights="v2_analytic"`, the `xorshift32` projection is used.
+- *Audited benchmark:* `K = 100` Maslov–Sneppen shuffle comparison on UCI gas drift and CWRU bearing data (see above). Shuffled wiring performs the same; classical baselines win.
 
 **2.0.0**
 - *C99 SRAM reduction (`6.9×–24×`) & `-DNS_TINY=1` MCU profile:* lossless 17-bit `ns_novelty_t` (`uint16_t` + full-weight bitmask) and `Q14` `int16_t` + consolidated `ltm_ab` bitmask in `ns_valence_t` shrink the default 5-struct suite from `139,960 B` (`~140 KB`) to `20,284 B`, and to **`5,804 B` (`< 6 KB`)** under `-DNS_TINY=1` while keeping `v1.1.0` `Q16.16` golden-vector bit parity.

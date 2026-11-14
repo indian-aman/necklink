@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necklink-cns"
-version = "2.0.0"
+version = "3.0.0"
 description = "Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (BANC v888 Descending Arbitration, <24 KB Zero-Float ANSI C99, MAVLink v2 & ROS 2 Bridges)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -25,7 +25,7 @@ keywords = [
   "robotics",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -39,14 +39,15 @@ classifiers = [
 ]
 dependencies = [
   "numpy>=1.22",
-  "necksight>=2.0.0",
-  "neckcompass>=2.0.0",
-  "neckcord>=2.0.0",
-  "necksense>=2.0.0",
+  "necksight>=3.0.0",
+  "neckcompass>=3.0.0",
+  "neckcord>=3.0.0",
+  "necksense>=3.0.0",
 ]
 
 [project.optional-dependencies]
 wire = ["pynltp>=1.6.0"]
+connectome = ["scipy>=1.9", "pandas>=1.5", "pyarrow>=10"]
 
 [project.scripts]
 necklink-cns = "necklink_cns.cli:main"
@@ -59,4 +60,4 @@ Repository = "https://github.com/indian-aman/necklink"
 include = ["necklink_cns*"]
 
 [tool.setuptools.package-data]
-necklink_cns = ["banc_v888_priors.json"]
+necklink_cns = ["banc_v888_priors.json", "data/*.npz", "connectome/provenance.json"]

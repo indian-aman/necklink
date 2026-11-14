@@ -1,13 +1,15 @@
 /*
- * NeckSense v2.0.0 - Zero-Heap, Zero-Float ANSI C99 Sensory & Mushroom Body Core
+ * NeckSense v3.0.0 - Zero-Heap, Zero-Float ANSI C99 Sensory & BANC v888 Mushroom Body Core
  *
  * Fixed-point Q16.16 (`1.0 == 65536`) implementation of:
  *   1. Antennal Lobe dual-timescale drift adaptation, Olsen-Wilson LN normalization,
  *      and turbulent plume whiff / intermittency tracking
- *   2. Mushroom Body Calyx sparse binary projection (d_proj=6) + APL top-k WTA hashing
+ *   2. BANC v888 Mushroom Body Calyx projection (699 ALPN -> 1,024 KCg/KCab <-> 2 APL)
+ *      with deterministic xorshift32 fallback (`weights == NULL` or `n_kc > 1024`)
  *   3. 64-bit Popcount overlap similarity search
  *   4. MBON-alpha'3 1-shot anti-Hebbian novelty / anomaly detection (17-bit lossless Q16)
  *   5. 2-Compartment KC-gamma (STM) + KC-alpha/beta (LTM) associative valence classifier
+ *      with empirical KC -> 104 MBON (`ach + inh`) readout weighting
  *   6. Chordotonal Organ 16-channel integer vibration & acoustic spectrum front-end
  *
  * Zero malloc/free. Zero float/double.
@@ -23,14 +25,16 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "necksense_banc_weights.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define NS_VERSION_MAJOR 2
+#define NS_VERSION_MAJOR 3
 #define NS_VERSION_MINOR 0
 #define NS_VERSION_PATCH 0
-#define NS_VERSION_STR   "2.0.0"
+#define NS_VERSION_STR   "3.0.0"
 
 /* Fixed-point units: Q16.16 (`1.0 == 65536`) and compact Q14 (`1.0 == 16384`) */
 #define NS_Q16_SHIFT 16
@@ -147,6 +151,10 @@ int ns_antennal_step_whiff(
 /* -------------------------------------------------------------------------
  * 2. Mushroom Body Calyx Sparse Hasher (`ns_kenyon_t`)
  * ------------------------------------------------------------------------- */
+static inline const ns_banc_mb_weights_t *ns_banc_default_weights(void) {
+    return &k_ns_banc_mb_default;
+}
+
 typedef struct {
     uint32_t n_inputs;
     uint32_t n_kc;
@@ -154,6 +162,7 @@ typedef struct {
     uint32_t d_proj;
     uint32_t k_winners;
     uint32_t seed;
+    const ns_banc_mb_weights_t *weights;
 } ns_kenyon_t;
 
 int ns_kenyon_init(
@@ -163,6 +172,11 @@ int ns_kenyon_init(
     uint32_t d_proj,
     uint32_t k_winners,
     uint32_t seed
+);
+
+int ns_kenyon_set_weights(
+    ns_kenyon_t *ctx,
+    const ns_banc_mb_weights_t *weights
 );
 
 int ns_kenyon_hash(
@@ -224,6 +238,7 @@ typedef struct {
     int32_t  opponent_inh_q16;
     int16_t  ltm_floor_q14;             /* protected KCab floor (default 0.55 == 9011) */
     uint16_t consolidations;
+    const ns_banc_mb_weights_t *weights;
     uint32_t class_counts[NS_MAX_CLASSES];
     uint8_t  class_active[NS_MAX_CLASSES];
     uint64_t ltm_ab[NS_MAX_CLASSES][NS_MAX_WORDS];   /* consolidated KCab bitmask */
@@ -236,6 +251,11 @@ int ns_valence_init(
     uint32_t n_classes,
     int32_t min_lr_q16,
     int32_t opponent_inh_q16
+);
+
+int ns_valence_set_weights(
+    ns_valence_t *ctx,
+    const ns_banc_mb_weights_t *weights
 );
 
 void ns_valence_reset(ns_valence_t *ctx);

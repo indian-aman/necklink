@@ -1,15 +1,15 @@
 /*
- * NeckCord v2.0.0 - Pure Integer ANSI C99 Verification Suite (18 tests)
+ * NeckCord v3.0.0 - Pure Integer ANSI C99 Verification Suite (19 tests)
  *
  * Verifies:
- *   1. Static RAM footprint (< 3 KB total, < 600 B v1.x core, zero heap)
+ *   1. Static RAM footprint (< 3 KB total, < 600 B v1.x core, zero heap) & v3.0.0 macros
  *   2. 16-bit BAM Q15 sin/cos LUT identity across all 65,536 angles
  *   3. 4-byte cervical codec roundtrip & Python wire-format golden parity
  *   4. CRC-4 single-bit error (32/32 bits x 256 frames) & stuck-bus rejection
- *   5. Tripod gait anti-phase invariants
+ *   5. BANC v888 emergent Tripod order (>0.90) & legacy NULL-weights analytic lock
  *   6. Metachronal wave posterior-to-anterior phase lag invariants
  *   7. Giant Fiber freeze reflex instant phase lock
- *   8. Single-leg amputation (L2 jammed) VNC pentapod vs unadapted stability
+ *   8. Single-leg amputation (L2 jammed) VNC C_vnc_inh pentapod vs unadapted stability
  *   9. 4-thruster vectored USV online fault isolation & zero-spin rebalancing
  *  10. 8-actuator octo-ROV dual-fault wrench rebalancing
  *  11. Recovery probe: transient fault returns to service, persistent fault stays isolated
@@ -20,6 +20,7 @@
  *  16. Sensorless ESC observer: broken propeller blade caught & shunted in < 50 ms
  *  17. Sensorless ESC observer: weed-foul overcurrent (>1.6x I_exp) & open-phase stall
  *  18. Exact 3-DOF 18-servo hexapod leg IK (1000..2000 us) & L2 pentapod +45 mm parking
+ *  19. BANC v888 C_vnc_inh emergent tripod vs K=100 Maslov-Sneppen shuffles & W_dn_leg turn
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
  */
@@ -84,8 +85,9 @@ static void test_1_static_ram_budget(void)
            (unsigned long)sizeof(nc_esc_obs_result_t),
            (unsigned long)sizeof(nc_hexapod_ik_cfg_t),
            (unsigned long)sizeof(nc_hexapod_ik_out_t));
-    CHECK(v1_ram < 600u && total_ram < 3072u && total_ram < 1200u,
-          "All v1.x (<600 B) and v2.0 (<1.2 KB) structs fit well under 3 KB static RAM, 0 heap");
+    CHECK(NC_CORD_VERSION_MAJOR == 3 && NC_VERSION_MAJOR == 3 &&
+          v1_ram < 600u && total_ram < 3072u && total_ram < 1200u,
+          "All v1.x (<600 B) and v3.0 (<1.2 KB) structs fit well under 3 KB static RAM, 0 heap");
 }
 
 static void test_2_trig_lut_accuracy(void)
@@ -200,33 +202,43 @@ static void test_4_cervical_crc_and_bus_faults(void)
 
 static void test_5_tripod_antiphase_invariants(void)
 {
-    nc_cpg_cord_t cpg;
-    nc_cpg_state_t st;
+    nc_cpg_cord_t cpg_banc;
+    nc_cpg_cord_t cpg_v2;
+    nc_cpg_state_t st_banc;
+    nc_cpg_state_t st_v2;
     nc_descending_frame_t cmd;
+    int16_t order_banc;
     int step;
 
-    nc_cpg_init(&cpg, 1u);
-    cpg.phases_bam[0] = 1000u;
-    cpg.phases_bam[1] = 28000u;
-    cpg.phases_bam[2] = 35000u;
-    cpg.phases_bam[3] = 4200u;
-    cpg.phases_bam[4] = 63000u;
-    cpg.phases_bam[5] = 30000u;
+    nc_cpg_init(&cpg_banc, 1u);
+
+    nc_cpg_init(&cpg_v2, 1u);
+    nc_cpg_set_weights(&cpg_v2, NULL);
+    cpg_v2.phases_bam[0] = 1000u;
+    cpg_v2.phases_bam[1] = 28000u;
+    cpg_v2.phases_bam[2] = 35000u;
+    cpg_v2.phases_bam[3] = 4200u;
+    cpg_v2.phases_bam[4] = 63000u;
+    cpg_v2.phases_bam[5] = 30000u;
 
     memset(&cmd, 0, sizeof(cmd));
     cmd.drive_fwd_q15 = 29000;
     cmd.gait_mode = (uint8_t)NC_GAIT_AUTO;
 
     for (step = 0; step < 200; ++step) {
-        (void)nc_cpg_step(&cpg, &cmd, 10u, &st);
+        (void)nc_cpg_step(&cpg_banc, &cmd, 10u, &st_banc);
+        (void)nc_cpg_step(&cpg_v2, &cmd, 10u, &st_v2);
     }
+    order_banc = nc_cpg_tripod_order_q15(st_banc.phases_bam);
 
-    CHECK(st.active_gait == (uint8_t)NC_GAIT_TRIPOD &&
-          bam_dist(st.phases_bam[0], st.phases_bam[3]) < 500u &&
-          bam_dist(st.phases_bam[0], st.phases_bam[4]) < 500u &&
-          abs_i32((int32_t)bam_dist(st.phases_bam[0], st.phases_bam[1]) - 32768) < 500 &&
-          abs_i32((int32_t)bam_dist(st.phases_bam[2], st.phases_bam[3]) - 32768) < 500,
-          "Kuramoto CPG converges from perturbed phases to strict Tripod anti-phase lock");
+    CHECK(st_banc.active_gait == (uint8_t)NC_GAIT_TRIPOD &&
+          order_banc > 29490 && /* > 0.90 in Q15 */
+          abs_i32((int32_t)bam_dist(st_banc.phases_bam[2], st_banc.phases_bam[3]) - 32768) < 1500 &&
+          st_v2.active_gait == (uint8_t)NC_GAIT_TRIPOD &&
+          bam_dist(st_v2.phases_bam[0], st_v2.phases_bam[3]) < 500u &&
+          bam_dist(st_v2.phases_bam[0], st_v2.phases_bam[4]) < 500u &&
+          abs_i32((int32_t)bam_dist(st_v2.phases_bam[0], st_v2.phases_bam[1]) - 32768) < 500,
+          "BANC v888 C_vnc_inh emerges Tripod (>0.90) & NULL-weights preserves v2 analytic lock");
 }
 
 static void test_6_wave_gait_metachronal_lag(void)
@@ -873,9 +885,98 @@ static void run_timing_benchmark(void)
            elapsed_us, (elapsed_us * 100L) / 1000L);
 }
 
+static uint32_t lcg_next(uint32_t *state)
+{
+    *state = (*state * 1664525u) + 1013904223u;
+    return *state;
+}
+
+static void test_19_banc_v888_emergent_tripod_vs_shuffled_null(void)
+{
+    nc_cpg_cord_t cpg_real;
+    nc_cpg_state_t st_real;
+    nc_descending_frame_t cmd;
+    int16_t warm_q15;
+    int16_t steady_q15;
+    int64_t shuf_sum_q15 = 0;
+    int32_t shuf_mean_q15;
+    uint32_t rng = 0xC0DEC0DEu;
+    int trial;
+    int step;
+    int dx_l1;
+    int dx_r2;
+
+    nc_cpg_init(&cpg_real, 1u);
+    warm_q15 = nc_cpg_tripod_order_q15(cpg_real.phases_bam);
+
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.drive_fwd_q15 = 27852;
+    cmd.gait_mode = (uint8_t)NC_GAIT_TRIPOD;
+    for (step = 0; step < 200; ++step) {
+        (void)nc_cpg_step(&cpg_real, &cmd, 10u, &st_real);
+    }
+    steady_q15 = nc_cpg_tripod_order_q15(st_real.phases_bam);
+
+    /* K = 100 Maslov-Sneppen 4-node symmetric edge-swapped C_vnc_inh_q12 null trials */
+    for (trial = 0; trial < 100; ++trial) {
+        nc_banc_vnc_weights_t w_shuf = k_nc_banc_vnc_default;
+        nc_cpg_cord_t cpg_s;
+        nc_cpg_state_t st_s;
+        int sw;
+
+        for (sw = 0; sw < 60; ++sw) {
+            uint8_t perm[6] = { 0u, 1u, 2u, 3u, 4u, 5u };
+            uint8_t k;
+            uint8_t a, b, c, d;
+            uint16_t wab, wcd;
+            for (k = 0u; k < 4u; ++k) {
+                uint8_t r = (uint8_t)(k + (lcg_next(&rng) % (uint32_t)(6u - k)));
+                uint8_t tmp = perm[k];
+                perm[k] = perm[r];
+                perm[r] = tmp;
+            }
+            a = perm[0];
+            b = perm[1];
+            c = perm[2];
+            d = perm[3];
+            wab = w_shuf.C_vnc_inh_q12[a * 6u + b];
+            wcd = w_shuf.C_vnc_inh_q12[c * 6u + d];
+            w_shuf.C_vnc_inh_q12[a * 6u + b] = w_shuf.C_vnc_inh_q12[a * 6u + d];
+            w_shuf.C_vnc_inh_q12[b * 6u + a] = w_shuf.C_vnc_inh_q12[a * 6u + d];
+            w_shuf.C_vnc_inh_q12[c * 6u + d] = w_shuf.C_vnc_inh_q12[c * 6u + b];
+            w_shuf.C_vnc_inh_q12[d * 6u + c] = w_shuf.C_vnc_inh_q12[c * 6u + b];
+            w_shuf.C_vnc_inh_q12[a * 6u + d] = wab;
+            w_shuf.C_vnc_inh_q12[d * 6u + a] = wab;
+            w_shuf.C_vnc_inh_q12[c * 6u + b] = wcd;
+            w_shuf.C_vnc_inh_q12[b * 6u + c] = wcd;
+        }
+
+        nc_cpg_init(&cpg_s, 1u);
+        nc_cpg_set_weights(&cpg_s, &w_shuf);
+        for (step = 0; step < 200; ++step) {
+            (void)nc_cpg_step(&cpg_s, &cmd, 10u, &st_s);
+        }
+        shuf_sum_q15 += nc_cpg_tripod_order_q15(st_s.phases_bam);
+    }
+    shuf_mean_q15 = (int32_t)(shuf_sum_q15 / 100);
+
+    /* Verify W_dn_leg_q12 bilateral turn sensitivity (CCW turn -> right R2 > left L1 excursion) */
+    nc_cpg_init(&cpg_real, 1u);
+    cmd.drive_fwd_q15 = 19660;
+    cmd.turn_yaw_q15 = 16384;
+    (void)nc_cpg_step(&cpg_real, &cmd, 10u, &st_real);
+    dx_l1 = abs_i32((int32_t)st_real.foot_x_mm[0] - 200);
+    dx_r2 = abs_i32((int32_t)st_real.foot_x_mm[3] - 0);
+
+    printf("    BANC v888 tripod_order_q15: warm=%d, steady=%d (>29490) vs K=100 MS-shuffle mean=%d (<19660)\n",
+           (int)warm_q15, (int)steady_q15, (int)shuf_mean_q15);
+    CHECK(warm_q15 > 29490 && steady_q15 > 29490 && shuf_mean_q15 < 19660 && dx_r2 > dx_l1,
+          "BANC v888 C_vnc_inh emerges Tripod (>0.90) vs Maslov-Sneppen null (<0.60) & W_dn_leg steers");
+}
+
 int main(void)
 {
-    printf("=== NeckCord v2.0.0 ANSI C99 Fixed-Point Self-Test (18 Tests) ===\n");
+    printf("=== NeckCord v3.0.0 ANSI C99 Fixed-Point Self-Test (19 Tests) ===\n");
     test_1_static_ram_budget();
     test_2_trig_lut_accuracy();
     test_3_cervical_roundtrip_and_python_parity();
@@ -894,6 +995,7 @@ int main(void)
     test_16_esc_observer_broken_blade_fast_isolation();
     test_17_esc_observer_weed_foul_overcurrent_and_stall();
     test_18_hexapod_18servo_3dof_ik_and_pentapod_parking();
+    test_19_banc_v888_emergent_tripod_vs_shuffled_null();
     run_timing_benchmark();
 
     printf("=== Summary: %d/%d passed, %d failed ===\n",

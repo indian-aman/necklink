@@ -1,5 +1,5 @@
 /*
- * NeckCord v2.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Implementation
+ * NeckCord v3.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Implementation
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
  */
@@ -66,7 +66,12 @@ static const uint16_t k_mount_bam[NC_NUM_LIMBS]  = {
 static const int16_t k_park_x_mm[NC_NUM_LIMBS]   = { +190, +190,    0,    0, -190, -190 };
 static const int16_t k_park_y_mm[NC_NUM_LIMBS]   = { +120, -120, +150, -150, +120, -120 };
 
-/* Canonical target phase offsets in 16-bit BAM (65536 = 2*pi, L1 anchored at 0) */
+/* Non-tripod symmetry-breaking initial angles [0.0, 0.45, 0.85, 0.15, 0.30, 0.70] rad in BAM */
+static const uint16_t k_init_symbreak_bam[NC_NUM_LIMBS] = {
+    0u, 4694u, 8866u, 1565u, 3129u, 7301u
+};
+
+/* Literature (Mendes et al. eLife 2013) & legacy v2 analytic target offsets in 16-bit BAM */
 static const uint16_t k_offsets_tripod_bam[NC_NUM_LIMBS] = {
     0u, 32768u, 32768u, 0u, 0u, 32768u
 };
@@ -417,6 +422,59 @@ int nc_decode_descending_4b(
  * 2. 6-Limb Segmental VNC CPG Cord
  * ========================================================================= */
 
+void nc_cpg_set_weights(nc_cpg_cord_t *cord, const nc_banc_vnc_weights_t *w)
+{
+    uint8_t i;
+    uint8_t j;
+    uint8_t step;
+    uint16_t p0;
+
+    if (cord == NULL) {
+        return;
+    }
+    cord->weights = w;
+    if (w == NULL) {
+        for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+            cord->phases_bam[i] = k_offsets_tripod_bam[i];
+        }
+        return;
+    }
+
+    for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+        cord->phases_bam[i] = k_init_symbreak_bam[i];
+    }
+
+    /* 15 fast warm-start relaxation substeps (dt = 20 ms, K_rep = 6.5 rad/s = 67797 BAM/s) */
+    for (step = 0u; step < 15u; ++step) {
+        uint16_t next_p[NC_NUM_LIMBS];
+        for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+            int64_t rep_acc = 0;
+            for (j = 0u; j < NC_NUM_LIMBS; ++j) {
+                int32_t c_q12;
+                int32_t s_q15;
+                if (i == j) {
+                    continue;
+                }
+                c_q12 = (int32_t)w->C_vnc_inh_q12[i * NC_NUM_LIMBS + j];
+                s_q15 = (int32_t)nc_sin_bam_q15(
+                    (uint16_t)(cord->phases_bam[i] - cord->phases_bam[j])
+                );
+                rep_acc += ((int64_t)67797 * (int64_t)c_q12 * (int64_t)s_q15) / ((int64_t)1 << 27);
+            }
+            next_p[i] = (uint16_t)((int32_t)cord->phases_bam[i] + (int32_t)((rep_acc * 20) / 1000));
+        }
+        for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+            cord->phases_bam[i] = next_p[i];
+        }
+    }
+
+    /* Global U(1) phase-origin gauge anchor at L1 = 0 BAM */
+    p0 = cord->phases_bam[0];
+    for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+        cord->phases_bam[i] = (uint16_t)(cord->phases_bam[i] - p0);
+    }
+}
+
 void nc_cpg_init(nc_cpg_cord_t *cord, uint8_t adapt_to_damage)
 {
     uint8_t i;
@@ -425,7 +483,6 @@ void nc_cpg_init(nc_cpg_cord_t *cord, uint8_t adapt_to_damage)
     }
     memset(cord, 0, sizeof(*cord));
     for (i = 0u; i < NC_NUM_LIMBS; ++i) {
-        cord->phases_bam[i] = k_offsets_tripod_bam[i];
         cord->limb_health_q15[i] = NC_Q15_ONE;
     }
     cord->base_freq_milli_hz = 800u;
@@ -433,6 +490,31 @@ void nc_cpg_init(nc_cpg_cord_t *cord, uint8_t adapt_to_damage)
     cord->stride_mm = 80;
     cord->fault_thresh_q15 = 11468; /* ~0.35 in Q15 */
     cord->adapt_to_damage = adapt_to_damage ? 1u : 0u;
+    nc_cpg_set_weights(cord, nc_banc_vnc_default_weights());
+}
+
+int16_t nc_cpg_tripod_order_q15(const uint16_t phases_bam[NC_NUM_LIMBS])
+{
+    static const int32_t k_tri_sign[NC_NUM_LIMBS] = { 1, -1, -1, 1, 1, -1 };
+    int64_t re_acc = 0;
+    int64_t im_acc = 0;
+    uint64_t mag_sq;
+    uint32_t mag;
+    uint8_t i;
+
+    if (phases_bam == NULL) {
+        return 0;
+    }
+    for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+        re_acc += (int64_t)k_tri_sign[i] * (int64_t)nc_cos_bam_q15(phases_bam[i]);
+        im_acc += (int64_t)k_tri_sign[i] * (int64_t)nc_sin_bam_q15(phases_bam[i]);
+    }
+    mag_sq = (uint64_t)(re_acc * re_acc + im_acc * im_acc);
+    mag = (nc_isqrt_u64(mag_sq) + 3u) / 6u;
+    if (mag > (uint32_t)NC_Q15_ONE) {
+        mag = (uint32_t)NC_Q15_ONE;
+    }
+    return (int16_t)mag;
 }
 
 int nc_cpg_set_limb_health(nc_cpg_cord_t *cord, uint8_t limb_idx, int16_t health_q15)
@@ -634,7 +716,9 @@ int nc_cpg_step(
     int32_t w_wave_q14 = 0;
     int32_t w_tetra_q14 = 0;
     int32_t w_tri_q14 = 0;
+    int32_t w_conn_q14 = 0;
     uint8_t use_pentapod = 0u;
+    uint8_t use_damage_ring = 0u;
     uint8_t active_gait;
     uint32_t duty_bam;
     int32_t abs_fwd;
@@ -692,7 +776,51 @@ int nc_cpg_step(
     }
     speed_q15 = nc_clamp_i32(speed_q15, 0, NC_Q15_ONE);
 
-    if (cord->adapt_to_damage && n_healthy == 5u) {
+    if (cord->weights != NULL) {
+        if (cord->adapt_to_damage && n_healthy < NC_NUM_LIMBS) {
+            w_conn_q14 = NC_Q14_ONE;
+            use_damage_ring = 1u;
+            if (n_healthy == 5u) {
+                duty_bam = 53740u; /* 0.82 * 65536 */
+                active_gait = (uint8_t)NC_GAIT_PENTAPOD;
+            } else {
+                duty_bam = 55706u; /* 0.85 * 65536 */
+                active_gait = (uint8_t)NC_GAIT_WAVE;
+            }
+        } else if (cmd->gait_mode == (uint8_t)NC_GAIT_TRIPOD) {
+            w_conn_q14 = NC_Q14_ONE;
+            duty_bam = 35389u; /* 0.54 * 65536 */
+            active_gait = (uint8_t)NC_GAIT_TRIPOD;
+        } else if (cmd->gait_mode == (uint8_t)NC_GAIT_TETRAPOD) {
+            w_tetra_q14 = NC_Q14_ONE;
+            duty_bam = 44564u; /* 0.68 * 65536 */
+            active_gait = (uint8_t)NC_GAIT_TETRAPOD;
+        } else if (cmd->gait_mode == (uint8_t)NC_GAIT_WAVE) {
+            w_wave_q14 = NC_Q14_ONE;
+            duty_bam = 53740u; /* 0.82 * 65536 */
+            active_gait = (uint8_t)NC_GAIT_WAVE;
+        } else {
+            /* AUTO: literature Wave -> literature Tetrapod -> BANC v888 C_vnc_inh Tripod */
+            if (speed_q15 <= 9830) {
+                w_wave_q14 = NC_Q14_ONE;
+                active_gait = (uint8_t)NC_GAIT_WAVE;
+            } else if (speed_q15 >= 24575) {
+                w_conn_q14 = NC_Q14_ONE;
+                active_gait = (uint8_t)NC_GAIT_TRIPOD;
+            } else if (speed_q15 < 17202) {
+                w_tetra_q14 = ((speed_q15 - 9830) * NC_Q14_ONE) / 7372;
+                w_wave_q14 = NC_Q14_ONE - w_tetra_q14;
+                active_gait = (w_tetra_q14 < 5734) ? (uint8_t)NC_GAIT_WAVE : (uint8_t)NC_GAIT_TETRAPOD;
+            } else {
+                w_conn_q14 = ((speed_q15 - 17202) * NC_Q14_ONE) / 7373;
+                w_tetra_q14 = NC_Q14_ONE - w_conn_q14;
+                active_gait = (w_conn_q14 < 10649) ? (uint8_t)NC_GAIT_TETRAPOD : (uint8_t)NC_GAIT_TRIPOD;
+            }
+            duty_bam = (uint32_t)(
+                (w_wave_q14 * 53740 + w_tetra_q14 * 44564 + w_conn_q14 * 35389) / NC_Q14_ONE
+            );
+        }
+    } else if (cord->adapt_to_damage && n_healthy == 5u) {
         use_pentapod = 1u;
         nc_compute_pentapod_bam(min_idx, pent_bam);
         duty_bam = 53740u; /* 0.82 * 65536 */
@@ -714,7 +842,7 @@ int nc_cpg_step(
         duty_bam = 53740u; /* 0.82 * 65536 */
         active_gait = (uint8_t)NC_GAIT_WAVE;
     } else {
-        /* Smooth speed-driven blending Wave -> Tetrapod -> Tripod */
+        /* Legacy v2 analytic blending Wave -> Tetrapod -> Tripod */
         if (speed_q15 <= 9830) {
             w_wave_q14 = NC_Q14_ONE;
             active_gait = (uint8_t)NC_GAIT_WAVE;
@@ -758,56 +886,76 @@ int nc_cpg_step(
         for (i = 0u; i < NC_NUM_LIMBS; ++i) {
             int64_t coup_acc = 0;
             for (j = 0u; j < NC_NUM_LIMBS; ++j) {
-                int32_t k_gain;
                 int32_t hj_q15;
-                int32_t sin_q15;
-                if (i == j || (healthy_mask & (uint8_t)(1u << j)) == 0u) {
+                if (i == j) {
                     continue;
                 }
-                hj_q15 = cord->limb_health_q15[j];
-                if ((i ^ 1u) == j) {
-                    k_gain = 156450;
-                } else if ((i & 1u) == (j & 1u)) {
-                    uint8_t dist = (i > j) ? (uint8_t)(i - j) : (uint8_t)(j - i);
-                    k_gain = (dist == 2u) ? 135000 : 72000;
+                if (cord->weights != NULL && !cord->adapt_to_damage) {
+                    hj_q15 = NC_Q15_ONE;
+                } else if ((healthy_mask & (uint8_t)(1u << j)) == 0u) {
+                    continue;
                 } else {
-                    k_gain = 67800;
+                    hj_q15 = cord->limb_health_q15[j];
                 }
 
-                if (use_pentapod) {
-                    uint16_t diff = (uint16_t)(
-                        cord->phases_bam[j] - cord->phases_bam[i] - (pent_bam[j] - pent_bam[i])
+                if (w_conn_q14 > 0 && cord->weights != NULL) {
+                    int32_t c_q12 = (int32_t)cord->weights->C_vnc_inh_q12[i * NC_NUM_LIMBS + j]
+                                  + (use_damage_ring ? 2458 : 0); /* +0.6 in Q12 */
+                    int32_t s_rep = (int32_t)nc_sin_bam_q15(
+                        (uint16_t)(cord->phases_bam[i] - cord->phases_bam[j])
                     );
-                    sin_q15 = nc_sin_bam_q15(diff);
-                } else {
-                    int32_t s_wave = 0;
-                    int32_t s_tetra = 0;
-                    int32_t s_tri = 0;
-                    if (w_wave_q14 > 0) {
-                        uint16_t d = (uint16_t)(
-                            cord->phases_bam[j] - cord->phases_bam[i]
-                            - (k_offsets_wave_bam[j] - k_offsets_wave_bam[i])
-                        );
-                        s_wave = nc_sin_bam_q15(d);
-                    }
-                    if (w_tetra_q14 > 0) {
-                        uint16_t d = (uint16_t)(
-                            cord->phases_bam[j] - cord->phases_bam[i]
-                            - (k_offsets_tetrapod_bam[j] - k_offsets_tetrapod_bam[i])
-                        );
-                        s_tetra = nc_sin_bam_q15(d);
-                    }
-                    if (w_tri_q14 > 0) {
-                        uint16_t d = (uint16_t)(
-                            cord->phases_bam[j] - cord->phases_bam[i]
-                            - (k_offsets_tripod_bam[j] - k_offsets_tripod_bam[i])
-                        );
-                        s_tri = nc_sin_bam_q15(d);
-                    }
-                    sin_q15 = (w_wave_q14 * s_wave + w_tetra_q14 * s_tetra + w_tri_q14 * s_tri) / NC_Q14_ONE;
+                    int64_t term_q15 = ((int64_t)c_q12 * (int64_t)hj_q15 * (int64_t)s_rep) / ((int64_t)1 << 27);
+                    int64_t rep_bam_s = ((int64_t)67797 * term_q15) / ((int64_t)1 << 15);
+                    coup_acc += (rep_bam_s * (int64_t)w_conn_q14) / NC_Q14_ONE;
                 }
 
-                coup_acc += ((int64_t)k_gain * (int64_t)hj_q15 * (int64_t)sin_q15) / ((int64_t)1 << 30);
+                if (use_pentapod || w_wave_q14 > 0 || w_tetra_q14 > 0 || w_tri_q14 > 0) {
+                    int32_t k_gain;
+                    int32_t sin_q15;
+                    if ((i ^ 1u) == j) {
+                        k_gain = 156450;
+                    } else if ((i & 1u) == (j & 1u)) {
+                        uint8_t dist = (i > j) ? (uint8_t)(i - j) : (uint8_t)(j - i);
+                        k_gain = (dist == 2u) ? 135000 : 72000;
+                    } else {
+                        k_gain = 67800;
+                    }
+
+                    if (use_pentapod) {
+                        uint16_t diff = (uint16_t)(
+                            cord->phases_bam[j] - cord->phases_bam[i] - (pent_bam[j] - pent_bam[i])
+                        );
+                        sin_q15 = nc_sin_bam_q15(diff);
+                    } else {
+                        int32_t s_wave = 0;
+                        int32_t s_tetra = 0;
+                        int32_t s_tri = 0;
+                        if (w_wave_q14 > 0) {
+                            uint16_t d = (uint16_t)(
+                                cord->phases_bam[j] - cord->phases_bam[i]
+                                - (k_offsets_wave_bam[j] - k_offsets_wave_bam[i])
+                            );
+                            s_wave = nc_sin_bam_q15(d);
+                        }
+                        if (w_tetra_q14 > 0) {
+                            uint16_t d = (uint16_t)(
+                                cord->phases_bam[j] - cord->phases_bam[i]
+                                - (k_offsets_tetrapod_bam[j] - k_offsets_tetrapod_bam[i])
+                            );
+                            s_tetra = nc_sin_bam_q15(d);
+                        }
+                        if (w_tri_q14 > 0) {
+                            uint16_t d = (uint16_t)(
+                                cord->phases_bam[j] - cord->phases_bam[i]
+                                - (k_offsets_tripod_bam[j] - k_offsets_tripod_bam[i])
+                            );
+                            s_tri = nc_sin_bam_q15(d);
+                        }
+                        sin_q15 = (w_wave_q14 * s_wave + w_tetra_q14 * s_tetra + w_tri_q14 * s_tri) / NC_Q14_ONE;
+                    }
+
+                    coup_acc += ((int64_t)k_gain * (int64_t)hj_q15 * (int64_t)sin_q15) / ((int64_t)1 << 30);
+                }
             }
             {
                 int32_t coup_inc = (int32_t)(
@@ -826,22 +974,46 @@ int nc_cpg_step(
     out_state->active_gait = active_gait;
 
     {
-        int32_t left_q15 = nc_clamp_i32(
-            (int32_t)cmd->drive_fwd_q15 - (((int32_t)cmd->turn_yaw_q15 * 21299) / NC_Q15_ONE),
-            -39320,
-            45874
-        );
-        int32_t right_q15 = nc_clamp_i32(
-            (int32_t)cmd->drive_fwd_q15 + (((int32_t)cmd->turn_yaw_q15 * 21299) / NC_Q15_ONE),
-            -39320,
-            45874
-        );
+        int32_t steer_gain_q15[NC_NUM_LIMBS];
         int32_t lat_mm = ((int32_t)cmd->strafe_lat_q15 * 35) / NC_Q15_ONE;
         uint32_t swing_span = (duty_bam < 65500u) ? (65536u - duty_bam) : 36u;
 
+        if (cord->weights != NULL) {
+            int32_t ipsi_q12[NC_NUM_LIMBS];
+            int32_t sum_ipsi = 0;
+            for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+                const int16_t *row = &cord->weights->W_dn_leg_q12[i * 10u];
+                int32_t wl_q12 = (int32_t)row[4] + (int32_t)row[6]; /* DNa02_L + DNa01_L */
+                int32_t wr_q12 = (int32_t)row[5] + (int32_t)row[7]; /* DNa02_R + DNa01_R */
+                int32_t c_q12 = ((i & 1u) == 0u) ? (wl_q12 - wr_q12) : (wr_q12 - wl_q12);
+                if (c_q12 < 205) {
+                    c_q12 = 205; /* min 0.05 in Q12 */
+                }
+                ipsi_q12[i] = c_q12;
+                sum_ipsi += c_q12;
+            }
+            if (sum_ipsi < 6) {
+                sum_ipsi = 6;
+            }
+            for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+                steer_gain_q15[i] = (21299 * (int32_t)NC_NUM_LIMBS * ipsi_q12[i]) / sum_ipsi;
+            }
+        } else {
+            for (i = 0u; i < NC_NUM_LIMBS; ++i) {
+                steer_gain_q15[i] = 21299; /* 0.65 in Q15 */
+            }
+        }
+
         for (i = 0u; i < NC_NUM_LIMBS; ++i) {
             uint32_t phi = cord->phases_bam[i];
-            int32_t side_scale_q15 = ((i & 1u) == 0u) ? left_q15 : right_q15;
+            int32_t yaw_delta = ((int32_t)cmd->turn_yaw_q15 * steer_gain_q15[i]) / NC_Q15_ONE;
+            int32_t side_scale_q15 = nc_clamp_i32(
+                ((i & 1u) == 0u)
+                    ? ((int32_t)cmd->drive_fwd_q15 - yaw_delta)
+                    : ((int32_t)cmd->drive_fwd_q15 + yaw_delta),
+                -39320,
+                45874
+            );
             int32_t amp_mm = ((int32_t)(cord->stride_mm / 2) * side_scale_q15) / NC_Q15_ONE;
 
             out_state->phases_bam[i] = (uint16_t)phi;

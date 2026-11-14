@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necklink"
-version = "2.0.0"
+version = "3.0.0"
 description = "NeckLink Fruit-Fly Brain Edge Autonomy & Wire Suite: umbrella installer for pynltp, necksense, neckcompass, necksight, neckcord, and necklink-cns"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -27,7 +27,7 @@ keywords = [
   "esp32",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -42,11 +42,11 @@ classifiers = [
 ]
 dependencies = [
   "pynltp>=1.6.0",
-  "necksense>=2.0.0",
-  "neckcompass>=2.0.0",
-  "necksight>=2.0.0",
-  "neckcord>=2.0.0",
-  "necklink-cns>=2.0.0",
+  "necksense>=3.0.0",
+  "neckcompass>=3.0.0",
+  "necksight>=3.0.0",
+  "neckcord>=3.0.0",
+  "necklink-cns>=3.0.0",
 ]
 
 [project.urls]

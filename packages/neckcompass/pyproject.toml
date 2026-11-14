@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neckcompass"
-version = "2.0.0"
+version = "3.0.0"
 description = "NeckCompass: Drosophila Central Complex 9-DOF tilt-compensated ring-attractor compass, self-calibrating R-neuron plasticity, and GPS-denied path integrator"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -30,7 +30,7 @@ keywords = [
   "esp32",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -63,3 +63,6 @@ neckcompass = "neckcompass.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["neckcompass*"]
+
+[tool.setuptools.package-data]
+neckcompass = ["data/*.npz"]

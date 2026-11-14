@@ -1,5 +1,5 @@
 /*
- * necksight_selftest.c - Self-test and throughput verifier for ANSI C99 NeckSight v2.0.0
+ * necksight_selftest.c - Self-test and throughput verifier for ANSI C99 NeckSight v3.0.0
  *
  * Verifies in zero-heap, zero-float pure integer ANSI C99:
  *   (a) Rightward translating grating (vx > 0, 0 false looming trigger)
@@ -11,6 +11,7 @@
  *   (g) 2-DOF yaw +/-3 px/frame gyro derotation
  *   (h) LC4 thin vertical pole & horizontal wire looming (width 2->12 px) + directional dodge
  *   (i) 3-DOF roll + yaw BAM derotation (0 false alarms on pure roll+yaw; catches obstacle)
+ *   (j) BANC v888 connectome weights vs NULL (v2 fallback) & scrambled weights ablation
  */
 
 #include "necksight.h"
@@ -231,15 +232,17 @@ int main(int argc, char **argv)
     int roll3d_loom_derot = 0;
     int roll3d_only_triggers = 0;
     int pure_roll_uncomp_triggers = 0;
+    int v2_fallback_ok = 0;
+    uint16_t scrambled_loom_peak = 0U;
 
     clock_t c0, c1;
     uint32_t bench_frames = 25000U;
     uint32_t fps = 0U;
     size_t state_bytes = sizeof(necksight_state_t);
 
-    /* Verify static state size < 16 KB */
-    if (state_bytes >= 16384U) {
-        fprintf(stderr, "FAIL: sizeof(necksight_state_t) = %lu >= 16384\n",
+    /* Verify static state size < 15000 bytes SRAM */
+    if (state_bytes >= 15000U) {
+        fprintf(stderr, "FAIL: sizeof(necksight_state_t) = %lu >= 15000\n",
                 (unsigned long)state_bytes);
         return 1;
     }
@@ -602,6 +605,85 @@ int main(int argc, char **argv)
         failures++;
     }
 
+    /* (j) BANC v888 default pointer check, NULL legacy v2 fallback, and scrambled ablation */
+    {
+        static necksight_banc_weights_t scram_w;
+        int v2_loom = 0;
+        int v2_pan_fa = 0;
+        unsigned int idx;
+
+        necksight_init(&state);
+        if (state.weights != necksight_default_weights()) {
+            fprintf(stderr, "FAIL (j) default weights pointer not set\n");
+            failures++;
+        }
+
+        /* Legacy v2 fallback (weights == NULL) */
+        necksight_set_weights(&state, NULL);
+        for (t = 0; t < 28; t++) {
+            int rem = 30 - t;
+            int rad_q2 = (96 + rem / 2) / rem;
+            int r2_q4 = rad_q2 * rad_q2;
+            for (y = 0; y < NECKSIGHT_GRID; y++) {
+                for (x = 0; x < NECKSIGHT_GRID; x++) {
+                    int dy = y - 16;
+                    int dx = x - 16;
+                    int d2_q4 = (dx * dx + dy * dy) * 16;
+                    frame_u8[y * NECKSIGHT_GRID + x] = (d2_q4 <= r2_q4) ? 12U : synth_clutter_u8(y, x);
+                }
+            }
+            necksight_step_u8(&state, frame_u8, 16U, &res);
+            if (res.triggered) v2_loom = 1;
+        }
+        necksight_reset(&state);
+        for (t = 0; t < 32; t++) {
+            for (y = 0; y < NECKSIGHT_GRID; y++) {
+                for (x = 0; x < NECKSIGHT_GRID; x++) {
+                    frame_u8[y * NECKSIGHT_GRID + x] = synth_clutter_u8(y + 4, x + 3 * t);
+                }
+            }
+            necksight_step_u8(&state, frame_u8, 16U, &res);
+            if (res.triggered) v2_pan_fa++;
+        }
+        v2_fallback_ok = (state.weights == NULL && v2_loom && v2_pan_fa == 0) ? 1 : 0;
+
+        /* Scrambled connectome RF table: permute patches across columns/rows */
+        memcpy(&scram_w, necksight_default_weights(), sizeof(scram_w));
+        for (idx = 0U; idx < 64U * 4U; idx++) {
+            unsigned int p0;
+            for (p0 = 0U; p0 < 64U; p0++) {
+                unsigned int p_src = ((p0 * 29U) + (idx * 17U) + 11U) & 63U;
+                scram_w.W_lplc2_rf_q8[idx * 64U + p0] =
+                    necksight_default_weights()->W_lplc2_rf_q8[idx * 64U + p_src];
+            }
+        }
+        necksight_init(&state);
+        necksight_set_weights(&state, &scram_w);
+        state.enable_lc4_bar = 0U;
+        for (t = 0; t < 28; t++) {
+            int rem = 30 - t;
+            int rad_q2 = (96 + rem / 2) / rem;
+            int r2_q4 = rad_q2 * rad_q2;
+            for (y = 0; y < NECKSIGHT_GRID; y++) {
+                for (x = 0; x < NECKSIGHT_GRID; x++) {
+                    int dy = y - 16;
+                    int dx = x - 16;
+                    int d2_q4 = (dx * dx + dy * dy) * 16;
+                    frame_u8[y * NECKSIGHT_GRID + x] = (d2_q4 <= r2_q4) ? 12U : synth_clutter_u8(y, x);
+                }
+            }
+            necksight_step_u8(&state, frame_u8, 16U, &res);
+            if (res.looming_score_q10 > scrambled_loom_peak) {
+                scrambled_loom_peak = res.looming_score_q10;
+            }
+        }
+        if (!v2_fallback_ok || scrambled_loom_peak >= dark_loom_peak) {
+            fprintf(stderr, "FAIL (j) connectome/v2 check: v2_ok=%d scram=%u real=%u\n",
+                    v2_fallback_ok, (unsigned)scrambled_loom_peak, (unsigned)dark_loom_peak);
+            failures++;
+        }
+    }
+
     /* (f) Single-core throughput benchmark (> 2,000 FPS requirement) */
     necksight_init(&state);
     c0 = clock();
@@ -659,12 +741,14 @@ int main(int argc, char **argv)
         printf("  \"roll3d_loom_derotated_triggered\": %d,\n", roll3d_loom_derot);
         printf("  \"roll3d_only_triggers\": %d,\n", roll3d_only_triggers);
         printf("  \"pure_roll_uncomp_triggers\": %d,\n", pure_roll_uncomp_triggers);
+        printf("  \"v2_fallback_ok\": %d,\n", v2_fallback_ok);
+        printf("  \"scrambled_loom_peak_q10\": %u,\n", (unsigned)scrambled_loom_peak);
         printf("  \"failures\": %d\n", failures);
         printf("}\n");
     } else {
         printf("NeckSight v%s ANSI C99 Self-Test (32x32 zero-heap, zero-float)\n",
                NECKSIGHT_VERSION_STRING);
-        printf("  sizeof(necksight_state_t) : %lu bytes (< 16384 B limit)\n",
+        printf("  sizeof(necksight_state_t) : %lu bytes (< 15000 B limit)\n",
                (unsigned long)state_bytes);
         printf("  [a] Rightward grating     : vx_sum=%+ld | max_loom=%u | triggers=%d\n",
                (long)grating_vx_sum, (unsigned)grating_max_loom, grating_triggers);
@@ -686,6 +770,8 @@ int main(int argc, char **argv)
                wire_top_triggered, (int)wire_top_avoid_y);
         printf("  [i] 3-DOF roll+yaw derot  : pure_roll_fa=%d | 3dof_loom=%d | 3dof_bg_fa=%d\n",
                pure_roll_uncomp_triggers, roll3d_loom_derot, roll3d_only_triggers);
+        printf("  [j] BANC v888 vs scram/v2 : v2_null_ok=%d | real_peak=%u > scram_peak=%u\n",
+               v2_fallback_ok, (unsigned)dark_loom_peak, (unsigned)scrambled_loom_peak);
         printf("  RESULT                    : %s\n", (failures == 0) ? "ALL PASSED" : "FAILED");
     }
 

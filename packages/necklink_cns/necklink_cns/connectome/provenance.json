@@ -1,0 +1,87 @@
+{
+  "version": "3.0.0",
+  "source_connectome": {
+    "dataset": "BANC v888 Adult Female Drosophila Whole-CNS",
+    "n_neurons_total": 157789,
+    "n_edges_total": 3036600,
+    "n_synapses_total": 23553107,
+    "sha256_connectome_compiled_npz": "adf507c8e402ecc19920d8a27cce01468215ff2f1e8396dd1fea2d1387f33b9e",
+    "sha256_neurons_meta_parquet": "781e0f66d9bf7319d1241a2f7cc9f99615b34a0c6d3c6eba6b9002d12f772525"
+  },
+  "parameters": {
+    "neckcompass": {
+      "M_exc_M_ed7_M_d7e_M_pa": {
+        "tag": "connectome",
+        "detail": "50 EPG + 40 Delta7 + 18 PEN_a + 24 PEN_b BANC v888 synapses"
+      },
+      "M_epg_pfl_W_pfl_dna02": {
+        "tag": "connectome",
+        "detail": "25 PFL3 + 12 PFL2 -> 2 DNa02 (1-hop + signed LAL 2-hop fractional input)"
+      },
+      "epg_tau_ms_and_er_plasticity": {
+        "tag": "literature",
+        "citation": "Seelig & Jayaraman (Nature 2015); Fisher et al. (Nature 2019); Westeinde et al. (Nature 2024)"
+      },
+      "TiltCompensatedAHRS": {
+        "tag": "engineering",
+        "detail": "3-axis MEMS accelerometer/magnetometer gravity projection front-end"
+      }
+    },
+    "necksight": {
+      "W_lplc2_rf_W_lpi_inh_W_lc4_rf": {
+        "tag": "connectome",
+        "detail": "6,412 T4a-d/T5a-d -> 64 LPLC2 + LPi opponency + Medulla/T2/Tm2/Tm4 -> 32 LC4 + Li22 inhibition on HS/VS-anchored retinotopic sheet"
+      },
+      "4_branch_dendritic_coincidence": {
+        "tag": "literature",
+        "citation": "Klapoetke et al. (Nature 2017); Ache et al. (Curr. Biol. 2019)"
+      },
+      "RetinaLaminaPreproc_and_3DOF_warp": {
+        "tag": "engineering",
+        "detail": "8-bit camera log-contrast front-end and IMU ego-rotation pixel warp"
+      }
+    },
+    "necksense": {
+      "claw_glom_claw_w_apl_mbon_kcab": {
+        "tag": "connectome",
+        "detail": "699 ALPN -> 1,024 KCg/KCab claws + inhomogeneous KC<->APL + KC->MBON weights"
+      },
+      "sensor_channel_to_glomerulus_modulo": {
+        "tag": "design_choice",
+        "detail": "Hardware channels mapped modulo 64 onto synapse-ranked BANC ALPN glomerular clusters"
+      },
+      "apl_5pct_sparsity_and_dan_plasticity": {
+        "tag": "literature",
+        "citation": "Honegger et al. (J. Neurosci. 2011); Lin et al. (Nat. Neurosci. 2014); Aso et al. (eLife 2014)"
+      },
+      "VibrationFrontEnd": {
+        "tag": "engineering",
+        "detail": "16-channel chordotonal-inspired integer time/spectral acoustic feature bank"
+      }
+    },
+    "neckcord": {
+      "C_vnc_inh_and_W_dn_leg": {
+        "tag": "connectome",
+        "detail": "5,331 VNC_exc -> 7,520 VNC_inh -> 391 Leg MNs (4.91x tripod inhibition) + 10 DN -> 6 Leg MN pools"
+      },
+      "repulsive_kuramoto_oscillator_freq": {
+        "tag": "literature",
+        "citation": "Mendes et al. (eLife 2013); DeAngelis et al. (eLife 2019)"
+      },
+      "ShuntingThrusterCord_ESCObserver_HexapodLegIK": {
+        "tag": "engineering",
+        "detail": "Bounded [u_min, u_max] active-set thruster QP, sensorless ESC observer, and 3-servo leg inverse kinematics"
+      }
+    },
+    "necklink_cns": {
+      "W_brain_dn_and_W_dn_leg": {
+        "tag": "connectome",
+        "detail": "Parameter-free F + F^2 signed fractional input across 11 Brain populations -> 10 Core DNs -> 6 Leg MN pools"
+      },
+      "MAVLink2Codec_and_CRC4_4B_frame": {
+        "tag": "engineering",
+        "detail": "Wire-level MAVLink v2 and 32-bit CRC-4 telemetry/command framing"
+      }
+    }
+  }
+}

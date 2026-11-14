@@ -241,6 +241,8 @@ class CervicalBottleneckLink:
     exactly 4 (or 8, ...) lost frames is invisible. Pair it with a receive-timeout watchdog.
     """
 
+    PROVENANCE = "engineering"
+
     def __init__(self) -> None:
         self._tx_seq: int = 0
         self._rx_seq: int | None = None

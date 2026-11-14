@@ -1,4 +1,4 @@
-"""NeckCord (`neckcord` v2.0.0): Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord."""
+"""NeckCord (`neckcord` v3.0.0): BANC v888 VNC Premotor CPG, Cervical Bottleneck & Engineering Actuators."""
 
 from .allocator import AllocationResult, ShuntingThrusterCord
 from .cervical import (
@@ -10,11 +10,19 @@ from .cervical import (
     decode_descending_4b,
     encode_descending_4b,
 )
-from .cpg import CPGState, LIMB_NAMES, SegmentalCPGCord, compute_support_margin
+from .cpg import (
+    CPGState,
+    LIMB_NAMES,
+    SegmentalCPGCord,
+    compute_support_margin,
+    compute_tripod_order,
+    load_banc_vnc_weights,
+    maslov_sneppen_shuffle_vnc,
+)
 from .esc_observer import ESCFaultCode, ESCObserver, ESCObserverResult
 from .ik import HexapodLegIK, LegIKResult
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 __all__ = [
     "__version__",
@@ -34,6 +42,9 @@ __all__ = [
     "ShuntingThrusterCord",
     "compute_crc4",
     "compute_support_margin",
+    "compute_tripod_order",
     "decode_descending_4b",
     "encode_descending_4b",
+    "load_banc_vnc_weights",
+    "maslov_sneppen_shuffle_vnc",
 ]

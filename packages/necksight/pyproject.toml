@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necksight"
-version = "2.0.0"
-description = "Drosophila optic-lobe T4/T5 motion, LPLC2 + LC4 radial/bar looming reflex, 3-DOF gyro derotation, and DNa02 directional avoidance in Python and zero-heap ANSI C99"
+version = "3.0.0"
+description = "BANC v888 connectome-driven Drosophila optic-lobe T4/T5 motion, LPLC2/LPi + LC4/Li22 looming reflex, 3-DOF gyro derotation, and DNa02 directional avoidance in Python and zero-heap ANSI C99"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -31,7 +31,7 @@ keywords = [
   "esp32",
 ]
 classifiers = [
-  "Development Status :: 5 - Production/Stable",
+  "Development Status :: 4 - Beta",
   "Intended Audience :: Developers",
   "Intended Audience :: Science/Research",
   "Operating System :: OS Independent",
@@ -65,3 +65,6 @@ necksight = "necksight.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["necksight*"]
+
+[tool.setuptools.package-data]
+necksight = ["data/*.npz"]

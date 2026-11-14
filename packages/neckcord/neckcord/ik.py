@@ -70,7 +70,15 @@ class LegIKResult:
 
 
 class HexapodLegIK:
-    """Exact 3-DOF law-of-cosines inverse & forward kinematics for 6-legged robots."""
+    """Exact 3-DOF law-of-cosines inverse & forward kinematics for 6-legged robots.
+
+    Provenance (`PROVENANCE = "engineering"`):
+      Analytical 3-servo `(coxa, femur, tibia)` law-of-cosines inverse kinematics, hobby PWM
+      `1000..2000 us` pulse mapping, and `+45 mm` damaged-limb clearance parking are
+      non-biological robotic actuator engineering.
+    """
+
+    PROVENANCE: str = "engineering"
 
     def __init__(
         self,

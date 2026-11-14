@@ -48,7 +48,15 @@ class AllocationResult:
 
 
 class ShuntingThrusterCord:
-    """Box-constrained fault-tolerant 3-DOF / 4-DOF wrench allocator for `4`..`8` actuators."""
+    """Box-constrained fault-tolerant 3-DOF / 4-DOF wrench allocator for `4`..`8` actuators.
+
+    Provenance (`PROVENANCE = "engineering"`):
+      Bounded `[u_min_i, u_max_i]` active-set primal-dual thrust/rotor allocation, ESC deadband
+      jumping, and attitude-over-yaw priority are non-biological control-allocation engineering
+      for marine thrusters and aerial multicopter rotors (not *Drosophila* connectome weights).
+    """
+
+    PROVENANCE: str = "engineering"
 
     def __init__(
         self,

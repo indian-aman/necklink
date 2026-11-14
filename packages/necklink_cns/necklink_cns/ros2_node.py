@@ -35,6 +35,8 @@ class TwistCommand:
 class NeckLinkROS2Adapter:
     """Framework-agnostic adapter mapping ROS 2 sensor payloads into `NeckLinkCNS` steps."""
 
+    PROVENANCE = "engineering"
+
     def __init__(self, cns: Any, max_linear_m_s: float = 1.5, max_yaw_rad_s: float = 1.8) -> None:
         self.cns = cns
         self.max_linear_m_s = float(max_linear_m_s)

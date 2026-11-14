@@ -10,6 +10,19 @@ SRCS := \
 	organs/neckcord.c \
 	organs/necksense.c
 
+HDRS := \
+	necklink_cns.h \
+	necklink_cns_banc_weights.h \
+	nl_mavlink.h \
+	organs/necksight.h \
+	organs/necksight_banc_weights.h \
+	organs/neckcompass.h \
+	organs/neckcompass_banc_weights.h \
+	organs/neckcord.h \
+	organs/neckcord_banc_weights.h \
+	organs/necksense.h \
+	organs/necksense_banc_weights.h
+
 SELFTEST_BIN := necklink_cns_selftest
 ASAN_BIN     := necklink_cns_selftest_asan
 
@@ -17,13 +30,13 @@ ASAN_BIN     := necklink_cns_selftest_asan
 
 all: $(SELFTEST_BIN)
 
-$(SELFTEST_BIN): $(SRCS) tools/necklink_cns_selftest.c necklink_cns.h nl_mavlink.h
+$(SELFTEST_BIN): $(SRCS) $(HDRS) tools/necklink_cns_selftest.c
 	$(CC) $(CFLAGS) $(INCLUDES) $(SRCS) tools/necklink_cns_selftest.c -o $(SELFTEST_BIN)
 
 test: $(SELFTEST_BIN)
 	./$(SELFTEST_BIN)
 
-sanitize: $(SRCS) tools/necklink_cns_selftest.c
+sanitize: $(SRCS) $(HDRS) tools/necklink_cns_selftest.c
 	$(CC) -O1 -g -std=c99 -Wall -Wextra -pedantic -Werror -DNL_CNS_TINY=1 -DNS_TINY=1 \
 		-fsanitize=address,undefined -fno-sanitize-recover=undefined \
 		$(INCLUDES) $(SRCS) tools/necklink_cns_selftest.c -o $(ASAN_BIN)

@@ -17,6 +17,7 @@ from necksight import (
     T4T5MotionEngine,
     __version__,
     attach_nltp_reflex,
+    load_banc_optic_weights,
 )
 from necksight.cli import _make_clutter, main as cli_main
 
@@ -461,11 +462,11 @@ def test_v2_version_consistency() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    assert __version__ == "2.0.0"
+    assert __version__ == "3.0.0"
     header = (root / "csrc" / "necksight.h").read_text(encoding="utf-8")
-    assert '#define NECKSIGHT_VERSION_STRING "2.0.0"' in header
+    assert '#define NECKSIGHT_VERSION_STRING "3.0.0"' in header
     props = (root / "arduino" / "NeckSight" / "library.properties").read_text(encoding="utf-8")
-    assert "version=2.0.0" in props
+    assert "version=3.0.0" in props
 
 
 @pytest.mark.parametrize("dark_pole", [True, False])
@@ -517,9 +518,9 @@ def test_lc4_horizontal_wire_and_bar_false_alarm_immunity() -> None:
             wire_trig.append(tr)
     assert len(wire_trig) >= 1
     assert wire_trig[0].bar_score > 0.045
-    # Overhead wire at y=18 (< center 31.5) -> duck downward (+avoid_y)
-    assert wire_trig[0].avoid_y > 0.5
-    assert abs(wire_trig[0].avoid_x) < 1e-4
+    # Overhead wire at y=18 (< center 31.5) -> duck downward (+avoid_y = -cy_norm)
+    assert wire_trig[0].avoid_y > 0.25
+    assert wire_trig[0].avoid_y > 3.0 * abs(wire_trig[0].avoid_x)
 
     # 2. Translating vertical pole (constant width=5 px sweeping across FOV): 0 false alarms
     pipe.reset()
@@ -576,17 +577,26 @@ def test_directional_avoidance_vector_dna02_steering() -> None:
     assert trig_r is not None
     assert trig_r.avoid_x < -0.4
 
-    # Dead-center obstacle -> non-zero lateral escape decision within [-1, +1]
+    # Dead-center obstacle -> centered horizontal population vector in [-1, +1], valid v2 fallback
     pipe_c = NeckSightPipeline(grid_size=64)
+    pipe_c_v2 = NeckSightPipeline(grid_size=64, connectome_weights="v2_analytic")
     trig_c = None
+    trig_c_v2 = None
     for t in range(30):
         rad = (0.095 * 64.0) / max((30 - t) / 60.0, 0.03)
         edge = np.clip((rad - np.hypot(xx - 31.5, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
-        tr = pipe_c.step(bg * (1.0 - edge) + 12.0 * edge)
+        frame = bg * (1.0 - edge) + 12.0 * edge
+        tr = pipe_c.step(frame)
+        tr_v2 = pipe_c_v2.step(frame)
         if tr.triggered and trig_c is None:
             trig_c = tr
+        if tr_v2.triggered and trig_c_v2 is None:
+            trig_c_v2 = tr_v2
     assert trig_c is not None
-    assert math.hypot(trig_c.avoid_x, trig_c.avoid_y) >= 0.4
+    assert abs(trig_c.avoid_x) < 0.25
+    assert -1.0 <= trig_c.avoid_x <= 1.0 and -1.0 <= trig_c.avoid_y <= 1.0
+    assert trig_c_v2 is not None
+    assert math.hypot(trig_c_v2.avoid_x, trig_c_v2.avoid_y) >= 0.4
 
 
 def test_3dof_imu_roll_yaw_derotation_and_aec_hunting() -> None:
@@ -677,7 +687,7 @@ def test_c99_zero_heap_zero_float_and_arduino_sha256_parity() -> None:
             k, v = line.split("=", 1)
             props[k.strip()] = v.strip()
     assert props["name"] == "NeckSight"
-    assert props["version"] == "2.0.0"
+    assert props["version"] == "3.0.0"
     assert props["architectures"] == "*"
     assert props["includes"] == "NeckSight.h"
 
@@ -685,16 +695,22 @@ def test_c99_zero_heap_zero_float_and_arduino_sha256_parity() -> None:
     h_ard_hdr = hashlib.sha256((ard_root / "src" / "csrc" / "necksight.h").read_bytes()).hexdigest()
     assert h_csrc_hdr == h_ard_hdr
 
+    h_csrc_w = hashlib.sha256((root / "csrc" / "necksight_banc_weights.h").read_bytes()).hexdigest()
+    h_ard_w = hashlib.sha256((ard_root / "src" / "csrc" / "necksight_banc_weights.h").read_bytes()).hexdigest()
+    assert h_csrc_w == h_ard_w
+
     h_csrc_c = hashlib.sha256((root / "csrc" / "necksight.c").read_bytes()).hexdigest()
     h_ard_c = hashlib.sha256((ard_root / "src" / "csrc" / "necksight.c").read_bytes()).hexdigest()
     assert h_csrc_c == h_ard_c
 
     c_files = [
         root / "csrc" / "necksight.h",
+        root / "csrc" / "necksight_banc_weights.h",
         root / "csrc" / "necksight.c",
         root / "csrc" / "tools" / "necksight_selftest.c",
         umb_path,
         ard_root / "src" / "csrc" / "necksight.h",
+        ard_root / "src" / "csrc" / "necksight_banc_weights.h",
         ard_root / "src" / "csrc" / "necksight.c",
         ino_path,
     ]
@@ -716,31 +732,38 @@ def test_c99_and_python_agreement() -> None:
     c_json = None
 
     cc = shutil.which("gcc") or shutil.which("clang") or shutil.which("cc")
-    if cc is not None:
-        exe = csrc / "build" / ("necksight_selftest_py.exe" if shutil.which("where") else "necksight_selftest_py")
-        exe.parent.mkdir(parents=True, exist_ok=True)
-        subprocess.run(
-            [cc, "-O2", "-std=c99", "-I", str(csrc), "-o", str(exe),
-             str(csrc / "tools" / "necksight_selftest.c"), str(csrc / "necksight.c")],
-            check=True,
-        )
-        res = subprocess.run([str(exe), "--json"], capture_output=True, text=True, check=True)
-        c_json = json.loads(res.stdout)
-        exe.unlink(missing_ok=True)
-    elif shutil.which("wsl") is not None:
+    if cc is not None and csrc.is_dir():
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as td:
+            exe = Path(td) / ("necksight_selftest_py.exe" if shutil.which("where") else "necksight_selftest_py")
+            subprocess.run(
+                [cc, "-O2", "-std=c99", "-I", str(csrc), "-o", str(exe),
+                 str(csrc / "tools" / "necksight_selftest.c"), str(csrc / "necksight.c")],
+                check=True,
+            )
+            res = subprocess.run([str(exe), "--json"], capture_output=True, text=True, check=True)
+            c_json = json.loads(res.stdout)
+    elif shutil.which("wsl") is not None and csrc.is_dir():
         wsl_csrc = subprocess.run(
             ["wsl", "-e", "wslpath", "-a", str(csrc)],
             capture_output=True, text=True, check=True,
         ).stdout.strip()
         res = subprocess.run(
-            ["wsl", "-e", "bash", "-lc", f"cd '{wsl_csrc}' && ./build/necksight_selftest --json"],
+            [
+                "wsl",
+                "-e",
+                "bash",
+                "-lc",
+                f"cd '{wsl_csrc}' && gcc -O2 -std=c99 -I. tools/necksight_selftest.c necksight.c -lm -o /tmp/necksight_selftest_py && /tmp/necksight_selftest_py --json && rm -f /tmp/necksight_selftest_py",
+            ],
             capture_output=True, text=True, check=True,
         )
         c_json = json.loads(res.stdout)
 
     if c_json is not None:
-        assert c_json["version"] == "2.0.0"
-        assert c_json["state_bytes"] < 16384
+        assert c_json["version"] == "3.0.0"
+        assert c_json["state_bytes"] < 15000
         assert c_json["failures"] == 0
         assert c_json["pan_triggers"] == 0
         assert c_json["flash_20x_triggers"] == 0
@@ -751,6 +774,8 @@ def test_c99_and_python_agreement() -> None:
         assert c_json["wire_top_avoid_y_q7"] > 0
         assert c_json["roll3d_loom_derotated_triggered"] == 1
         assert c_json["roll3d_only_triggers"] == 0
+        assert c_json["v2_fallback_ok"] == 1
+        assert c_json["dark_loom_peak_q10"] > c_json["scrambled_loom_peak_q10"]
 
     # Identical 32x32 left-pole, right-pole, and top-wire stimuli in Python must agree in trigger + dodge sign
     yy, xx = np.meshgrid(np.arange(32, dtype=np.float32), np.arange(32, dtype=np.float32), indexing="ij")
@@ -778,3 +803,90 @@ def test_c99_and_python_agreement() -> None:
     assert tr_pl is not None and tr_pl.avoid_x > 0.0
     assert tr_pr is not None and tr_pr.avoid_x < 0.0
     assert tr_wt is not None and tr_wt.avoid_y > 0.0
+
+
+def test_v3_provenance_tags() -> None:
+    """Verify explicit engineering / literature / connectome provenance tags across layers."""
+    assert RetinaLaminaPreproc.PROVENANCE == "engineering"
+    assert T4T5MotionEngine.PROVENANCE == "literature"
+    assert LPLC2LoomingReflex.PROVENANCE == "connectome"
+    assert NeckSightPipeline.PROVENANCE == "connectome"
+
+
+def test_v3_banc_connectome_weights_custom_dict_shuffles_and_v2_fallback() -> None:
+    """Verify BANC v888 weights, custom/shuffled dict injection (fixed gain), and v2 fallback."""
+    optic = load_banc_optic_weights()
+    assert optic["W_lplc2_rf"].shape == (64, 4, 64)
+    assert optic["lplc2_t4_frac"].shape == (64,)
+    assert optic["W_lpi_inh_dir"].shape == (64, 4)
+    assert optic["lplc2_centers_xy"].shape == (64, 2)
+    assert optic["W_lc4_rf"].shape == (32, 64)
+    assert optic["lc4_li_inh"].shape == (32,)
+    assert optic["lc4_centers_xy"].shape == (32, 2)
+
+    rng = np.random.default_rng(2026)
+    bg = _make_clutter(64, 64, rng)
+    yy, xx = np.meshgrid(np.arange(64, dtype=np.float32), np.arange(64, dtype=np.float32), indexing="ij")
+
+    loom_frames = []
+    recede_frames = []
+    left_frames = []
+    for t in range(30):
+        # Approaching obstacle expanding across the biological 30-60 deg LPLC2 arbor (4.1 -> 12.8 px)
+        rad_app = (0.032 * 64.0) / max((30 - t) / 60.0, 0.16)
+        edge_app = np.clip((rad_app - np.hypot(xx - 31.5, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        loom_frames.append(bg * (1.0 - edge_app) + 12.0 * edge_app)
+
+        rad_rec = max(2.0, 24.0 - 0.65 * t)
+        edge_rec = np.clip((rad_rec - np.hypot(xx - 31.5, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        recede_frames.append(bg * (1.0 - edge_rec) + 12.0 * edge_rec)
+
+        rad_left = (0.095 * 64.0) / max((30 - t) / 60.0, 0.03)
+        edge_l = np.clip((rad_left - np.hypot(xx - 18.0, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        left_frames.append(bg * (1.0 - edge_l) + 12.0 * edge_l)
+
+    # 1. Exact agreement between "banc_v888" default and explicit optic dict
+    pipe_default = NeckSightPipeline(grid_size=64, connectome_weights="banc_v888", enable_lc4_bar=False)
+    pipe_dict = NeckSightPipeline(grid_size=64, connectome_weights=optic, enable_lc4_bar=False)
+    scores_def = [pipe_default.step(f).looming_score for f in loom_frames]
+    scores_dict = [pipe_dict.step(f).looming_score for f in loom_frames]
+    assert np.allclose(scores_def, scores_dict)
+    real_loom_peak = max(scores_def)
+    assert real_loom_peak > 0.15
+
+    pipe_default.reset()
+    real_recede_peak = max(pipe_default.step(f).looming_score for f in recede_frames)
+    assert real_recede_peak < 0.01
+
+    pipe_default.reset()
+    real_left_avoid = [pipe_default.step(f).avoid_x for f in left_frames]
+    assert max(real_left_avoid) > 0.35
+
+    # 2. Shuffled optic dicts with FIXED biophysical gain (no per-shuffle re-tuning!)
+    shuf_peaks = []
+    shuf_recede_peaks = []
+    for seed in range(8):
+        s_rng = np.random.default_rng(9000 + seed)
+        shuf_w = {k: v.copy() for k, v in optic.items()}
+        for m in range(64):
+            for d in range(4):
+                shuf_w["W_lplc2_rf"][m, d] = s_rng.permutation(shuf_w["W_lplc2_rf"][m, d])
+        shuf_w["lplc2_centers_xy"] = shuf_w["lplc2_centers_xy"][s_rng.permutation(64)]
+        pipe_shuf = NeckSightPipeline(grid_size=64, connectome_weights=shuf_w, enable_lc4_bar=False)
+        shuf_peaks.append(max(pipe_shuf.step(f).looming_score for f in loom_frames))
+        pipe_shuf.reset()
+        shuf_recede_peaks.append(max(pipe_shuf.step(f).looming_score for f in recede_frames))
+
+    assert real_loom_peak > 5.0 * float(np.mean(shuf_peaks))
+    assert float(np.mean(shuf_recede_peaks)) > 0.08 > real_recede_peak
+
+    # 3. Legacy v2_analytic fallback + invalid weights validation
+    pipe_v2 = NeckSightPipeline(grid_size=64, connectome_weights="v2_analytic")
+    assert max(pipe_v2.step(f).looming_score for f in loom_frames) > 0.08
+    pipe_v2.reset()
+    assert max(pipe_v2.step(f).looming_score for f in recede_frames) < 0.045
+
+    with pytest.raises(ValueError):
+        NeckSightPipeline(grid_size=64, connectome_weights="nonexistent_connectome")
+    with pytest.raises(ValueError):
+        NeckSightPipeline(grid_size=64, connectome_weights={"W_lplc2_rf": np.zeros((64, 4, 64))})

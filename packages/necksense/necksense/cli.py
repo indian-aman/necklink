@@ -20,6 +20,7 @@ from typing import Sequence
 
 import numpy as np
 
+from . import __version__
 from .antennal import AntennalNormalizer
 from .kenyon import KenyonHasher, KenyonIndex, popcount_u64
 from .mushroom import MushroomNoveltyDetector, MushroomValenceClassifier
@@ -110,7 +111,7 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     vib_pred_10x = vib_clf.predict(vib_fe.extract(10.0 * spall_1x))
 
     payload = {
-        "version": "2.0.0",
+        "version": __version__,
         "antennal_100x_cosine_similarity": round(cos_100x, 6),
         "kenyon_tag_bytes": idx.hasher.tag_bytes,
         "kenyon_active_k": idx.hasher.k_winners,
@@ -127,7 +128,7 @@ def _cmd_demo(args: argparse.Namespace) -> int:
         print(json.dumps(payload, indent=2))
         return 0
 
-    print("NeckSense v2.0.0 - Drosophila Olfactory, Chordotonal & Mushroom Body Demo")
+    print(f"NeckSense v{__version__} - Drosophila Olfactory, Chordotonal & Mushroom Body Demo")
     print("=" * 74)
     print(f"[1] Antennal Lobe (Olsen-Wilson LN): 100x plume cosine sim = {cos_100x:.6f}")
     print(
@@ -347,6 +348,7 @@ def _cmd_hash_csv(args: argparse.Namespace) -> int:
         d_proj=args.d_proj,
         wta_frac=args.wta_frac,
         seed=args.seed,
+        connectome_weights=args.connectome_weights,
         c_parity=args.c_parity,
     )
     tags = hasher.hash(X)
@@ -397,6 +399,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--antennal-normalize",
         action="store_true",
         help="Apply stateless Olsen-Wilson AntennalNormalizer prior to hashing",
+    )
+    p_hash.add_argument(
+        "--connectome-weights",
+        choices=("banc_v888", "v2_analytic"),
+        default="banc_v888",
+        help="Mushroom Body projection mode ('banc_v888' connectome default or 'v2_analytic')",
     )
     p_hash.add_argument("--c-parity", action="store_true", help="Use Q16.16 C99 bit-parity quantization")
     p_hash.set_defaults(func=_cmd_hash_csv)

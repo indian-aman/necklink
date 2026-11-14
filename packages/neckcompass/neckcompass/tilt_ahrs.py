@@ -119,6 +119,8 @@ class TiltCompensatedAHRS:
     and pitch.
     """
 
+    PROVENANCE: str = "engineering"
+
     def __init__(
         self,
         *,
@@ -312,6 +314,8 @@ class TiltCompensatedAHRS:
 
 class TiltCompensatedCompass:
     """Full 9-DOF Central Complex compass combining ``TiltCompensatedAHRS`` + ``RingCompass``."""
+
+    PROVENANCE: str = "engineering"
 
     def __init__(
         self,

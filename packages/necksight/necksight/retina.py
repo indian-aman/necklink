@@ -43,6 +43,8 @@ class RetinaLaminaPreproc:
          polarity rebound after a step edge).
     """
 
+    PROVENANCE = "engineering"
+
     def __init__(
         self,
         grid_size: Union[int, Tuple[int, int]] = 64,

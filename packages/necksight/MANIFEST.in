@@ -2,8 +2,10 @@ include LICENSE
 include README.md
 include pyproject.toml
 recursive-include necksight *.py
+recursive-include necksight/data *.npz
 include csrc/Makefile
 include csrc/necksight.h
+include csrc/necksight_banc_weights.h
 include csrc/necksight.c
 include csrc/tools/necksight_selftest.c
 recursive-include arduino *

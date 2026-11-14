@@ -4,9 +4,10 @@
  * Implements R1-R6 log photoreceptor adaptation, Lamina L1/L2 ON/OFF split
  * with glare + AEC/AGC hunting cancellation, 4-cardinal 3-arm T4/T5 Elementary
  * Motion Detectors (Hassenstein-Reichardt + Barlow-Levick shunting veto) with
- * connectome-grounded T5:T4 OFF/ON weighting, LPTC wide-field flow, LPLC2 4-arm
- * radial + LC4/LPLC1 thin-bar/wire looming gates, 3-DOF BAM gyro derotation, and
- * DNa02 contralateral evasive steering on a fixed 32x32 grid (< 16 KB RAM).
+ * connectome-grounded T5:T4 OFF/ON weighting, LPTC wide-field flow, real BANC v888
+ * 64-neuron LPLC2 + LPi and 32-neuron LC4 + Li22 connectome looming gates (with
+ * NULL-pointer fallback to v2 analytic SAT), 3-DOF BAM gyro derotation, and
+ * DNa02 contralateral evasive steering on a fixed 32x32 grid (< 15000 B SRAM).
  *
  * Author: Amandeep Singh Bains
  * License: MIT
@@ -17,15 +18,24 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "necksight_banc_weights.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define NECKSIGHT_VERSION_MAJOR 2
+#define NECKSIGHT_VERSION_MAJOR 3
 #define NECKSIGHT_VERSION_MINOR 0
 #define NECKSIGHT_VERSION_PATCH 0
-#define NECKSIGHT_VERSION_STRING "2.0.0"
+#define NECKSIGHT_VERSION_STRING "3.0.0"
+
+static inline const necksight_banc_weights_t *necksight_header_weights_ref_(void)
+{
+    return &k_necksight_banc_default;
+}
+
+/* Return singleton default BANC v888 connectome weights table in Flash/RODATA. */
+const necksight_banc_weights_t *necksight_default_weights(void);
 
 #define NECKSIGHT_GRID 32
 #define NECKSIGHT_PIXELS (NECKSIGHT_GRID * NECKSIGHT_GRID)
@@ -72,6 +82,9 @@ typedef struct {
     uint16_t f_off[NECKSIGHT_PIXELS];
     int32_t sat[NECKSIGHT_SAT_LEN];
 
+    /* Connectome synaptic table in Flash/RODATA (&k_necksight_banc_default; NULL = v2 analytic) */
+    const necksight_banc_weights_t *weights;
+
     /* Giant Fiber, LC4 bar/wire & optical-tau scalar tracking */
     uint32_t gf_score_q10;
     uint32_t lc4_score_q10;
@@ -87,16 +100,19 @@ typedef struct {
     uint8_t initialized;
 } necksight_state_t;
 
-/* Compile-time guarantee: static state struct strictly < 16 KB (16384 bytes) */
-typedef char necksight_state_under_16kb_check[
-    (sizeof(necksight_state_t) < 16384U) ? 1 : -1
+/* Compile-time guarantee: static state struct strictly < 15000 bytes SRAM */
+typedef char necksight_state_under_15000b_check[
+    (sizeof(necksight_state_t) < 15000U) ? 1 : -1
 ];
 
-/* Initialize state with default threshold, T5 gain, and LC4 bar channel enabled. */
+/* Initialize state with default threshold, BANC v888 connectome weights, and LC4 enabled. */
 void necksight_init(necksight_state_t *st);
 
 /* Initialize state with a custom Q10 looming trigger threshold. */
 void necksight_init_custom(necksight_state_t *st, uint16_t threshold_q10);
+
+/* Set connectome weights pointer (&k_necksight_banc_default default; NULL = legacy v2 SAT). */
+void necksight_set_weights(necksight_state_t *st, const necksight_banc_weights_t *weights);
 
 /* Reset temporal adaptation and motion history while keeping configuration. */
 void necksight_reset(necksight_state_t *st);
@@ -198,6 +214,10 @@ public:
 
     void setT5OffGainQ8(uint16_t t5_gain_q8) {
         state_.t5_gain_q8 = t5_gain_q8;
+    }
+
+    void setWeights(const necksight_banc_weights_t *weights) {
+        necksight_set_weights(&state_, weights);
     }
 
     void derotateShiftQ4(int16_t dx_q4, int16_t dy_q4) {

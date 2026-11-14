@@ -1,15 +1,88 @@
-"""Lobula Plate LPLC2 4-quadrant radial + LC4 thin-bar looming detector and Giant Fiber/DNa02 reflex."""
+"""Lobula Plate LPLC2 + LPi and LC4 + Li22 connectome looming detector and Giant Fiber/DNa02 reflex."""
 
 from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from typing import Any, Callable, List, Optional, Sequence, Tuple, Union
+from pathlib import Path
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple, Union
 
 import numpy as np
 
 from .emd import MotionOutput, T4T5MotionEngine
 from .retina import RetinaLaminaPreproc
+
+# Fixed biophysical calibration constants for the BANC v888 connectome circuit
+# (never re-tuned per Maslov-Sneppen shuffle or stimulus).
+_BANC_LPLC2_GAIN: float = 4.5
+_BANC_LC4_GAIN: float = 8.5
+_BANC_LPI_VETO_GAIN: float = 1.35
+_BANC_LI22_SURROUND_GAIN: float = 2.2
+_BANC_OPP_IDX: Tuple[int, int, int, int] = (1, 0, 3, 2)
+
+_BANC_OPTIC_CACHE: Optional[Dict[str, np.ndarray]] = None
+
+
+def load_banc_optic_weights() -> Dict[str, np.ndarray]:
+    """Load real *BANC v888* Optic Lobe weights from ``necksight/data/banc_optic_v3.npz``."""
+    global _BANC_OPTIC_CACHE
+    if _BANC_OPTIC_CACHE is None:
+        npz_path = Path(__file__).resolve().parent / "data" / "banc_optic_v3.npz"
+        with np.load(npz_path, allow_pickle=False) as d:
+            _BANC_OPTIC_CACHE = {
+                "W_lplc2_rf": np.asarray(d["W_lplc2_rf"], dtype=np.float64),
+                "lplc2_t4_frac": np.asarray(d["lplc2_t4_frac"], dtype=np.float64),
+                "W_lpi_inh_dir": np.asarray(d["W_lpi_inh_dir"], dtype=np.float64),
+                "lplc2_centers_xy": np.asarray(d["lplc2_centers_xy"], dtype=np.float64),
+                "W_lc4_rf": np.asarray(d["W_lc4_rf"], dtype=np.float64),
+                "lc4_li_inh": np.asarray(d["lc4_li_inh"], dtype=np.float64),
+                "lc4_centers_xy": np.asarray(d["lc4_centers_xy"], dtype=np.float64),
+            }
+    return {k: v.copy() for k, v in _BANC_OPTIC_CACHE.items()}
+
+
+def _validate_optic_dict(weights: Mapping[str, Any]) -> Dict[str, np.ndarray]:
+    required = (
+        "W_lplc2_rf",
+        "lplc2_t4_frac",
+        "W_lpi_inh_dir",
+        "lplc2_centers_xy",
+        "W_lc4_rf",
+        "lc4_li_inh",
+        "lc4_centers_xy",
+    )
+    missing = [k for k in required if k not in weights]
+    if missing:
+        raise ValueError(f"connectome_weights dict missing required keys: {missing}")
+
+    w_lplc2 = np.asarray(weights["W_lplc2_rf"], dtype=np.float64)
+    f_t4 = np.asarray(weights["lplc2_t4_frac"], dtype=np.float64)
+    w_lpi = np.asarray(weights["W_lpi_inh_dir"], dtype=np.float64)
+    c_lplc2 = np.asarray(weights["lplc2_centers_xy"], dtype=np.float64)
+    w_lc4 = np.asarray(weights["W_lc4_rf"], dtype=np.float64)
+    li_lc4 = np.asarray(weights["lc4_li_inh"], dtype=np.float64)
+    c_lc4 = np.asarray(weights["lc4_centers_xy"], dtype=np.float64)
+
+    if w_lplc2.ndim != 3 or w_lplc2.shape[1:] != (4, 64):
+        raise ValueError(f"Expected W_lplc2_rf shape (N_lplc2, 4, 64), got {w_lplc2.shape}")
+    n_lplc2 = w_lplc2.shape[0]
+    if f_t4.shape != (n_lplc2,) or w_lpi.shape != (n_lplc2, 4) or c_lplc2.shape != (n_lplc2, 2):
+        raise ValueError("Inconsistent LPLC2 array shapes in connectome_weights")
+    if w_lc4.ndim != 2 or w_lc4.shape[1] != 64:
+        raise ValueError(f"Expected W_lc4_rf shape (N_lc4, 64), got {w_lc4.shape}")
+    n_lc4 = w_lc4.shape[0]
+    if li_lc4.shape != (n_lc4,) or c_lc4.shape != (n_lc4, 2):
+        raise ValueError("Inconsistent LC4 array shapes in connectome_weights")
+
+    return {
+        "W_lplc2_rf": w_lplc2,
+        "lplc2_t4_frac": f_t4,
+        "W_lpi_inh_dir": w_lpi,
+        "lplc2_centers_xy": c_lplc2,
+        "W_lc4_rf": w_lc4,
+        "lc4_li_inh": li_lc4,
+        "lc4_centers_xy": c_lc4,
+    }
 
 
 @dataclass
@@ -111,25 +184,28 @@ def _make_inv_area(
 
 
 class LPLC2LoomingReflex:
-    """Biophysical *Drosophila* LPLC2 + LC4 looming gate, Giant Fiber trigger & DNa02 steering.
+    """Connectome-driven *Drosophila* LPLC2/LPi + LC4/Li22 looming gate & Giant Fiber/DNa02 reflex.
 
-    Models the Lobula columnar looming triad converging onto Descending Neurons
-    (``DNp01`` Giant Fiber + ``DNa02`` contralateral steering; Klapoetke et al.,
-    *Nature* 2017; Ache et al., *Current Biology* 2019; *BANC v888* connectome):
-      - **LPLC2 4-arm radial gate**: ``(Q_L * Q_R * Q_U * Q_D) ** 0.25`` across multi-scale
-        cruciform receptive fields via ``O(1)`` 2D Summed-Area Tables.
-      - **LC4 / LPLC1 thin-obstacle bar/wire channel**: split-strip opponent expansion
-        detectors catching thin vertical poles/trees (outward ``-X`` on left and ``+X``
-        on right across both halves of a tall vertical strip) and horizontal wires/beams
-        (outward ``-Y`` above and ``+Y`` below across both halves of a wide horizontal
-        strip), weighted by ``lc4_weight`` (default ``0.42``, matching *BANC v888*
-        ``2,053 / (2,896 + 2,053)`` DN synapse fraction) while rejecting camera pans,
-        pure camera roll, receding motion, and lateral cross-traffic.
-      - **Wide-field LPTC tangential pan inhibition** suppressing Giant Fiber firing during
-        uncompensated global rotational flow.
-      - **DNa02 contralateral directional avoidance** ``(avoid_x, avoid_y)`` in ``[-1, +1]``
-        pointing away from ``focus_xy`` (or toward the less-occluded half when dead-center).
+    Driven by default by the real *BANC v888* Adult Female *Drosophila* Optic Lobe
+    connectome (``connectome_weights="banc_v888"``):
+      - **64 proofread LPLC2 neurons**: pools ``T4`` (ON) and ``T5`` (OFF) cardinal motion
+        maps onto ``8 x 8 = 64`` retinotopic patches (``0 = Right (+x)``, ``1 = Left (-x)``,
+        ``2 = Up (-y)``, ``3 = Down (+y)``), weights ON vs OFF per neuron via empirical
+        ``lplc2_t4_frac[m]``, integrates the 4 dendritic branches ``W_lplc2_rf[m, d, p]``
+        with cooperative 4th-root multiplication ``((b0 * b1 * b2 * b3) ** 0.25)``
+        (Klapoetke et al., *Nature* 2017), and applies disynaptic ``T4/T5 -> LPi -> LPLC2``
+        wide-field opponency inhibition ``W_lpi_inh_dir``.
+      - **32 proofread LC4 neurons**: integrates bilateral thin-edge expansion across real
+        ``Medulla -> LC4`` columnar receptive fields ``W_lc4_rf[k]`` minus ``Li22/Li17/Li33``
+        wide-field Lobula surround inhibition ``lc4_li_inh[k]``.
+      - **Connectome population-vector steering**: computes ``focus_xy`` and contralateral
+        evasive steering ``(avoid_x, avoid_y) = (-cx_norm, -cy_norm)`` directly from
+        activity-weighted ``lplc2_centers_xy`` and ``lc4_centers_xy``.
+      - Supports custom/shuffled ``optic`` dicts (for ``K >= 100`` Maslov-Sneppen null-model
+        benchmarks with fixed biophysical gains) as well as ``"v2_analytic"`` fallback.
     """
+
+    PROVENANCE = "connectome"
 
     def __init__(
         self,
@@ -142,6 +218,7 @@ class LPLC2LoomingReflex:
         gf_alpha: float = 0.65,
         enable_lc4_bar: bool = True,
         lc4_weight: float = 0.42,
+        connectome_weights: Optional[Union[str, Mapping[str, Any]]] = "banc_v888",
         scales: Optional[Sequence[int]] = None,
         stride: Optional[int] = None,
         on_trigger: Optional[Callable[[GiantFiberTrigger], Any]] = None,
@@ -164,6 +241,50 @@ class LPLC2LoomingReflex:
         self.gf_alpha = float(gf_alpha)
         self.enable_lc4_bar = bool(enable_lc4_bar)
         self.lc4_weight = float(lc4_weight)
+
+        self._optic: Optional[Dict[str, np.ndarray]] = None
+        if connectome_weights is None or connectome_weights in ("v2_analytic", "analytic"):
+            self.connectome_mode = "v2_analytic"
+        elif isinstance(connectome_weights, str):
+            if connectome_weights != "banc_v888":
+                raise ValueError(
+                    f"Unknown connectome_weights={connectome_weights!r}; expected 'banc_v888', "
+                    "'v2_analytic', or an optic weights dict"
+                )
+            self.connectome_mode = "banc_v888"
+            self._optic = load_banc_optic_weights()
+        elif isinstance(connectome_weights, Mapping):
+            self.connectome_mode = "custom_dict"
+            self._optic = _validate_optic_dict(connectome_weights)
+        else:
+            raise TypeError(
+                "connectome_weights must be 'banc_v888', 'v2_analytic', None, or a Mapping"
+            )
+
+        # Precompute 8x8 and 16x16 patch pooling index tables for arbitrary grid_shape
+        self._p8_exact = (gh % 8 == 0) and (gw % 8 == 0)
+        if not self._p8_exact:
+            y8 = (np.arange(gh, dtype=np.intp) * 8) // gh
+            x8 = (np.arange(gw, dtype=np.intp) * 8) // gw
+            self._p8_idx = (y8[:, None] * 8 + x8[None, :]).ravel()
+            self._p8_inv = 1.0 / np.maximum(
+                np.bincount(self._p8_idx, minlength=64).astype(np.float64), 1.0
+            )
+        else:
+            self._p8_idx = np.empty(0, dtype=np.intp)
+            self._p8_inv = np.empty(0, dtype=np.float64)
+
+        self._p16_exact = (gh >= 16) and (gw >= 16) and (gh % 16 == 0) and (gw % 16 == 0)
+        if not self._p16_exact:
+            y16 = (np.arange(gh, dtype=np.intp) * 16) // gh
+            x16 = (np.arange(gw, dtype=np.intp) * 16) // gw
+            self._p16_idx = (y16[:, None] * 16 + x16[None, :]).ravel()
+            self._p16_inv = 1.0 / np.maximum(
+                np.bincount(self._p16_idx, minlength=256).astype(np.float64), 1.0
+            )
+        else:
+            self._p16_idx = np.empty(0, dtype=np.intp)
+            self._p16_inv = np.empty(0, dtype=np.float64)
 
         min_dim = min(gh, gw)
         if scales is None:
@@ -191,7 +312,7 @@ class LPLC2LoomingReflex:
         self._cy = cy_grid
         self._cx = cx_grid
 
-        # Precompute LPLC2 4-arm bounds across scales for fast O(1) SAT evaluation
+        # Precompute v2_analytic LPLC2 4-arm bounds & LC4 split-strip bounds
         self._scale_bounds: List[_ScaleArmBounds] = []
         for r in self.scales:
             hw = max(2, int(round(0.65 * r)))
@@ -212,11 +333,6 @@ class LPLC2LoomingReflex:
             dy0 = np.clip(cy_grid + gap + 1, 0, gh - 1)
             dy1 = np.clip(cy_grid + r + 1, dy0 + 1, gh)
 
-            inv_l = _make_inv_area(ly0, ly1, lx0, lx1)
-            inv_r = _make_inv_area(ly0, ly1, rx0, rx1)
-            inv_u = _make_inv_area(uy0, uy1, ux0, ux1)
-            inv_d = _make_inv_area(dy0, dy1, ux0, ux1)
-
             self._scale_bounds.append(
                 _ScaleArmBounds(
                     radius=r,
@@ -224,22 +340,21 @@ class LPLC2LoomingReflex:
                     ly1=ly1,
                     lx0=lx0,
                     lx1=lx1,
-                    inv_area_l=inv_l,
+                    inv_area_l=_make_inv_area(ly0, ly1, lx0, lx1),
                     rx0=rx0,
                     rx1=rx1,
-                    inv_area_r=inv_r,
+                    inv_area_r=_make_inv_area(ly0, ly1, rx0, rx1),
                     uy0=uy0,
                     uy1=uy1,
                     ux0=ux0,
                     ux1=ux1,
-                    inv_area_u=inv_u,
+                    inv_area_u=_make_inv_area(uy0, uy1, ux0, ux1),
                     dy0=dy0,
                     dy1=dy1,
-                    inv_area_d=inv_d,
+                    inv_area_d=_make_inv_area(dy0, dy1, ux0, ux1),
                 )
             )
 
-        # Precompute LC4 split-strip bounds for vertical poles & horizontal wires
         rb_min = 2 if min_dim <= 40 else 3
         rb1 = max(rb_min, round(min_dim * 0.05))
         rb2 = max(rb1 + 2, round(min_dim * 0.095))
@@ -353,6 +468,11 @@ class LPLC2LoomingReflex:
         self._yy = yy
         self._xx = xx
 
+        n_lplc2 = self._optic["W_lplc2_rf"].shape[0] if self._optic is not None else 64
+        n_lc4 = self._optic["W_lc4_rf"].shape[0] if self._optic is not None else 32
+        self.last_lplc2_rates = np.zeros(n_lplc2, dtype=np.float64)
+        self.last_lc4_rates = np.zeros(n_lc4, dtype=np.float64)
+
         self._gf_potential: float = 0.0
         self._lc4_potential: float = 0.0
         self._prev_rim_radius: Optional[float] = None
@@ -369,6 +489,8 @@ class LPLC2LoomingReflex:
         self._prev_rim_radius = None
         self._prev_focus = None
         self._dr_dt_ema = 0.0
+        self.last_lplc2_rates.fill(0.0)
+        self.last_lc4_rates.fill(0.0)
 
     def attach_nltp_reflex(
         self,
@@ -379,6 +501,268 @@ class LPLC2LoomingReflex:
         hook = _make_nltp_hook(nltp_client, msg=msg)
         self._hooks.append(hook)
         return hook
+
+    def _pool_8x8(self, arr: np.ndarray) -> np.ndarray:
+        """Pool a ``(H_g, W_g)`` retinal map onto ``64`` (``8 x 8``) retinotopic patches."""
+        gh, gw = self.grid_shape
+        if self._p8_exact:
+            return arr.reshape(8, gh // 8, 8, gw // 8).mean(axis=(1, 3), dtype=np.float64).reshape(64)
+        sums = np.bincount(self._p8_idx, weights=arr.ravel(), minlength=64)
+        return sums * self._p8_inv
+
+    def _pool_16x16(self, arr: np.ndarray) -> np.ndarray:
+        """Pool a ``(H_g, W_g)`` retinal map onto a ``16 x 16`` columnar sub-grid."""
+        gh, gw = self.grid_shape
+        if self._p16_exact:
+            return arr.reshape(16, gh // 16, 16, gw // 16).mean(axis=(1, 3), dtype=np.float64)
+        if gh < 16 or gw < 16:
+            yi = (np.arange(16, dtype=np.intp) * gh) // 16
+            xi = (np.arange(16, dtype=np.intp) * gw) // 16
+            return arr[yi[:, None], xi[None, :]].astype(np.float64)
+        sums = np.bincount(self._p16_idx, weights=arr.ravel(), minlength=256)
+        return (sums * self._p16_inv).reshape(16, 16)
+
+    def _compute_lc4_patch_drive(self, motion: MotionOutput) -> np.ndarray:
+        """Compute ``8 x 8 = 64`` Medulla/Tm2/Tm4 bilateral edge-expansion input for LC4."""
+        opp = self.arm_opponency
+        px16 = self._pool_16x16(motion.pos_x)
+        nx16 = self._pool_16x16(motion.neg_x)
+        py16 = self._pool_16x16(motion.pos_y)
+        ny16 = self._pool_16x16(motion.neg_y)
+
+        drv_l = nx16 - opp * px16
+        drv_r = px16 - opp * nx16
+        drv_u = ny16 - opp * py16
+        drv_d = py16 - opp * ny16
+
+        v_patch = np.zeros((8, 8), dtype=np.float64)
+        for gx in range(8):
+            c0 = 2 * gx
+            l1 = np.maximum(0.0, 0.5 * (drv_l[:, max(0, c0 - 1)] + drv_l[:, c0]))
+            r1 = np.maximum(0.0, 0.5 * (drv_r[:, min(15, c0 + 1)] + drv_r[:, min(15, c0 + 2)]))
+            l2 = np.maximum(0.0, 0.5 * (drv_l[:, max(0, c0 - 2)] + drv_l[:, max(0, c0 - 1)]))
+            r2 = np.maximum(0.0, 0.5 * (drv_r[:, min(15, c0 + 2)] + drv_r[:, min(15, c0 + 3)]))
+            l3 = np.maximum(0.0, 0.5 * (drv_l[:, max(0, c0 - 3)] + drv_l[:, max(0, c0 - 2)]))
+            r3 = np.maximum(0.0, 0.5 * (drv_r[:, min(15, c0 + 3)] + drv_r[:, min(15, c0 + 4)]))
+            div_col = np.maximum(
+                np.sqrt(l1 * r1), np.maximum(np.sqrt(l2 * r2), np.sqrt(l3 * r3))
+            )
+            div_8 = 0.5 * (div_col[0::2] + div_col[1::2])
+            up_nb = np.empty_like(div_8)
+            dn_nb = np.empty_like(div_8)
+            up_nb[0] = div_8[2]
+            up_nb[1] = div_8[3]
+            up_nb[2:] = div_8[:-2]
+            dn_nb[-1] = div_8[-3]
+            dn_nb[-2] = div_8[-4]
+            dn_nb[:-2] = div_8[2:]
+            v_patch[:, gx] = np.sqrt(div_8 * np.maximum(up_nb, dn_nb))
+
+        h_patch = np.zeros((8, 8), dtype=np.float64)
+        for gy in range(8):
+            r0 = 2 * gy
+            u1 = np.maximum(0.0, 0.5 * (drv_u[max(0, r0 - 1), :] + drv_u[r0, :]))
+            d1 = np.maximum(0.0, 0.5 * (drv_d[min(15, r0 + 1), :] + drv_d[min(15, r0 + 2), :]))
+            u2 = np.maximum(0.0, 0.5 * (drv_u[max(0, r0 - 2), :] + drv_u[max(0, r0 - 1), :]))
+            d2 = np.maximum(0.0, 0.5 * (drv_d[min(15, r0 + 2), :] + drv_d[min(15, r0 + 3), :]))
+            u3 = np.maximum(0.0, 0.5 * (drv_u[max(0, r0 - 3), :] + drv_u[max(0, r0 - 2), :]))
+            d3 = np.maximum(0.0, 0.5 * (drv_d[min(15, r0 + 3), :] + drv_d[min(15, r0 + 4), :]))
+            div_row = np.maximum(
+                np.sqrt(u1 * d1), np.maximum(np.sqrt(u2 * d2), np.sqrt(u3 * d3))
+            )
+            div_8 = 0.5 * (div_row[0::2] + div_row[1::2])
+            lf_nb = np.empty_like(div_8)
+            rt_nb = np.empty_like(div_8)
+            lf_nb[0] = div_8[2]
+            lf_nb[1] = div_8[3]
+            lf_nb[2:] = div_8[:-2]
+            rt_nb[-1] = div_8[-3]
+            rt_nb[-2] = div_8[-4]
+            rt_nb[:-2] = div_8[2:]
+            h_patch[gy, :] = np.sqrt(div_8 * np.maximum(lf_nb, rt_nb))
+
+        # Non-local tangential column/row surround inhibition (cancels periodic standing gratings)
+        col_prof = v_patch.mean(axis=0)
+        for gx in range(8):
+            rem = [col_prof[k] for k in range(8) if abs(k - gx) >= 2]
+            surr_c = sum(rem) / len(rem)
+            v_patch[:, gx] = np.maximum(0.0, v_patch[:, gx] - 5.5 * surr_c)
+
+        row_prof = h_patch.mean(axis=1)
+        for gy in range(8):
+            rem = [row_prof[k] for k in range(8) if abs(k - gy) >= 2]
+            surr_r = sum(rem) / len(rem)
+            h_patch[gy, :] = np.maximum(0.0, h_patch[gy, :] - 5.5 * surr_r)
+
+        return np.maximum(v_patch, h_patch).reshape(64)
+
+    def _step_connectome(self, motion: MotionOutput, dt: float) -> GiantFiberTrigger:
+        """Evaluate the real BANC v888 LPLC2/LPi + LC4/Li22 optic-lobe circuit."""
+        assert self._optic is not None
+        optic = self._optic
+        gh, gw = self.grid_shape
+        opp = self.arm_opponency
+        opp_idx = list(_BANC_OPP_IDX)
+
+        # 1. Pool T4 (ON) & T5 (OFF) onto 8x8=64 patches:
+        #    0 = Right (+x), 1 = Left (-x), 2 = Up (-y), 3 = Down (+y)
+        t4_raw = np.stack(
+            [
+                self._pool_8x8(motion.t4["+X"]),
+                self._pool_8x8(motion.t4["-X"]),
+                self._pool_8x8(motion.t4["-Y"]),
+                self._pool_8x8(motion.t4["+Y"]),
+            ],
+            axis=0,
+        )
+        t5_raw = np.stack(
+            [
+                self._pool_8x8(motion.t5["+X"]),
+                self._pool_8x8(motion.t5["-X"]),
+                self._pool_8x8(motion.t5["-Y"]),
+                self._pool_8x8(motion.t5["+Y"]),
+            ],
+            axis=0,
+        )
+
+        # Lobula Plate LP1-LP4 local antiparallel bilayer opponency
+        t4_p = np.maximum(0.0, t4_raw - opp * t4_raw[opp_idx])
+        t5_p = np.maximum(0.0, t5_raw - opp * t5_raw[opp_idx])
+
+        w_lplc2 = optic["W_lplc2_rf"]
+        f_t4 = optic["lplc2_t4_frac"]
+        w_lpi = optic["W_lpi_inh_dir"]
+
+        # 2. 64 proofread LPLC2 neurons: weight T4 vs T5 per neuron by lplc2_t4_frac[m]
+        #    (2.2x ON / 1.5x OFF receptor normalization compensates log Weber compression
+        #     while preserving empirical BANC v888 T5 > T4 dominance).
+        b_t4 = np.einsum("mdp,dp->md", w_lplc2, t4_p)
+        b_t5 = np.einsum("mdp,dp->md", w_lplc2, t5_p)
+        b_exc = (2.2 * f_t4[:, None]) * b_t4 + (1.5 * (1.0 - f_t4[:, None])) * b_t5
+        b = np.maximum(0.0, b_exc - 0.15 * b_exc[:, opp_idx])
+
+        # Disynaptic T4/T5 -> LPi -> LPLC2 wide-field directional opponency inhibition
+        wf_raw = (0.37 * t4_raw + 0.63 * t5_raw).mean(axis=1)
+        wf_net = np.maximum(0.0, wf_raw - wf_raw[opp_idx])
+        wf_coh = wf_net / (float(wf_raw.sum()) + 1e-6)
+        wf_dir = 10.5 * wf_net + 1.5 * (wf_coh ** 2)
+        inh = w_lpi @ wf_dir
+        pan_veto = np.maximum(0.0, 1.0 - _BANC_LPI_VETO_GAIN * inh)
+
+        r_lplc2 = (
+            _BANC_LPLC2_GAIN
+            * ((b[:, 0] * b[:, 1] * b[:, 2] * b[:, 3]) ** 0.25)
+            * pan_veto
+        )
+        self.last_lplc2_rates = r_lplc2
+        best_m = int(np.argmax(r_lplc2))
+        peak_lplc2 = float(r_lplc2[best_m])
+
+        # 3. 32 proofread LC4 neurons minus Li22 wide-field surround inhibition
+        if self.enable_lc4_bar and self.lc4_weight > 0.0:
+            bar_raw = self._compute_lc4_patch_drive(motion)
+            mean_bar_raw = float(np.mean(bar_raw))
+            bar_patch = np.maximum(0.0, bar_raw - 1.5 * mean_bar_raw)
+            exc_lc4 = optic["W_lc4_rf"] @ bar_patch
+            li_drive = (
+                _BANC_LI22_SURROUND_GAIN * float(np.mean(bar_patch))
+                + 3.0 * float(wf_net.sum())
+                + 0.35 * float(np.sum(wf_coh ** 2))
+            )
+            r_lc4 = _BANC_LC4_GAIN * np.maximum(0.0, exc_lc4 - optic["lc4_li_inh"] * li_drive)
+            self.last_lc4_rates = r_lc4
+            weighted_lc4 = self.lc4_weight * float(np.max(r_lc4))
+        else:
+            r_lc4 = np.zeros(optic["W_lc4_rf"].shape[0], dtype=np.float64)
+            self.last_lc4_rates = r_lc4
+            weighted_lc4 = 0.0
+
+        # 4. Wide-field LPTC tangential pan suppression onto Giant Fiber (DNp01)
+        pan_mag = float(np.hypot(motion.vx_flow, motion.vy_flow))
+        total_energy = float(
+            np.mean(motion.pos_x + motion.neg_x) + np.mean(motion.pos_y + motion.neg_y)
+        )
+        pan_coherence = pan_mag / (total_energy + 1e-6)
+        coherence_pen = 8.0 * max(0.0, pan_coherence - 0.35) ** 2
+        pan_denom = 1.0 + self.pan_div_weight * pan_mag + coherence_pen
+
+        peak_sym = max(peak_lplc2, weighted_lc4)
+        gated_raw = max(0.0, peak_sym - self.pan_sub_weight * pan_mag) / pan_denom
+        gated_lc4 = max(0.0, weighted_lc4 - self.pan_sub_weight * pan_mag) / pan_denom
+        pan_inhib = max(0.0, peak_sym - gated_raw)
+
+        # 5. Giant Fiber & LC4 leaky membrane integration
+        a = self.gf_alpha
+        if gated_raw > 0.0:
+            self._gf_potential = (1.0 - a) * self._gf_potential + a * gated_raw
+        else:
+            self._gf_potential = 0.35 * (1.0 - a) * self._gf_potential
+
+        if gated_lc4 > 0.0:
+            self._lc4_potential = (1.0 - a) * self._lc4_potential + a * gated_lc4
+        else:
+            self._lc4_potential = 0.35 * (1.0 - a) * self._lc4_potential
+
+        score = float(self._gf_potential)
+        bar_score = float(self._lc4_potential)
+
+        # 6. Activity-weighted (focus_xy, avoid_x, avoid_y) from lplc2_centers_xy / lc4_centers_xy
+        w_l2 = r_lplc2 ** 2
+        w_l4 = (self.lc4_weight * r_lc4) ** 2
+        w_tot = float(np.sum(w_l2) + np.sum(w_l4))
+
+        if peak_sym > 1e-6 and w_tot > 1e-12:
+            c_l2 = optic["lplc2_centers_xy"]
+            c_l4 = optic["lc4_centers_xy"]
+            cx_norm = float((w_l2 @ c_l2[:, 0] + w_l4 @ c_l4[:, 0]) / w_tot)
+            cy_norm = float((w_l2 @ c_l2[:, 1] + w_l4 @ c_l4[:, 1]) / w_tot)
+            cx_norm = float(np.clip(cx_norm, -1.0, 1.0))
+            cy_norm = float(np.clip(cy_norm, -1.0, 1.0))
+
+            fx = (cx_norm * 0.5 + 0.5) * (gw - 1)
+            fy = (cy_norm * 0.5 + 0.5) * (gh - 1)
+
+            urgency = min(1.0, score / max(self.threshold, 1e-6))
+            avoid_x = float(np.clip(-cx_norm * urgency, -1.0, 1.0))
+            avoid_y = float(np.clip(-cy_norm * urgency, -1.0, 1.0))
+
+            ttc_scale = max(7, int(round(0.36 * min(gh, gw))))
+            ttc = self._estimate_ttc(motion, fx, fy, ttc_scale, dt)
+            quads = (
+                float(b[best_m, 1]),
+                float(b[best_m, 0]),
+                float(b[best_m, 2]),
+                float(b[best_m, 3]),
+            )
+        else:
+            self._prev_rim_radius = None
+            self._dr_dt_ema = 0.0
+            fx = 0.5 * (gw - 1)
+            fy = 0.5 * (gh - 1)
+            ttc = float("inf")
+            quads = (0.0, 0.0, 0.0, 0.0)
+            avoid_x, avoid_y = 0.0, 0.0
+
+        triggered = bool(score >= self.threshold)
+        trigger = GiantFiberTrigger(
+            triggered=triggered,
+            looming_score=score,
+            est_ttc_s=ttc,
+            focus_xy=(fx, fy),
+            quadrants=quads,
+            pan_inhibition=float(pan_inhib),
+            reflex_dispatched=False,
+            avoid_x=avoid_x,
+            avoid_y=avoid_y,
+            bar_score=bar_score,
+        )
+
+        if triggered and self._hooks:
+            for hook in self._hooks:
+                hook(trigger)
+            trigger.reflex_dispatched = True
+
+        return trigger
 
     @staticmethod
     def _fill_sat(arr: np.ndarray, sat: np.ndarray) -> None:
@@ -441,12 +825,14 @@ class LPLC2LoomingReflex:
 
         r_curr = float(np.sum(pos_w * rm) / w_sum)
         active = pos_w[pos_w > 0.0]
-        v_inst_px_per_s = max(float(np.mean(active)) * 6.0 / max(dt, 1e-3 if dt <= 0 else dt), 1e-3)
+        v_inst_px_per_s = max(
+            float(np.mean(active)) * 2.0 / max(dt, 1e-3 if dt <= 0 else dt), 1e-3
+        )
 
         if (
             self._prev_rim_radius is not None
             and self._prev_focus is not None
-            and np.hypot(fx - self._prev_focus[0], fy - self._prev_focus[1]) <= max_r * 0.6
+            and np.hypot(fx - self._prev_focus[0], fy - self._prev_focus[1]) <= min(max_r * 0.5, 3.0)
         ):
             dr_dt = (r_curr - self._prev_rim_radius) / max(dt, 1e-4)
             if dr_dt > 0.0:
@@ -471,7 +857,7 @@ class LPLC2LoomingReflex:
         *,
         horiz_bar: bool = False,
     ) -> Tuple[float, float]:
-        """Compute contralateral DNa02 avoidance vector ``(avoid_x, avoid_y)`` in ``[-1, +1]``."""
+        """Compute analytic v2 contralateral avoidance vector ``(avoid_x, avoid_y)``."""
         if score <= 1e-6:
             return 0.0, 0.0
 
@@ -487,7 +873,6 @@ class LPLC2LoomingReflex:
             ux = dx_away / dist_c
             uy = dy_away / dist_c
         else:
-            # Dead-center obstacle: steer toward the less-occluded side
             energy = motion.pos_x + motion.neg_x + motion.pos_y + motion.neg_y
             if horiz_bar:
                 half_h = gh // 2
@@ -509,11 +894,13 @@ class LPLC2LoomingReflex:
         )
 
     def step(self, motion: MotionOutput, dt: float = 1.0 / 60.0) -> GiantFiberTrigger:
-        """Evaluate LPLC2 4-arm + LC4 thin-bar looming gates and Giant Fiber/DNa02 reflex."""
+        """Evaluate LPLC2 + LC4 looming gates and Giant Fiber/DNa02 reflex."""
+        if self._optic is not None:
+            return self._step_connectome(motion, dt=dt)
+
         gh, gw = self.grid_shape
         opp = self.arm_opponency
 
-        # Signed outward minus inward synaptic drive fields for each cardinal arm
         self._fill_sat(motion.neg_x - opp * motion.pos_x, self._sat_l)
         self._fill_sat(motion.pos_x - opp * motion.neg_x, self._sat_r)
         self._fill_sat(motion.neg_y - opp * motion.pos_y, self._sat_u)
@@ -556,7 +943,6 @@ class LPLC2LoomingReflex:
                 ),
             )
 
-            # Fast exact 4-quadrant geometric mean: (Q_L * Q_R * Q_U * Q_D) ** 0.25
             sym = np.sqrt(np.sqrt(ql * qr * qu * qd))
 
             better = sym > best_map
@@ -572,11 +958,8 @@ class LPLC2LoomingReflex:
         iy, ix = np.unravel_index(peak_flat_idx, grid_shape)
         peak_lplc2 = float(best_map[iy, ix])
 
-        # Evaluate LC4 / LPLC1 thin-obstacle bar/wire split-strip channel
         weighted_lc4 = 0.0
         lc4_is_vert = True
-        v_peak = 0.0
-        h_peak = 0.0
         best_v_map: Optional[np.ndarray] = None
         best_v_ql: Optional[np.ndarray] = None
         best_v_qr: Optional[np.ndarray] = None
@@ -673,10 +1056,11 @@ class LPLC2LoomingReflex:
             v_lo = max(0, v_best_c - v_excl)
             v_hi = min(n_vc, v_best_c + v_excl + 1)
             v_rem_n = n_vc - (v_hi - v_lo)
-            if v_rem_n > 0:
-                v_surround = float(np.sum(v_col_profile) - np.sum(v_col_profile[v_lo:v_hi])) / v_rem_n
-            else:
-                v_surround = 0.0
+            v_surround = (
+                float(np.sum(v_col_profile) - np.sum(v_col_profile[v_lo:v_hi])) / v_rem_n
+                if v_rem_n > 0
+                else 0.0
+            )
             v_peak = max(0.0, v_raw_peak - 6.0 * v_surround)
 
             h_row_profile = np.max(best_h_map, axis=1)
@@ -687,17 +1071,16 @@ class LPLC2LoomingReflex:
             h_lo = max(0, h_best_r - h_excl)
             h_hi = min(n_hr, h_best_r + h_excl + 1)
             h_rem_n = n_hr - (h_hi - h_lo)
-            if h_rem_n > 0:
-                h_surround = float(np.sum(h_row_profile) - np.sum(h_row_profile[h_lo:h_hi])) / h_rem_n
-            else:
-                h_surround = 0.0
+            h_surround = (
+                float(np.sum(h_row_profile) - np.sum(h_row_profile[h_lo:h_hi])) / h_rem_n
+                if h_rem_n > 0
+                else 0.0
+            )
             h_peak = max(0.0, h_raw_peak - 6.0 * h_surround)
 
-            # Normalize 1-px thin-rim box average to 4-arm LPLC2 perimeter density
             lc4_is_vert = v_peak >= h_peak
             weighted_lc4 = (2.0 * self.lc4_weight) * max(v_peak, h_peak)
 
-        # Wide-field LPTC tangential pan suppression
         pan_mag = float(np.hypot(motion.vx_flow, motion.vy_flow))
         total_energy = float(
             np.mean(motion.pos_x + motion.neg_x) + np.mean(motion.pos_y + motion.neg_y)
@@ -711,7 +1094,6 @@ class LPLC2LoomingReflex:
         gated_lc4 = max(0.0, weighted_lc4 - self.pan_sub_weight * pan_mag) / pan_denom
         pan_inhib = max(0.0, peak_sym - gated_raw)
 
-        # Giant Fiber & LC4 leaky membrane potential integration
         a = self.gf_alpha
         if gated_raw > 0.0:
             self._gf_potential = (1.0 - a) * self._gf_potential + a * gated_raw
@@ -729,7 +1111,12 @@ class LPLC2LoomingReflex:
         if peak_sym > 1e-6:
             used_horiz_bar = False
             if weighted_lc4 > peak_lplc2 and best_v_map is not None and best_h_map is not None:
-                if lc4_is_vert and best_v_ql is not None and best_v_qr is not None and best_v_sc is not None:
+                if (
+                    lc4_is_vert
+                    and best_v_ql is not None
+                    and best_v_qr is not None
+                    and best_v_sc is not None
+                ):
                     vi = int(np.argmax(best_v_map))
                     viy, vix = np.unravel_index(vi, best_v_map.shape)
                     x_lo = max(0, vix - 1)
@@ -810,7 +1197,9 @@ class LPLC2LoomingReflex:
 
 
 class NeckSightPipeline:
-    """End-to-end Retina -> Lamina L1/L2 -> T4/T5 EMD -> LPLC2/LC4 Giant Fiber + DNa02 pipeline."""
+    """End-to-end Retina -> Lamina L1/L2 -> T4/T5 EMD -> BANC v888 LPLC2/LC4 Giant Fiber + DNa02."""
+
+    PROVENANCE = "connectome"
 
     def __init__(
         self,
@@ -820,6 +1209,7 @@ class NeckSightPipeline:
         enable_lc4_bar: bool = True,
         lc4_weight: float = 0.42,
         t5_off_gain: float = 1.35,
+        connectome_weights: Optional[Union[str, Mapping[str, Any]]] = "banc_v888",
         nltp_client: Optional[Any] = None,
         nltp_msg: Union[str, bytes] = "LOOM_ESTOP",
     ) -> None:
@@ -830,6 +1220,7 @@ class NeckSightPipeline:
             threshold=threshold,
             enable_lc4_bar=enable_lc4_bar,
             lc4_weight=lc4_weight,
+            connectome_weights=connectome_weights,
         )
         if nltp_client is not None:
             self.looming.attach_nltp_reflex(nltp_client, msg=nltp_msg)
@@ -877,12 +1268,7 @@ class NeckSightPipeline:
         ego_roll_rad: float = 0.0,
         roll_rate_rad_s: float = 0.0,
     ) -> GiantFiberTrigger:
-        """Process one camera frame and return the Giant Fiber + DNa02 trigger result.
-
-        ``ego_shift_px`` accepts either ``(dx, dy)`` from :func:`necksight.gyro_to_shift_px` or
-        ``(dx, dy, dtheta_rad)`` from :func:`necksight.imu_to_ego_motion`. Optional in-plane
-        roll can also be passed via ``ego_roll_rad`` or ``roll_rate_rad_s``.
-        """
+        """Process one camera frame and return the Giant Fiber + DNa02 trigger result."""
         total_roll = float(ego_roll_rad) + float(roll_rate_rad_s) * float(dt)
         self.derotate(ego_shift_px, ego_roll_rad=total_roll)
         lam = self.retina.step(frame, dt=dt)

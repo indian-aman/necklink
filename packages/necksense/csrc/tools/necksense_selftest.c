@@ -1,5 +1,5 @@
 /*
- * NeckSense v2.0.0 - ANSI C99 Self-Test & Cross-Language Parity Emitter
+ * NeckSense v3.0.0 - ANSI C99 Self-Test & Cross-Language Parity Emitter
  *
  * Verifies:
  *   1. Deterministic zero-heap sparse binary hashing & exact top-k WTA sparsity
@@ -10,6 +10,7 @@
  *   6. Chordotonal 16-ch integer vibration fault classification across 10x load scaling
  *   7. 2-Compartment KC-gamma + KC-alpha/beta zero-forgetting continual learning
  *   8. Turbulent plume whiff up-crossing & intermittency tracking
+ *   9. BANC v888 connectome weights, KCab-only consolidation mask & NULL fallback
  *
  * Zero dynamic allocation. Zero floating-point types.
  *
@@ -130,6 +131,9 @@ static int run_json_parity(void) {
     int32_t nov1, nov2, nov3, nov_after3;
     int32_t scores[4];
     int32_t ltm_scores[4];
+    uint64_t v2_tag1[16];
+    uint64_t v2_tag2[16];
+    int32_t v2_ltm_scores[4];
     int32_t vib_in_q16[64];
     int32_t vib_feat_q16[NS_VIB_CHANNELS];
     uint32_t best_cls = 0u;
@@ -181,12 +185,33 @@ static int run_json_parity(void) {
     ns_valence_scores(&g_val, tag1, scores);
     ns_valence_predict(&g_val, tag1, &best_cls, &best_sc);
 
-    /* v2.0 parity: consolidate class 0 & 1, then hit class 1 with 15 overlapping trials */
+    /* v3.0 BANC v888 parity: consolidate class 0 & 1, then hit class 1 with 15 overlapping trials */
     ns_valence_consolidate(&g_val, 16384);
     for (i = 0u; i < 15u; ++i) {
         ns_valence_learn(&g_val, tag2, 1u, NS_Q16_ONE);
     }
     ns_valence_scores(&g_val, tag1, ltm_scores);
+
+    /* Also emit legacy v2_analytic (weights == NULL) parity vector */
+    {
+        int32_t alt[8] = {4000, 62000, 51000, 9000, 2000, 31000, 1000, 5000};
+        int32_t alt_norm[8];
+        uint64_t v2_tag_alt[16];
+        ns_kenyon_set_weights(&g_ken, NULL);
+        ns_valence_init(&g_val, 1024u, 4u, 6554, 9830);
+        ns_valence_set_weights(&g_val, NULL);
+        ns_kenyon_hash(&g_ken, step1, v2_tag1);
+        ns_kenyon_hash(&g_ken, step2, v2_tag2);
+        ns_antennal_normalize(&g_ant, alt, alt_norm);
+        ns_kenyon_hash(&g_ken, alt_norm, v2_tag_alt);
+        ns_valence_learn(&g_val, v2_tag1, 0u, NS_Q16_ONE);
+        ns_valence_learn(&g_val, v2_tag_alt, 1u, NS_Q16_ONE);
+        ns_valence_consolidate(&g_val, 16384);
+        for (i = 0u; i < 15u; ++i) {
+            ns_valence_learn(&g_val, v2_tag2, 1u, NS_Q16_ONE);
+        }
+        ns_valence_scores(&g_val, v2_tag1, v2_ltm_scores);
+    }
 
     /* v2.0 parity: deterministic 64-sample vibration waveform */
     for (i = 0u; i < 64u; ++i) {
@@ -221,6 +246,12 @@ static int run_json_parity(void) {
     printf("  \"whiff_rate_q16\": %" PRId32 ",\n", g_ant.whiff_rate_q16);
     printf("  \"intermittency_q16\": %" PRId32 ",\n", g_ant.intermittency_q16);
     printf("  \"ltm_scores_q16\": [%" PRId32 ", %" PRId32 "],\n", ltm_scores[0], ltm_scores[1]);
+    printf("  \"v2_tag1_hex\": \"");
+    for (i = 0u; i < 16u; ++i) {
+        printf("%016" PRIx64, v2_tag1[i]);
+    }
+    printf("\",\n");
+    printf("  \"v2_ltm_scores_q16\": [%" PRId32 ", %" PRId32 "],\n", v2_ltm_scores[0], v2_ltm_scores[1]);
     printf("  \"vib_feat_q16\": [");
     for (i = 0u; i < NS_VIB_CHANNELS; ++i) {
         printf("%" PRId32 "%s", vib_feat_q16[i], (i + 1u < NS_VIB_CHANNELS) ? ", " : "");
@@ -512,12 +543,15 @@ int main(int argc, char **argv) {
     {
         const int32_t plume_ref[8] = {45875, 13107, 3277, 655, 32768, 6554, 1311, 19661};
         int32_t ref_norm[8];
+        int32_t unadapted_norm[8];
         int32_t drifted_sample[8];
         int32_t step_out[8];
         uint64_t tag_ref[TEST_WORDS];
+        uint64_t tag_unadapted[TEST_WORDS];
         uint64_t tag_drifted[TEST_WORDS];
         uint32_t step_idx;
         uint32_t ov_drift;
+        uint32_t ov_unadapted;
 
         ns_antennal_init(&g_ant, 8u, 256, 65536, 2u, 3277, 3277, 16384, 26214);
         ns_kenyon_init(&g_ken, 8u, TEST_KC, 6u, TEST_K, 42u);
@@ -536,16 +570,22 @@ int main(int argc, char **argv) {
         for (i = 0u; i < 8u; ++i) {
             drifted_sample[i] = (int32_t)(300u * 900u) + (int32_t)(i * 512u) + (plume_ref[i] >> 1);
         }
+        ns_antennal_normalize(&g_ant, drifted_sample, unadapted_norm);
+        ns_kenyon_hash(&g_ken, unadapted_norm, tag_unadapted);
+        ov_unadapted = ns_popcount_overlap(tag_ref, tag_unadapted, TEST_WORDS);
+
         ns_antennal_step(&g_ant, drifted_sample, step_out);
         ns_kenyon_hash(&g_ken, step_out, tag_drifted);
         ov_drift = ns_popcount_overlap(tag_ref, tag_drifted, TEST_WORDS);
 
-        if (ov_drift >= (TEST_K - 6u)) {
-            printf("[PASS] Test 5: Thermal baseline drift rejection + 0.5x plume recovery (KC_overlap=%" PRIu32 "/%u)\n",
-                   ov_drift, TEST_K);
+        if (ov_drift >= ((TEST_K * 3u) / 5u) && ov_drift > ov_unadapted + (TEST_K / 5u)) {
+            printf("[PASS] Test 5: Thermal baseline drift rejection + 0.5x plume recovery (KC_overlap=%" PRIu32
+                   "/%u vs unadapted=%" PRIu32 "/%u)\n",
+                   ov_drift, TEST_K, ov_unadapted, TEST_K);
             passed++;
         } else {
-            printf("[FAIL] Test 5: ov_drift=%" PRIu32 "/%u\n", ov_drift, TEST_K);
+            printf("[FAIL] Test 5: ov_drift=%" PRIu32 "/%u unadapted=%" PRIu32 "/%u\n",
+                   ov_drift, TEST_K, ov_unadapted, TEST_K);
             return 1;
         }
     }
@@ -693,6 +733,57 @@ int main(int argc, char **argv) {
         } else {
             printf("[FAIL] Test 8: static=%" PRIu32 " (rate=%" PRId32 ") turb=%" PRIu32 " (rate=%" PRId32 ")\n",
                    static_whiffs, static_rate, turb_whiffs, turb_rate);
+            return 1;
+        }
+    }
+
+    /* ---------------------------------------------------------------------
+     * Test 9: BANC v888 connectome weights, KCab-only LTM mask & NULL mode
+     * --------------------------------------------------------------------- */
+    total++;
+    {
+        int32_t probe[TEST_DIM];
+        uint64_t tag_banc[TEST_WORDS];
+        uint64_t tag_v2[TEST_WORDS];
+        uint64_t tag_banc2[TEST_WORDS];
+        uint32_t ab_locked = 0u;
+        uint32_t gamma_locked = 0u;
+        uint32_t w_idx;
+
+        if (ns_kenyon_init(&g_ken, TEST_DIM, TEST_KC, 6u, TEST_K, 42u) != NS_OK ||
+            ns_valence_init(&g_val, TEST_KC, 2u, 6554, 9830) != NS_OK) {
+            return 1;
+        }
+        for (i = 0u; i < TEST_DIM; ++i) {
+            probe[i] = (int32_t)(((i * 7u + 3u) % 19u) * 3200u);
+        }
+
+        ns_kenyon_hash(&g_ken, probe, tag_banc);
+        ns_kenyon_set_weights(&g_ken, NULL);
+        ns_kenyon_hash(&g_ken, probe, tag_v2);
+        ns_kenyon_set_weights(&g_ken, ns_banc_default_weights());
+        ns_kenyon_hash(&g_ken, probe, tag_banc2);
+
+        ns_valence_learn(&g_val, tag_banc, 0u, NS_Q16_ONE);
+        ns_valence_consolidate(&g_val, 16384);
+        for (w_idx = 0u; w_idx < TEST_WORDS; ++w_idx) {
+            uint64_t ltm_w = g_val.ltm_ab[0][w_idx];
+            uint64_t ab_w = g_val.weights->kc_is_ab_mask_u64[w_idx];
+            ab_locked += ns_popcount_u64(ltm_w & ab_w);
+            gamma_locked += ns_popcount_u64(ltm_w & ~ab_w);
+        }
+
+        if (g_ken.weights == ns_banc_default_weights() &&
+            memcmp(tag_banc, tag_banc2, sizeof(tag_banc)) == 0 &&
+            memcmp(tag_banc, tag_v2, sizeof(tag_banc)) != 0 &&
+            ns_popcount_overlap(tag_v2, tag_v2, TEST_WORDS) == TEST_K &&
+            ab_locked > 0u && gamma_locked == 0u) {
+            printf("[PASS] Test 9: BANC v888 connectome weights & KCab-only LTM mask (KCab_locked=%" PRIu32
+                   ", KCg_locked=%" PRIu32 ")\n", ab_locked, gamma_locked);
+            passed++;
+        } else {
+            printf("[FAIL] Test 9: ab_locked=%" PRIu32 " gamma_locked=%" PRIu32 "\n",
+                   ab_locked, gamma_locked);
             return 1;
         }
     }

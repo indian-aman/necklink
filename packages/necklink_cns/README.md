@@ -2,43 +2,44 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckLink CNS (`necklink-cns` v2.0.0)
+# NeckLink CNS (`necklink-cns` v3.0.0, research beta)
 
-**Unified Adult *Drosophila* Whole-CNS Survival Copilot — fusing `NeckSight`, `NeckCompass`, `NeckSense`, and `NeckCord` through empirical `BANC v888` descending arbitration plus wire-valid `MAVLink v2` and `ROS 2` bridges in `23,928 B` (`23.37 KB`) of zero-heap, zero-float ANSI C99 (`38.82 KB` standalone WebAssembly, `14.5%` ESP32 RAM) and Python.**
+**A 4-organ reflex controller whose descending decision layer runs on weight matrices compiled from the adult *Drosophila* `BANC v888` connectome — fusing `NeckSight`, `NeckCompass`, `NeckSense`, and `NeckCord` with `MAVLink v2` and `ROS 2` bridges in `24,024 B` of zero-heap, zero-float ANSI C99 (`107.5 KB` standalone WebAssembly) and Python.**
 
-[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necklink--cns&color=6366F1&cacheSeconds=180&v=200)](https://pypi.org/project/necklink-cns/)
+[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necklink--cns&color=6366F1&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necklink-cns/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2023.37%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![WebAssembly](https://img.shields.io/badge/WASM-38.82%20KB%20standalone-654FF0?style=flat-square&logo=webassembly&logoColor=white)](https://indian-aman.github.io/necklink/#simulator)
-[![Arduino / ESP32](https://img.shields.io/badge/ESP32-14.5%25%20RAM%20%7C%20MAVLink%20v2-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckLinkCNS/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2023.5%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
+[![WebAssembly](https://img.shields.io/badge/WASM-107.5%20KB%20standalone-654FF0?style=flat-square&logo=webassembly&logoColor=white)](https://indian-aman.github.io/necklink/#simulator)
+[![Status](https://img.shields.io/badge/status-research%20beta-F59E0B?style=flat-square)](#v300-results)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Live WASM Demo**](https://indian-aman.github.io/necklink/#simulator) ·
 [**Quick start**](#quick-start) ·
 [**Autopilot bridges**](#mavlink-v2--ros-2-autopilot-bridges) ·
 [**C99, ESP32 & WASM**](#zero-heap-zero-float-ansi-c99-esp32--wasm) ·
-[**BANC v888 & G4 Benchmarks**](#banc-v888-specificity--rtx-pro-6000-g4-benchmarks) ·
+[**v3.0.0 results**](#v300-results) ·
 [**When to use it**](#when-to-use-necklink-cns-and-when-not-to)
 
 </div>
 
-<p align="center">
-  <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_v2_g4_benchmarks.png" alt="NeckLink CNS v2.0.0 RTX PRO 6000 G4 benchmark summary" width="100%">
-</p>
+> [!NOTE]
+> **v3.0.0 in one paragraph.** The connectome now supplies real weight matrices — `BANC v888` brain populations → descending neurons (`10×11`) → leg motor pools (`6×10`) here, plus the compass, vision, memory and gait circuits in the four organ packages (about `33,000` numbers in total, from `23.55M` synapses). The dynamics around those matrices are hand-designed. In closed-loop simulation the real wiring clearly beats degree-preserving shuffled wiring, but the earlier hand-tuned symmetric model (`connectome_weights="v2_analytic"`) is still more accurate. Nothing has been validated on real hardware yet. Details: [v3.0.0 results](#v300-results).
 
 ---
 
 ## What it is
 
-In the adult *Drosophila* Brain-and-Nerve-Cord connectome (`BANC v888`: `157,789` proofread neurons, `23,553,108` synapses), perception and navigation across tens of thousands of brain interneurons compress into **`1,316` Descending Neurons (`DNs`)** crossing the cervical neck connective to drive **`805` Ventral Nerve Cord motor neurons (`MNs`)**, paired with **`1,849` Ascending Neurons (`ANs`)** returning proprioceptive efference copy (`AN:DN = 1.405`).
+In the adult *Drosophila* Brain-and-Nerve-Cord connectome (`BANC v888`: `157,789` proofread neurons, `23,553,108` synapses), brain signals reach the body through **`1,316` Descending Neurons (`DNs`)** that drive **`805` Ventral Nerve Cord motor neurons**.
 
-`necklink-cns` turns that biological survival architecture into a single closed-loop copilot library:
+`necklink-cns` combines one library per subsystem into a single closed-loop controller:
 
-1. **Optic Lobe (`NeckSight v2.0.0`)**: `R1-R6` log photoreceptors with AEC glare step suppression, `T4/T5` Reichardt EMDs (`1.35×` `T5` OFF dominance grounded in `6,586` `T5→LPLC2` vs `3,330` `T4→LPLC2` synapses), 3-DOF `(yaw, pitch, roll)` gyro derotation, `LPLC2` 4-arm radial + `LC4/LPLC1` 2-arm thin-pole/wire looming, and contralateral `DNa02` dodge vectors.
-2. **Central Complex (`NeckCompass v2.0.0`)**: 9-axis 3D tilt-compensated AHRS (`|‖a‖ - g| > 0.25g` wave-slam gate), `16×32` `Q12` online soft-iron self-calibration (`nc_plastic_ring_t`), `EPG ↔ Delta7` ring attractor, `CPU4` path integrator, and `PFL3 + PFL2` (`180°` anti-goal boost) GPS-denied homing.
-3. **Antennal Lobe, Chordotonal Organ & Mushroom Body (`NeckSense v2.0.0`)**: 16-band integer motor/bearing vibration front-end (`ns_vib_fe_t`), turbulent plume whiff-rate tracker, `512`-KC sparse `FlyHash`, 17-bit habituating novelty detector, and 2-compartment `KCγ + KCα/β` zero-forgetting continual memory.
-4. **Cervical Bottleneck & VNC (`NeckCord v2.0.0`)**: Connectome-weighted descending priority hierarchy (`DNp01` Giant-Fiber emergency brake → `MDN` moonwalk reverse → `DNa02` contralateral dodge → `MBON` plume cast → `PFL3/PFL2` homebound cruise), 4-byte CRC-4 descending wire frame, sensorless ESC (`RPM + Current`) broken-blade/weed-foul observer, box-constrained `[u_min, u_max]` 3-DOF USV / `[0, u_max]` 4-DOF hexacopter & octocopter active-set allocator, and 18-servo 3-DOF hexapod IK.
-5. **Autopilot Bridges**: Zero-dependency wire-valid **MAVLink v2** (`0xFD` magic, X.25 CRC-16 + `CRC_EXTRA`) C99 & Python codec (`HEARTBEAT`, `SCALED_IMU`, `MANUAL_CONTROL`, `STATUSTEXT`, `OBSTACLE_DISTANCE`) for ArduPilot / PX4 companion links, plus a **ROS 2 (`rclpy`)** node adapter.
+1. **Optic lobe (`NeckSight`)**: retina/lamina preprocessing, `T4/T5` motion detectors, 3-DOF gyro derotation, and `64` `LPLC2` + `32` `LC4` looming detectors whose receptive fields are compiled from `BANC v888`.
+2. **Central complex (`NeckCompass`)**: 9-axis tilt-compensated heading, an `EPG ↔ Delta7` ring attractor and `PFL3/PFL2` homing steering on `BANC v888`-compiled matrices, plus `CPU4`-style path integration.
+3. **Mushroom body (`NeckSense`)**: vibration front-end, antennal normalisation, and a Kenyon-cell projection using real `BANC v888` claws (`1,024` cells), with novelty and 2-compartment memory.
+4. **Descending decision layer (`ConnectomeArbitrator`)**: `11` brain populations (`LPLC2`, `LC4`, `LPLC1`, `PFL3`, `PFL2`, `MBON`) → `10` descending neurons (`DNp01`, `MDN`, `DNa02`, …) → `6` leg motor pools, by matrix multiplication through `W_brain_dn` and `W_dn_leg`. Turning direction is read from the motor-pool output, not hard-coded.
+5. **Engineering layers (`PROVENANCE = "engineering"`)**: box-constrained thruster/rotor allocator, sensorless ESC fault observer, 18-servo hexapod IK, 4-byte CRC-4 command frame, **MAVLink v2** (`0xFD`, X.25 CRC-16 + `CRC_EXTRA`) codec and a **ROS 2 (`rclpy`)** adapter.
+
+**Hand-designed, not from the connectome:** how sensor outputs drive the brain populations, the rate dynamics and thresholds, an expansive `DNa02` response `r·(0.5 + 1.5·r)` (motivated by Westeinde et al., *Nature* 2024), and forward-walking inhibition of `MDN`. These apply identically to real and shuffled wiring.
 
 ---
 
@@ -55,7 +56,7 @@ necklink-cns priors
 import numpy as np
 from necklink_cns import NeckLinkCNS
 
-cns = NeckLinkCNS(vehicle="hexacopter", grid_size=32)
+cns = NeckLinkCNS(vehicle="hexacopter", grid_size=32)   # connectome_weights="banc_v888" by default
 frame = np.full((32, 32), 160.0)
 out = cns.step(
     dt=0.02,
@@ -67,7 +68,12 @@ out = cns.step(
 )
 assert len(out.cervical_wire_4b) == 4
 assert out.mavlink_manual_pkt[0] == 0xFD
+
+# The earlier hand-tuned symmetric model (more accurate in every v3 benchmark):
+analytic = NeckLinkCNS(vehicle="usv_t200", grid_size=32, connectome_weights="v2_analytic")
 ```
+
+The extraction and shuffling tools (`necklink_cns.connectome.extract_raw_subgraphs`, `shuffle_raw_subgraphs`, …) need SciPy/pandas and the raw `BANC v888` dataset: `pip install "necklink-cns[connectome]"`.
 
 ---
 
@@ -82,7 +88,7 @@ from necklink_cns import (
     NeckLinkROS2Adapter,
 )
 
-# 1. Wire-valid MAVLink v2 framing (ArduPilot / PX4 companion UART or UDP)
+# 1. MAVLink v2 framing (ArduPilot / PX4 companion UART or UDP)
 codec = MavLink2Codec(sysid=42, compid=191)
 pkt = codec.encode_manual_control(MavManualControl(x=650, y=0, z=500, r=-250, buttons=0, target=1))
 decoded = codec.feed(pkt)
@@ -100,56 +106,78 @@ assert isinstance(step_out["twist"].angular_z, float)
 
 ## Zero-heap, zero-float ANSI C99, ESP32 & WASM
 
-[`csrc/necklink_cns.h`](csrc/necklink_cns.h), [`csrc/necklink_cns.c`](csrc/necklink_cns.c), and [`csrc/nl_mavlink.h`](csrc/nl_mavlink.h) fuse all four organs and the MAVLink v2 codec into a single static C struct (`nl_cns_t`) with **zero `float`/`double` instructions** and **zero `malloc`/`free`**:
+[`csrc/necklink_cns.h`](csrc/necklink_cns.h), [`csrc/necklink_cns.c`](csrc/necklink_cns.c), and [`csrc/nl_mavlink.h`](csrc/nl_mavlink.h) combine all four organs, the `BANC v888` weight tables, and the MAVLink v2 codec into one static C struct (`nl_cns_t`) with **no `float`/`double`** and **no `malloc`/`free`**:
 
 ```bash
-make -C csrc clean all test sanitize   # 6/6 C99 Whole-CNS self-tests under -Werror + ASan/UBSan
+make -C csrc clean all test sanitize   # 7 C99 self-tests under -Werror + ASan/UBSan
 ```
 
-| Target / Artifact | Static RAM (`sizeof`) | Flash / Binary | Full-CNS Tick Latency | Throughput |
-| :--- | :---: | :---: | :---: | :---: |
-| **ANSI C99 `nl_cns_t` (x86-64 `-O2`)** | **`23,928 B` (`23.37 KB`)** | — | **`207 µs / tick`** | **`4,836 Hz`** |
-| **ESP32 (`esp32dev`, PlatformIO Arduino)** | **`47,564 B` (`14.5%` of `320 KB`)** | `424,525 B` (`32.4%` Flash) | Real-time UART MAVLink v2 | `50–500 Hz` sensor rate |
-| **Standalone WebAssembly (`wasm32`, `-Oz`)** | **`23,928 B` linear struct** | **`39,756 B` (`38.82 KB`, `0` imports)** | `< 0.35 ms` in browser JS/WASM | Live `60 FPS` webcam |
+| Target | Measured | Notes |
+| :--- | :--- | :--- |
+| ANSI C99 `nl_cns_t` | `24,024 B` (x86-64) / `23,968 B` (32-bit) state, `0 B` `.data`/`.bss` | Weight tables are `const` (flash) |
+| x86-64 `-O2` | `~166 µs` per full tick | Desktop self-test timing; **not measured on a microcontroller** |
+| ESP32 (`esp32dev`, PlatformIO, Xtensa toolchain) | `47,604 B` RAM (`14.5%`), `515,496 B` flash (`39.3%`) for the example sketch | **Compile-verified only** — not yet run on a board |
+| Standalone WebAssembly | `110,129 B`, `0` imports | Runs in the [live browser demo](https://indian-aman.github.io/necklink/#simulator) |
 
-Drop [`arduino/NeckLinkCNS/`](arduino/NeckLinkCNS/) into your Arduino `libraries/` folder (or build with PlatformIO) to run [`ESP32_MAVLink_Survival_Copilot.ino`](arduino/NeckLinkCNS/examples/ESP32_MAVLink_Survival_Copilot/ESP32_MAVLink_Survival_Copilot.ino) directly on an ESP32 / ESP32-S3 companion board.
+[`arduino/NeckLinkCNS/`](arduino/NeckLinkCNS/) contains the Arduino library and an [`ESP32_MAVLink_Survival_Copilot.ino`](arduino/NeckLinkCNS/examples/ESP32_MAVLink_Survival_Copilot/ESP32_MAVLink_Survival_Copilot.ino) example sketch. Use `nl_cns_set_dn_weights(&cns, NULL)` to switch the C core to the analytic model.
 
 ---
 
-## BANC v888 specificity & RTX PRO 6000 (`G4`) benchmarks
+<a id="v300-results"></a>
 
-### 1. Adult *Drosophila* `BANC v888` pathway enrichment (`157,789` neurons, `23,553,108` synapses, `1,000` GPU degree-preserving permutations)
+## v3.0.0 results
 
-| Pathway | Empirical Synapses | Null Mean ± SD | Fold Enrichment | Z-Score | Empirical *p* |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| **Optic Looming** (`LPLC2 + LC4 + LPLC1 → Escape/Turn DNs`) | `5,847` | `587.1 ± 186.6` | **`9.96×`** | `+28.19` | `0.000999` |
-| **Central Complex Steering** (`PFL2 + PFL3 → DNa02/DNa01/DNp09`) | `462` | `34.0 ± 62.7` | **`13.60×`** | `+6.82` | `0.004995` |
-| **Mushroom Body 2-Hop** (`ALPN → KC → MBON` paths) | `12,188,283` | `5.25M ± 0.67M` | **`2.32×`** | `+10.40` | `0.000999` |
-| **Cervical Neck Bottleneck** (`1,316 DNs → 805 VNC MNs`) | `143,742` | `12,671.6 ± 2,725.5` | **`11.34×`** | `+48.09` | `0.000999` |
+### Closed-loop whole-controller test (simulation)
 
-### 2. Closed-loop 250-episode multi-hazard survival gauntlet
+A 3-DOF boat simulation (`dt = 0.05 s`, `45 s`): drive out `9 s`, then return home on the controller alone, past `2` buoys and `2` thin pilings with real collision checks, through a localised `+125°` magnetic anomaly, with one thruster losing `78%` of its thrust at `t = 11 s`, under wave roll/pitch. Camera frames are rendered from the live boat pose. `N = 30` seeds. "Safe arrival" = within `2.5 m` of home with zero collisions.
 
-Each episode combines simultaneous `±22°` 3D wave pitch/roll under `65°` magnetic dip, `120°` magnetic spikes, `50×` camera glare bursts, expanding boulders & thin vertical poles, turbulent odor plumes, and mid-mission `88%` T2 thruster degradation:
-
-| Controller Stack | Collision-Free & Homed Survival | Collision Rate | Median Home Miss |
+| Controller | Safe arrival | Collisions per mission | Closest approach to home |
 | :--- | :---: | :---: | :---: |
-| **`NeckLink CNS v2.0.0` (Full `BANC v888` Wiring)** | **`100.0%` (`250 / 250`)** | **`0.0%`** | **`1.75 m`** |
-| `NeckLink v1.1.0` (2D compass, `LPLC2`-only, symmetric cord) | `77.2%` | `22.8%` (thin poles + wave tilt) | `6.12 m` |
-| Classical Stack (`Madgwick + Farneback + Pinv`) | `1.2%` | `98.8%` (glare false-brakes + missed poles) | `12.50 m` |
-| Shuffled Connectome Null (permuted `DN` weights) | `0.0%` | `100.0%` | `18.30 m` |
+| `necklink-cns`, `banc_v888` (default) | `66.7%` (`20/30`) | `0.70` | `2.83 m` |
+| `necklink-cns`, `v2_analytic` | **`80.0%`** (`24/30`) | **`0.30`** | **`2.16 m`** |
+| Classical: χ²-gated EKF + dead reckoning + gyro-derotated Farneback avoidance + health-weighted pseudo-inverse | `0.0%` | `1.53` | `8.16 m` |
+
+**Shuffled-wiring test:** the whole controller with all four organs' raw matrices rewired by degree-preserving (Maslov–Sneppen) swaps, `K = 100` shuffles, `12` seeds each: safe arrival `58.3%` (real, same 12 seeds) vs `4.6%` (shuffled mean), `2/100` shuffles at least as good, `p = 0.030`, `z = +4.24`.
+
+What this shows:
+- **The real wiring matters for this controller:** scrambling it while keeping every neuron's degree and synapse weights collapses performance.
+- **It is not the best controller:** the hand-tuned symmetric model does better.
+- **The classical baseline is not state of the art.** Its allocator has no active-set redistribution and no reverse-escape manoeuvre, which partly explains `0%`.
+- **Caveats:** simulation only; `p = 0.030` misses the pre-registered `0.01` threshold (12 seeds per shuffle); the pipeline (for example the `LPLC1` drive, `MDN` inhibition and `DNa02` response) was tuned while looking at real-wiring results, which favours the real wiring over the shuffles.
+
+Per-organ results are in each package README ([NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass#v300-connectome-derived-weights-audited-results), [NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight#v300-connectome-derived-receptive-fields-audited-results), [NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense#v300-connectome-derived-projection-audited-results), [NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord#v300-connectome-derived-gait-coupling-audited-results)); the full table, code and raw JSON are in [`benchmarks/v3/`](https://github.com/indian-aman/necklink/tree/main/benchmarks/v3).
+
+<details>
+<summary>Earlier correction (v2.0.1): withdrawn v2.0.0 claims</summary>
+
+The `v2.0.0` "250-episode closed-loop survival gauntlet" (`100%` vs `77.2%` vs `1.2%` vs `0%`) never ran this library — each controller was hand-scripted inside the benchmark — and was withdrawn, together with most other `v2.0.0` benchmark advantages (unfair baselines, train/test leakage, a mislabelled connectome "specificity" test that used random node sets rather than a degree-preserving null). See the [root README](https://github.com/indian-aman/necklink#earlier-corrections-v201) for the full list. The v3.0.0 benchmarks above were written from scratch to run the library itself, with identical inputs for every method.
+
+</details>
 
 ---
 
 ## When to use NeckLink CNS, and when not to
 
-**Good fit:**
-- **An uncrashable `< 24 KB` inner survival & reflex layer** beneath ArduPilot, PX4, or ROS 2 (`Nav2`) on micro-drones, USVs, rovers, and legged robots.
-- **MCU-only platforms (`ESP32`, `ESP32-S3`, `STM32`, `RP2040`)** without a GPU, Linux SBC, or hardware FPU.
-- **Simultaneous real-world sensor/actuator faults**: `100×` glare + thin poles, `±25°` wave tilt + steel-hull magnetic spikes, and mid-flight rotor/blade or thruster loss.
+**Reasonable to try:**
+- **Research on connectome-constrained control:** compile real `BANC v888` circuits into a running controller and test them against shuffled wiring in your own simulations.
+- **Experimenting with a small (`< 24 KB`) reflex layer** beneath ArduPilot, PX4, or ROS 2 — in simulation or on the bench first. For best behaviour use `connectome_weights="v2_analytic"`.
 
-**Use something else (or pair with a higher planner) when:**
-- **You need metric 3D mapping, semantic object recognition, or multi-waypoint trajectory planning.** `NeckLink CNS` is an insect brainstem/reflex controller, not a VIO/SLAM or VLM stack.
-- **Obstacles are completely untextured blank walls** with zero spatial contrast edges (pair an inexpensive ToF rangefinder alongside `OBSTACLE_DISTANCE`).
+**Do not use it yet for:**
+- **Anything safety-critical.** The controller has not been run on real hardware.
+- **Metric 3D mapping, object recognition, or path planning.** This is a reflex controller, not a VIO/SLAM or perception stack.
+- **Untextured environments** (blank walls): pair it with a rangefinder.
+
+---
+
+## Changelog
+
+**3.0.0**
+- *Connectome-driven decision layer:* `ConnectomeArbitrator` replaces the v2 hand-coded priority table with `BANC v888` `W_brain_dn` (`10×11`) and `W_dn_leg` (`6×10`) matrices in Python and C99. `connectome_weights="v2_analytic"` (C: `nl_cns_set_dn_weights(&cns, NULL)`) keeps the earlier model.
+- *All four organs* use their v3 connectome-derived circuits by default.
+- *Fix (found by the independent audit):* the C99/WASM core now initialises its ring compass with the `BANC v888` weights (it previously ran the analytic ring while Python ran `BANC v888`).
+- *Fix:* WASM singletons are compiled only for WebAssembly builds (`0 B` `.bss` on MCUs).
+- *Fix:* importing `necklink_cns` no longer requires SciPy/pandas; the extraction tools moved to the `[connectome]` extra.
+- *Provenance:* `NeckLinkCNS`/`ConnectomeArbitrator` carry `PROVENANCE = "connectome"`; MAVLink, ROS 2 and cervical-link classes carry `PROVENANCE = "engineering"`.
 
 ---
 

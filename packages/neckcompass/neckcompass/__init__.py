@@ -8,6 +8,7 @@ from .ring_attractor import (
     RingCompass,
     basin_sigma_for_noise,
     circular_error_rad,
+    load_banc_connectome,
     wrap_angle,
 )
 from .tilt_ahrs import (
@@ -17,7 +18,7 @@ from .tilt_ahrs import (
     synthesize_9dof_frame,
 )
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 __all__ = [
     "__version__",
@@ -31,6 +32,7 @@ __all__ = [
     "TiltDiagnostics",
     "basin_sigma_for_noise",
     "circular_error_rad",
+    "load_banc_connectome",
     "synthesize_9dof_frame",
     "wrap_angle",
 ]

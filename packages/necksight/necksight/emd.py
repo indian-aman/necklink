@@ -67,6 +67,8 @@ class T4T5MotionEngine:
         ``yaw_pan``, and ``radial_divergence``.
     """
 
+    PROVENANCE = "literature"
+
     def __init__(
         self,
         grid_size: Union[int, Tuple[int, int]] = 64,

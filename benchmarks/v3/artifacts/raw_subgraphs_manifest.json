@@ -1,0 +1,9 @@
+{
+  "raw_subgraphs_file": "banc_v888_raw_subgraphs.pkl.gz",
+  "raw_subgraphs_size_bytes": 635368,
+  "raw_subgraphs_sha256": "4074f32cfee7917ae6b75cbd0ab16873b4db757ea2ffc12806541df89c031f65",
+  "source_connectome_npz_sha256": "adf507c8e402ecc19920d8a27cce01468215ff2f1e8396dd1fea2d1387f33b9e",
+  "source_neurons_meta_parquet_sha256": "781e0f66d9bf7319d1241a2f7cc9f99615b34a0c6d3c6eba6b9002d12f772525",
+  "w_vnc_ei_nnz": 88096,
+  "roundtrip_verified": true
+}

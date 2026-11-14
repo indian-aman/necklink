@@ -1,14 +1,14 @@
 /*
- * necklink_cns.h - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v2.0.0)
+ * necklink_cns.h - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v3.0.0)
  *
- * Integrates all four BANC v888-grounded sensory-motor organs plus official MAVLink v2
- * framing inside a single < 24 KB static SRAM footprint (zero dynamic heap allocation,
+ * Integrates all four BANC v888 connectome-driven sensory-motor organs plus official MAVLink v2
+ * framing inside a single < 25 KB static SRAM footprint (zero dynamic heap allocation,
  * strictly integer fixed-point arithmetic):
  *
- *   1. NeckSight v2.0.0   - Optic Lobe (R1-R6, T4/T5, LPLC2 + LC4 pole/wire, 3-DOF derotation)
- *   2. NeckCompass v2.0.0 - Central Complex (9-DOF tilt + wave gate, E-PG/Delta7/Plastic R, CPU4, PFL3/PFL2)
- *   3. NeckSense v2.0.0   - Antennal Lobe, Chordotonal Vibration & 2-Compartment KCg/KCab Mushroom Body
- *   4. NeckCord v2.0.0    - 4-Byte Cervical Frame, ESC Fault Observer, 4-DOF Active-Set & 18-DOF Leg IK
+ *   1. NeckSight v3.0.0   - Optic Lobe (T4/T5 -> 64 LPLC2 + LPi & 32 LC4 + Li22, 3-DOF derotation)
+ *   2. NeckCompass v3.0.0 - Central Complex (50 EPG + 42 PEN + 40 Delta7, CPU4, 25 PFL3 + 12 PFL2)
+ *   3. NeckSense v3.0.0   - Antennal Lobe, Chordotonal Vibration & 699 ALPN -> KCg/KCab <-> APL MB
+ *   4. NeckCord v3.0.0    - 4-Byte Cervical Frame, BANC VNC CPG + ESC Observer, 4-DOF QP & 18-DOF IK
  *   5. nl_mavlink         - Wire-valid MAVLink v2 (0xFD, X.25 CRC-16 + CRC_EXTRA) autopilot codec
  *
  * Copyright (c) 2026 Amandeep Singh Bains. SPDX-License-Identifier: MIT
@@ -33,15 +33,16 @@
 #include "neckcord.h"
 #include "necksense.h"
 #include "nl_mavlink.h"
+#include "necklink_cns_banc_weights.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-#define NL_CNS_VERSION_MAJOR  2
+#define NL_CNS_VERSION_MAJOR  3
 #define NL_CNS_VERSION_MINOR  0
 #define NL_CNS_VERSION_PATCH  0
-#define NL_CNS_VERSION_STRING "2.0.0"
+#define NL_CNS_VERSION_STRING "3.0.0"
 
 /* Empirical BANC v888 whole-CNS structural constants (157,789 proofread neurons) */
 #define NL_BANC_TOTAL_NEURONS      157789u
@@ -145,6 +146,7 @@ typedef struct {
 } nl_cns_outputs_t;
 
 typedef struct {
+    const nl_banc_dn_weights_t *dn_weights; /* BANC v888 11->10->6 DN weights (NULL = v2 fallback) */
     uint8_t  vehicle_mode;
     uint8_t  mav_sysid;
     uint8_t  mav_compid;
@@ -192,7 +194,9 @@ typedef char nl_cns_static_sram_budget_check[
 ];
 #endif
 
+const nl_banc_dn_weights_t *nl_banc_dn_default_weights(void);
 void nl_cns_init(nl_cns_t *cns, nl_vehicle_mode_t vehicle_mode);
+void nl_cns_set_dn_weights(nl_cns_t *cns, const nl_banc_dn_weights_t *dn_weights);
 void nl_cns_reset(nl_cns_t *cns);
 
 /* Teach a 1-shot chemical or vibration prototype into the 2-compartment KCg+KCab classifier */
@@ -220,6 +224,7 @@ size_t nl_cns_encode_mavlink_control(
 );
 
 /* WebAssembly / FFI flat integer telemetry & webcam entrypoints */
+#if defined(__EMSCRIPTEN__) || defined(__wasm__) || defined(NL_CNS_WASM_SINGLETON)
 nl_cns_t *nl_wasm_get_cns(void);
 uint32_t  nl_wasm_sizeof_cns(void);
 void      nl_wasm_init(int32_t vehicle_mode);
@@ -237,6 +242,7 @@ int32_t   nl_wasm_step_webcam_and_imu(
     uint8_t has_camera
 );
 const int32_t *nl_wasm_get_telemetry(void);
+#endif
 
 #ifdef __cplusplus
 }

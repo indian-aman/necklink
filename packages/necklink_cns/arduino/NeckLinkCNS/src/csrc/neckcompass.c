@@ -1,5 +1,5 @@
 /*
- * NeckCompass v2.0.0 ANSI C99 Embedded Core Implementation
+ * NeckCompass v3.0.0 ANSI C99 Embedded Core Implementation
  * Zero heap allocation, zero FPU instructions, pure Q15 / Q12 / int32_t / int64_t arithmetic.
  *
  * SPDX-License-Identifier: MIT
@@ -389,6 +389,29 @@ nc_bam_t nc_tilt_update_9dof(
 
 static void nc_shape_epg_wedges(nc_compass_t *comp, nc_bam_t center_bam) {
     uint32_t i;
+    if (comp->weights != NULL) {
+        int32_t raw_pos[NC_NUM_WEDGES];
+        int64_t sum_pos = 0;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            nc_bam_t th = nc_wedge_theta(i);
+            int16_t c = nc_cos_q15(nc_bam_sub(th, center_bam));
+            raw_pos[i] = (c > 0) ? (int32_t)c : 0;
+            sum_pos += (int64_t)raw_pos[i];
+        }
+        if (sum_pos <= 0) {
+            comp->wedges_q15[0] = 16384;
+            for (i = 1; i < NC_NUM_WEDGES; ++i) {
+                comp->wedges_q15[i] = 0;
+            }
+        } else {
+            /* Store r in Q11 (2048 = 1.0) so sum(wedges_q15) == 16384 (sum(r) == 8.0) */
+            for (i = 0; i < NC_NUM_WEDGES; ++i) {
+                int64_t v = ((int64_t)raw_pos[i] * 16384LL + (sum_pos >> 1)) / sum_pos;
+                comp->wedges_q15[i] = (v > 32767LL) ? (int16_t)32767 : (int16_t)v;
+            }
+        }
+        return;
+    }
     for (i = 0; i < NC_NUM_WEDGES; ++i) {
         nc_bam_t th = nc_wedge_theta(i);
         int16_t c = nc_cos_q15(nc_bam_sub(th, center_bam));
@@ -439,16 +462,22 @@ static void nc_inject_cue_ring(
     }
 }
 
+const nc_banc_cx_weights_t *nc_banc_default_weights(void) {
+    return &k_nc_banc_cx_default;
+}
+
 void nc_compass_init(nc_compass_t *comp) {
     uint32_t i;
     if (comp == NULL) {
         return;
     }
+    comp->weights = nc_banc_default_weights();
     for (i = 0; i < NC_NUM_WEDGES; ++i) {
         comp->wedges_q15[i] = 0;
     }
     comp->phase_sub_bam = 0;
     comp->pen_bias_bam_s = 0;
+    comp->bias_ref_sub_bam = 0;
     comp->mag_gain_q8 = 410;   /* ~1.60 s^-1 */
     comp->sun_gain_q8 = 819;   /* ~3.20 s^-1 */
     comp->bias_rate_q8 = 140;  /* ~0.55 s^-2 */
@@ -457,8 +486,24 @@ void nc_compass_init(nc_compass_t *comp) {
     comp->offbasin_s_q15 = 0;
     comp->offbasin_ms = 0;
     comp->reanchor_ms = 10000u;
+    comp->bias_frac_q12 = 0;
     comp->initialized = 0;
     nc_compass_set_cue_noise(comp, 300);
+}
+
+void nc_compass_set_weights(nc_compass_t *comp, const nc_banc_cx_weights_t *weights) {
+    if (comp == NULL) {
+        return;
+    }
+    if (comp->initialized) {
+        nc_bam_t cur = nc_compass_heading_bam(comp);
+        comp->weights = weights;
+        nc_shape_epg_wedges(comp, cur);
+        comp->phase_sub_bam = (int32_t)((uint32_t)(uint16_t)cur * 256u);
+        comp->bias_ref_sub_bam = comp->phase_sub_bam;
+    } else {
+        comp->weights = weights;
+    }
 }
 
 void nc_compass_set_cue_noise(nc_compass_t *comp, int32_t noise_cdeg) {
@@ -496,6 +541,7 @@ void nc_compass_set_reanchor_ms(nc_compass_t *comp, uint16_t reanchor_ms) {
 static void nc_compass_seed(nc_compass_t *comp, nc_bam_t heading_bam) {
     nc_shape_epg_wedges(comp, heading_bam);
     comp->phase_sub_bam = (int32_t)((uint32_t)(uint16_t)heading_bam * 256u);
+    comp->bias_ref_sub_bam = comp->phase_sub_bam;
     comp->last_mag_gate_q15 = 0;
     comp->offbasin_c_q15 = 0;
     comp->offbasin_s_q15 = 0;
@@ -509,6 +555,7 @@ void nc_compass_reset(nc_compass_t *comp, nc_bam_t heading_bam) {
     }
     nc_compass_seed(comp, heading_bam);
     comp->pen_bias_bam_s = 0;
+    comp->bias_frac_q12 = 0;
 }
 
 /* Track a consistent off-basin cue; returns 1 (and re-seeds the bump) once it has
@@ -565,8 +612,36 @@ nc_bam_t nc_compass_heading_bam(const nc_compass_t *comp) {
     return nc_atan2_bam((int32_t)sum_s, (int32_t)sum_c);
 }
 
+int16_t nc_compass_coherence_q15(const nc_compass_t *comp) {
+    int64_t sum_r = 0;
+    int64_t sum_c = 0;
+    int64_t sum_s = 0;
+    uint32_t i, mag;
+    uint64_t c2s2, scaled;
+    if (comp == NULL || !comp->initialized) {
+        return 0;
+    }
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        nc_bam_t th = nc_wedge_theta(i);
+        int64_t r = (int64_t)comp->wedges_q15[i];
+        if (r > 0) {
+            sum_r += r;
+            sum_c += nc_div_pow2_round(r * (int64_t)nc_cos_q15(th), 8u);
+            sum_s += nc_div_pow2_round(r * (int64_t)nc_sin_q15(th), 8u);
+        }
+    }
+    if (sum_r <= 0) {
+        return 0;
+    }
+    c2s2 = (uint64_t)(sum_c * sum_c) + (uint64_t)(sum_s * sum_s);
+    mag = nc_isqrt64(c2s2);
+    /* sum_c, sum_s carry factor (r * 32767 / 256), so mag * 256 / sum_r is in Q15 [0..32767] */
+    scaled = ((uint64_t)mag * 256ULL + (uint64_t)(sum_r >> 1)) / (uint64_t)sum_r;
+    return (scaled > 32767ULL) ? (int16_t)32767 : (int16_t)scaled;
+}
+
 void nc_compass_delta7_q15(const nc_compass_t *comp, int16_t out_delta7_q15[NC_NUM_WEDGES]) {
-    uint32_t i;
+    uint32_t i, k;
     nc_bam_t heading;
     if (out_delta7_q15 == NULL) {
         return;
@@ -577,13 +652,295 @@ void nc_compass_delta7_q15(const nc_compass_t *comp, int16_t out_delta7_q15[NC_N
         }
         return;
     }
-    /* BANC v888: 40 Delta7 glutamatergic bridge neurons form an anti-phase cosine inhibitory bump */
+    if (comp->weights != NULL) {
+        const nc_banc_cx_weights_t *w = comp->weights;
+        int32_t d7_q12[NC_BANC_NUM_D7];
+        for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+            uint64_t acc = 0ULL;
+            for (i = 0; i < NC_NUM_WEDGES; ++i) {
+                uint32_t r_q12 = (comp->wedges_q15[i] > 0) ? ((uint32_t)comp->wedges_q15[i] << 1) : 0u;
+                acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + i] * (uint64_t)r_q12;
+            }
+            d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
+        }
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            uint64_t acc = 0ULL;
+            uint64_t inh_q15;
+            for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+                acc += (uint64_t)w->M_d7e_q12[i * NC_BANC_NUM_D7 + k] * (uint64_t)d7_q12[k];
+            }
+            inh_q15 = ((acc + 2048ULL) >> 12) << 3;
+            out_delta7_q15[i] = (inh_q15 > 32767ULL) ? (int16_t)32767 : (int16_t)inh_q15;
+        }
+        return;
+    }
+    /* v2 analytic fallback: anti-phase cosine inhibitory bump */
     heading = nc_compass_heading_bam(comp);
     for (i = 0; i < NC_NUM_WEDGES; ++i) {
         nc_bam_t th = nc_wedge_theta(i);
         int32_t c_q15 = (int32_t)nc_cos_q15(nc_bam_sub(th, heading));
         out_delta7_q15[i] = (int16_t)((NC_Q15_ONE - c_q15) >> 1);
     }
+}
+
+static void nc_banc_build_cue_ex_q12(
+    nc_bam_t cue_bam,
+    int32_t out_ex_q12[NC_NUM_WEDGES],
+    int32_t out_cz_q12[NC_NUM_WEDGES],
+    uint32_t *out_cz_norm
+) {
+    int32_t sum_ex = 0;
+    int32_t mean_ex;
+    uint64_t sum_sq = 0ULL;
+    uint32_t i;
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        int32_t c = (int32_t)nc_cos_q15(nc_bam_sub(nc_wedge_theta(i), cue_bam));
+        if (c <= 0) {
+            out_ex_q12[i] = 0;
+        } else {
+            uint64_t c2_q15 = ((uint64_t)c * (uint64_t)c + 16384ULL) >> 15;
+            uint64_t c3_q12 = (c2_q15 * (uint64_t)c + 131072ULL) >> 18;
+            out_ex_q12[i] = (c3_q12 > 4096ULL) ? 4096 : (int32_t)c3_q12;
+        }
+        sum_ex += out_ex_q12[i];
+    }
+    mean_ex = (sum_ex + 8) >> 4;
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        int64_t d = (int64_t)out_ex_q12[i] - (int64_t)mean_ex;
+        out_cz_q12[i] = (int32_t)d;
+        sum_sq += (uint64_t)(d * d);
+    }
+    *out_cz_norm = nc_isqrt64(sum_sq);
+}
+
+static int32_t nc_banc_coinc_q12(
+    const int32_t cz_q12[NC_NUM_WEDGES],
+    uint32_t cz_norm,
+    const int32_t rz_q12[NC_NUM_WEDGES],
+    uint32_t rz_norm
+) {
+    int64_t dot = 0;
+    int64_t denom, ov_q12, u_q12;
+    uint32_t i;
+    if (cz_norm == 0u || rz_norm == 0u) {
+        return 0;
+    }
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        dot += (int64_t)cz_q12[i] * (int64_t)rz_q12[i];
+    }
+    if (dot <= 0) {
+        return 0;
+    }
+    denom = (int64_t)cz_norm * (int64_t)rz_norm;
+    ov_q12 = (dot * 4096LL) / denom;
+    if (ov_q12 <= 2048LL) {
+        return 0;
+    }
+    u_q12 = (ov_q12 - 2048LL) * 2LL;
+    if (u_q12 > 4096LL) {
+        u_q12 = 4096LL;
+    }
+    return (int32_t)((u_q12 * u_q12 + 2048LL) >> 12);
+}
+
+static nc_bam_t nc_compass_update_banc(
+    nc_compass_t *comp,
+    int32_t omega_bam_s,
+    uint32_t dt_ms,
+    nc_bam_t mag_bam,
+    uint8_t mag_valid,
+    int32_t m_conf,
+    nc_bam_t sun_bam,
+    uint8_t sun_valid,
+    int32_t s_conf
+) {
+    const nc_banc_cx_weights_t *w = comp->weights;
+    int32_t r_q12[NC_NUM_WEDGES];
+    int32_t mag_ex_q12[NC_NUM_WEDGES], mag_cz_q12[NC_NUM_WEDGES];
+    int32_t sun_ex_q12[NC_NUM_WEDGES], sun_cz_q12[NC_NUM_WEDGES];
+    uint32_t mag_cz_norm = 0u, sun_cz_norm = 0u;
+    uint8_t use_mag = (mag_valid && m_conf > 0) ? 1u : 0u;
+    uint8_t use_sun = (sun_valid && s_conf > 0) ? 1u : 0u;
+    int64_t bias_q12 = ((int64_t)comp->pen_bias_bam_s * 4096LL) + (int64_t)comp->bias_frac_q12;
+    int64_t net_bam_s = (int64_t)omega_bam_s - nc_div_pow2_round(bias_q12, 12u);
+    int32_t last_mag_coinc_q12 = 0;
+    int32_t last_mag_gate_q12 = 0;
+    int32_t last_sun_gate_q12 = 0;
+    uint32_t rem_ms = dt_ms;
+    uint32_t i, j, k;
+    nc_bam_t new_bam;
+
+    comp->last_mag_gate_q15 = 0;
+    if (dt_ms == 0u) {
+        return nc_compass_heading_bam(comp);
+    }
+
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        r_q12[i] = (comp->wedges_q15[i] > 0) ? ((int32_t)comp->wedges_q15[i] << 1) : 0;
+    }
+    if (use_mag) {
+        nc_banc_build_cue_ex_q12(mag_bam, mag_ex_q12, mag_cz_q12, &mag_cz_norm);
+    }
+    if (use_sun) {
+        nc_banc_build_cue_ex_q12(sun_bam, sun_ex_q12, sun_cz_q12, &sun_cz_norm);
+    }
+
+    while (rem_ms > 0u) {
+        uint32_t step_ms = (rem_ms > 10u) ? 10u : rem_ms;
+        uint32_t alpha_q12 = (step_ms * 4096u) / 160u;
+        int32_t d7_q12[NC_BANC_NUM_D7];
+        int32_t inh_q12[NC_NUM_WEDGES];
+        int32_t exc_q12[NC_NUM_WEDGES];
+        int32_t dt_shift_q12[NC_NUM_WEDGES];
+        int32_t rz_q12[NC_NUM_WEDGES];
+        int32_t next_r_q12[NC_NUM_WEDGES];
+        int32_t sum_r = 0, mean_r;
+        uint64_t rz_sq = 0ULL;
+        uint32_t rz_norm;
+        int32_t mg_q12 = 0, sg_q12 = 0;
+        int64_t next_sum = 0;
+
+        rem_ms -= step_ms;
+        if (alpha_q12 > 1024u) {
+            alpha_q12 = 1024u;
+        }
+
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            sum_r += r_q12[i];
+        }
+        mean_r = (sum_r + 8) >> 4;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            int64_t dr = (int64_t)r_q12[i] - (int64_t)mean_r;
+            rz_q12[i] = (int32_t)dr;
+            rz_sq += (uint64_t)(dr * dr);
+        }
+        rz_norm = nc_isqrt64(rz_sq);
+
+        for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+            uint64_t acc = 0ULL;
+            for (j = 0; j < NC_NUM_WEDGES; ++j) {
+                acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + j] * (uint64_t)r_q12[j];
+            }
+            d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
+        }
+
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            uint64_t acc_i = 0ULL;
+            uint64_t acc_e = 0ULL;
+            int64_t acc_pa = 0LL;
+            int64_t pa_q20;
+            for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+                acc_i += (uint64_t)w->M_d7e_q12[i * NC_BANC_NUM_D7 + k] * (uint64_t)d7_q12[k];
+            }
+            inh_q12[i] = (int32_t)((acc_i + 2048ULL) >> 12);
+            for (j = 0; j < NC_NUM_WEDGES; ++j) {
+                acc_e += (uint64_t)w->M_exc_q12[i * NC_NUM_WEDGES + j] * (uint64_t)r_q12[j];
+                acc_pa += (int64_t)w->M_pa_diff_q12[i * NC_NUM_WEDGES + j] * (int64_t)r_q12[j];
+            }
+            exc_q12[i] = (int32_t)((acc_e + 2048ULL) >> 12);
+            pa_q20 = nc_div_pow2_round(acc_pa, 4u);
+            /* dt_sub * 10.2 * omega_rad_s * pa = step_ms * net_bam_s * pa_q20 * (10.2*2*pi) / (256*65536*1000) */
+            dt_shift_q12[i] = (int32_t)((pa_q20 * net_bam_s * (int64_t)step_ms * 64088LL) / 16777216000000LL);
+        }
+
+        if (use_mag) {
+            last_mag_coinc_q12 = nc_banc_coinc_q12(mag_cz_q12, mag_cz_norm, rz_q12, rz_norm);
+            mg_q12 = (int32_t)(((int64_t)last_mag_coinc_q12 * (int64_t)m_conf + 16383LL) / 32767LL);
+            last_mag_gate_q12 = mg_q12;
+        }
+        if (use_sun) {
+            int32_t sc_q12 = nc_banc_coinc_q12(sun_cz_q12, sun_cz_norm, rz_q12, rz_norm);
+            sg_q12 = (int32_t)(((int64_t)sc_q12 * (int64_t)s_conf + 16383LL) / 32767LL);
+            last_sun_gate_q12 = sg_q12;
+        }
+
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            int32_t rec_diff = 14 * exc_q12[i] - 11 * inh_q12[i];
+            int32_t rec_q12 = (rec_diff > 0) ? ((rec_diff + 5) / 10) : 0;
+            int64_t cue_add = 0LL;
+            int64_t blended;
+
+            if (mg_q12 > 0 && comp->mag_gain_q8 > 0) {
+                cue_add += ((int64_t)step_ms * 28LL * (int64_t)comp->mag_gain_q8
+                            * (int64_t)mg_q12 * (int64_t)mag_ex_q12[i])
+                           / (1000LL * 410LL * 4096LL);
+            }
+            if (sg_q12 > 0 && comp->sun_gain_q8 > 0) {
+                cue_add += ((int64_t)step_ms * 28LL * (int64_t)comp->sun_gain_q8
+                            * (int64_t)sg_q12 * (int64_t)sun_ex_q12[i])
+                           / (1000LL * 410LL * 4096LL);
+            }
+
+            blended = nc_div_pow2_round(
+                (int64_t)(4096u - alpha_q12) * (int64_t)r_q12[i] + (int64_t)alpha_q12 * (int64_t)rec_q12,
+                12u
+            ) + cue_add + (int64_t)dt_shift_q12[i];
+
+            next_r_q12[i] = (blended > 0LL) ? (int32_t)blended : 0;
+            next_sum += (int64_t)next_r_q12[i];
+        }
+
+        if (next_sum <= 0LL) {
+            r_q12[0] = 32768;
+            for (i = 1; i < NC_NUM_WEDGES; ++i) {
+                r_q12[i] = 0;
+            }
+        } else {
+            for (i = 0; i < NC_NUM_WEDGES; ++i) {
+                r_q12[i] = (int32_t)(((int64_t)next_r_q12[i] * 32768LL + (next_sum >> 1)) / next_sum);
+            }
+        }
+    }
+
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        int32_t v_q11 = (r_q12[i] + 1) >> 1;
+        comp->wedges_q15[i] = (v_q11 > 32767) ? (int16_t)32767 : (int16_t)v_q11;
+    }
+    comp->last_mag_gate_q15 = (int16_t)((last_mag_gate_q12 > 4095) ? 32767 : (last_mag_gate_q12 * 8));
+
+    new_bam = nc_compass_heading_bam(comp);
+    comp->phase_sub_bam = (int32_t)((uint32_t)(uint16_t)new_bam * 256u);
+
+    /* Kinematic P-EN gyro bias homeostasis gated strictly by connectome coincidence */
+    if (comp->bias_rate_q8 > 0) {
+        int64_t d_ref_q8 = (net_bam_s * (int64_t)dt_ms * 256LL) / 1000LL;
+        int64_t max_b_q12 = 3640LL * 4096LL;
+        comp->bias_ref_sub_bam = (int32_t)(((uint32_t)comp->bias_ref_sub_bam + (uint32_t)((int32_t)d_ref_q8)) & 0x00FFFFFFu);
+        if (use_sun && last_sun_gate_q12 > 205) {
+            nc_bam_t ref_bam_cur = (nc_bam_t)((uint16_t)((((uint32_t)comp->bias_ref_sub_bam + 128u) >> 8) & 0xFFFFu));
+            nc_bam_t err_b = nc_bam_sub(sun_bam, ref_bam_cur);
+            int64_t pull_q8 = ((int64_t)comp->sun_gain_q8 * (int64_t)last_sun_gate_q12 * (int64_t)dt_ms * (int64_t)err_b)
+                              / (4096LL * 1000LL);
+            comp->bias_ref_sub_bam = (int32_t)(((uint32_t)comp->bias_ref_sub_bam + (uint32_t)((int32_t)pull_q8)) & 0x00FFFFFFu);
+            bias_q12 -= ((int64_t)err_b * (int64_t)last_sun_gate_q12 * (int64_t)comp->bias_rate_q8 * (int64_t)dt_ms)
+                        / (256LL * 1000LL);
+        } else if (use_mag && last_mag_gate_q12 > 205) {
+            nc_bam_t ref_bam_cur = (nc_bam_t)((uint16_t)((((uint32_t)comp->bias_ref_sub_bam + 128u) >> 8) & 0xFFFFu));
+            nc_bam_t err_b = nc_bam_sub(mag_bam, ref_bam_cur);
+            int64_t pull_q8 = ((int64_t)comp->mag_gain_q8 * (int64_t)last_mag_gate_q12 * (int64_t)dt_ms * (int64_t)err_b)
+                              / (4096LL * 1000LL);
+            comp->bias_ref_sub_bam = (int32_t)(((uint32_t)comp->bias_ref_sub_bam + (uint32_t)((int32_t)pull_q8)) & 0x00FFFFFFu);
+            bias_q12 -= ((int64_t)err_b * (int64_t)last_mag_gate_q12 * (int64_t)comp->bias_rate_q8 * (int64_t)dt_ms)
+                        / (256LL * 1000LL);
+        }
+        if (bias_q12 > max_b_q12) {
+            bias_q12 = max_b_q12;
+        } else if (bias_q12 < -max_b_q12) {
+            bias_q12 = -max_b_q12;
+        }
+        comp->pen_bias_bam_s = (int32_t)(bias_q12 / 4096LL);
+        comp->bias_frac_q12 = (int16_t)(bias_q12 - (int64_t)comp->pen_bias_bam_s * 4096LL);
+    }
+
+    if (comp->reanchor_ms > 0u && use_mag && last_mag_coinc_q12 < 205 && !use_sun) {
+        if (nc_compass_track_offbasin(comp, mag_bam, new_bam, dt_ms)) {
+            return nc_compass_heading_bam(comp);
+        }
+    } else {
+        comp->offbasin_ms = 0;
+    }
+
+    return new_bam;
 }
 
 nc_bam_t nc_compass_update(
@@ -624,6 +981,14 @@ nc_bam_t nc_compass_update(
         if (dt_ms == 0u) {
             return nc_compass_heading_bam(comp);
         }
+    }
+
+    if (comp->weights != NULL) {
+        return nc_compass_update_banc(
+            comp, omega_bam_s, dt_ms,
+            mag_bam, mag_valid, m_conf,
+            sun_bam, sun_valid, s_conf
+        );
     }
 
     /* 1. Recurrent EPG <-> Delta7 state + P-EN asymmetric velocity shift on Q8 sub-BAM phase */
@@ -870,6 +1235,8 @@ void nc_plastic_ring_init(nc_plastic_ring_t *pr) {
         return;
     }
     nc_compass_init(&pr->comp);
+    /* Self-supervised multi-revolution harbor calibration uses uniform v2 phase integration by default */
+    nc_compass_set_weights(&pr->comp, NULL);
     /* Match Python RingCompass magnetic bias scaling: mag_gain / max(mag_gain, sun_gain) = 1.6 / 3.2 = 0.5 */
     pr->comp.bias_rate_q8 = 70;
     pr->bias_rem_accum = 0;
@@ -1111,10 +1478,18 @@ void nc_navigator_init(nc_navigator_t *nav, int32_t arrival_radius_mm) {
     if (nav == NULL) {
         return;
     }
+    nav->weights = nc_banc_default_weights();
     nc_navigator_reset(nav);
     nav->arrival_radius_mm = (arrival_radius_mm > 50) ? arrival_radius_mm : 1500;
     nav->last_heading_bam = 0;
     nav->steering_gain_q8 = 563; /* ~2.20 in Q8 */
+}
+
+void nc_navigator_set_weights(nc_navigator_t *nav, const nc_banc_cx_weights_t *weights) {
+    if (nav == NULL) {
+        return;
+    }
+    nav->weights = weights;
 }
 
 void nc_navigator_reset(nc_navigator_t *nav) {
@@ -1126,6 +1501,9 @@ void nc_navigator_reset(nc_navigator_t *nav) {
         nav->cpu4_pos_q15mm[i] = 0;
         nav->cpu4_neg_q15mm[i] = 0;
     }
+    nav->last_pfl3_left_q12 = 0;
+    nav->last_pfl3_right_q12 = 0;
+    nav->last_pfl2_q12 = 0;
 }
 
 void nc_navigator_update(
@@ -1218,31 +1596,212 @@ void nc_navigator_home_vector(
     }
 }
 
-int32_t nc_navigator_steering_cmd(
-    const nc_navigator_t *nav,
-    nc_bam_t current_heading_bam,
+static int32_t nc_pade_tanh_cmd(
+    int64_t drive_q15,
+    uint32_t dist_mm,
+    int32_t arrival_radius_mm,
     int32_t max_turn_bam_s
 ) {
-    uint32_t dist_mm = 0;
-    nc_bam_t home_bam = 0;
-    int64_t pfl3_diff = 0;
+    int64_t three_q15 = 3LL * (int64_t)NC_Q15_ONE;
+    int64_t sat_q15, cmd;
+
+    if (drive_q15 >= three_q15) {
+        sat_q15 = NC_Q15_ONE;
+    } else if (drive_q15 <= -three_q15) {
+        sat_q15 = -NC_Q15_ONE;
+    } else {
+        int64_t x2_q15 = (drive_q15 * drive_q15) / (int64_t)NC_Q15_ONE;
+        int64_t num = drive_q15 * (27LL * (int64_t)NC_Q15_ONE + x2_q15);
+        int64_t den = 27LL * (int64_t)NC_Q15_ONE + 9LL * x2_q15;
+        sat_q15 = num / den;
+    }
+
+    cmd = nc_div_pow2_round(sat_q15 * (int64_t)max_turn_bam_s, 15u);
+    if ((int32_t)dist_mm < arrival_radius_mm) {
+        cmd = (cmd * (int64_t)dist_mm) / (int64_t)arrival_radius_mm;
+    }
+    if (cmd > max_turn_bam_s) {
+        cmd = max_turn_bam_s;
+    } else if (cmd < -max_turn_bam_s) {
+        cmd = -max_turn_bam_s;
+    }
+    return (int32_t)cmd;
+}
+
+static int32_t nc_navigator_steering_cmd_banc(
+    const nc_navigator_t *nav,
+    const nc_compass_t *comp,
+    nc_bam_t current_heading_bam,
+    uint32_t dist_mm,
+    nc_bam_t home_bam,
+    int32_t max_turn_bam_s,
+    int16_t *out_pfl3_l_q12,
+    int16_t *out_pfl3_r_q12,
+    int16_t *out_pfl2_q12
+) {
+    const nc_banc_cx_weights_t *w = nav->weights;
+    int32_t raw_r[NC_NUM_WEDGES];
+    int32_t r_q12[NC_NUM_WEDGES];
+    int32_t rn_q12[NC_NUM_WEDGES];
+    int32_t d7_q12[NC_BANC_NUM_D7];
+    int32_t dn_q12[NC_BANC_NUM_D7];
+    int32_t pfl3_q12[NC_BANC_NUM_PFL3];
+    int32_t pfl2_q12[NC_BANC_NUM_PFL2];
+    int64_t sum_raw = 0;
+    int32_t r_max = 1, d7_max = 1;
+    int64_t sum_l = 0, sum_r = 0, sum_p2 = 0;
+    uint32_t cnt_l = 0u, cnt_r = 0u;
+    int64_t dna0_acc = 0, dna1_acc = 0;
+    int64_t raw_asym_q12, boost_q12, asym_q12, drive_q15;
+    int32_t mean_pfl2_q12;
+    uint32_t i, k, p, q;
+
+    if (comp != NULL && comp->initialized) {
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            raw_r[i] = (comp->wedges_q15[i] > 0) ? (int32_t)comp->wedges_q15[i] : 0;
+            sum_raw += (int64_t)raw_r[i];
+        }
+    }
+    if (sum_raw <= 0) {
+        sum_raw = 0;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            int32_t c = (int32_t)nc_cos_q15(nc_bam_sub(nc_wedge_theta(i), current_heading_bam));
+            raw_r[i] = (c > 0) ? c : 0;
+            sum_raw += (int64_t)raw_r[i];
+        }
+    }
+    if (sum_raw <= 0) {
+        r_q12[0] = 32768;
+        for (i = 1; i < NC_NUM_WEDGES; ++i) {
+            r_q12[i] = 0;
+        }
+        r_max = 32768;
+    } else {
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            r_q12[i] = (int32_t)(((int64_t)raw_r[i] * 32768LL + (sum_raw >> 1)) / sum_raw);
+            if (r_q12[i] > r_max) {
+                r_max = r_q12[i];
+            }
+        }
+    }
+
+    for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+        uint64_t acc = 0ULL;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + i] * (uint64_t)r_q12[i];
+        }
+        d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
+        if (d7_q12[k] > d7_max) {
+            d7_max = d7_q12[k];
+        }
+    }
+
+    for (i = 0; i < NC_NUM_WEDGES; ++i) {
+        rn_q12[i] = (int32_t)(((int64_t)r_q12[i] * 4096LL + (int64_t)(r_max >> 1)) / (int64_t)r_max);
+    }
+    for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+        dn_q12[k] = (int32_t)(((int64_t)d7_q12[k] * 4096LL + (int64_t)(d7_max >> 1)) / (int64_t)d7_max);
+    }
+
+    for (p = 0; p < NC_BANC_NUM_PFL3; ++p) {
+        uint64_t acc_e = 0ULL, acc_d = 0ULL;
+        int32_t epg_q12, d7_s_q12, inh_q12, goal_q15, goal_q12, lin_q12;
+        uint8_t is_l;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            acc_e += (uint64_t)w->M_epg_pfl3_q12[p * NC_NUM_WEDGES + i] * (uint64_t)rn_q12[i];
+        }
+        for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+            acc_d += (uint64_t)w->M_d7_pfl3_q12[p * NC_BANC_NUM_D7 + k] * (uint64_t)dn_q12[k];
+        }
+        epg_q12 = (int32_t)((acc_e + 2048ULL) >> 12);
+        d7_s_q12 = (int32_t)((acc_d + 2048ULL) >> 12);
+        inh_q12 = (int32_t)(((int64_t)d7_s_q12 * 2867LL + 2048LL) >> 12);
+        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)w->th_fb_pfl3_bam[p], home_bam));
+        goal_q12 = (int32_t)nc_div_pow2_round((int64_t)goal_q15 * 3482LL, 15u);
+        lin_q12 = epg_q12 - inh_q12 + goal_q12;
+        pfl3_q12[p] = (lin_q12 > 0) ? (int32_t)(((int64_t)lin_q12 * (int64_t)lin_q12 + 2048LL) >> 12) : 0;
+
+        if (w == &k_nc_banc_cx_default) {
+            is_l = (uint8_t)((0x019B26B3u >> p) & 1u);
+        } else {
+            is_l = (w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p] >= w->W_pfl3_dna02_q12[p]) ? 1u : 0u;
+        }
+        if (is_l) {
+            sum_l += (int64_t)pfl3_q12[p];
+            cnt_l += 1u;
+        } else {
+            sum_r += (int64_t)pfl3_q12[p];
+            cnt_r += 1u;
+        }
+        dna0_acc += (int64_t)w->W_pfl3_dna02_q12[p] * (int64_t)pfl3_q12[p];
+        dna1_acc += (int64_t)w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p] * (int64_t)pfl3_q12[p];
+    }
+
+    for (q = 0; q < NC_BANC_NUM_PFL2; ++q) {
+        uint64_t acc_e = 0ULL, acc_d = 0ULL;
+        int32_t epg_q12, d7_s_q12, inh_q12, goal_q15, goal_q12, lin_q12;
+        for (i = 0; i < NC_NUM_WEDGES; ++i) {
+            acc_e += (uint64_t)w->M_epg_pfl2_q12[q * NC_NUM_WEDGES + i] * (uint64_t)rn_q12[i];
+        }
+        for (k = 0; k < NC_BANC_NUM_D7; ++k) {
+            acc_d += (uint64_t)w->M_d7_pfl2_q12[q * NC_BANC_NUM_D7 + k] * (uint64_t)dn_q12[k];
+        }
+        epg_q12 = (int32_t)((acc_e + 2048ULL) >> 12);
+        d7_s_q12 = (int32_t)((acc_d + 2048ULL) >> 12);
+        inh_q12 = (int32_t)(((int64_t)d7_s_q12 * 2867LL + 2048LL) >> 12);
+        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)w->th_fb_pfl2_bam[q], home_bam));
+        goal_q12 = (int32_t)nc_div_pow2_round((int64_t)goal_q15 * 3482LL, 15u);
+        lin_q12 = epg_q12 - inh_q12 + goal_q12;
+        pfl2_q12[q] = (lin_q12 > 0) ? (int32_t)(((int64_t)lin_q12 * (int64_t)lin_q12 + 2048LL) >> 12) : 0;
+        sum_p2 += (int64_t)pfl2_q12[q];
+    }
+
+    mean_pfl2_q12 = (int32_t)((sum_p2 + 6LL) / (int64_t)NC_BANC_NUM_PFL2);
+    if (out_pfl3_l_q12 != NULL) {
+        int64_t ml = (cnt_l > 0u) ? ((sum_l + (int64_t)(cnt_l >> 1)) / (int64_t)cnt_l) : 0LL;
+        *out_pfl3_l_q12 = (ml > 32767LL) ? (int16_t)32767 : (int16_t)ml;
+    }
+    if (out_pfl3_r_q12 != NULL) {
+        int64_t mr = (cnt_r > 0u) ? ((sum_r + (int64_t)(cnt_r >> 1)) / (int64_t)cnt_r) : 0LL;
+        *out_pfl3_r_q12 = (mr > 32767LL) ? (int16_t)32767 : (int16_t)mr;
+    }
+    if (out_pfl2_q12 != NULL) {
+        *out_pfl2_q12 = (mean_pfl2_q12 > 32767) ? (int16_t)32767 : (int16_t)mean_pfl2_q12;
+    }
+
+    raw_asym_q12 = nc_div_pow2_round(dna0_acc - dna1_acc, 12u);
+    boost_q12 = 4096LL + ((int64_t)mean_pfl2_q12 * 45LL) / 100LL;
+    asym_q12 = nc_div_pow2_round(raw_asym_q12 * boost_q12, 12u);
+
+    if (mean_pfl2_q12 > 1024 && asym_q12 > -1434LL && asym_q12 < 1434LL) {
+        int64_t min_mag_q12 = ((int64_t)mean_pfl2_q12 * 105LL) / 100LL;
+        int64_t abs_a = (asym_q12 >= 0LL) ? asym_q12 : -asym_q12;
+        if (abs_a < min_mag_q12) {
+            abs_a = min_mag_q12;
+        }
+        asym_q12 = (asym_q12 >= 0LL) ? abs_a : -abs_a;
+    }
+
+    drive_q15 = (asym_q12 * (int64_t)nav->steering_gain_q8) / 22LL;
+    return nc_pade_tanh_cmd(drive_q15, dist_mm, nav->arrival_radius_mm, max_turn_bam_s);
+}
+
+static int32_t nc_navigator_steering_cmd_analytic(
+    const nc_navigator_t *nav,
+    nc_bam_t current_heading_bam,
+    uint32_t dist_mm,
+    nc_bam_t home_bam,
+    int32_t max_turn_bam_s,
+    int16_t *out_pfl3_l_q12,
+    int16_t *out_pfl3_r_q12,
+    int16_t *out_pfl2_q12
+) {
+    int64_t pfl3_l_sum = 0;
+    int64_t pfl3_r_sum = 0;
     int64_t pfl2_sum = 0;
-    int64_t asym_q15, boost_q15, boost_sq_q15, pfl2_drive_q15, turn_sign, total_asym_q15, drive_q15, cmd;
+    int64_t pfl3_diff, asym_q15, boost_q15, boost_sq_q15, pfl2_drive_q15, turn_sign, total_asym_q15, drive_q15;
     uint32_t i;
 
-    if (nav == NULL || max_turn_bam_s <= 0) {
-        return 0;
-    }
-    nc_navigator_home_vector(nav, &dist_mm, &home_bam);
-    if (dist_mm < 5u) {
-        return 0;
-    }
-
-    /*
-     * BANC v888 Fan-Shaped Body motor readout:
-     *   - 25 PFL3 bilateral steering neurons (+/-67.5 deg == +/-12288 BAM phase shift -> DNa02)
-     *   - 12 PFL2 anti-goal 180-deg turn-boost neurons (32768 BAM shift -> (1 - cos err)/8 drive)
-     */
     for (i = 0; i < NC_NUM_WEDGES; ++i) {
         nc_bam_t th = nc_wedge_theta(i);
         int32_t hdelta_q15 = (int32_t)nc_cos_q15(nc_bam_sub(th, home_bam));
@@ -1258,17 +1817,24 @@ int32_t nc_navigator_steering_cmd(
         int64_t act_r = (sum_r > 0) ? (((int64_t)sum_r * (int64_t)sum_r) >> 15) : 0;
         int64_t act_a = (sum_a > 0) ? (((int64_t)sum_a * (int64_t)sum_a) >> 15) : 0;
 
-        pfl3_diff += (act_r - act_l);
+        pfl3_l_sum += act_l;
+        pfl3_r_sum += act_r;
         pfl2_sum += act_a;
     }
 
-    /* Normalize PFL3 across 8*sin(67.5 deg) ~= 7.39 -> 1 / 7.39 ~= 111 / 820 (asym_q15 = 0.5*sin(err)) */
-    asym_q15 = (pfl3_diff * 111LL) / 820LL;
-    /* Mean PFL2 anti-goal activity in Q15: (1 - cos(err)) / 8, peaking at 8192 (0.25) at 180 deg */
-    boost_q15 = pfl2_sum / NC_NUM_WEDGES;
+    if (out_pfl3_l_q12 != NULL) {
+        *out_pfl3_l_q12 = (int16_t)((pfl3_l_sum / NC_NUM_WEDGES) >> 3);
+    }
+    if (out_pfl3_r_q12 != NULL) {
+        *out_pfl3_r_q12 = (int16_t)((pfl3_r_sum / NC_NUM_WEDGES) >> 3);
+    }
+    if (out_pfl2_q12 != NULL) {
+        *out_pfl2_q12 = (int16_t)((pfl2_sum / NC_NUM_WEDGES) >> 3);
+    }
 
-    /* Anti-goal hemisphere turn boost: pfl2_boost_gain (2.5) * 4 * anti_drive^2
-     * = 0 at 0 deg, smooth near 90 deg, and +0.625 (20480 in Q15) across 179-180 deg! */
+    pfl3_diff = pfl3_r_sum - pfl3_l_sum;
+    asym_q15 = (pfl3_diff * 111LL) / 820LL;
+    boost_q15 = pfl2_sum / NC_NUM_WEDGES;
     boost_sq_q15 = (4LL * boost_q15 * boost_q15) >> 15;
     pfl2_drive_q15 = (boost_sq_q15 * 5LL) >> 1;
 
@@ -1283,31 +1849,62 @@ int32_t nc_navigator_steering_cmd(
 
     total_asym_q15 = asym_q15 + turn_sign * pfl2_drive_q15;
     drive_q15 = nc_div_pow2_round(total_asym_q15 * (int64_t)nav->steering_gain_q8, 8u);
+    return nc_pade_tanh_cmd(drive_q15, dist_mm, nav->arrival_radius_mm, max_turn_bam_s);
+}
 
-    /* C1-smooth monotone Padé rational tanh(x) ~= x*(27 + x^2)/(27 + 9*x^2) for |x| < 3, +/-1 for |x| >= 3 */
-    {
-        int64_t three_q15 = 3LL * (int64_t)NC_Q15_ONE;
-        int64_t sat_q15;
-        if (drive_q15 >= three_q15) {
-            sat_q15 = NC_Q15_ONE;
-        } else if (drive_q15 <= -three_q15) {
-            sat_q15 = -NC_Q15_ONE;
-        } else {
-            int64_t x2_q15 = (drive_q15 * drive_q15) / (int64_t)NC_Q15_ONE;
-            int64_t num = drive_q15 * (27LL * (int64_t)NC_Q15_ONE + x2_q15);
-            int64_t den = 27LL * (int64_t)NC_Q15_ONE + 9LL * x2_q15;
-            sat_q15 = num / den;
-        }
-        cmd = nc_div_pow2_round(sat_q15 * (int64_t)max_turn_bam_s, 15u);
-    }
+int32_t nc_navigator_steering_cmd(
+    const nc_navigator_t *nav,
+    nc_bam_t current_heading_bam,
+    int32_t max_turn_bam_s
+) {
+    uint32_t dist_mm = 0;
+    nc_bam_t home_bam = 0;
 
-    if ((int32_t)dist_mm < nav->arrival_radius_mm) {
-        cmd = (cmd * (int64_t)dist_mm) / (int64_t)nav->arrival_radius_mm;
+    if (nav == NULL || max_turn_bam_s <= 0) {
+        return 0;
     }
-    if (cmd > max_turn_bam_s) {
-        cmd = max_turn_bam_s;
-    } else if (cmd < -max_turn_bam_s) {
-        cmd = -max_turn_bam_s;
+    nc_navigator_home_vector(nav, &dist_mm, &home_bam);
+    if (dist_mm < 5u) {
+        return 0;
     }
-    return (int32_t)cmd;
+    if (nav->weights != NULL) {
+        return nc_navigator_steering_cmd_banc(
+            nav, NULL, current_heading_bam, dist_mm, home_bam, max_turn_bam_s, NULL, NULL, NULL
+        );
+    }
+    return nc_navigator_steering_cmd_analytic(
+        nav, current_heading_bam, dist_mm, home_bam, max_turn_bam_s, NULL, NULL, NULL
+    );
+}
+
+int32_t nc_navigator_steering_cmd_with_compass(
+    nc_navigator_t *nav,
+    const nc_compass_t *comp,
+    nc_bam_t current_heading_bam,
+    int32_t max_turn_bam_s
+) {
+    uint32_t dist_mm = 0;
+    nc_bam_t home_bam = 0;
+    nc_bam_t hdg_bam = (comp != NULL && comp->initialized) ? nc_compass_heading_bam(comp) : current_heading_bam;
+
+    if (nav == NULL || max_turn_bam_s <= 0) {
+        return 0;
+    }
+    nc_navigator_home_vector(nav, &dist_mm, &home_bam);
+    if (dist_mm < 5u) {
+        nav->last_pfl3_left_q12 = 0;
+        nav->last_pfl3_right_q12 = 0;
+        nav->last_pfl2_q12 = 0;
+        return 0;
+    }
+    if (nav->weights != NULL) {
+        return nc_navigator_steering_cmd_banc(
+            nav, comp, hdg_bam, dist_mm, home_bam, max_turn_bam_s,
+            &nav->last_pfl3_left_q12, &nav->last_pfl3_right_q12, &nav->last_pfl2_q12
+        );
+    }
+    return nc_navigator_steering_cmd_analytic(
+        nav, hdg_bam, dist_mm, home_bam, max_turn_bam_s,
+        &nav->last_pfl3_left_q12, &nav->last_pfl3_right_q12, &nav->last_pfl2_q12
+    );
 }

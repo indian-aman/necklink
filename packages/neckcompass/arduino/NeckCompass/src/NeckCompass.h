@@ -2,9 +2,9 @@
 #define NECKCOMPASS_ARDUINO_HPP
 
 /*
- * NeckCompass v2.0.0 -- C++ / Arduino Header Wrapper
+ * NeckCompass v3.0.0 -- C++ / Arduino Header Wrapper
  *
- * Thin, zero-heap C++11 wrapper around the zero-float ANSI C99 Central Complex
+ * Thin, zero-heap C++11 wrapper around the zero-float ANSI C99 BANC v888 Central Complex
  * core (nc_tilt_t, nc_compass_t, nc_plastic_ring_t, nc_navigator_t).
  * Works on ESP32, STM32, RP2040, Teensy, nRF52, and AVR targets.
  */
@@ -78,6 +78,18 @@ public:
 
     void resetCentiDeg(int32_t heading_cdeg = 0) {
         nc_compass_reset(&comp_, nc_cdeg_to_bam(heading_cdeg));
+    }
+
+    void useBancConnectome() {
+        nc_compass_set_weights(&comp_, nc_banc_default_weights());
+    }
+
+    void useAnalyticV2() {
+        nc_compass_set_weights(&comp_, nullptr);
+    }
+
+    int16_t coherenceQ15() const {
+        return nc_compass_coherence_q15(&comp_);
     }
 
     int32_t update2D_cdeg(
@@ -310,6 +322,24 @@ public:
 
     void resetOrigin() {
         nc_navigator_reset(&nav_);
+    }
+
+    void useBancConnectome() {
+        nc_navigator_set_weights(&nav_, nc_banc_default_weights());
+    }
+
+    void useAnalyticV2() {
+        nc_navigator_set_weights(&nav_, nullptr);
+    }
+
+    int32_t steeringCmdWithCompassCentiDegS(const NeckCompassRing& ring, int32_t max_turn_rate_cdeg_s) {
+        int32_t cmd_bam_s = nc_navigator_steering_cmd_with_compass(
+            &nav_,
+            &ring.raw(),
+            ring.headingBam(),
+            nc_cdeg_s_to_bam_s(max_turn_rate_cdeg_s)
+        );
+        return nc_bam_s_to_cdeg_s(cmd_bam_s);
     }
 
     void update(int32_t speed_mm_s, uint32_t dt_ms, nc_bam_t heading_bam) {

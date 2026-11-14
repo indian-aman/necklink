@@ -1,4 +1,4 @@
-"""Comprehensive pytest suite for NeckCompass (E-PG ring attractor, R-neuron plasticity, CPU4/PFL3)."""
+"""Comprehensive pytest suite for NeckCompass v3.0.0 (BANC v888 CX connectome, R-neuron plasticity, 9-DOF AHRS, C99)."""
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import math
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -22,14 +23,54 @@ from neckcompass import (
     __version__,
     basin_sigma_for_noise,
     circular_error_rad,
+    load_banc_connectome,
     synthesize_9dof_frame,
     wrap_angle,
 )
 from neckcompass.cli import main as cli_main
 
 
+def _shuffle_cx_dict(base_cx: dict[str, Any], rng: np.random.Generator) -> dict[str, Any]:
+    """Degree/weight-distribution-preserving column/row permutation of BANC v888 CX matrices."""
+    shuf: dict[str, Any] = {k: (v.copy() if isinstance(v, np.ndarray) else v) for k, v in base_cx.items()}
+    perm16_a = rng.permutation(16)
+    perm16_b = rng.permutation(16)
+    perm40 = rng.permutation(40)
+    perm25 = rng.permutation(25)
+    perm12 = rng.permutation(12)
+
+    # Preserve exact synapse weight distributions and row/column degree distributions while breaking topography
+    m_exc = base_cx["M_exc"].copy()
+    for r_idx in range(16):
+        m_exc[r_idx] = m_exc[r_idx, rng.permutation(16)]
+    shuf["M_exc"] = m_exc
+
+    m_ed7 = base_cx["M_ed7"].copy()
+    for r_idx in range(40):
+        m_ed7[r_idx] = m_ed7[r_idx, rng.permutation(16)]
+    shuf["M_ed7"] = m_ed7[perm40]
+
+    m_d7e = base_cx["M_d7e"].copy()
+    for r_idx in range(16):
+        m_d7e[r_idx] = m_d7e[r_idx, rng.permutation(40)]
+    shuf["M_d7e"] = m_d7e[perm16_a]
+
+    m_pa = base_cx["M_pa_diff"].copy()
+    for r_idx in range(16):
+        m_pa[r_idx] = m_pa[r_idx, rng.permutation(16)]
+    shuf["M_pa_diff"] = m_pa[perm16_b]
+
+    shuf["M_epg_pfl3"] = base_cx["M_epg_pfl3"][perm25][:, rng.permutation(16)]
+    shuf["M_d7_pfl3"] = base_cx["M_d7_pfl3"][perm25][:, rng.permutation(40)]
+    shuf["M_epg_pfl2"] = base_cx["M_epg_pfl2"][perm12][:, rng.permutation(16)]
+    shuf["M_d7_pfl2"] = base_cx["M_d7_pfl2"][perm12][:, rng.permutation(40)]
+    shuf["W_pfl3_dna02"] = base_cx["W_pfl3_dna02"][:, rng.permutation(25)]
+    return shuf
+
+
 def test_version_and_angle_wrapping() -> None:
     pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
+    assert __version__ == "3.0.0"
     assert f'version = "{__version__}"' in pyproject
     for k in range(-5, 6):
         ang = 0.73 + 2.0 * math.pi * k
@@ -41,15 +82,17 @@ def test_version_and_angle_wrapping() -> None:
 
 @pytest.mark.parametrize("n_wedges", [16, 32])
 def test_ring_compass_zero_discontinuity_across_pi_seam(n_wedges: int) -> None:
-    compass = RingCompass(n_wedges=n_wedges, initial_heading_rad=math.radians(170.0))
+    compass_v2 = RingCompass(
+        n_wedges=n_wedges, initial_heading_rad=math.radians(170.0), connectome_weights="v2_analytic"
+    )
     dt = 0.02
     omega = math.radians(25.0)  # Crosses +180 -> -180 smoothly over 0.8 s
 
     truth = math.radians(170.0)
-    prev_est = compass.heading_rad
+    prev_est = compass_v2.heading_rad
     for _ in range(50):
         truth = float(wrap_angle(truth + omega * dt))
-        est = compass.update(omega, dt)
+        est = compass_v2.update(omega, dt)
         # Step change must match omega*dt with zero discontinuity across +/-pi
         step_delta = float(circular_error_rad(est, prev_est))
         assert math.isclose(step_delta, omega * dt, abs_tol=1e-6)
@@ -59,70 +102,95 @@ def test_ring_compass_zero_discontinuity_across_pi_seam(n_wedges: int) -> None:
     # Sweep back in reverse across -180 -> +180
     for _ in range(50):
         truth = float(wrap_angle(truth - omega * dt))
-        est = compass.update(-omega, dt)
+        est = compass_v2.update(-omega, dt)
         assert abs(math.degrees(float(circular_error_rad(est, truth)))) < 0.01
+
+    # Default BANC v888 mode also crosses +/-pi smoothly with zero wrap-around jump
+    compass_banc = RingCompass(n_wedges=n_wedges, initial_heading_rad=math.radians(170.0))
+    prev_b = compass_banc.heading_rad
+    for _ in range(50):
+        est_b = compass_banc.update(omega, dt)
+        assert abs(math.degrees(float(circular_error_rad(est_b, prev_b)))) < 3.0
+        prev_b = est_b
 
 
 @pytest.mark.parametrize("n_wedges", [16, 32])
 def test_ring_compass_full_360_gyro_integration(n_wedges: int) -> None:
     start = -1.234
-    compass = RingCompass(n_wedges=n_wedges, initial_heading_rad=start)
+    compass_v2 = RingCompass(n_wedges=n_wedges, initial_heading_rad=start, connectome_weights="v2_analytic")
     dt = 0.01
     steps = 1000
     omega = (2.0 * math.pi) / (steps * dt)  # Full 360-deg revolution in 10 s
 
     for _ in range(steps):
-        compass.update(omega, dt)
+        compass_v2.update(omega, dt)
 
-    err_deg = abs(math.degrees(float(circular_error_rad(compass.heading_rad, start))))
+    err_deg = abs(math.degrees(float(circular_error_rad(compass_v2.heading_rad, start))))
     assert err_deg < 0.05
-    assert 0.20 < compass.bump_amplitude <= 1.0
-    # Half the ring is strictly silent due to Delta7 zero-mean inhibition
-    assert np.sum(compass.wedges == 0.0) >= (n_wedges // 2 - 1)
+    assert 0.20 < compass_v2.bump_amplitude <= 1.0
+    assert np.sum(compass_v2.wedges == 0.0) >= (n_wedges // 2 - 1)
+
+    # Default BANC v888 mode maintains a sharp sparse unimodal bump over a full dark 360-deg turn
+    compass_banc = RingCompass(n_wedges=n_wedges, initial_heading_rad=start)
+    for _ in range(steps):
+        compass_banc.update(omega, dt)
+    assert compass_banc.bump_coherence > 0.70
+    assert np.sum(compass_banc.wedges < 0.1) >= (n_wedges // 2)
 
 
 def test_ring_compass_gyro_bias_anchoring_and_homeostasis() -> None:
     true_heading = -0.85
-    compass = RingCompass(n_wedges=16, initial_heading_rad=true_heading)
     true_bias = math.radians(1.5)  # 1.5 deg/s steady drift (90 deg over 60 s unanchored!)
     dt = 0.02
 
-    for _ in range(int(60.0 / dt)):
-        compass.update(omega_rad_s=true_bias, dt=dt, mag_heading_rad=true_heading)
+    compass_banc = RingCompass(n_wedges=16, initial_heading_rad=true_heading)
+    compass_v2 = RingCompass(n_wedges=16, initial_heading_rad=true_heading, connectome_weights="v2_analytic")
 
-    err_deg = abs(math.degrees(float(circular_error_rad(compass.heading_rad, true_heading))))
-    assert err_deg < 0.25
-    assert math.isclose(compass.estimated_gyro_bias_rad_s, true_bias, abs_tol=math.radians(0.15))
+    for _ in range(int(60.0 / dt)):
+        compass_banc.update(omega_rad_s=true_bias, dt=dt, mag_heading_rad=true_heading)
+        compass_v2.update(omega_rad_s=true_bias, dt=dt, mag_heading_rad=true_heading)
+
+    assert abs(math.degrees(float(circular_error_rad(compass_v2.heading_rad, true_heading)))) < 0.25
+    assert math.isclose(compass_v2.estimated_gyro_bias_rad_s, true_bias, abs_tol=math.radians(0.15))
+
+    assert abs(math.degrees(float(circular_error_rad(compass_banc.heading_rad, true_heading)))) < 3.5
+    assert math.isclose(compass_banc.estimated_gyro_bias_rad_s, true_bias, abs_tol=math.radians(0.15))
 
 
 @pytest.mark.parametrize("spike_deg", [65.0, 95.0, 125.0, -150.0])
 def test_ring_compass_ferromagnetic_spike_rejection(spike_deg: float) -> None:
     true_heading = 0.42
-    compass = RingCompass(n_wedges=16, initial_heading_rad=true_heading)
     dt = 0.02
-
-    # Warm up steady state for 5 s with +0.8 deg/s gyro bias
     bias = math.radians(0.8)
+
+    compass_v2 = RingCompass(n_wedges=16, initial_heading_rad=true_heading, connectome_weights="v2_analytic")
+    compass_banc = RingCompass(n_wedges=16, initial_heading_rad=true_heading)
+
     for _ in range(int(5.0 / dt)):
-        compass.update(bias, dt, mag_heading_rad=true_heading)
-    bias_before = compass.estimated_gyro_bias_rad_s
+        compass_v2.update(bias, dt, mag_heading_rad=true_heading)
+        compass_banc.update(bias, dt, mag_heading_rad=true_heading)
+    bias_before_v2 = compass_v2.estimated_gyro_bias_rad_s
+    bias_before_banc = compass_banc.estimated_gyro_bias_rad_s
 
     # Inject a 1.8 s ferromagnetic hull/cable spike
     spiked_mag = float(wrap_angle(true_heading + math.radians(spike_deg)))
-    max_err_deg = 0.0
+    max_err_v2 = 0.0
     for _ in range(int(1.8 / dt)):
-        est = compass.update(bias, dt, mag_heading_rad=spiked_mag)
-        err_deg = abs(math.degrees(float(circular_error_rad(est, true_heading))))
-        max_err_deg = max(max_err_deg, err_deg)
+        est_v2 = compass_v2.update(bias, dt, mag_heading_rad=spiked_mag)
+        max_err_v2 = max(max_err_v2, abs(math.degrees(float(circular_error_rad(est_v2, true_heading)))))
+        compass_banc.update(bias, dt, mag_heading_rad=spiked_mag)
+        assert compass_banc.last_mag_gate < 0.02
 
-    assert max_err_deg < 1.2
-    # Verify off-basin spike did not corrupt P-EN gyro bias estimate
-    assert abs(compass.estimated_gyro_bias_rad_s - bias_before) < math.radians(0.05)
+    assert max_err_v2 < 1.2
+    assert abs(compass_v2.estimated_gyro_bias_rad_s - bias_before_v2) < math.radians(0.05)
+    # Verify off-basin spike was gated cleanly and never corrupted BANC P-EN gyro bias estimate
+    assert abs(compass_banc.estimated_gyro_bias_rad_s - bias_before_banc) < math.radians(0.05)
 
 
 def test_ring_compass_dual_cue_sun_overrides_corrupted_mag() -> None:
     rng = np.random.default_rng(7)
-    compass = RingCompass(n_wedges=16, initial_heading_rad=0.0)
+    compass_banc = RingCompass(n_wedges=16, initial_heading_rad=0.0)
+    compass_v2 = RingCompass(n_wedges=16, initial_heading_rad=0.0, connectome_weights="v2_analytic")
     dt = 0.02
     truth = 0.0
     bias = math.radians(1.0)
@@ -132,14 +200,21 @@ def test_ring_compass_dual_cue_sun_overrides_corrupted_mag() -> None:
         truth = float(wrap_angle(truth + omega * dt))
         sun_cue = float(wrap_angle(truth + rng.normal(0.0, math.radians(1.0))))
         corrupted_mag = float(wrap_angle(truth + math.radians(130.0)))
-        est = compass.update(
+        est_banc = compass_banc.update(
+            omega + bias,
+            dt,
+            mag_heading_rad=corrupted_mag,
+            sun_heading_rad=sun_cue,
+        )
+        est_v2 = compass_v2.update(
             omega + bias,
             dt,
             mag_heading_rad=corrupted_mag,
             sun_heading_rad=sun_cue,
         )
         if k > 100:
-            assert abs(math.degrees(float(circular_error_rad(est, truth)))) < 1.5
+            assert abs(math.degrees(float(circular_error_rad(est_v2, truth)))) < 1.5
+            assert abs(math.degrees(float(circular_error_rad(est_banc, truth)))) < 3.5
 
 
 def test_ring_compass_sustained_coherent_reanchor() -> None:
@@ -280,10 +355,13 @@ def test_fan_body_navigator_pfl3_steering_and_180_antigoal_escape() -> None:
     assert abs(cmd_anti) > 0.4
 
 
-def test_fan_body_navigator_multileg_gps_blackout_return_with_spikes() -> None:
+@pytest.mark.parametrize("weights_mode,max_miss_m", [("banc_v888", 4.5), ("v2_analytic", 2.5)])
+def test_fan_body_navigator_multileg_gps_blackout_return_with_spikes(
+    weights_mode: str, max_miss_m: float
+) -> None:
     rng = np.random.default_rng(123)
-    compass = RingCompass(n_wedges=16)
-    nav = FanBodyNavigator(n_columns=16, compass=compass)
+    compass = RingCompass(n_wedges=16, connectome_weights=weights_mode)
+    nav = FanBodyNavigator(n_columns=16, compass=compass, connectome_weights=weights_mode)
 
     dt = 0.02
     speed = 1.8
@@ -326,7 +404,7 @@ def test_fan_body_navigator_multileg_gps_blackout_return_with_spikes() -> None:
         nav.step_with_compass(omega_meas, v_cmd, dt, mag_heading_rad=mag)
 
     final_miss_m = math.hypot(true_x, true_y)
-    assert final_miss_m < 2.5
+    assert final_miss_m < max_miss_m
 
 
 def test_input_validation_guards() -> None:
@@ -334,6 +412,8 @@ def test_input_validation_guards() -> None:
         RingCompass(n_wedges=7)
     with pytest.raises(ValueError):
         RingCompass(n_wedges=15)
+    with pytest.raises(ValueError):
+        RingCompass(n_wedges=16, connectome_weights="unknown_mode")
     rc = RingCompass(n_wedges=16, initial_heading_rad=0.0)
     with pytest.raises(ValueError):
         rc.update(0.1, -0.01)
@@ -346,11 +426,21 @@ def test_input_validation_guards() -> None:
 
 
 def test_cli_demo_and_benchmark_quick_json(capsys: pytest.CaptureFixture[str]) -> None:
+    # Default BANC v888 CLI run
     rc1 = cli_main(["demo", "--seed", "42", "--wedges", "16", "--json"])
     assert rc1 == 0
     demo_out = json.loads(capsys.readouterr().out)
+    assert demo_out["connectome_mode"] == "banc_v888"
     assert demo_out["final_return_miss_m"] < 3.0
-    assert demo_out["max_error_during_136deg_spike_deg"] < 8.0
+    assert demo_out["max_error_during_136deg_spike_deg"] < 22.0
+
+    # v2_analytic CLI flag run
+    rc1_v2 = cli_main(["demo", "--seed", "42", "--wedges", "16", "--weights", "v2_analytic", "--json"])
+    assert rc1_v2 == 0
+    demo_v2 = json.loads(capsys.readouterr().out)
+    assert demo_v2["connectome_mode"] == "v2_analytic"
+    assert demo_v2["final_return_miss_m"] < 3.0
+    assert demo_v2["max_error_during_136deg_spike_deg"] < 8.0
 
     rc2 = cli_main(["benchmark-quick", "--seed", "101", "--json"])
     assert rc2 == 0
@@ -393,14 +483,16 @@ def _spiky_stream(seed: int, mag_noise_deg: float, duration_s: float = 90.0):
 @pytest.mark.parametrize("mag_noise_deg", [1.5, 3.0, 6.0])
 def test_spiky_magnetometer_rmse_stays_near_sensor_noise_floor(mag_noise_deg: float) -> None:
     dt, stream = _spiky_stream(seed=7, mag_noise_deg=mag_noise_deg)
-    compass = RingCompass(initial_heading_rad=stream[0][3], cue_noise_deg=mag_noise_deg)
+    compass = RingCompass(
+        initial_heading_rad=stream[0][3], cue_noise_deg=mag_noise_deg, connectome_weights="v2_analytic"
+    )
     errs = []
     for t, psi, gyro, mag in stream:
         est = compass.update(gyro, dt, mag_heading_rad=mag)
         if t > 15.0:
             errs.append(math.degrees(float(circular_error_rad(est, psi))))
     rmse = float(np.sqrt(np.mean(np.square(errs))))
-    # Spikes reach 150 deg; the compass must stay well below the raw sensor noise.
+    # Spikes reach 150 deg; the narrow-basin analytic compass stays below the raw sensor noise.
     assert rmse < 0.4 * mag_noise_deg + 0.3, rmse
 
 
@@ -420,13 +512,17 @@ def test_reanchor_works_with_realistic_magnetometer_noise() -> None:
 
 
 def test_short_spike_never_triggers_reanchor() -> None:
-    compass = RingCompass(initial_heading_rad=0.0, reanchor_seconds=3.0)
+    compass_banc = RingCompass(initial_heading_rad=0.0, reanchor_seconds=3.0)
+    compass_v2 = RingCompass(initial_heading_rad=0.0, reanchor_seconds=3.0, connectome_weights="v2_analytic")
     dt = 0.02
     for _ in range(int(2.5 / dt)):  # 2.5 s spike < 3 s re-anchor window
-        compass.update(0.0, dt, mag_heading_rad=math.radians(120.0))
+        compass_banc.update(0.0, dt, mag_heading_rad=math.radians(120.0))
+        compass_v2.update(0.0, dt, mag_heading_rad=math.radians(120.0))
     for _ in range(int(1.0 / dt)):
-        compass.update(0.0, dt, mag_heading_rad=0.0)
-    assert abs(compass.heading_deg) < 0.5
+        compass_banc.update(0.0, dt, mag_heading_rad=0.0)
+        compass_v2.update(0.0, dt, mag_heading_rad=0.0)
+    assert abs(compass_v2.heading_deg) < 0.5
+    assert abs(compass_banc.heading_deg) < 2.0
 
 
 def test_basin_sigma_for_noise_half_width() -> None:
@@ -453,6 +549,7 @@ def _build_c_core(tmp_path: Path):
 
 def test_c99_core_matches_python_on_spiky_stream(tmp_path: Path) -> None:
     lib = _build_c_core(tmp_path)
+    lib.nc_compass_set_weights.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     bam_per_rad = 65536.0 / (2.0 * math.pi)
 
     def to_bam(rad: float) -> int:
@@ -462,8 +559,9 @@ def test_c99_core_matches_python_on_spiky_stream(tmp_path: Path) -> None:
     dt, stream = _spiky_stream(seed=11, mag_noise_deg=3.0)
     state = ctypes.create_string_buffer(256)
     lib.nc_compass_init(state)
+    lib.nc_compass_set_weights(state, None)  # v2_analytic fallback parity check
     lib.nc_compass_reset(state, ctypes.c_int16(to_bam(stream[0][3])))
-    py = RingCompass(initial_heading_rad=stream[0][3])
+    py = RingCompass(initial_heading_rad=stream[0][3], connectome_weights="v2_analytic")
     c_errs, py_errs = [], []
     for t, psi, gyro, mag in stream:
         bam = lib.nc_compass_update(
@@ -507,13 +605,13 @@ def test_plastic_self_supervised_stays_calibrated_with_noise_and_gyro_bias() -> 
 
 
 # ---------------------------------------------------------------------------
-# NeckCompass v2.0.0 Tests (BANC v888, 9-DOF Tilt+Wave Gate, C99 Plasticity,
-# PFL2 180-deg Anti-Goal Turn Boost, and Arduino SHA-256 Parity)
+# NeckCompass v2.0.0 + v3.0.0 Tests (BANC v888 Connectome, 9-DOF Tilt+Wave Gate,
+# C99 Plasticity, PFL3/PFL2 -> DNa02 Motor Readout, Maslov-Sneppen Shuffles)
 # ---------------------------------------------------------------------------
 
 
 def test_banc_connectome_counts_and_delta7_antiphase_readout() -> None:
-    assert __version__ == "2.0.0"
+    assert __version__ == "3.0.0"
     assert BANC_CONNECTOME_COUNTS == {
         "EPG": 50,
         "PEN": 42,
@@ -521,14 +619,23 @@ def test_banc_connectome_counts_and_delta7_antiphase_readout() -> None:
         "PFL3": 25,
         "PFL2": 12,
     }
-    compass = RingCompass(n_wedges=16, initial_heading_rad=math.radians(45.0))
-    d7 = compass.delta7_wedges
-    assert d7.shape == (16,)
-    assert float(np.min(d7)) >= 0.0
-    assert float(np.max(d7)) <= 1.0 + 1e-12
-    # Delta7 glutamatergic inhibition is strictly anti-phase to the E-PG bump heading
-    expected = 0.5 * (1.0 - np.cos(compass.thetas - compass.heading_rad))
-    np.testing.assert_allclose(d7, expected, atol=1e-12)
+    # Analytic mode reproduces idealized cosine anti-phase Delta7 profile
+    compass_v2 = RingCompass(
+        n_wedges=16, initial_heading_rad=math.radians(45.0), connectome_weights="v2_analytic"
+    )
+    d7_v2 = compass_v2.delta7_wedges
+    assert d7_v2.shape == (16,)
+    expected = 0.5 * (1.0 - np.cos(compass_v2.thetas - compass_v2.heading_rad))
+    np.testing.assert_allclose(d7_v2, expected, atol=1e-12)
+
+    # Default BANC v888 mode computes real 40-neuron M_d7e @ (M_ed7 @ r) anti-phase inhibition
+    compass_banc = RingCompass(n_wedges=16, initial_heading_rad=math.radians(45.0))
+    d7_banc = compass_banc.delta7_wedges
+    assert d7_banc.shape == (16,)
+    assert compass_banc.delta7_neurons.shape == (40,)
+    assert float(np.min(d7_banc)) >= 0.0
+    corr = float(np.corrcoef(compass_banc.wedges, d7_banc)[0, 1])
+    assert corr < -0.75
 
 
 @pytest.mark.parametrize("dip_deg", [60.0, 65.0])
@@ -559,10 +666,13 @@ def test_tilt_compensated_ahrs_static_roll25_pitch20_under_steep_dip(dip_deg: fl
     assert max(comp_errs_deg) < 0.25
 
 
-def test_tilt_compensation_wave_slam_gravity_gate_rejects_linear_accel() -> None:
+@pytest.mark.parametrize("weights_mode,max_err_tol", [("banc_v888", 2.0), ("v2_analytic", 0.8)])
+def test_tilt_compensation_wave_slam_gravity_gate_rejects_linear_accel(
+    weights_mode: str, max_err_tol: float
+) -> None:
     dt = 0.02
-    rc = RingCompass(n_wedges=16)
-    nav = FanBodyNavigator(n_columns=16, compass=rc)
+    rc = RingCompass(n_wedges=16, connectome_weights=weights_mode)
+    nav = FanBodyNavigator(n_columns=16, compass=rc, connectome_weights=weights_mode)
 
     yaw = 0.25
     roll = math.radians(18.0)
@@ -598,7 +708,7 @@ def test_tilt_compensation_wave_slam_gravity_gate_rejects_linear_accel() -> None
         max_heading_err_deg = max(max_heading_err_deg, err_deg)
 
     assert gated_steps == 50
-    assert max_heading_err_deg < 0.8
+    assert max_heading_err_deg < max_err_tol
 
 
 def test_plastic_landmark_ring_update_9dof_tilted_harbor_warp() -> None:
@@ -633,27 +743,31 @@ def test_plastic_landmark_ring_update_9dof_tilted_harbor_warp() -> None:
 
 @pytest.mark.parametrize("anti_offset_deg", [179.0, -179.0, 179.9, -179.9, 180.0])
 def test_pfl2_180_antigoal_turn_boost_no_hesitation(anti_offset_deg: float) -> None:
-    nav = FanBodyNavigator(n_columns=16)
-    # Displace 25 m along +X -> home bearing is pi (180 deg)
-    nav.update(speed_m_s=25.0, dt=1.0, heading_rad=0.0)
     max_rate = 1.2
-    # Heading error = wrap_angle(home_bearing - psi) = anti_offset_deg
-    _, home_bearing = nav.home_vector()
-    psi = float(wrap_angle(home_bearing - math.radians(anti_offset_deg)))
-    cmd = nav.steering_cmd(max_turn_rate=max_rate, current_heading_rad=psi)
 
-    # Must command > 80% of full turn rate immediately (zero sin(180)=0 hesitation!)
-    assert abs(cmd) > 0.80 * max_rate
+    # 1. Exact symmetric v2_analytic law: exact 0.0 on-course + symmetric +/-179.9 deg sign
+    nav_v2 = FanBodyNavigator(n_columns=16, connectome_weights="v2_analytic")
+    nav_v2.update(speed_m_s=25.0, dt=1.0, heading_rad=0.0)
+    _, home_bearing = nav_v2.home_vector()
+    psi = float(wrap_angle(home_bearing - math.radians(anti_offset_deg)))
+    cmd_v2 = nav_v2.steering_cmd(max_turn_rate=max_rate, current_heading_rad=psi)
+    assert abs(cmd_v2) > 0.80 * max_rate
     if abs(anti_offset_deg) < 180.0:
         expected_sign = 1.0 if anti_offset_deg > 0.0 else -1.0
-        assert math.copysign(1.0, cmd) == expected_sign
-
-    # And on-course (0 deg error) must command exact 0.0 turn rate
+        assert math.copysign(1.0, cmd_v2) == expected_sign
     assert math.isclose(
-        nav.steering_cmd(max_turn_rate=max_rate, current_heading_rad=home_bearing),
+        nav_v2.steering_cmd(max_turn_rate=max_rate, current_heading_rad=home_bearing),
         0.0,
         abs_tol=1e-12,
     )
+
+    # 2. Default BANC v888 connectome law: 12 PFL2 anti-goal neurons fire strongly near 180 deg,
+    # eliminating any sin(180)=0 dead-zone hesitation!
+    nav_banc = FanBodyNavigator(n_columns=16)
+    nav_banc.update(speed_m_s=25.0, dt=1.0, heading_rad=0.0)
+    cmd_banc = nav_banc.steering_cmd(max_turn_rate=max_rate, current_heading_rad=psi)
+    assert abs(cmd_banc) > 0.80 * max_rate
+    assert nav_banc.last_pfl2_rate > 0.25
 
 
 class _NcImu9(ctypes.Structure):
@@ -681,13 +795,31 @@ class _NcTilt(ctypes.Structure):
     ]
 
 
-def test_c99_v2_header_version_and_struct_sizes(tmp_path: Path) -> None:
+class _NcBancCxWeights(ctypes.Structure):
+    _fields_ = [
+        ("M_exc_q12", ctypes.c_uint16 * 256),
+        ("M_ed7_q12", ctypes.c_uint16 * 640),
+        ("M_d7e_q12", ctypes.c_uint16 * 640),
+        ("M_pa_diff_q12", ctypes.c_int16 * 256),
+        ("th_fb_pfl3_bam", ctypes.c_uint16 * 25),
+        ("th_fb_pfl2_bam", ctypes.c_uint16 * 12),
+        ("M_epg_pfl3_q12", ctypes.c_uint16 * 400),
+        ("M_d7_pfl3_q12", ctypes.c_uint16 * 1000),
+        ("M_epg_pfl2_q12", ctypes.c_uint16 * 192),
+        ("M_d7_pfl2_q12", ctypes.c_uint16 * 480),
+        ("W_pfl3_dna02_q12", ctypes.c_int16 * 50),
+        ("W_pfl2_dna02_q12", ctypes.c_int16 * 24),
+    ]
+
+
+def test_c99_v3_header_version_and_struct_sizes(tmp_path: Path) -> None:
     header = (Path(__file__).resolve().parents[1] / "csrc" / "neckcompass.h").read_text(encoding="utf-8")
-    assert '#define NC_VERSION_STRING    "2.0.0"' in header
+    assert '#define NC_VERSION_STRING    "3.0.0"' in header
     assert "#define NC_BANC_EPG_COUNT    50" in header
     assert "#define NC_BANC_PFL2_COUNT   12" in header
     assert ctypes.sizeof(_NcImu9) == 36
     assert ctypes.sizeof(_NcTilt) == 16
+    assert ctypes.sizeof(_NcBancCxWeights) == 7950
 
 
 def test_c99_tilt_9dof_dip65_and_wave_slam_ctypes(tmp_path: Path) -> None:
@@ -793,6 +925,7 @@ def test_c99_plastic_ring_self_supervised_and_supervised_ctypes(tmp_path: Path) 
 
 def test_c99_pfl2_180_antigoal_turn_boost_ctypes(tmp_path: Path) -> None:
     lib = _build_c_core(tmp_path)
+    lib.nc_navigator_set_weights.argtypes = [ctypes.c_void_p, ctypes.c_void_p]
     lib.nc_navigator_steering_cmd.restype = ctypes.c_int32
     lib.nc_cdeg_to_bam.restype = ctypes.c_int16
     lib.nc_cdeg_s_to_bam_s.restype = ctypes.c_int32
@@ -804,7 +937,15 @@ def test_c99_pfl2_180_antigoal_turn_boost_ctypes(tmp_path: Path) -> None:
     lib.nc_navigator_update(nav_buf, ctypes.c_int32(20000), ctypes.c_uint32(1000), ctypes.c_int16(0))
 
     max_rate_bam_s = lib.nc_cdeg_s_to_bam_s(ctypes.c_int32(6000))  # 60 deg/s
-    # Heading = +1 deg -> err = +179 deg; Heading = -1 deg -> err = -179 deg; Heading = 0 deg -> err = 180 deg
+
+    # First check default BANC v888 mode breaks 180-deg anti-goal dead-zone strongly
+    cmd_banc_180 = lib.nc_bam_s_to_cdeg_s(
+        lib.nc_navigator_steering_cmd(nav_buf, ctypes.c_int16(0), max_rate_bam_s)
+    )
+    assert abs(cmd_banc_180) > 4800
+
+    # Check v2_analytic mode (weights = NULL) exact bilateral symmetry around +/-179 deg & 0 deg
+    lib.nc_navigator_set_weights(nav_buf, None)
     cmd_p179 = lib.nc_bam_s_to_cdeg_s(
         lib.nc_navigator_steering_cmd(nav_buf, lib.nc_cdeg_to_bam(100), max_rate_bam_s)
     )
@@ -826,12 +967,18 @@ def test_c99_pfl2_180_antigoal_turn_boost_ctypes(tmp_path: Path) -> None:
 
 def test_arduino_library_structure_and_c99_sha256_parity() -> None:
     import hashlib
+    import re
 
     root = Path(__file__).resolve().parents[1]
     ard_dir = root / "arduino" / "NeckCompass"
     props_text = (ard_dir / "library.properties").read_text(encoding="utf-8")
     assert "name=NeckCompass" in props_text
-    assert f"version={__version__}" in props_text
+    c_version = re.search(
+        r'#define NC_VERSION_STRING\s+"([^"]+)"',
+        (root / "csrc" / "neckcompass.h").read_text(encoding="utf-8"),
+    ).group(1)
+    assert c_version == "3.0.0"
+    assert f"version={c_version}" in props_text
     assert "architectures=*" in props_text
 
     assert (ard_dir / "src" / "NeckCompass.h").is_file()
@@ -842,7 +989,283 @@ def test_arduino_library_structure_and_c99_sha256_parity() -> None:
         / "ESP32_9DOF_SelfCalibrating_Compass.ino"
     ).is_file()
 
-    for fname in ("neckcompass.h", "neckcompass.c"):
+    for fname in ("neckcompass.h", "neckcompass.c", "neckcompass_banc_weights.h"):
         h_csrc = hashlib.sha256((root / "csrc" / fname).read_bytes()).hexdigest()
         h_ard = hashlib.sha256((ard_dir / "src" / "csrc" / fname).read_bytes()).hexdigest()
         assert h_csrc == h_ard, f"SHA-256 mismatch for {fname}: {h_csrc} != {h_ard}"
+
+
+# ---------------------------------------------------------------------------
+# Dedicated v3.0.0 BANC v888 Connectome & Maslov-Sneppen Null Tests (K=100)
+# ---------------------------------------------------------------------------
+
+
+def test_v3_provenance_tags_and_banc_connectome_loader() -> None:
+    assert TiltCompensatedAHRS.PROVENANCE == "engineering"
+    assert TiltCompensatedCompass.PROVENANCE == "engineering"
+    assert RingCompass.PROVENANCE == "connectome"
+    assert PlasticLandmarkRing.PROVENANCE == "connectome"
+    assert FanBodyNavigator.PROVENANCE == "connectome"
+
+    cx = load_banc_connectome()
+    assert cx["M_exc"].shape == (16, 16)
+    assert cx["M_ed7"].shape == (40, 16)
+    assert cx["M_d7e"].shape == (16, 40)
+    assert cx["M_pa_diff"].shape == (16, 16)
+    assert cx["M_epg_pfl3"].shape == (25, 16)
+    assert cx["M_d7_pfl3"].shape == (25, 40)
+    assert cx["M_epg_pfl2"].shape == (12, 16)
+    assert cx["M_d7_pfl2"].shape == (12, 40)
+    assert cx["W_pfl3_dna02"].shape == (2, 25)
+    assert cx["th_fb_pfl3_rad"].shape == (25,)
+    assert cx["th_fb_pfl2_rad"].shape == (12,)
+    assert cx["pfl3_is_L"].shape == (25,)
+
+    rc = RingCompass(n_wedges=16, initial_heading_rad=0.75)
+    assert rc.connectome_mode == "banc_v888"
+    assert math.isclose(float(rc.bump.sum()), 8.0, abs_tol=1e-9)
+    assert rc.bump_coherence > 0.75
+
+    # Non-16 wedge ring falls back cleanly to v2_analytic
+    rc32 = RingCompass(n_wedges=32, initial_heading_rad=0.75)
+    assert rc32.connectome_mode == "v2_analytic"
+
+
+def test_v3_banc_ring_compass_beats_100_maslov_sneppen_shuffles() -> None:
+    """Real BANC v888 CX matrices (fixed 10.2 PEN velocity gain, never re-tuned!)
+    beat K=100 degree/weight-preserving connectome shuffles on a turning noisy+spiky stream."""
+    base_cx = load_banc_connectome()
+    rng_stream = np.random.default_rng(2026)
+    dt = 0.02  # Substepped internally to dt_sub <= 0.01 s
+    steps = 600  # 12 s trajectory
+    bias = math.radians(1.2)
+    omega = math.radians(32.0)
+
+    psi = -math.pi / 2.0
+    traj = []
+    for k in range(steps):
+        t = k * dt
+        psi = float(wrap_angle(psi + omega * dt))
+        spike = math.radians(135.0) if (200 <= k < 260) else 0.0
+        mag = float(wrap_angle(psi + spike + rng_stream.normal(0.0, math.radians(2.0))))
+        gyro = omega + bias + rng_stream.normal(0.0, math.radians(1.0))
+        traj.append((t, psi, gyro, mag, spike != 0.0))
+
+    rc_real = RingCompass(n_wedges=16, initial_heading_rad=-math.pi / 2.0, connectome_weights="banc_v888")
+    real_sq_errs = []
+    for _, psi_true, gyro, mag, is_spike in traj:
+        est = rc_real.update(gyro, dt, mag_heading_rad=mag, mag_confidence=1.0)
+        if is_spike:
+            assert rc_real.last_mag_gate == 0.0
+        real_sq_errs.append(math.degrees(float(circular_error_rad(est, psi_true))) ** 2)
+    real_rmse = math.sqrt(float(np.mean(real_sq_errs)))
+    assert real_rmse < 3.0
+    assert rc_real.bump_coherence > 0.80
+    assert math.isclose(float(rc_real.bump.sum()), 8.0, abs_tol=1e-6)
+
+    rng_shuf = np.random.default_rng(888)
+    shuf_rmses = []
+    shuf_cohs = []
+    for _ in range(100):
+        shuf_cx = _shuffle_cx_dict(base_cx, rng_shuf)
+        rc_shuf = RingCompass(n_wedges=16, initial_heading_rad=-math.pi / 2.0, connectome_weights=shuf_cx)
+        sq = []
+        for _, psi_true, gyro, mag, _ in traj:
+            est_s = rc_shuf.update(gyro, dt, mag_heading_rad=mag, mag_confidence=1.0)
+            sq.append(math.degrees(float(circular_error_rad(est_s, psi_true))) ** 2)
+        shuf_rmses.append(math.sqrt(float(np.mean(sq))))
+        shuf_cohs.append(rc_shuf.bump_coherence)
+
+    mean_shuf_rmse = float(np.mean(shuf_rmses))
+    wins = sum(1 for s in shuf_rmses if real_rmse < s)
+    assert mean_shuf_rmse > 15.0 * real_rmse, (real_rmse, mean_shuf_rmse)
+    assert float(np.mean(shuf_cohs)) < 0.55
+    assert wins == 100, f"Real BANC v888 beat {wins}/100 shuffles"
+
+
+def test_v3_banc_fan_body_navigator_pfl3_pfl2_dna02_and_100_shuffles() -> None:
+    """Real 25 PFL3 + 12 PFL2 -> DNa02 motor readout homes accurately from all quadrants
+    and beats K=100 shuffled connectome dicts by >15x."""
+    base_cx = load_banc_connectome()
+    nav = FanBodyNavigator(n_columns=16, connectome_weights="banc_v888")
+    nav.update(speed_m_s=20.0, dt=1.0, heading_rad=0.0)  # Home bearing = pi
+
+    cmd_ccw = nav.steering_cmd(current_heading_rad=math.radians(90.0), max_turn_rate=1.5)
+    assert cmd_ccw > 0.3
+    assert isinstance(nav.last_pfl3_left_rate, float)
+    assert isinstance(nav.last_pfl3_right_rate, float)
+    assert isinstance(nav.last_pfl2_rate, float)
+
+    cmd_cw = nav.steering_cmd(current_heading_rad=math.radians(-90.0), max_turn_rate=1.5)
+    assert cmd_cw < -0.3
+
+    cmd_anti = nav.steering_cmd(current_heading_rad=0.0, max_turn_rate=1.5)
+    assert abs(cmd_anti) > 1.2
+    assert nav.last_pfl2_rate > 0.25
+
+    def eval_homing_miss(cx_arg: str | dict[str, Any]) -> float:
+        misses = []
+        dt = 0.05
+        speed = 2.0
+        for out_ang in (0.0, math.pi / 2.0, -math.pi / 2.0, math.radians(135.0)):
+            rc_i = RingCompass(n_wedges=16, initial_heading_rad=out_ang, connectome_weights="banc_v888")
+            nav_i = FanBodyNavigator(n_columns=16, compass=rc_i, connectome_weights=cx_arg)
+            x = 20.0 * math.cos(out_ang)
+            y = 20.0 * math.sin(out_ang)
+            nav_i.update(speed_m_s=20.0, dt=1.0, heading_rad=out_ang)
+            psi = out_ang
+            for _ in range(300):
+                d_est, _ = nav_i.home_vector()
+                if d_est < 0.25:
+                    break
+                rc_i.reset(psi)
+                turn = nav_i.steering_cmd(current_heading_rad=psi, max_turn_rate=1.5)
+                v = speed * min(1.0, max(0.15, d_est / 2.5))
+                psi = float(wrap_angle(psi + turn * dt))
+                x += v * math.cos(psi) * dt
+                y += v * math.sin(psi) * dt
+                nav_i.update(speed_m_s=v, dt=dt, heading_rad=psi)
+            misses.append(math.hypot(x, y))
+        return float(np.mean(misses))
+
+    real_miss = eval_homing_miss("banc_v888")
+    assert real_miss < 1.0
+
+    rng = np.random.default_rng(999)
+    shuf_misses = [eval_homing_miss(_shuffle_cx_dict(base_cx, rng)) for _ in range(100)]
+    mean_shuf_miss = float(np.mean(shuf_misses))
+    wins = sum(1 for m in shuf_misses if real_miss < m)
+    assert mean_shuf_miss > 15.0 * real_miss, (real_miss, mean_shuf_miss)
+    assert wins == 100
+
+
+def test_v3_plastic_landmark_ring_forwards_connectome_weights() -> None:
+    p_banc = PlasticLandmarkRing(n_wedges=16, n_ring_neurons=32, connectome_weights="banc_v888")
+    assert p_banc.compass.connectome_mode == "banc_v888"
+
+    p_v2 = PlasticLandmarkRing(n_wedges=16, n_ring_neurons=32, connectome_weights="v2_analytic")
+    assert p_v2.compass.connectome_mode == "v2_analytic"
+
+    base_cx = load_banc_connectome()
+    shuf_cx = _shuffle_cx_dict(base_cx, np.random.default_rng(77))
+    p_shuf = PlasticLandmarkRing(n_wedges=16, n_ring_neurons=32, connectome_weights=shuf_cx)
+    assert p_shuf.compass.connectome_mode == "custom_dict"
+
+    # Supervised calibration with weak sun confidence tests live EPG ring dynamics directly
+    def warp(psi: float) -> float:
+        return float(wrap_angle(psi + math.radians(24.0) * math.sin(psi - 0.3)))
+
+    dt = 0.02
+    omega = 2.0 * math.pi / 8.0
+    psi = -math.pi
+    for k in range(int(16.0 / dt)):
+        psi = float(wrap_angle(psi + omega * dt))
+        ref = psi if (k % 10 == 0) else None
+        p_banc.update(omega, dt, warp(psi), reference_heading_rad=ref, anchor_gain_scale=0.0)
+        p_shuf.compass.update(omega, dt, sun_heading_rad=ref, sun_confidence=1.0 if ref is not None else 0.0)
+
+    assert p_banc.compass.bump_coherence > 0.72
+    assert p_shuf.compass.bump_coherence < p_banc.compass.bump_coherence
+
+
+def test_v3_c99_banc_compass_and_navigator_match_python_ctypes(tmp_path: Path) -> None:
+    lib = _build_c_core(tmp_path)
+    lib.nc_banc_default_weights.restype = ctypes.POINTER(_NcBancCxWeights)
+    lib.nc_compass_set_weights.argtypes = [ctypes.c_void_p, ctypes.POINTER(_NcBancCxWeights)]
+    lib.nc_compass_coherence_q15.argtypes = [ctypes.c_void_p]
+    lib.nc_compass_coherence_q15.restype = ctypes.c_int16
+    lib.nc_navigator_steering_cmd_with_compass.argtypes = [
+        ctypes.c_void_p,
+        ctypes.c_void_p,
+        ctypes.c_int16,
+        ctypes.c_int32,
+    ]
+    lib.nc_navigator_steering_cmd_with_compass.restype = ctypes.c_int32
+    lib.nc_bam_s_to_cdeg_s.restype = ctypes.c_int32
+
+    bam_per_rad = 65536.0 / (2.0 * math.pi)
+
+    def to_bam(rad: float) -> int:
+        v = int(round(float(wrap_angle(rad)) * bam_per_rad))
+        return ((v + 32768) % 65536) - 32768
+
+    # 1. Default C99 BANC v888 RingCompass tracks Python BANC v888 closely & beats shuffled C99 struct
+    default_w_ptr = lib.nc_banc_default_weights()
+    shuf_w = _NcBancCxWeights()
+    ctypes.memmove(ctypes.byref(shuf_w), default_w_ptr, ctypes.sizeof(_NcBancCxWeights))
+    rng = np.random.default_rng(404)
+    p_ed7 = rng.permutation(40 * 16)
+    p_d7e = rng.permutation(16 * 40)
+    p_pa = rng.permutation(16 * 16)
+    orig_ed7 = list(shuf_w.M_ed7_q12)
+    orig_d7e = list(shuf_w.M_d7e_q12)
+    orig_pa = list(shuf_w.M_pa_diff_q12)
+    for idx in range(40 * 16):
+        shuf_w.M_ed7_q12[idx] = orig_ed7[int(p_ed7[idx])]
+        shuf_w.M_d7e_q12[idx] = orig_d7e[int(p_d7e[idx])]
+    for idx in range(16 * 16):
+        shuf_w.M_pa_diff_q12[idx] = orig_pa[int(p_pa[idx])]
+
+    c_real = ctypes.create_string_buffer(256)
+    c_shuf = ctypes.create_string_buffer(256)
+    lib.nc_compass_init(c_real)
+    lib.nc_compass_init(c_shuf)
+    lib.nc_compass_set_weights(c_shuf, ctypes.byref(shuf_w))
+    lib.nc_compass_reset(c_real, ctypes.c_int16(to_bam(0.3)))
+    lib.nc_compass_reset(c_shuf, ctypes.c_int16(to_bam(0.3)))
+    py_real = RingCompass(n_wedges=16, initial_heading_rad=0.3, connectome_weights="banc_v888")
+
+    psi = -math.pi / 2.0
+    lib.nc_compass_reset(c_real, ctypes.c_int16(to_bam(psi)))
+    lib.nc_compass_reset(c_shuf, ctypes.c_int16(to_bam(psi)))
+    py_real = RingCompass(n_wedges=16, initial_heading_rad=psi, connectome_weights="banc_v888")
+
+    dt = 0.02
+    omega = math.radians(32.0)
+    bias = math.radians(1.0)
+    diff_c_py = []
+    err_c_real = []
+    err_c_shuf = []
+    for k in range(600):
+        psi = float(wrap_angle(psi + omega * dt))
+        spike = math.radians(135.0) if (200 <= k < 260) else 0.0
+        mag_rad = float(wrap_angle(psi + spike))
+        gyro_bam_s = int(round((omega + bias) * bam_per_rad))
+
+        bam_r = lib.nc_compass_update(
+            c_real, ctypes.c_int32(gyro_bam_s), ctypes.c_uint32(20),
+            ctypes.c_int16(to_bam(mag_rad)), ctypes.c_uint8(1), ctypes.c_int16(32767),
+            ctypes.c_int16(0), ctypes.c_uint8(0), ctypes.c_int16(0),
+        )
+        bam_s = lib.nc_compass_update(
+            c_shuf, ctypes.c_int32(gyro_bam_s), ctypes.c_uint32(20),
+            ctypes.c_int16(to_bam(mag_rad)), ctypes.c_uint8(1), ctypes.c_int16(32767),
+            ctypes.c_int16(0), ctypes.c_uint8(0), ctypes.c_int16(0),
+        )
+        est_py = py_real.update(omega + bias, dt, mag_heading_rad=mag_rad, mag_confidence=1.0)
+        diff_c_py.append(math.degrees(float(circular_error_rad(bam_r / bam_per_rad, est_py))) ** 2)
+        err_c_real.append(math.degrees(float(circular_error_rad(bam_r / bam_per_rad, psi))) ** 2)
+        err_c_shuf.append(math.degrees(float(circular_error_rad(bam_s / bam_per_rad, psi))) ** 2)
+
+    assert math.sqrt(float(np.mean(diff_c_py))) < 1.5
+    rmse_c_real = math.sqrt(float(np.mean(err_c_real)))
+    rmse_c_shuf = math.sqrt(float(np.mean(err_c_shuf)))
+    assert rmse_c_real < 3.5
+    assert rmse_c_shuf > 8.0 * rmse_c_real
+    assert lib.nc_compass_coherence_q15(c_real) > 23000
+
+    # 2. C99 BANC PFL3 + PFL2 -> DNa02 steering_cmd_with_compass matches Python direction & magnitude
+    nav_buf = ctypes.create_string_buffer(512)
+    lib.nc_navigator_init(nav_buf, ctypes.c_int32(1500))
+    lib.nc_navigator_update(nav_buf, ctypes.c_int32(20000), ctypes.c_uint32(1000), ctypes.c_int16(0))
+    py_nav = FanBodyNavigator(n_columns=16, compass=py_real, connectome_weights="banc_v888")
+    py_nav.update(speed_m_s=20.0, dt=1.0, heading_rad=0.0)
+
+    lib.nc_compass_reset(c_real, ctypes.c_int16(to_bam(math.radians(90.0))))
+    py_real.reset(math.radians(90.0))
+    max_bam_s = int(round(1.5 * bam_per_rad))
+    cmd_c_bam_s = lib.nc_navigator_steering_cmd_with_compass(
+        nav_buf, c_real, ctypes.c_int16(to_bam(math.radians(90.0))), ctypes.c_int32(max_bam_s)
+    )
+    cmd_py_rad_s = py_nav.steering_cmd(current_heading_rad=math.radians(90.0), max_turn_rate=1.5)
+    assert abs((cmd_c_bam_s / bam_per_rad) - cmd_py_rad_s) < 0.08

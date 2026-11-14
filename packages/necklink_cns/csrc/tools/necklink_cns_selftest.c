@@ -1,5 +1,5 @@
 /*
- * necklink_cns_selftest.c - Comprehensive C99 Self-Test & Timing Benchmark for NeckLink CNS v2.0.0
+ * necklink_cns_selftest.c - Comprehensive C99 Self-Test & Timing Benchmark for NeckLink CNS v3.0.0
  */
 
 #include <stdio.h>
@@ -13,7 +13,7 @@ static nl_cns_t g_cns;
 static int test_sram_budget(void)
 {
     size_t sz = sizeof(nl_cns_t);
-    printf("[1/6] Whole-CNS static SRAM footprint: %lu bytes (%.2f KB)\n",
+    printf("[1/7] Whole-CNS static SRAM footprint: %lu bytes (%.2f KB)\n",
            (unsigned long)sz, (unsigned long)sz / 1024.0);
     if (sz >= 25600u) {
         printf("FAIL: sizeof(nl_cns_t) exceeded 25 KB budget!\n");
@@ -105,7 +105,7 @@ static int test_mavlink_v2_roundtrip(void)
         return 1;
     }
 
-    printf("[2/6] MAVLink v2 wire codec (0xFD + X.25 CRC + zero-trim): PASS (%u frames verified)\n",
+    printf("[2/7] MAVLink v2 wire codec (0xFD + X.25 CRC + zero-trim): PASS (%u frames verified)\n",
            (unsigned)parser.rx_ok_count);
     return 0;
 }
@@ -161,7 +161,7 @@ static int test_closed_loop_pole_dodge_and_homing(void)
         printf("FAIL: expanding thin vertical pole did not trigger CNS dodge!\n");
         return 1;
     }
-    printf("[3/6] Closed-loop thin-pole LC4 detection + contralateral DNa02 dodge: PASS (yaw=%d, lc4=%u)\n",
+    printf("[3/7] Closed-loop thin-pole LC4 detection + contralateral DNa02 dodge: PASS (yaw=%d, lc4=%u)\n",
            (int)out.desc_cmd.turn_yaw_q15, (unsigned)out.lc4_bar_score_q10);
     return 0;
 }
@@ -218,7 +218,7 @@ static int test_hexacopter_esc_broken_blade_survival(void)
                out.esc_broken_mask, out.actuator_health_q15[2]);
         return 1;
     }
-    printf("[4/6] Hexacopter [0,u_max] broken-blade sensorless ESC isolation & Limp-Home: PASS (h2=%d, mode=%u)\n",
+    printf("[4/7] Hexacopter [0,u_max] broken-blade sensorless ESC isolation & Limp-Home: PASS (h2=%d, mode=%u)\n",
            (int)out.actuator_health_q15[2], (unsigned)out.behavior_mode);
     return 0;
 }
@@ -279,7 +279,7 @@ static int test_hexapod_18dof_and_vibration_continual_memory(void)
         return 1;
     }
 
-    printf("[5/6] 18-DOF Pentapod IK + Chordotonal Bearing Fault + KCab Zero-Forgetting: PASS (vib_nov=%.3f)\n",
+    printf("[5/7] 18-DOF Pentapod IK + Chordotonal Bearing Fault + KCab Zero-Forgetting: PASS (vib_nov=%.3f)\n",
            out.vib_novelty_q16 / 65536.0);
     return 0;
 }
@@ -333,8 +333,111 @@ static int test_full_cns_throughput(void)
     }
     t1 = clock();
     elapsed_us = ((double)(t1 - t0) * 1e6) / (double)CLOCKS_PER_SEC;
-    printf("[6/6] Full 4-Organ + Camera + Vibration + MAVLink v2 Tick Latency: %.2f us/tick (%.0f Hz)\n",
+    printf("[6/7] Full 4-Organ + Camera + Vibration + MAVLink v2 Tick Latency: %.2f us/tick (%.0f Hz)\n",
            elapsed_us / iters, (iters * 1e6) / (elapsed_us > 1.0 ? elapsed_us : 1.0));
+    return 0;
+}
+
+static int test_banc_dn_weights_override_and_fallback(void)
+{
+    nl_cns_inputs_t in;
+    nl_cns_outputs_t out_real, out_mirror, out_v2;
+    nl_banc_dn_weights_t mirrored_w;
+    uint8_t frame[NECKSIGHT_PIXELS];
+    int step, r, c;
+
+    memcpy(&mirrored_w, nl_banc_dn_default_weights(), sizeof(mirrored_w));
+    /* Swap left/right leg MN rows in W_dn_leg_q12 (0<->1, 2<->3, 4<->5) to test runtime causality */
+    for (r = 0; r < 6; r += 2) {
+        for (c = 0; c < 10; ++c) {
+            int16_t tmp = mirrored_w.W_dn_leg_q12[r * 10 + c];
+            mirrored_w.W_dn_leg_q12[r * 10 + c] = mirrored_w.W_dn_leg_q12[(r + 1) * 10 + c];
+            mirrored_w.W_dn_leg_q12[(r + 1) * 10 + c] = tmp;
+        }
+    }
+
+    memset(&in, 0, sizeof(in));
+    in.dt_ms = 20u;
+    in.speed_mm_s = 1200;
+    in.cruise_drive_q15 = 20000;
+    in.az_mg = 1000;
+    in.mx = 1000;
+    in.mag_valid = 1u;
+
+    int32_t min_real = 0, max_mirror = 0, min_v2 = 0;
+
+    /* Run real BANC v888 weights on expanding left obstacle */
+    nl_cns_init(&g_cns, NL_VEHICLE_USV_T200);
+    if (g_cns.plastic_ring.comp.weights == NULL) {
+        printf("FAIL: nl_cns_init left CX ring compass in NULL (v2_analytic) mode instead of BANC v888!\n");
+        return 1;
+    }
+    for (step = 0; step < 24; ++step) {
+        int hw = (step >= 6) ? (1 + ((step - 6) / 2)) : 1;
+        for (r = 0; r < 32; ++r) {
+            for (c = 0; c < 32; ++c) {
+                frame[r * 32 + c] = (step >= 6 && c >= (9 - hw) && c <= (9 + hw))
+                                  ? 10u
+                                  : (uint8_t)(160 + ((r ^ c) & 15));
+            }
+        }
+        in.cam_32x32 = frame;
+        (void)nl_cns_step(&g_cns, &in, &out_real);
+        if (out_real.desc_cmd.turn_yaw_q15 < min_real) {
+            min_real = out_real.desc_cmd.turn_yaw_q15;
+        }
+    }
+
+    /* Run mirrored W_dn_leg_q12 on identical frames -> must invert turn_yaw_q15 sign! */
+    nl_cns_init(&g_cns, NL_VEHICLE_USV_T200);
+    nl_cns_set_dn_weights(&g_cns, &mirrored_w);
+    for (step = 0; step < 24; ++step) {
+        int hw = (step >= 6) ? (1 + ((step - 6) / 2)) : 1;
+        for (r = 0; r < 32; ++r) {
+            for (c = 0; c < 32; ++c) {
+                frame[r * 32 + c] = (step >= 6 && c >= (9 - hw) && c <= (9 + hw))
+                                  ? 10u
+                                  : (uint8_t)(160 + ((r ^ c) & 15));
+            }
+        }
+        in.cam_32x32 = frame;
+        (void)nl_cns_step(&g_cns, &in, &out_mirror);
+        if (out_mirror.desc_cmd.turn_yaw_q15 > max_mirror) {
+            max_mirror = out_mirror.desc_cmd.turn_yaw_q15;
+        }
+    }
+
+    /* Run NULL dn_weights -> v2_analytic fallback */
+    nl_cns_init(&g_cns, NL_VEHICLE_USV_T200);
+    nl_cns_set_dn_weights(&g_cns, NULL);
+    if (g_cns.plastic_ring.comp.weights != NULL) {
+        printf("FAIL: nl_cns_set_dn_weights(NULL) did not switch CX ring compass to v2_analytic!\n");
+        return 1;
+    }
+    for (step = 0; step < 24; ++step) {
+        int hw = (step >= 6) ? (1 + ((step - 6) / 2)) : 1;
+        for (r = 0; r < 32; ++r) {
+            for (c = 0; c < 32; ++c) {
+                frame[r * 32 + c] = (step >= 6 && c >= (9 - hw) && c <= (9 + hw))
+                                  ? 10u
+                                  : (uint8_t)(160 + ((r ^ c) & 15));
+            }
+        }
+        in.cam_32x32 = frame;
+        (void)nl_cns_step(&g_cns, &in, &out_v2);
+        if (out_v2.desc_cmd.turn_yaw_q15 < min_v2) {
+            min_v2 = out_v2.desc_cmd.turn_yaw_q15;
+        }
+    }
+
+    if (min_real >= 0 || max_mirror <= 0 || min_v2 >= 0) {
+        printf("FAIL: BANC DN causal override failed (real=%d, mirror=%d, v2=%d)\n",
+               (int)min_real, (int)max_mirror, (int)min_v2);
+        return 1;
+    }
+
+    printf("[7/7] BANC v888 DN runtime matrix causality & v2 fallback: PASS (real=%d, mirror=%d, v2=%d)\n",
+           (int)min_real, (int)max_mirror, (int)min_v2);
     return 0;
 }
 
@@ -346,6 +449,7 @@ int main(void)
     if (test_hexacopter_esc_broken_blade_survival() != 0) return 1;
     if (test_hexapod_18dof_and_vibration_continual_memory() != 0) return 1;
     if (test_full_cns_throughput() != 0) return 1;
-    printf("ALL 6 NECKLINK WHOLE-CNS C99 SELF-TESTS PASSED!\n");
+    if (test_banc_dn_weights_override_and_fallback() != 0) return 1;
+    printf("ALL 7 NECKLINK WHOLE-CNS v3.0.0 C99 SELF-TESTS PASSED!\n");
     return 0;
 }

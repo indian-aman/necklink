@@ -1,4 +1,4 @@
-"""CLI entrypoint for `necklink-cns` (`v2.0.0`)."""
+"""CLI entrypoint for `necklink-cns` (`v3.0.0`)."""
 
 from __future__ import annotations
 

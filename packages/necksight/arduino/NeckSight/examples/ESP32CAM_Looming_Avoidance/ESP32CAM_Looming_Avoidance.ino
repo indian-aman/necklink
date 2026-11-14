@@ -1,17 +1,18 @@
 /*
- * ESP32CAM_Looming_Avoidance.ino - NeckSight v2.0.0 ESP32-CAM Reflex Sketch
+ * ESP32CAM_Looming_Avoidance.ino - NeckSight v3.0.0 ESP32-CAM Reflex Sketch
  *
- * Real-time monocular collision & thin-obstacle (pole/wire) avoidance reflex:
+ * Real-time monocular collision & thin-obstacle (pole/wire) avoidance reflex
+ * driven by the BANC v888 Optic Lobe connectome (LPLC2/LPi + LC4/Li22):
  *   - Captures OV2640 QVGA (320x240) 8-bit grayscale frames (`PIXFORMAT_GRAYSCALE`,
  *     `FRAMESIZE_QVGA`) on AI-Thinker ESP32-CAM when `esp_camera.h` is present,
  *     or synthesizes deterministic 32x32 looming pole/disc test frames when built
- *     headless (e.g., `pio ci --board=esp32dev` without `esp32-camera`).
+ *     headless (e.g., `pio ci --board=esp32dev` without `esp_camera.h`).
  *   - Applies optional 3-DOF `(yaw, pitch, roll)` IMU gyro derotation in pure
  *     integer BAM/Q4 math before stepping the 32x32 Optic Lobe engine.
  *   - Asserts hardware E-stop (`PIN_ESTOP`) and streams `DNp01` brake + `DNa02`
  *     directional avoidance `(avoid_x_q7, avoid_y_q7)` over UART.
  *
- * Zero heap allocation in NeckSight (`sizeof(necksight_state_t) = 14,624 B`),
+ * Zero heap allocation in NeckSight (`sizeof(necksight_state_t) < 15,000 B` SRAM),
  * zero floating-point instructions.
  *
  * Author: Amandeep Singh Bains

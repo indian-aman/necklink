@@ -1,10 +1,12 @@
 """
-NeckLink CNS (`necklink_cns` v2.0.0) — Unified Adult Drosophila Whole-CNS Edge Autonomy Stack.
+NeckLink CNS (`necklink_cns` v3.0.0) — Unified Adult Drosophila Whole-CNS Edge Autonomy Stack.
 """
 
 from .cns import CNSOutputs, NeckLinkCNS
 from .connectome import BANC_V888_PRIORS, ConnectomeArbitrator, DescendingState
 from .mavlink import (
+    MAVLink2Codec,
+    MAVLink2Parser,
     MavFrame,
     MavHeartbeat,
     MavLink2Codec,
@@ -17,7 +19,7 @@ from .mavlink import (
 )
 from .ros2_node import NeckLinkROS2Adapter, TwistCommand, create_ros2_node
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 __all__ = [
     "__version__",

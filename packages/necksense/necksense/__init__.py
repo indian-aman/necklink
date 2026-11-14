@@ -14,6 +14,7 @@ from .kenyon import (
     KenyonIndex,
     KenyonMatch,
     build_projection_indices,
+    load_banc_mb_weights,
     popcount_overlap,
     popcount_u64,
 )
@@ -25,7 +26,7 @@ from .vibration import (
     VibrationFrontEnd,
 )
 
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 
 __all__ = [
     "__version__",
@@ -41,6 +42,7 @@ __all__ = [
     "KenyonIndex",
     "KenyonMatch",
     "build_projection_indices",
+    "load_banc_mb_weights",
     "popcount_overlap",
     "popcount_u64",
     "MushroomNoveltyDetector",

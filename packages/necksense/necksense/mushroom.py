@@ -1,4 +1,4 @@
-"""Mushroom Body Lobe plasticity: 1-shot novelty & 2-compartment valence learning.
+"""Mushroom Body Lobe plasticity: 1-shot novelty & `BANC v888` valence learning.
 
 Implements canonical *Drosophila* Mushroom Body output neuron (MBON) readout
 circuits operating over sparse Kenyon cell (KC) codes (`BANC v888` / `MaleCNS`):
@@ -7,12 +7,15 @@ circuits operating over sparse Kenyon cell (KC) codes (`BANC v888` / `MaleCNS`):
    Rapid 1-shot anti-Hebbian synaptic depression on active KC synapses with
    optional slow exponential recovery (`tau_recover`), producing calibrated
    novelty/anomaly scores in `[0, 1]`.
-2. :class:`MushroomValenceClassifier` (`DAN -> KCg / KCab -> MBON` compartments):
+2. :class:`MushroomValenceClassifier` (`DAN -> KCg / KCab -> 104 MBON` compartments):
    Online 1-shot and few-shot reward/valence-modulated associative classifier
-   combining fast `gamma`-lobe short-term plasticity (`KCg`) with consolidated
-   `alpha/beta`-lobe anti-forgetting long-term memory (`KCab`).
+   combining fast `gamma`-lobe short-term plasticity (`KCg`, `kc_is_ab == 0`)
+   with consolidated `alpha/beta`-lobe anti-forgetting long-term memory (`KCab`,
+   `kc_is_ab == 1`) and empirical `KC -> MBON` (`ach + inh`) readout weighting.
 
 References:
+    - Bates, A. S. et al. / BANC Consortium (2025). Brain and Nerve Cord (BANC)
+      adult female *Drosophila* whole-CNS connectome (`v888`).
     - Hattori, D. et al. (2017). Representations of novelty and familiarity in
       a mushroom body compartment. Cell, 169(5), 956-969.
     - Aso, Y. et al. (2014). Mushroom body output neurons encode valence and
@@ -24,12 +27,13 @@ References:
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 
 import numpy as np
 
-from .antennal import AntennalNormalizer, Q16_ONE, float_to_q16
-from .kenyon import KenyonHasher
+from .antennal import _INT32_MAX, _INT32_MIN, AntennalNormalizer, Q16_ONE, float_to_q16
+from .kenyon import KenyonHasher, _resolve_connectome_weights
 
 _Q14_ONE: int = 1 << 14
 _INT16_MIN: int = -(1 << 15)
@@ -47,9 +51,11 @@ class MushroomNoveltyDetector:
 
     The default code is 2% sparse (about 20 of 1024 Kenyon cells), sparser than the 5% used
     for classification and search: unrelated inputs then share fewer cells, so a novel
-    pattern is less likely to look half-familiar (streaming AUROC 0.961 -> 0.997 on held-out
-    seeds of the benchmark in ``scripts/benchmark_necksense.py``).
+    pattern is less likely to look half-familiar.
     """
+
+    PROVENANCE: str = "connectome"
+    CHANNEL_MAPPING_PROVENANCE: str = "design_choice"
 
     def __init__(
         self,
@@ -64,6 +70,7 @@ class MushroomNoveltyDetector:
         lr: float = 0.55,
         tau_recover: float | None = None,
         seed: int = 42,
+        connectome_weights: str | Mapping[str, Any] | None = "banc_v888",
         c_parity: bool = False,
     ) -> None:
         if not (0.0 < lr <= 1.0):
@@ -80,9 +87,11 @@ class MushroomNoveltyDetector:
                 d_proj=d_proj,
                 wta_frac=wta_frac,
                 seed=seed,
+                connectome_weights=connectome_weights,
                 c_parity=c_parity,
             )
         self.hasher = hasher
+        self.connectome_mode = hasher.connectome_mode
         self.c_parity = bool(c_parity or hasher.c_parity)
         self.stateful_antennal = bool(stateful_antennal)
 
@@ -209,12 +218,16 @@ class MushroomValenceClassifier:
     """2-compartment `KC-gamma` (STM) + `KC-alpha/beta` (LTM) associative classifier.
 
     Models the *Drosophila* Mushroom Body split between fast-adapting `KCg`
-    (`gamma` lobe, 49.9% of KCs in `BANC v888`) and slow replay-consolidated
-    `KCab` (`alpha/beta` lobe, 47.2% of KCs). Supports 1-shot / few-shot
+    (`gamma` lobe, `kc_is_ab == 0`) and replay-consolidated `KCab` (`alpha/beta`
+    lobe, `kc_is_ab == 1`), weighting active KC readouts by empirical `BANC v888`
+    `KC -> MBON` (`ach + inh`) synapse counts. Supports 1-shot / few-shot
     multi-class identification, appetitive/aversive valence conditioning, and
     catastrophic-forgetting-free sequential continual learning (`ltm_alpha_beta=True`
     and :meth:`consolidate`).
     """
+
+    PROVENANCE: str = "connectome"
+    CHANNEL_MAPPING_PROVENANCE: str = "design_choice"
 
     def __init__(
         self,
@@ -232,6 +245,7 @@ class MushroomValenceClassifier:
         ltm_alpha_beta: bool = True,
         ltm_floor: float = 0.55,
         seed: int = 42,
+        connectome_weights: str | Mapping[str, Any] | None = "banc_v888",
         c_parity: bool = False,
     ) -> None:
         if not (0.0 < min_lr <= 1.0):
@@ -252,9 +266,20 @@ class MushroomValenceClassifier:
                 d_proj=d_proj,
                 wta_frac=wta_frac,
                 seed=seed,
+                connectome_weights=connectome_weights,
                 c_parity=c_parity,
             )
+            eff_cw = connectome_weights
+        else:
+            if connectome_weights == "banc_v888" and hasher.connectome_mode != "banc_v888":
+                eff_cw = hasher._raw_connectome_arg
+            else:
+                eff_cw = connectome_weights
+
         self.hasher = hasher
+        self.connectome_mode, self._mb_weights = _resolve_connectome_weights(
+            eff_cw, self.hasher.n_kc
+        )
         self.c_parity = bool(c_parity or hasher.c_parity)
         self.stateful_antennal = bool(stateful_antennal)
 
@@ -275,6 +300,28 @@ class MushroomValenceClassifier:
         self._fixed_lr_q16 = 0 if self.plasticity_lr is None else int(round(self.plasticity_lr * Q16_ONE))
         self._opp_q16 = int(round(self.opponent_inh * Q16_ONE))
         self._ltm_floor_q14 = int(round(self.ltm_floor * _Q14_ONE))
+
+        if self._mb_weights is not None:
+            m = self.hasher.n_kc
+            self._ab_mask_u64 = self._mb_weights["kc_is_ab_mask_u64"][: self.hasher.n_words].copy()
+            kc_idx = np.arange(m, dtype=np.uint64)
+            w_vals = self._ab_mask_u64[(kc_idx >> np.uint64(6)).astype(np.intp)]
+            self._kc_is_ab_bool = ((w_vals >> (kc_idx & np.uint64(63))) & np.uint64(1)).astype(bool)
+            ach = self._mb_weights["kc_to_mbon_ach_q8"][:m].astype(np.int64)
+            inh = self._mb_weights["kc_to_mbon_inh_q8"][:m].astype(np.int64)
+            self._mbon_gain_i64 = ach + inh
+            self._mbon_gain_f64 = self._mbon_gain_i64.astype(np.float64)
+            self._eff_ltm_floor = min(2.0, 2.0 * self.ltm_floor)
+            self._eff_ltm_floor_q14 = min(_INT16_MAX, self._ltm_floor_q14 * 2)
+        else:
+            self._ab_mask_u64 = np.full(
+                self.hasher.n_words, np.uint64(0xFFFFFFFFFFFFFFFF), dtype=np.uint64
+            )
+            self._kc_is_ab_bool = np.ones(self.hasher.n_kc, dtype=bool)
+            self._mbon_gain_i64 = np.ones(self.hasher.n_kc, dtype=np.int64)
+            self._mbon_gain_f64 = np.ones(self.hasher.n_kc, dtype=np.float64)
+            self._eff_ltm_floor = self.ltm_floor
+            self._eff_ltm_floor_q14 = self._ltm_floor_q14
 
         self._labels: list[Any] = []
         self._label_to_slot: dict[Any, int] = {}
@@ -342,7 +389,7 @@ class MushroomValenceClassifier:
             keep_q16 = Q16_ONE - eta_q16
             delta_q14 = (eta_q16 * rew_q14) >> 16
             opp_step_q16 = (eta_q16 * self._opp_q16) >> 16
-            floor_q14 = self._ltm_floor_q14
+            floor_q14 = self._eff_ltm_floor_q14
 
             row_cur = self._weights_q14[slot].astype(np.int64)
             row_dec = (row_cur * keep_q16) >> 16
@@ -392,6 +439,7 @@ class MushroomValenceClassifier:
         # Float mode: fast KC-gamma STM update
         eta = self.plasticity_lr if self.plasticity_lr is not None else max(self.min_lr, 1.0 / float(n_c))
         rew = float(reward)
+        eff_floor = self._eff_ltm_floor
 
         row_prev = self._weights[slot].copy()
         row_next = row_prev * (1.0 - eta)
@@ -403,15 +451,15 @@ class MushroomValenceClassifier:
                 act_mask[idx] = True
                 opp_act = act_mask & (((row_prev > 0.0) & (rew < 0.0)) | ((row_prev < 0.0) & (rew > 0.0)))
                 locked &= ~opp_act
-            pos_p = locked & (row_prev >= self.ltm_floor) & (row_next < self.ltm_floor)
-            neg_p = locked & (row_prev <= -self.ltm_floor) & (row_next > -self.ltm_floor)
-            row_next[pos_p] = self.ltm_floor
-            row_next[neg_p] = -self.ltm_floor
+            pos_p = locked & (row_prev >= eff_floor) & (row_next < eff_floor)
+            neg_p = locked & (row_prev <= -eff_floor) & (row_next > -eff_floor)
+            row_next[pos_p] = eff_floor
+            row_next[neg_p] = -eff_floor
 
         if idx.size > 0:
             row_next[idx] = np.clip(row_next[idx] + eta * rew, -2.0, 2.0)
             if self.ltm_alpha_beta:
-                weak = np.abs(row_next[idx]) < (0.5 * self.ltm_floor)
+                weak = np.abs(row_next[idx]) < (0.5 * eff_floor)
                 if np.any(weak):
                     self._ltm_mask[slot, idx[weak]] = False
                     self._ltm_weights[slot, idx[weak]] = 0.0
@@ -429,22 +477,37 @@ class MushroomValenceClassifier:
                 self._weights[c2, sub_idx] = np.where(cur > 0.0, cur * (1.0 - opp_step), cur)
 
     def consolidate(self, thresh: float = 0.50) -> int:
-        """Consolidate salient `KCg` STM synapses into protected `KCab` LTM.
+        """Consolidate salient STM traces into `KCab` (`kc_is_ab == 1`) LTM.
 
-        Matches `ns_valence_consolidate` in `csrc/necksense.c` bit-for-bit when
-        `c_parity=True`. Returns total number of consolidated synapses.
+        In `banc_v888` / connectome mode, `kc_is_ab_mask_u64` locks consolidated
+        long-term memories exclusively onto `KCab` (`alpha/beta` lobe, `bit == 1`)
+        while `KCg` (`gamma` lobe, `bit == 0`) transfers its transient STM weight
+        and remains fast plastic STM. Matches `ns_valence_consolidate` bit-for-bit
+        when `c_parity=True`. Returns total number of consolidated `KCab` synapses.
         """
         if not self.ltm_alpha_beta or not self._labels:
             return 0
         if thresh <= 0.0:
             thresh = 0.50
 
+        is_ab = self._kc_is_ab_bool
+        is_gamma = ~is_ab
+
         if self.c_parity:
             thresh_q16 = int(round(thresh * Q16_ONE))
             thresh_q14 = max(1, thresh_q16 >> 2)
             for c in range(len(self._labels)):
-                w_row = self._weights_q14[c]
-                self._ltm_mask[c] |= (w_row >= thresh_q14) | (w_row <= -thresh_q14)
+                w_row = self._weights_q14[c].astype(np.int64)
+                salient = (w_row >= thresh_q14) | (w_row <= -thresh_q14)
+                if self._mb_weights is not None:
+                    new_ab = is_ab & (~self._ltm_mask[c]) & salient
+                    if np.any(new_ab):
+                        w_row[new_ab] = np.clip(w_row[new_ab] * 2, _INT16_MIN, _INT16_MAX)
+                        w_row[is_gamma] = w_row[is_gamma] >> 2
+                        self._weights_q14[c] = w_row.astype(np.int16)
+                        self._ltm_mask[c] |= new_ab
+                else:
+                    self._ltm_mask[c] |= salient
             self._weights[:] = self._weights_q14.astype(np.float64) / float(_Q14_ONE)
             self._ltm_weights[:] = np.where(self._ltm_mask, self._weights, 0.0)
             self.consolidations += 1
@@ -452,7 +515,15 @@ class MushroomValenceClassifier:
 
         for c in range(len(self._labels)):
             w_row = self._weights[c]
-            self._ltm_mask[c] |= (w_row >= thresh) | (w_row <= -thresh)
+            salient = (w_row >= thresh) | (w_row <= -thresh)
+            if self._mb_weights is not None:
+                new_ab = is_ab & (~self._ltm_mask[c]) & salient
+                if np.any(new_ab):
+                    w_row[new_ab] = np.clip(w_row[new_ab] * 2.0, -2.0, 2.0)
+                    w_row[is_gamma] *= 0.25
+                    self._ltm_mask[c] |= new_ab
+            else:
+                self._ltm_mask[c] |= salient
         self._ltm_weights[:] = np.where(self._ltm_mask, self._weights, 0.0)
         self.consolidations += 1
         return int(np.sum(self._ltm_mask))
@@ -467,7 +538,7 @@ class MushroomValenceClassifier:
         self.learn_indices(idx, label, reward=reward)
 
     def predict_scores_indices(self, active_indices: np.ndarray) -> dict[Any, float]:
-        """Compute per-class MBON valence readouts from active KC indices."""
+        """Compute `KC -> MBON` (`ach + inh`)-weighted per-class valence readouts."""
         if not self._labels:
             raise RuntimeError("MushroomValenceClassifier has no learned classes yet")
         idx = np.asarray(active_indices, dtype=np.intp)
@@ -475,14 +546,23 @@ class MushroomValenceClassifier:
             return {lbl: 0.0 for lbl in self._labels}
 
         if self.c_parity:
-            sums_q14 = np.sum(self._weights_q14[:, idx], axis=1, dtype=np.int64)
-            scores_q16 = np.trunc((sums_q14 * 4) / int(idx.size)).astype(np.int64)
+            gains_i64 = self._mbon_gain_i64[idx]
+            gain_den = int(np.sum(gains_i64, dtype=np.int64))
+            if gain_den <= 0:
+                return {lbl: 0.0 for lbl in self._labels}
+            nums = (self._weights_q14[:, idx].astype(np.int64) @ gains_i64) * 4
+            scores_q16 = np.where(nums >= 0, nums // gain_den, -((-nums) // gain_den))
+            scores_q16 = np.clip(scores_q16, _INT32_MIN, _INT32_MAX)
             return {
                 lbl: float(scores_q16[i]) / float(Q16_ONE)
                 for i, lbl in enumerate(self._labels)
             }
 
-        raw = np.mean(self._weights[:, idx], axis=1)
+        gains_f64 = self._mbon_gain_f64[idx]
+        gain_den_f = float(np.sum(gains_f64))
+        if gain_den_f <= 0.0:
+            return {lbl: 0.0 for lbl in self._labels}
+        raw = (self._weights[:, idx] @ gains_f64) / gain_den_f
         return {lbl: float(raw[i]) for i, lbl in enumerate(self._labels)}
 
     def predict_scores_tag(self, tag: np.ndarray) -> dict[Any, float]:

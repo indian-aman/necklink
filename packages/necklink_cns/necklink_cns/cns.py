@@ -54,6 +54,9 @@ class NeckLinkCNS:
       - `vehicle="hexapod"` (6-limb, 18-servo legged hexapod with 3-DOF IK)
     """
 
+    PROVENANCE = "connectome"
+    SENSOR_ACTUATOR_IO_PROVENANCE = "engineering"
+
     def __init__(
         self,
         vehicle: str = "usv_t200",
@@ -61,24 +64,47 @@ class NeckLinkCNS:
         n_chem_channels: int = 8,
         enable_plastic_mag: bool = False,
         seed: int = 42,
+        connectome_weights: str | Dict[str, Any] = "banc_v888",
     ) -> None:
         self.vehicle = vehicle
         self.grid_size = int(grid_size)
         self.enable_plastic_mag = bool(enable_plastic_mag)
+        self.connectome_weights = connectome_weights
 
-        # 1. Optic Lobe (NeckSight v2.0.0)
+        if isinstance(connectome_weights, dict):
+            w_optic: Any = connectome_weights.get("optic", connectome_weights.get("necksight", "banc_v888"))
+            w_cx: Any = connectome_weights.get("cx", connectome_weights.get("neckcompass", "banc_v888"))
+            w_mb: Any = connectome_weights.get("mb", connectome_weights.get("necksense", "banc_v888"))
+            w_vd: Any = connectome_weights.get("vnc_dn", connectome_weights.get("necklink_cns", "banc_v888"))
+        else:
+            w_optic = w_cx = w_mb = w_vd = connectome_weights
+
+        # 1. Optic Lobe (NeckSight v3.0.0)
         self.sight = necksight.NeckSightPipeline(
             grid_size=self.grid_size,
             threshold=0.045,
             enable_lc4_bar=True,
+            connectome_weights=w_optic,
         )
 
-        # 2. Central Complex (NeckCompass v2.0.0)
-        self.compass = neckcompass.RingCompass(n_wedges=16, initial_heading_rad=0.0)
-        self.plastic_compass = neckcompass.PlasticLandmarkRing(n_wedges=16) if enable_plastic_mag else None
-        self.navigator = neckcompass.FanBodyNavigator(n_columns=16, compass=self.compass)
+        # 2. Central Complex (NeckCompass v3.0.0)
+        self.compass = neckcompass.RingCompass(
+            n_wedges=16,
+            initial_heading_rad=0.0,
+            connectome_weights=w_cx,
+        )
+        self.plastic_compass = (
+            neckcompass.PlasticLandmarkRing(n_wedges=16, connectome_weights=w_cx)
+            if enable_plastic_mag
+            else None
+        )
+        self.navigator = neckcompass.FanBodyNavigator(
+            n_columns=16,
+            compass=self.compass,
+            connectome_weights=w_cx,
+        )
 
-        # 3. Antennal Lobe, Chordotonal Organ & Mushroom Body (NeckSense v2.0.0)
+        # 3. Antennal Lobe, Chordotonal Organ & Mushroom Body (NeckSense v3.0.0)
         self.vib_fe = necksense.VibrationFrontEnd()
         self.chem_nov = necksense.MushroomNoveltyDetector(
             n_inputs=n_chem_channels,
@@ -86,6 +112,7 @@ class NeckLinkCNS:
             stateful_antennal=True,
             n_kc=512,
             seed=seed,
+            connectome_weights=w_mb,
         )
         self.vib_nov = necksense.MushroomNoveltyDetector(
             n_inputs=necksense.NS_VIB_CHANNELS,
@@ -93,6 +120,7 @@ class NeckLinkCNS:
             stateful_antennal=False,
             n_kc=512,
             seed=seed + 1,
+            connectome_weights=w_mb,
         )
         self.chem_clf = necksense.MushroomValenceClassifier(
             n_inputs=n_chem_channels,
@@ -101,11 +129,12 @@ class NeckLinkCNS:
             n_kc=512,
             ltm_alpha_beta=True,
             seed=seed + 2,
+            connectome_weights=w_mb,
         )
         self._has_learned_classes = False
 
-        # 4. Descending Arbitrator & Ventral Nerve Cord (NeckCord v2.0.0)
-        self.arbitrator = ConnectomeArbitrator()
+        # 4. Descending Arbitrator & Ventral Nerve Cord (NeckCord v3.0.0)
+        self.arbitrator = ConnectomeArbitrator(connectome_weights=w_vd)
         if vehicle == "hexacopter":
             self.cord = neckcord.ShuntingThrusterCord.multicopter_hex_6()
         elif vehicle == "octocopter":
@@ -118,7 +147,7 @@ class NeckLinkCNS:
             u_nom=self.cord.u_max,
             rpm_max=9000.0,
         )
-        self.cpg = neckcord.SegmentalCPGCord(adapt_to_damage=True)
+        self.cpg = neckcord.SegmentalCPGCord(adapt_to_damage=True, connectome_weights=w_vd)
         self.mav = MavLink2Codec(sysid=42, compid=191)
         self._seq = 0
         self._last_cmds = np.zeros(self.cord.n_actuators, dtype=np.float64)
@@ -212,6 +241,22 @@ class NeckLinkCNS:
 
         # 4. BANC v888 Descending Neck Bottleneck Arbitration
         min_h = float(np.min(self.cord.health))
+        taper = min(1.0, float(dist_m) / max(0.1, float(self.navigator.arrival_radius_m))) if return_home else 0.0
+        p3_l = (
+            float(self.navigator.last_pfl3_left_rate) * taper
+            if (return_home and hasattr(self.navigator, "last_pfl3_left_rate"))
+            else (0.0 if not return_home else None)
+        )
+        p3_r = (
+            float(self.navigator.last_pfl3_right_rate) * taper
+            if (return_home and hasattr(self.navigator, "last_pfl3_right_rate"))
+            else (0.0 if not return_home else None)
+        )
+        p2_v = (
+            float(self.navigator.last_pfl2_rate) * taper
+            if (return_home and hasattr(self.navigator, "last_pfl2_rate"))
+            else (0.0 if not return_home else None)
+        )
         desc = self.arbitrator.arbitrate(
             cruise_speed=cruise_speed,
             cx_turn_cmd=cx_turn,
@@ -222,6 +267,9 @@ class NeckLinkCNS:
             mb_novelty=nov_score,
             vib_fault_score=vib_score,
             cord_min_health=min_h,
+            pfl3_left_rate=p3_l,
+            pfl3_right_rate=p3_r,
+            pfl2_rate=p2_v,
             dt=dt,
         )
 

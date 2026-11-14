@@ -2,7 +2,7 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCord (`neckcord` v2.0.0)
+# NeckCord (`neckcord` v3.0.0, research beta)
 
 **Bio-inspired 4-byte descending command codec, 6-limb CPG + 18-servo 3-DOF leg IK, sensorless ESC (`RPM + Current`) fault observer, and box-constrained 3-DOF / 4-DOF fault-tolerant thruster & multicopter allocator in Python, pure-integer ANSI C99 (`916 B` combined RAM), and Arduino.**
 
@@ -21,6 +21,9 @@
 [**Changelog**](#changelog)
 
 </div>
+
+> [!NOTE]
+> **v3.0.0: the six-leg gait generator now runs on connectome-derived coupling.** Leg-to-leg phase coupling comes from a `6×6` inhibition matrix (`C_vnc_inh`) compiled from `BANC v888` VNC premotor neurons, and turning gains come from the `DN → leg motor pool` matrix (`W_dn_leg`, `6×10`). The oscillator dynamics are hand-designed. The thruster/rotor allocator, ESC observer, leg IK and 4-byte codec are engineering and are labelled `PROVENANCE = "engineering"`. See [v3.0.0 results](#v300-connectome-derived-gait-coupling-audited-results).
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcord/assets/neckcord_benchmarks.png" alt="NeckCord benchmarks" width="100%">
@@ -189,15 +192,54 @@ make -C csrc clean test test-sanitize   # 18 self-tests under -O2 -Werror and AS
 
 ---
 
+## v3.0.0: connectome-derived gait coupling (audited results)
+
+```python
+import numpy as np
+import neckcord
+
+for weights in ("banc_v888", "v2_analytic"):  # banc_v888 is the default in 3.0.0
+    cpg = neckcord.SegmentalCPGCord(connectome_weights=weights)
+    cpg.phases = np.random.default_rng(0).uniform(0.0, 0.35, size=6)  # legs start nearly in phase
+    for _ in range(180):
+        st = cpg.step(0.90, dt=0.01, gait_mode=int(neckcord.GaitMode.TRIPOD))
+    print(weights, "tripod order:", round(neckcord.compute_tripod_order(st.phases), 3))
+```
+
+With `banc_v888`, no tripod phase table is used: the tripod pattern has to emerge from the inhibition matrix. Benchmark: `N = 30` seeds against `K = 100` degree-preserving (Maslov–Sneppen) shuffles of the raw VNC matrices compiled with the identical pipeline; one-sided permutation `p = (1 + r) / (K + 1)` (smallest possible `0.0099`). MuJoCo tasks use an 18-DOF hexapod driven through `HexapodLegIK` for every arm. Code and raw JSON: [`benchmarks/v3/`](https://github.com/indian-aman/necklink/tree/main/benchmarks/v3).
+
+| Task | `banc_v888` | Shuffled wiring (mean) | `r / 100`, `p`, `z` | `v2_analytic` | Open-loop tripod |
+| :--- | :---: | :---: | :---: | :---: | :---: |
+| Emergent tripod order (`1.0` = perfect) | `0.855` | `0.411` | `0`, `0.0099`, `+3.60` | `1.000` (fixed table) | `1.000` (fixed table) |
+| Forward distance after losing leg L2 (MuJoCo) | `0.839 m` | `0.787 m` | `15`, `0.16`, `+0.88` | **`0.865 m`** | `0.289 m` parked, `0.406 m` limp |
+| Turning, total yaw in 5 s (MuJoCo) | `+4.13 rad` | `+2.05 rad` | `1`, `0.020`, `+2.36` | — | — |
+
+What this shows:
+- **The inhibition matrix produces a tripod gait by itself** (`0.855` vs `0.411` for shuffled wiring), and the descending-neuron matrix steers about twice as hard as shuffled wiring.
+- **It does not beat the hand-designed gait.** The analytic tripod table is perfectly ordered and walks slightly farther after a leg loss; leg-loss recovery is not specific to the real wiring (`p = 0.16`).
+- **Caveats:** simulation only; the MuJoCo shuffle comparisons use `6` seeds per shuffle; the pipeline was tuned while looking at real-wiring results.
+
+**Engineering layer (not connectome):** in a 3D MuJoCo hexacopter rotor-loss test (`N = 30`), all three allocators survived every run. Tilt RMS: SciPy bounded QP **`0.17°`**, `ShuntingThrusterCord` `0.25°`, health-weighted clipped pseudo-inverse `0.33°`. Python solve time `55 µs` / `143 µs` / `14 µs`. NeckCord's allocator has no accuracy advantage here; its value is the zero-heap integer C99 port.
+
+---
+
 ## Benchmarks
 
 ```bash
 python scripts/benchmark_neckcord.py     # writes results/benchmark_summary.json and the chart
 ```
 
-### 1. 6-DOF `MuJoCo` hexacopter rotor/blade failure & 18-DOF `MuJoCo` hexapod leg loss (`v2.0.0`)
+### 1. 6-DOF `MuJoCo` hexacopter rotor failure (`v2.0.0`, corrected in `v2.0.1`)
 
-When Rotor #2 fails completely (`0%` thrust) or shears a blade (`15%` thrust, detected in `< 50 ms` from ESC `RPM + Current` alone without load cells) in 6-DOF `MuJoCo` rigid-body flight (`1.8 kg`, `[0, 4.5 N]` unidirectional rotors), unconstrained pseudo-inverse + FDI commands illegal negative thrust on the opposite rotor that clips at `0`, degrading attitude to `3.54°` RMS tilt (`2.8 mm` altitude MAE). `NeckCord v2.0`'s box-constrained active-set allocator matches desktop `scipy` bounded QP identically — **`0.75°` tilt RMS, `0.7 mm` altitude MAE (`1.500 m` hover)** on complete rotor loss and **`0.69°` tilt RMS (`1.498 m` hover)** on sensorless broken-blade loss — while running **`6.0×` faster in Python** and in **`5.57 µs` / `916 B` of zero-heap integer C99**. On an 18-DOF `MuJoCo` 3D hexapod losing middle leg `L2` mid-stride, `NeckCord v2.0` (`+45 mm` amputated-leg IK park + `72°` pentapod phase shift) walks **`2.07×` faster** (`0.360 m` vs `0.174 m` in `4 s`), cuts body tilt from `3.92°` to **`1.84°` RMS**, and eliminates dead-leg ground strikes (`0` vs `66`).
+In a single 6-DOF `MuJoCo` run (`1.8 kg` airframe, `[0, 4.5 N]` rotors, Rotor #2 fails at `t = 0.5 s`), the box-constrained allocator **matches a standard `scipy` bounded least-squares QP**: `0.75°` tilt RMS and `0.7 mm` altitude error for both. With a simulated broken blade detected from ESC `RPM + Current`, it held `0.69°` tilt RMS.
+
+> [!WARNING]
+> **v2.0.1 corrections after an independent audit.**
+> - The pseudo-inverse baseline (`3.54°`) was penalised by a constant yaw-torque request that the QP and NeckCord were allowed to drop, and NeckCord received perfect thrust feedback the baselines did not. That comparison is withdrawn.
+> - The broken-blade test simulated the ESC current with the observer's own noise-free model, so it only checks internal consistency.
+> - Python timings (`192 µs` vs `1,157 µs`) say nothing about microcontroller performance.
+> - **Withdrawn:** the 18-DOF hexapod leg-loss result (`2.07×` farther). Its advantage came from a leg posture and stance push hard-coded inside the benchmark; the library's gait output was identical to the comparison arm, and `HexapodLegIK` was not used.
+> - All results are single deterministic runs. Fair multi-seed benchmarks are planned for `v3.0.0`.
 
 ### 2. 4-thruster USV corridor tracking with a thruster fault (`dt = 0.02 s`, 30 s, 10 wave seeds)
 
@@ -248,6 +290,12 @@ When Rotor #2 fails completely (`0%` thrust) or shears a blade (`15%` thrust, de
 ---
 
 ## Changelog
+
+**3.0.0**
+- *Connectome-derived gait coupling:* `SegmentalCPGCord` integrates phase coupling over the `BANC v888` `C_vnc_inh` matrix and steering over `W_dn_leg` by default (`connectome_weights="banc_v888"`), in Python and C99 (`neckcord_banc_weights.h`). The earlier analytic tripod table remains available as `connectome_weights="v2_analytic"`. Slow tetrapod/wave gaits remain literature-based schedules.
+- *Audited benchmark:* `K = 100` Maslov–Sneppen shuffle comparison and an N = 30 MuJoCo hexacopter allocator comparison (see above).
+- *Provenance:* `ShuntingThrusterCord`, `ESCObserver`, `HexapodLegIK` and `CervicalBottleneckLink` carry `PROVENANCE = "engineering"`.
+- `make -C csrc sanitize` is now an alias for `test-sanitize`.
 
 **2.0.0**
 - *New:* Box-constrained asymmetric `[u_min_i, u_max_i]` 3-DOF & 4-DOF active-set fault-tolerant allocator in Python (`ShuntingThrusterCord.multicopter_hex_6`, `.multicopter_octo_8`, `.usv_t200_vectored_4`, `deadzone`) and pure-integer C99 (`nc_shunting4d_t` with `Q20` `int64` `LDLᵀ` + attitude-over-yaw relaxation).

@@ -11,10 +11,10 @@ all: $(BUILD)/necksight_selftest
 $(BUILD):
 	mkdir -p $(BUILD)
 
-$(BUILD)/necksight_selftest: tools/necksight_selftest.c $(CORE_SRCS) necksight.h | $(BUILD)
+$(BUILD)/necksight_selftest: tools/necksight_selftest.c $(CORE_SRCS) necksight.h necksight_banc_weights.h | $(BUILD)
 	$(CC) $(CFLAGS) -o $@ tools/necksight_selftest.c $(CORE_SRCS)
 
-$(BUILD)/necksight_selftest_san: tools/necksight_selftest.c $(CORE_SRCS) necksight.h | $(BUILD)
+$(BUILD)/necksight_selftest_san: tools/necksight_selftest.c $(CORE_SRCS) necksight.h necksight_banc_weights.h | $(BUILD)
 	$(CC) -O2 -g -std=c99 -Wall -Wextra -pedantic -Werror -fsanitize=address,undefined -fno-sanitize-recover=undefined -I. -o $@ tools/necksight_selftest.c $(CORE_SRCS)
 
 test: $(BUILD)/necksight_selftest

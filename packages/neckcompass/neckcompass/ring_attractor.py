@@ -13,9 +13,11 @@ Biophysical inspirations & empirical connectome grounding (BANC v888, 157,789 pr
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 import math
-from typing import TYPE_CHECKING, Optional
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, Optional
 
 import numpy as np
 
@@ -31,12 +33,47 @@ BANC_CONNECTOME_COUNTS: dict[str, int] = {
     "PFL2": 12,
 }
 
+_BANC_DATA_PATH = Path(__file__).resolve().parent / "data" / "banc_cx_v3.npz"
+_BANC_CX_CACHE: Optional[dict[str, np.ndarray]] = None
+
+
+def load_banc_connectome() -> dict[str, np.ndarray]:
+    """Load and cache the extracted BANC v888 Central Complex synaptic matrices."""
+    global _BANC_CX_CACHE
+    if _BANC_CX_CACHE is None:
+        with np.load(_BANC_DATA_PATH, allow_pickle=False) as npz:
+            _BANC_CX_CACHE = {k: np.array(npz[k], copy=True) for k in npz.files}
+    return {k: v.copy() for k, v in _BANC_CX_CACHE.items()}
+
+
+def _resolve_cx_weights(
+    connectome_weights: Optional[str | Mapping[str, Any]],
+    n_units: int,
+) -> Optional[dict[str, Any]]:
+    """Resolve ``connectome_weights`` into a dict of numpy arrays, or ``None`` for v2 analytic mode."""
+    if n_units != 16 or connectome_weights is None or connectome_weights == "v2_analytic":
+        return None
+    if isinstance(connectome_weights, str):
+        if connectome_weights == "banc_v888":
+            if _BANC_CX_CACHE is None:
+                load_banc_connectome()
+            assert _BANC_CX_CACHE is not None
+            return _BANC_CX_CACHE
+        raise ValueError(
+            f"Unsupported connectome_weights={connectome_weights!r}; "
+            "expected 'banc_v888', 'v2_analytic', or a connectome weight dict"
+        )
+    if isinstance(connectome_weights, Mapping):
+        return dict(connectome_weights)
+    raise TypeError(
+        f"connectome_weights must be 'banc_v888', 'v2_analytic', or a dict, got {type(connectome_weights).__name__}"
+    )
+
 
 def wrap_angle(angle_rad: float | np.ndarray) -> float | np.ndarray:
     """Wrap angle(s) in radians cleanly into (-pi, pi] with zero discontinuity."""
     wrapped = (np.asarray(angle_rad) + math.pi) % (2.0 * math.pi) - math.pi
     if np.ndim(angle_rad) == 0:
-        # Map -pi to +pi consistently if desired, or keep standard [-pi, pi)
         val = float(wrapped)
         return math.pi if val == -math.pi else val
     return wrapped
@@ -77,32 +114,27 @@ class CompassDiagnostics:
 
 
 class RingCompass:
-    """Topological N-wedge E-PG ring attractor compass with P-EN angular-velocity shifters.
+    """Topological N-wedge E-PG ring attractor compass driven by the BANC v888 connectome.
 
-    Maintains a localized activity bump across ``n_wedges`` (default 16, matching the
-    16 Ellipsoid Body wedges of *Drosophila*; also supports ``n_wedges=32`` or any
-    even ``N >= 8``). Recurrent E-PG excitation and global Delta7 inhibition sustain
-    a single constant-amplitude bump, while asymmetric Left/Right P-EN projections
-    rotate the bump proportionally to ``omega_rad_s * dt``.
+    When ``connectome_weights="banc_v888"`` (the v3.0 default for ``n_wedges=16``) or a
+    custom/shuffled connectome dict is passed, the 16-wedge E-PG bump ``r`` evolves directly
+    through the empirical *Drosophila* Central Complex synaptic matrices (``M_exc`` recurrent
+    excitation, ``M_ed7`` / ``M_d7e`` 40-neuron Delta7 bridge inhibition, and ``M_pa_diff``
+    bilateral PEN_a angular-velocity shifters with fixed biophysical gain ``10.2``).
 
-    External cues (``mag_heading_rad``, ``sun_heading_rad``) excite localized von-Mises
-    Ring-Neuron (R2 / R4d) receptive fields gated by cooperative dendritic coincidence
-    with the active E-PG bump. Cues within the attractor basin (half-width
-    ``4 deg + cue_noise_deg``, i.e. 7 deg by default) smoothly pull the bump and adapt a
-    slow homeostatic P-EN bias trim; transient ferromagnetic ship-hull or motor-cable
-    spikes fall outside the basin and are rejected without yanking the heading or
-    corrupting the bias state.
-
-    Set ``cue_noise_deg`` to the 1-sigma noise of your calibrated magnetometer (or sun
-    sensor). If the cue stays consistently off-basin for ``reanchor_seconds`` (a real
-    heading upset rather than a spike), the bump re-anchors onto the averaged cue.
+    Pass ``connectome_weights="v2_analytic"`` (or ``n_wedges != 16``, e.g. ``32``) to run the
+    idealized v2 first-harmonic phasor ring attractor.
     """
+
+    PROVENANCE: str = "connectome"
 
     def __init__(
         self,
         n_wedges: int = 16,
         initial_heading_rad: Optional[float] = None,
         *,
+        connectome_weights: Optional[str | Mapping[str, Any]] = "banc_v888",
+        cue_gain: float = 2.2,
         cue_kappa: float = 4.0,
         cue_noise_deg: float = 3.0,
         basin_sigma: Optional[float] = None,
@@ -115,6 +147,8 @@ class RingCompass:
     ) -> None:
         if n_wedges < 8 or (n_wedges % 2) != 0:
             raise ValueError(f"n_wedges must be an even integer >= 8, got {n_wedges}")
+        if cue_gain < 0.0:
+            raise ValueError("cue_gain must be non-negative")
         if cue_kappa <= 0.0:
             raise ValueError("cue_kappa must be positive")
         if not (cue_noise_deg > 0.0):
@@ -127,6 +161,7 @@ class RingCompass:
             raise ValueError("reanchor_seconds must be positive or None")
 
         self.n_wedges: int = int(n_wedges)
+        self.cue_gain: float = float(cue_gain)
         self.cue_kappa: float = float(cue_kappa)
         self.cue_noise_deg: float = float(cue_noise_deg)
         self.basin_sigma: float = float(basin_sigma)
@@ -139,20 +174,41 @@ class RingCompass:
             None if reanchor_seconds is None else float(reanchor_seconds)
         )
 
+        cx = _resolve_cx_weights(connectome_weights, self.n_wedges)
+        self._cx: Optional[dict[str, Any]] = cx
+        self.connectome_mode: str = (
+            "v2_analytic"
+            if cx is None
+            else (connectome_weights if isinstance(connectome_weights, str) else "custom_dict")
+        )
+        if cx is not None:
+            self._M_exc: np.ndarray = np.asarray(cx["M_exc"], dtype=np.float64)
+            self._M_ed7: np.ndarray = np.asarray(cx["M_ed7"], dtype=np.float64)
+            self._M_d7e: np.ndarray = np.asarray(cx["M_d7e"], dtype=np.float64)
+            self._M_pa_diff: np.ndarray = np.asarray(cx["M_pa_diff"], dtype=np.float64)
+            if (
+                self._M_exc.shape != (16, 16)
+                or self._M_ed7.shape != (40, 16)
+                or self._M_d7e.shape != (16, 40)
+                or self._M_pa_diff.shape != (16, 16)
+            ):
+                raise ValueError("Invalid connectome matrix shapes for 16-wedge BANC CX ring")
+
         # Preferred wedge angles uniformly tiling [-pi, pi)
-        self.thetas: np.ndarray = -math.pi + (2.0 * math.pi * np.arange(self.n_wedges, dtype=np.float64)) / self.n_wedges
+        self.thetas: np.ndarray = -math.pi + (
+            2.0 * math.pi * np.arange(self.n_wedges, dtype=np.float64)
+        ) / self.n_wedges
         self._cos_thetas: np.ndarray = np.cos(self.thetas)
         self._sin_thetas: np.ndarray = np.sin(self.thetas)
 
         self._rates: np.ndarray = np.zeros(self.n_wedges, dtype=np.float64)
         self._delta7: np.ndarray = np.zeros(self.n_wedges, dtype=np.float64)
+        self._d7_neurons: np.ndarray = np.zeros(40, dtype=np.float64)
         self._initialized: bool = False
         self._pen_bias_rad_s: float = 0.0
+        self._bias_ref_rad: float = 0.0
         self._tilt_ahrs: Optional["TiltCompensatedAHRS"] = None
 
-        # Track a sustained, consistent off-basin cue offset (for genuine re-orientation after
-        # an upset, e.g. a wrong initial heading or a gyro saturation event). Short ferromagnetic
-        # spikes (< reanchor_seconds) never qualify.
         self._offbasin_c: float = 0.0
         self._offbasin_s: float = 0.0
         self._coherent_offbasin_time: float = 0.0
@@ -163,7 +219,11 @@ class RingCompass:
             self.reset(initial_heading_rad)
 
     def _shape_bump_from_angle(self, angle_rad: float) -> np.ndarray:
-        """Construct the canonical Delta7-inhibited E-PG bump centered at ``angle_rad``."""
+        """Construct the canonical E-PG bump centered at ``angle_rad``."""
+        if self._cx is not None:
+            r = np.maximum(0.0, np.cos(self.thetas - angle_rad))
+            s = float(r.sum())
+            return r * (8.0 / max(s, 1e-6))
         raw = np.maximum(0.0, np.cos(self.thetas - angle_rad) - self.inhibition_threshold)
         peak = float(np.max(raw))
         return raw / peak if peak > 1e-12 else raw
@@ -172,8 +232,13 @@ class RingCompass:
         """Seed or reset the E-PG compass bump to ``heading_rad``."""
         wrapped = float(wrap_angle(heading_rad))
         self._rates = self._shape_bump_from_angle(wrapped)
-        self._delta7 = 0.5 * (1.0 - np.cos(self.thetas - wrapped))
+        if self._cx is not None:
+            self._d7_neurons = self._M_ed7 @ self._rates
+            self._delta7 = self._M_d7e @ self._d7_neurons
+        else:
+            self._delta7 = 0.5 * (1.0 - np.cos(self.thetas - wrapped))
         self._initialized = True
+        self._bias_ref_rad = wrapped
         if reset_bias:
             self._pen_bias_rad_s = 0.0
         if self._tilt_ahrs is not None:
@@ -191,14 +256,52 @@ class RingCompass:
         return self._initialized
 
     @property
+    def bump(self) -> np.ndarray:
+        """Copy of current E-PG activity bump ``r`` (sum == 8.0 in BANC connectome mode)."""
+        return self._rates.copy()
+
+    @bump.setter
+    def bump(self, value: np.ndarray) -> None:
+        arr = np.asarray(value, dtype=np.float64)
+        if arr.shape != (self.n_wedges,):
+            raise ValueError(f"bump must have shape ({self.n_wedges},), got {arr.shape}")
+        self._rates = np.maximum(0.0, arr.copy())
+        if self._cx is not None:
+            self._d7_neurons = self._M_ed7 @ self._rates
+            self._delta7 = self._M_d7e @ self._d7_neurons
+        self._initialized = True
+
+    @property
     def wedges(self) -> np.ndarray:
         """Copy of current N-wedge non-negative E-PG firing rates."""
         return self._rates.copy()
 
     @property
-    def delta7_wedges(self) -> np.ndarray:
-        """Copy of current N-wedge anti-phase Delta7 glutamatergic bridge inhibition in [0, 1]."""
+    def delta7_rates(self) -> np.ndarray:
+        """Copy of 40-neuron BANC Delta7 firing rates (or N-wedge profile in analytic mode)."""
+        if self._cx is not None:
+            return self._d7_neurons.copy()
         return self._delta7.copy()
+
+    @property
+    def delta7_wedges(self) -> np.ndarray:
+        """Copy of current N-wedge anti-phase Delta7 glutamatergic bridge inhibition."""
+        return self._delta7.copy()
+
+    @property
+    def delta7_neurons(self) -> np.ndarray:
+        """Copy of current 40-neuron BANC v888 Delta7 bridge population vector."""
+        return self._d7_neurons.copy()
+
+    @property
+    def last_mag_gate(self) -> float:
+        """Latest magnetometer coincidence gate in [0.0, 1.0]."""
+        return self._last_mag_gate
+
+    @property
+    def last_sun_gate(self) -> float:
+        """Latest sun/landmark coincidence gate in [0.0, 1.0]."""
+        return self._last_sun_gate
 
     @property
     def tilt_ahrs(self) -> "TiltCompensatedAHRS":
@@ -226,8 +329,8 @@ class RingCompass:
         return math.degrees(self.heading_rad)
 
     @property
-    def bump_amplitude(self) -> float:
-        """First-harmonic phasor coherence of the E-PG activity bump in [0, 1]."""
+    def bump_coherence(self) -> float:
+        """First-harmonic phasor coherence ``hypot(r@cos, r@sin) / max(r.sum(), 1e-6)`` in [0, 1]."""
         if not self._initialized:
             return 0.0
         total = float(np.sum(self._rates))
@@ -235,7 +338,12 @@ class RingCompass:
             return 0.0
         c1 = float(np.dot(self._rates, self._cos_thetas))
         s1 = float(np.dot(self._rates, self._sin_thetas))
-        return float(math.hypot(c1, s1) / total)
+        return float(math.hypot(c1, s1) / max(total, 1e-6))
+
+    @property
+    def bump_amplitude(self) -> float:
+        """Alias of :attr:`bump_coherence` for v1/v2 API compatibility."""
+        return self.bump_coherence
 
     @property
     def estimated_gyro_bias_rad_s(self) -> float:
@@ -246,7 +354,7 @@ class RingCompass:
         """Return a structured diagnostic snapshot of the latest compass state."""
         return CompassDiagnostics(
             heading_rad=self.heading_rad,
-            bump_amplitude=self.bump_amplitude,
+            bump_amplitude=self.bump_coherence,
             estimated_gyro_bias_rad_s=self._pen_bias_rad_s,
             mag_gate=self._last_mag_gate,
             sun_gate=self._last_sun_gate,
@@ -254,9 +362,7 @@ class RingCompass:
 
     def _von_mises_profile(self, cue_angle_rad: float) -> np.ndarray:
         """Localized R-neuron afferent excitation profile normalized to match E-PG 1st harmonic."""
-        # Raised cosine (degree <= 3) has zero harmonic aliasing on N >= 8 rings while staying localized
         prof = np.power(0.5 * (1.0 + np.cos(self.thetas - cue_angle_rad)), 3)
-        # Match 1st-harmonic norm to half-wave rectified E-PG bump (which has 1st harmonic = N/4)
         c1 = abs(float(np.dot(prof, np.cos(self.thetas - cue_angle_rad))))
         target_c1 = 0.25 * self.n_wedges
         return prof * (target_c1 / max(c1, 1e-12))
@@ -267,6 +373,153 @@ class RingCompass:
         ratio = dist / self.basin_sigma
         return math.exp(-(ratio * ratio))
 
+    @staticmethod
+    def _connectome_cue_coincidence(
+        cz: np.ndarray,
+        cz_norm: float,
+        r: np.ndarray,
+    ) -> float:
+        """Compute cosine-overlap coincidence ``max(0, (ov - 0.5)/0.5)**2`` in [0, 1]."""
+        if cz_norm <= 1e-12:
+            return 0.0
+        rz = r - float(np.mean(r))
+        rz_norm = float(np.linalg.norm(rz))
+        if rz_norm <= 1e-12:
+            return 0.0
+        ov = float(np.dot(cz, rz) / (cz_norm * rz_norm))
+        if ov <= 0.50:
+            return 0.0
+        u = (ov - 0.50) / 0.50
+        return float(u * u)
+
+    def _update_connectome(
+        self,
+        omega_rad_s: float,
+        dt: float,
+        mag_heading_rad: Optional[float],
+        sun_heading_rad: Optional[float],
+        mag_conf: float,
+        sun_conf: float,
+    ) -> float:
+        """Advance the 16-wedge BANC v888 connectome ring attractor with dt_sub <= 0.01 s."""
+        self._last_mag_gate = 0.0
+        self._last_sun_gate = 0.0
+        if dt == 0.0:
+            return self.heading_rad
+
+        n_sub = max(1, int(math.ceil(dt / 0.01 - 1e-12)))
+        dt_sub = float(dt) / n_sub
+        alpha = min(0.25, dt_sub / 0.16)
+        omega_f = float(omega_rad_s) - self._pen_bias_rad_s
+        cue_scale = 28.0 * (self.cue_gain / 2.2)
+
+        mag_ex: Optional[np.ndarray] = None
+        mag_cz: Optional[np.ndarray] = None
+        mag_cz_norm = 0.0
+        mag_ang = 0.0
+        if mag_heading_rad is not None and mag_conf > 0.0:
+            mag_ang = float(wrap_angle(mag_heading_rad))
+            mag_ex = np.maximum(0.0, np.cos(self.thetas - mag_ang)) ** 3
+            mag_cz = mag_ex - float(np.mean(mag_ex))
+            mag_cz_norm = float(np.linalg.norm(mag_cz))
+
+        sun_ex: Optional[np.ndarray] = None
+        sun_cz: Optional[np.ndarray] = None
+        sun_cz_norm = 0.0
+        sun_ang = 0.0
+        if sun_heading_rad is not None and sun_conf > 0.0:
+            sun_ang = float(wrap_angle(sun_heading_rad))
+            sun_ex = np.maximum(0.0, np.cos(self.thetas - sun_ang)) ** 3
+            sun_cz = sun_ex - float(np.mean(sun_ex))
+            sun_cz_norm = float(np.linalg.norm(sun_cz))
+
+        r = self._rates
+        d7 = self._d7_neurons
+        inh = self._delta7
+        mag_coinc = 0.0
+        sun_coinc = 0.0
+        for _ in range(n_sub):
+            d7 = self._M_ed7 @ r
+            inh = self._M_d7e @ d7
+            exc = self._M_exc @ r
+            shift = (10.2 * omega_f) * (self._M_pa_diff @ r)
+
+            cue_drive = 0.0
+            if mag_ex is not None and mag_cz is not None:
+                mag_coinc = self._connectome_cue_coincidence(mag_cz, mag_cz_norm, r)
+                mg = mag_coinc * mag_conf
+                self._last_mag_gate = mg
+                if mg > 0.0:
+                    cue_drive = cue_drive + (dt_sub * cue_scale * mg) * mag_ex
+
+            if sun_ex is not None and sun_cz is not None:
+                sun_coinc = self._connectome_cue_coincidence(sun_cz, sun_cz_norm, r)
+                sg = sun_coinc * sun_conf
+                self._last_sun_gate = sg
+                if sg > 0.0:
+                    sun_mult = max(1.0, self.sun_gain / max(self.mag_gain, 1e-6))
+                    cue_drive = cue_drive + (dt_sub * cue_scale * sun_mult * sg) * sun_ex
+
+            r = np.maximum(
+                0.0,
+                (1.0 - alpha) * r
+                + alpha * np.maximum(0.0, 1.4 * exc - 1.1 * inh)
+                + cue_drive
+                + dt_sub * shift,
+            )
+            r = r * (8.0 / max(float(r.sum()), 1e-6))
+
+        self._rates = r
+        self._d7_neurons = self._M_ed7 @ r
+        self._delta7 = self._M_d7e @ self._d7_neurons
+
+        # P-EN kinematic gyro-bias homeostasis driven only by coincidence-gated cues
+        if dt > 0.0 and self.bias_adapt_rate > 0.0:
+            self._bias_ref_rad = float(wrap_angle(self._bias_ref_rad + omega_f * dt))
+            if sun_ex is not None and sun_coinc > 0.05 and self._last_sun_gate > 0.0:
+                err_b = float(wrap_angle(sun_ang - self._bias_ref_rad))
+                self._bias_ref_rad = float(
+                    wrap_angle(self._bias_ref_rad + self.sun_gain * self._last_sun_gate * dt * err_b)
+                )
+                self._pen_bias_rad_s -= self.bias_adapt_rate * self._last_sun_gate * err_b * dt
+                self._pen_bias_rad_s = float(
+                    np.clip(self._pen_bias_rad_s, -self.max_bias_rad_s, self.max_bias_rad_s)
+                )
+            elif mag_ex is not None and mag_coinc > 0.05 and self._last_mag_gate > 0.0:
+                err_b = float(wrap_angle(mag_ang - self._bias_ref_rad))
+                self._bias_ref_rad = float(
+                    wrap_angle(self._bias_ref_rad + self.mag_gain * self._last_mag_gate * dt * err_b)
+                )
+                self._pen_bias_rad_s -= self.bias_adapt_rate * self._last_mag_gate * err_b * dt
+                self._pen_bias_rad_s = float(
+                    np.clip(self._pen_bias_rad_s, -self.max_bias_rad_s, self.max_bias_rad_s)
+                )
+
+        # Sustained coherent off-basin re-anchoring after genuine heading upsets
+        if (
+            self.reanchor_seconds is not None
+            and mag_ex is not None
+            and mag_coinc < 0.05
+            and sun_heading_rad is None
+        ):
+            pred_heading = self.heading_rad
+            innov = float(wrap_angle(mag_ang - pred_heading))
+            alpha_ra = 1.0 if self._coherent_offbasin_time == 0.0 else min(1.0, dt / _REANCHOR_TAU_S)
+            self._offbasin_c += alpha_ra * (math.cos(innov) - self._offbasin_c)
+            self._offbasin_s += alpha_ra * (math.sin(innov) - self._offbasin_s)
+            if math.hypot(self._offbasin_c, self._offbasin_s) >= _REANCHOR_MIN_COHERENCE:
+                self._coherent_offbasin_time += dt
+            else:
+                self._coherent_offbasin_time = 0.0
+            if self._coherent_offbasin_time >= self.reanchor_seconds:
+                mean_innov = math.atan2(self._offbasin_s, self._offbasin_c)
+                self.reset(pred_heading + mean_innov, reset_bias=False)
+                return self.heading_rad
+        else:
+            self._reset_reanchor_tracker()
+
+        return self.heading_rad
+
     def update(
         self,
         omega_rad_s: float,
@@ -276,23 +529,7 @@ class RingCompass:
         mag_confidence: float = 1.0,
         sun_confidence: float = 1.0,
     ) -> float:
-        """Advance the E-PG ring attractor by ``dt`` seconds and return ``heading_rad``.
-
-        Parameters
-        ----------
-        omega_rad_s:
-            Body yaw angular velocity in rad/s (positive = counter-clockwise).
-        dt:
-            Timestep in seconds (must be >= 0).
-        mag_heading_rad:
-            Optional raw/calibrated magnetic heading cue in radians.
-        sun_heading_rad:
-            Optional sky-polarization / sun / visual azimuth cue in radians.
-        mag_confidence:
-            Scalar confidence multiplier in [0, 1] for ``mag_heading_rad``.
-        sun_confidence:
-            Scalar confidence multiplier in [0, 1] for ``sun_heading_rad``.
-        """
+        """Advance the E-PG ring attractor by ``dt`` seconds and return ``heading_rad``."""
         if dt < 0.0:
             raise ValueError(f"dt must be non-negative, got {dt}")
 
@@ -309,7 +546,17 @@ class RingCompass:
                 self.reset(float(omega_rad_s) * float(dt), reset_bias=False)
             return self.heading_rad
 
-        # 1. Delta7 first-harmonic readout + P-EN asymmetric velocity shift
+        if self._cx is not None:
+            return self._update_connectome(
+                omega_rad_s=omega_rad_s,
+                dt=dt,
+                mag_heading_rad=mag_heading_rad,
+                sun_heading_rad=sun_heading_rad,
+                mag_conf=mag_conf,
+                sun_conf=sun_conf,
+            )
+
+        # v2_analytic mode: exact first-harmonic phasor ring attractor
         c1 = (2.0 / self.n_wedges) * float(np.dot(self._rates, self._cos_thetas))
         s1 = (2.0 / self.n_wedges) * float(np.dot(self._rates, self._sin_thetas))
         norm1 = math.hypot(c1, s1)
@@ -324,7 +571,6 @@ class RingCompass:
         s_rot = (c1 * sin_dphi + s1 * cos_dphi) / norm1
         pred_heading = float(wrap_angle(math.atan2(s_rot, c_rot)))
 
-        # Reconstruct P-EN shifted recurrent E-PG <-> Delta7 excitation
         raw_cos_rot = c_rot * self._cos_thetas + s_rot * self._sin_thetas
         delta7_inh = 0.5 * (1.0 - raw_cos_rot)
         rec_drive = 1.0 - 2.0 * delta7_inh
@@ -333,7 +579,6 @@ class RingCompass:
         if u_peak > 1e-12:
             u_ring = u_ring / u_peak
 
-        # 2. Multi-cue R-neuron afferent injection with attractor-basin gating
         self._last_mag_gate = 0.0
         self._last_sun_gate = 0.0
         net_innovation = 0.0
@@ -355,10 +600,6 @@ class RingCompass:
             mag_gate = self._basin_coincidence_gate(mag_ang, pred_heading)
             self._last_mag_gate = mag_gate
 
-            # Re-anchoring: if the cue has sat *consistently* outside the basin for
-            # ``reanchor_seconds`` (a steady offset rather than a transient spike), the
-            # compass itself is wrong. The low-pass innovation phasor averages out
-            # per-sample sensor noise; its resultant length measures consistency.
             if (
                 self.reanchor_seconds is not None
                 and mag_gate < 0.05
@@ -366,7 +607,6 @@ class RingCompass:
                 and dt > 0.0
             ):
                 innov = float(wrap_angle(mag_ang - pred_heading))
-                # Seed with the first off-basin sample so the timer starts immediately.
                 alpha = 1.0 if self._coherent_offbasin_time == 0.0 else min(1.0, dt / _REANCHOR_TAU_S)
                 self._offbasin_c += alpha * (math.cos(innov) - self._offbasin_c)
                 self._offbasin_s += alpha * (math.sin(innov) - self._offbasin_s)
@@ -388,16 +628,12 @@ class RingCompass:
                 net_innovation += (self.mag_gain * mag_conf * mag_gate) * mag_err
                 net_gate_weight += self.mag_gain * mag_conf * mag_gate
 
-        # 3. Winner-take-all Delta7 divisive/subtractive sharpening back onto canonical bump manifold
         c_new = float(np.dot(u_ring, self._cos_thetas))
         s_new = float(np.dot(u_ring, self._sin_thetas))
         new_heading = float(wrap_angle(math.atan2(s_new, c_new)))
         self._rates = self._shape_bump_from_angle(new_heading)
         self._delta7 = 0.5 * (1.0 - np.cos(self.thetas - new_heading))
 
-        # 4. Slow homeostatic P-EN bias adaptation (only when cues coherently overlap the bump!)
-        # If omega_meas = omega_true + bias (bias > 0), pred_heading drifts positive, so
-        # cue_err = (cue - pred_heading) < 0; thus bias estimate increases with (-cue_err).
         if dt > 0.0 and net_gate_weight > 1e-6 and self.bias_adapt_rate > 0.0:
             weighted_err = net_innovation / max(self.mag_gain, self.sun_gain, 1.0)
             self._pen_bias_rad_s -= self.bias_adapt_rate * weighted_err * dt
@@ -425,21 +661,7 @@ class RingCompass:
         sun_confidence: float = 1.0,
         g_ref: Optional[float] = None,
     ) -> float:
-        """Advance 3D roll/pitch tilt compensation + E-PG ring attractor from a 9-axis IMU+Mag frame.
-
-        Parameters
-        ----------
-        gx, gy, gz:
-            Body-frame 3-axis gyroscope rates in rad/s.
-        ax, ay, az:
-            Body-frame 3-axis accelerometer specific force (default ``g_ref=9.80665`` m/s^2;
-            pass ``g_ref=1.0`` for g-units or ``g_ref=1000.0`` for milli-g). Linear wave-slam
-            accelerations exceeding ``|norm(a) - g_ref| > 0.25 * g_ref`` are gated out.
-        mx, my, mz:
-            Body-frame 3-axis magnetometer vector in arbitrary consistent units (uT, mG, LSB).
-        dt:
-            Timestep in seconds (must be >= 0).
-        """
+        """Advance 3D roll/pitch tilt compensation + E-PG ring attractor from a 9-axis IMU+Mag frame."""
         ahrs = self.tilt_ahrs
         if g_ref is not None:
             if g_ref <= 0.0:
@@ -460,21 +682,18 @@ class PlasticLandmarkRing:
     """Hebbian / anti-Hebbian R-neuron -> E-PG plastic ring mapping for warped magnetic scenes.
 
     Models associative synaptic plasticity between ``n_ring_neurons`` circularly tuned
-    sensory Ring Neurons (R2/R4d) and the ``n_wedges`` Ellipsoid Body E-PG compass wedges
-    (Fisher et al., *Nature* 2019; Kim et al., *Nature* 2019).
-
-    Around steel docks, harbors, or indoor rooms where soft-iron and hard-iron effects
-    nonlinearly warp magnetic azimuth (e.g. ``+25 deg * sin(2*psi)``), the plastic
-    ``W_r_to_epg`` weight matrix learns the inverse distortion online from either:
-    1. A clean intermittent reference cue (``reference_heading_rad``, e.g. sun/sky/visual), or
-    2. Self-supervised rotational consistency with IMU yaw rate ``omega_rad_s`` across turns.
+    sensory Ring Neurons (R2/R4d; mean EPG fanout ~10.92 in BANC v888) and the ``n_wedges``
+    Ellipsoid Body E-PG compass wedges (Fisher et al., *Nature* 2019; Kim et al., *Nature* 2019).
     """
+
+    PROVENANCE: str = "connectome"
 
     def __init__(
         self,
         n_wedges: int = 16,
         n_ring_neurons: int = 32,
         *,
+        connectome_weights: Optional[str | Mapping[str, Any]] = "banc_v888",
         learning_rate: float = 4.0,
         r_kappa: float = 56.0,
         prior_strength: float = 0.25,
@@ -488,7 +707,9 @@ class PlasticLandmarkRing:
         self.r_kappa: float = float(r_kappa)
 
         self.compass: RingCompass = (
-            compass if compass is not None else RingCompass(n_wedges=self.n_wedges)
+            compass
+            if compass is not None
+            else RingCompass(n_wedges=self.n_wedges, connectome_weights=connectome_weights)
         )
         if self.compass.n_wedges != self.n_wedges:
             raise ValueError("compass.n_wedges must match PlasticLandmarkRing.n_wedges")
@@ -500,17 +721,23 @@ class PlasticLandmarkRing:
         self._cos_epg: np.ndarray = np.cos(self.epg_thetas)
         self._sin_epg: np.ndarray = np.sin(self.epg_thetas)
         self._prev_raw_ang: Optional[float] = None
-        # Self-supervised learning has no absolute reference, so slow gyro drift would be
-        # learned into the map as a rotation. Soft/hard-iron distortion averages to zero over
-        # a full turn, so the map is periodically re-centred to a zero-mean correction until
-        # an absolute reference (sun / visual / GNSS course) has been seen.
         self._map_offset_rad: float = 0.0
         self._has_absolute_reference: bool = False
         self._learn_steps: int = 0
+        self._dr_compass: RingCompass = RingCompass(
+            n_wedges=self.n_wedges,
+            initial_heading_rad=compass.heading_rad if (compass is not None and compass.initialized) else None,
+            connectome_weights="v2_analytic",
+            mag_gain=self.compass.mag_gain,
+            sun_gain=self.compass.sun_gain,
+            basin_sigma=self.compass.basin_sigma,
+            bias_adapt_rate=self.compass.bias_adapt_rate,
+            max_bias_rad_s=self.compass.max_bias_rad_s,
+            reanchor_seconds=self.compass.reanchor_seconds,
+        )
         self._grid: np.ndarray = np.linspace(-math.pi, math.pi, 36, endpoint=False)
         self._grid_r_act: np.ndarray = np.stack([self.encode_r_neurons(a) for a in self._grid], axis=1)
 
-        # Initialize R -> E-PG synaptic matrix with weak topographic identity prior
         diff = self.epg_thetas[:, None] - self.r_thetas[None, :]
         self.weights: np.ndarray = float(prior_strength) * np.cos(diff)
         self._tilt_ahrs: Optional["TiltCompensatedAHRS"] = None
@@ -545,7 +772,7 @@ class PlasticLandmarkRing:
 
     def _recenter_zero_mean(self) -> None:
         """Set the map's output offset so the mean correction over the circle is zero."""
-        drive = self.weights @ self._grid_r_act  # (n_wedges, 36)
+        drive = self.weights @ self._grid_r_act
         mapped = np.arctan2(self._sin_epg @ drive, self._cos_epg @ drive)
         diff = mapped - self._grid
         self._map_offset_rad = float(math.atan2(float(np.mean(np.sin(diff))), float(np.mean(np.cos(diff)))))
@@ -560,12 +787,7 @@ class PlasticLandmarkRing:
         learn: bool = True,
         anchor_gain_scale: float = 0.25,
     ) -> float:
-        """Advance compass, decode plastic landmark heading, and apply Hebbian/anti-Hebbian learning.
-
-        When ``reference_heading_rad`` is None (self-supervised mode), ``anchor_gain_scale``
-        keeps magnetic pull gentle so accurate short-term P-EN gyro integration sweeps smoothly
-        across soft-iron warps while learning their inverse into ``self.weights``.
-        """
+        """Advance compass, decode plastic landmark heading, and apply Hebbian/anti-Hebbian learning."""
         raw_ang = float(wrap_angle(raw_mag_heading_rad))
         if reference_heading_rad is not None and not self._has_absolute_reference:
             self._has_absolute_reference = True
@@ -573,8 +795,9 @@ class PlasticLandmarkRing:
         if not self.compass.initialized:
             seed = float(reference_heading_rad) if reference_heading_rad is not None else raw_ang
             self.compass.reset(seed)
+            self._dr_compass.reset(seed)
             heading = self.compass.heading_rad
-        else:
+        elif reference_heading_rad is not None or self.compass._cx is None:
             corr_mag, map_conf = self.map_raw_heading(raw_ang)
             eff_mag_conf = (
                 map_conf if reference_heading_rad is None else 0.0
@@ -588,14 +811,35 @@ class PlasticLandmarkRing:
                 mag_confidence=eff_mag_conf,
                 sun_confidence=1.0,
             )
+            self._dr_compass.reset(heading, reset_bias=False)
+        else:
+            if not self._dr_compass.initialized:
+                self._dr_compass.reset(self.compass.heading_rad)
+            prev_dr = self._dr_compass.heading_rad
+            corr_mag, map_conf = self.map_raw_heading(raw_ang)
+            eff_mag_conf = map_conf * float(np.clip(anchor_gain_scale, 0.0, 1.0))
+            dr_heading = self._dr_compass.update(
+                omega_rad_s=omega_rad_s,
+                dt=dt,
+                mag_heading_rad=corr_mag if eff_mag_conf > 0.0 else None,
+                mag_confidence=eff_mag_conf,
+            )
+            net_omega = float(omega_rad_s) - self._dr_compass.estimated_gyro_bias_rad_s
+            if abs(float(circular_error_rad(dr_heading, prev_dr))) > abs(net_omega * dt) + 0.25:
+                self.compass.reset(dr_heading, reset_bias=False)
+            self.compass._pen_bias_rad_s = 0.0
+            heading = self.compass.update(
+                omega_rad_s=net_omega,
+                dt=dt,
+                mag_heading_rad=dr_heading,
+                mag_confidence=1.0,
+            )
+            self.compass._pen_bias_rad_s = self._dr_compass.estimated_gyro_bias_rad_s
 
         if learn and dt > 0.0:
             r_act = self.encode_r_neurons(raw_ang)
             target_epg = np.cos(self.epg_thetas - heading)
             pred_epg = self.weights @ r_act
-            # Movement-gated Hebbian / anti-Hebbian update (uniform exposure in R-neuron space).
-            # The raw-angle step is capped at 2x the gyro-measured turn: per-sample magnetometer
-            # noise would otherwise dominate it and drive learning while the vehicle is still.
             d_turn = abs(float(omega_rad_s)) * dt
             if self._prev_raw_ang is None:
                 d_raw = d_turn

@@ -241,6 +241,8 @@ class MavFrame:
 class MavLink2Parser:
     """Streaming byte-by-byte MAVLink v2 parser matching `nl_mav_parser_t`."""
 
+    PROVENANCE = "engineering"
+
     def __init__(self) -> None:
         self._buf = bytearray()
         self.rx_ok_count = 0
@@ -289,6 +291,8 @@ class MavLink2Parser:
 class MavLink2Codec:
     """Stateful sequence-numbered MAVLink v2 encoder + streaming decoder."""
 
+    PROVENANCE = "engineering"
+
     def __init__(self, sysid: int = 42, compid: int = 191) -> None:
         self.sysid = sysid & 0xFF
         self.compid = compid & 0xFF
@@ -323,6 +327,8 @@ class MavLink2Codec:
 
 class MavLinkUdpBridge:
     """Lightweight non-blocking UDP bridge for ArduPilot SITL / PX4 / MAVProxy."""
+
+    PROVENANCE = "engineering"
 
     def __init__(
         self,
@@ -368,3 +374,7 @@ class MavLinkUdpBridge:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+MAVLink2Codec = MavLink2Codec
+MAVLink2Parser = MavLink2Parser
