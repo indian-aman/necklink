@@ -1,10 +1,10 @@
 /* ==========================================================================
-   NeckLink v2.0 website controller
+   NeckLink v3.0 website controller
    1. Logo intro (once per browser session)
    2. Theme, navigation and copy buttons
-   3. Interactive BANC v888 CNS architecture explorer (v2.0.0 + NLTP v1.6.0)
-   4. Benchmark gallery (including RTX PRO 6000 G4 6-panel v2.0 suite)
-   5. Live C99 WebAssembly (necklink_cns.wasm, 38.8 KB) + Live Webcam simulator
+   3. Interactive BANC v888 CNS architecture explorer (v3.0.0 + NLTP v1.6.0)
+   4. Benchmark gallery (per-package charts)
+   5. Live C99 WebAssembly (necklink_cns.wasm, 107.5 KB) + Live Webcam simulator
    ========================================================================== */
 
 (function () {
@@ -144,87 +144,87 @@
     cns: {
       colorVar: "--accent",
       region: "Whole-CNS · BANC v888 (157,789 neurons, 23.55M synapses)",
-      tests: "23 Py + 6 C99 + ESP32 + 38.8 KB WASM passed",
+      tests: "7 Py + 7 C99 (ASan) + ESP32 build + 107.5 KB WASM",
       name: "NeckLink CNS",
       pkg: "necklink-cns",
-      desc: "Unified adult Drosophila survival copilot fusing NeckSight, NeckCompass, NeckSense, and NeckCord through empirically enriched BANC v888 descending pathways (DNp01 Giant-Fiber brake, MDN backward escape, DNa02 contralateral dodge, PFL3/PFL2 steering, and MBON plume casting) plus wire-valid MAVLink v2 and ROS 2 bridges.",
-      ram: "23,928 B (23.37 KB)",
-      speed: "~207 µs / tick (4,836 Hz C99)",
-      gain: "100% survival (250-ep gauntlet)",
+      desc: "4-organ reflex controller combining NeckSight, NeckCompass, NeckSense, and NeckCord. Its decision layer is matrix multiplication through BANC v888 weights: 11 brain populations (LPLC2, LC4, LPLC1, PFL3, PFL2, MBON) → 10 descending neurons (DNp01, MDN, DNa02, …) → 6 leg motor pools. Plus MAVLink v2 and ROS 2 bridges.",
+      ram: "24,024 B (23.5 KB), 0 B heap/.bss",
+      speed: "~166 µs / tick (desktop C99; MCU not measured)",
+      gain: "Sim mission 66.7% vs 4.6% shuffled · research beta",
       tradeoffLabel: "Honest scope boundary",
-      tradeoff: "NeckLink CNS is an ultra-low-SWaP survival and reflex copilot (14.5% of ESP32 RAM), not a dense semantic SLAM or trajectory planner. Pair it over MAVLink v2 or ROS 2 as an uncrashable inner reflex layer beneath ArduPilot, PX4, or Nav2.",
+      tradeoff: "In a closed-loop boat simulation the real wiring reached 66.7% safe arrival vs 4.6% with shuffled wiring and 0% for a classical stack — but the hand-tuned analytic model reached 80.0%. It is a reflex layer, not a SLAM or planning stack, and has not been run on real hardware.",
       code: `from necklink_cns import NeckLinkCNS\n\ncns = NeckLinkCNS(vehicle="hexacopter", grid_size=32)\nout = cns.step(dt=0.02, speed_m_s=1.8, gyro_xyz=[0.02, -0.01, 0.05],\n               accel_xyz=[0.2, -0.1, 9.80], mag_xyz=[0.45, 0.05, 0.89], camera_frame=cam_32x32)\nprint(out.descending.behavior_mode, len(out.cervical_wire_4b), out.mavlink_manual_pkt[0])`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns",
       pypi: "https://pypi.org/project/necklink-cns/",
-      pypiLabel: "PyPI v2.0.0"
+      pypiLabel: "PyPI v3.0.0"
     },
     sight: {
       colorVar: "--sight",
-      region: "Optic lobe · R1–R6 / T4–T5 / LPLC2 + LC4 (9.96× BANC enriched)",
-      tests: "31 Py + 9 C99 + ESP32-CAM passed",
+      region: "Optic lobe · R1–R6 / T4–T5 / LPLC2 + LC4",
+      tests: "34 Py + C99 self-test + ESP32-CAM build",
       name: "NeckSight",
       pkg: "necksight",
-      desc: "Logarithmic R1–R6 + AEC glare guard, BANC-weighted T5 OFF-dominant Reichardt motion (1.98:1 OFF/ON), 3-DOF (yaw, pitch, roll) ego-motion derotation, and dual LPLC2 radial + LC4/LPLC1 2-arm split-strip thin-pole/wire detection with DNa02 contralateral avoidance vectors.",
+      desc: "Retina/lamina glare guard, T4/T5 motion detectors, 3-DOF (yaw, pitch, roll) gyro derotation, and 64 LPLC2 + 32 LC4 looming detectors whose receptive fields are compiled from BANC v888 (retinotopy inferred from connectivity), with DNa02-style dodge vectors.",
       ram: "14,624 B (14.28 KB)",
-      speed: "~6,557 FPS (C99, 32×32)",
-      gain: "0.984 3D AUROC · 85.7% thin-pole",
-      tradeoffLabel: "Where classical optical flow wins",
-      tradeoff: "On completely untextured blank walls with zero interior contrast edges, dense Farneback flow catches approach (100% vs 0% for edge-driven T4/T5), and Lucas-Kanade gives finer sub-pixel slow odometry. NeckSight v2.0 wins on thin poles (85.7% vs 0%), thin wires (100% vs 0%), and 100× sunlight glare immunity.",
+      speed: "~6,557 FPS (desktop C99, 32×32)",
+      gain: "Thin obstacles: 0.755 AUROC (LC4 needed)",
+      tradeoffLabel: "Where others win",
+      tradeoff: "In a 3D MuJoCo test with identical gyro derotation for all methods, the analytic model (0.890 AUROC) and derotated Farneback (0.818) beat the connectome receptive fields (0.806) overall; the real wiring is not significantly better than shuffled wiring (p = 0.079). On thin poles and wires it beats Farneback (0.755 vs 0.635).",
       code: `from necksight import NeckSightPipeline, imu_to_ego_motion\n\noptic = NeckSightPipeline(grid_size=64, enable_lc4_bar=True)\nego = imu_to_ego_motion(yaw_rate, pitch_rate, roll_rate, dt=1/60, grid_width=64)\nres = optic.step(frame_u8, dt=1/60, ego_shift_px=ego)\nif res.triggered:\n    print(res.looming_score, res.bar_score, (res.avoid_x, res.avoid_y))`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
-      pypiLabel: "PyPI v2.0.0"
+      pypiLabel: "PyPI v3.0.0"
     },
     compass: {
       colorVar: "--compass",
-      region: "Central complex · E-PG / Delta7 / PFL3+PFL2 (13.6× BANC enriched)",
-      tests: "36 Py + 12 C99 + ESP32 passed",
+      region: "Central complex · E-PG / Delta7 / PFL3+PFL2",
+      tests: "48 Py + 14 C99 + ESP32 build",
       name: "NeckCompass",
       pkg: "neckcompass",
-      desc: "Zero-float 9-axis 3D tilt-compensated E-PG ring-attractor AHRS with a 0.25g wave-slam gate (<0.04° dip error at 25° roll / 20° pitch under 65° dip), a 1,104-byte Q12 plastic ring that learns 35° steel-hull warps online, Delta7 anti-phase sharpening, and PFL2 180° anti-goal U-turn boost.",
+      desc: "Zero-float 9-axis tilt-compensated heading on an EPG ↔ Delta7 ring attractor and PFL3/PFL2 homing steering, both running on matrices compiled from BANC v888 (50 EPG, 42 PEN, 40 Delta7, 25 PFL3, 12 PFL2), plus a 1,104-byte online soft-iron calibration ring.",
       ram: "1,444 B (tilt + plastic ring)",
-      speed: "0.96 µs (9-DOF) · 8.10 µs (plastic)",
-      gain: "0.90° RMS (±25° tilt + 130° spike)",
-      tradeoffLabel: "Where EKF ties on clean Gaussian noise",
-      tradeoff: "Under stationary Gaussian sensor noise without sudden heading upsets, a tuned 3σ-gated EKF tracks within fractions of a degree. NeckCompass v2.0 beats both 3σ-EKF (0.90° vs 1.48°) and Madgwick (4.90°) under combined wave tilt + 130° spikes, and recovers from 90° collision upsets in 2.48 s where gated EKF locks out (10.0 s).",
+      speed: "0.96 µs (9-DOF) · 8.10 µs (desktop C99)",
+      gain: "Homing 100% vs 4.7% shuffled",
+      tradeoffLabel: "Where others win",
+      tradeoff: "The real wiring is a much worse compass than the analytic model: 12.84° RMS under waves and magnetic spikes vs 0.99° (analytic) and 0.81° (χ²-gated EKF), and it drifts in darkness. Use connectome_weights=\"v2_analytic\" when heading accuracy matters.",
       code: `from neckcompass import RingCompass, FanBodyNavigator\n\nnav = FanBodyNavigator(compass=RingCompass(n_wedges=16))\nhdg, dist_m, brg = nav.step_with_compass_9dof(gx, gy, gz, ax, ay, az, mx, my, mz,\n                                              speed_m_s=1.8, dt=0.02)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
       pypi: "https://pypi.org/project/neckcompass/",
-      pypiLabel: "PyPI v2.0.0"
+      pypiLabel: "PyPI v3.0.0"
     },
     cord: {
       colorVar: "--cord",
-      region: "Ventral nerve cord · DN→MN bottleneck (11.3× BANC enriched)",
-      tests: "44 Py + 18 C99 + ESP32 passed",
+      region: "Ventral nerve cord · DN→MN bottleneck",
+      tests: "48 Py + 19 C99 + ESP32 build",
       name: "NeckCord",
       pkg: "neckcord",
-      desc: "4-byte CRC-4 cervical frame, box-constrained [u_min, u_max] 3-DOF T200 USV & [0, u_max] 4-DOF hexacopter/octocopter active-set allocator, sensorless ESC RPM + Current broken-blade/weed-foul observer (<50 ms, zero load cells), and 18-servo 3-DOF integer hexapod IK with +45 mm amputated-leg parking.",
-      ram: "916 B (all 11 C99 structs)",
-      speed: "5.57 µs / full tick (C99)",
-      gain: "0.75° dead-rotor tilt · 2.07× 5-leg speed",
-      tradeoffLabel: "Comparison with desktop QP & Pinv",
-      tradeoff: "Desktop scipy bounded QP achieves the exact same 0.75° post-fault hexacopter tilt RMS (and 0.7 mm altitude MAE) as NeckCord v2.0, while unconstrained Pinv+FDI degrades to 3.54° tilt because negative rotor thrust clips at zero. NeckCord v2.0 matches QP accuracy 6× faster in Python and in 5.6 µs / 916 B of zero-heap C99.",
+      desc: "Six-leg gait whose phase coupling is a 6×6 inhibition matrix compiled from BANC v888 VNC premotor neurons, with DN → leg-pool steering gains. Engineering layers: box-constrained thruster/rotor allocator, sensorless ESC fault observer, 18-servo IK and a 4-byte CRC-4 frame.",
+      ram: "930 B (all C99 structs)",
+      speed: "5.57 µs / full tick (desktop C99)",
+      gain: "Tripod order 0.855 vs 0.411 shuffled",
+      tradeoffLabel: "Where others win",
+      tradeoff: "The hand-designed tripod table is perfectly ordered and walks slightly farther after a leg loss. In a 30-seed MuJoCo rotor-loss test all allocators survived; SciPy bounded QP had lower tilt (0.17° vs 0.25°).",
       code: `from neckcord import ESCObserver, ShuntingThrusterCord\nimport numpy as np\n\ncord = ShuntingThrusterCord.multicopter_hex_6(u_max=4.5, prioritize_attitude=True)\nesc = ESCObserver(n_actuators=6, u_nom=4.5, rpm_max=9000.0)\nres = cord.step(np.array([17.7, 0.0, 0.0, 0.0]), esc_observer=esc, esc_rpm=rpm, esc_current_a=amps, dt=0.01)\nprint(res.commands, res.health)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
-      pypiLabel: "PyPI v2.0.0"
+      pypiLabel: "PyPI v3.0.0"
     },
     sense: {
       colorVar: "--sense",
-      region: "Antennal lobe, chordotonal & mushroom body (2.32× BANC enriched)",
-      tests: "36 Py + 16 C99 + ESP32 passed",
+      region: "Antennal lobe, chordotonal & mushroom body",
+      tests: "27 Py + 9 C99 + ESP32 build",
       name: "NeckSense",
       pkg: "necksense",
-      desc: "24× smaller integer Mushroom Body (5,804 B tiny / 20,284 B default) with Olsen-Wilson divisive normalization, turbulent whiff-rate tracking, 2-compartment KCg (fast 1-shot) + KCab (consolidated zero-forgetting) continual memory, and a 16-band zero-float motor/bearing vibration front-end.",
+      desc: "Integer mushroom body using real BANC v888 Kenyon-cell claws (1,024 cells), APL feedback and MBON weights, with divisive normalisation, whiff-rate tracking, 2-compartment continual memory and a 16-band vibration front-end (5,804 B tiny / 20,284 B default state).",
       ram: "5,804 B (NS_TINY) · 20.3 KB full",
-      speed: "16.4 µs (tiny) · 31.1 µs (full)",
-      gain: "1.000 CWRU AUROC · 93.4% continual LTM",
-      tradeoffLabel: "Where supervised float SVM wins",
-      tradeoff: "On static collinear 16-channel MOX gas arrays where all 6 gases share the same dominant heater-group resistances, batch-trained float L2-RBF SVM beats uncentered random FlyHash (78.9% vs 33.1%). NeckSense v2.0 wins on zero-replay continual learning (93.4% vs 60.5% MLP) and variable-load CWRU bearing faults (1.000 vs 0.617 OCSVM / 0.513 RMS AUROC) in 5.8 KB integer RAM.",
+      speed: "16.4 µs (tiny) · 31.1 µs (desktop C99)",
+      gain: "Real = shuffled wiring (honest null)",
+      tradeoffLabel: "Where others win",
+      tradeoff: "On real UCI gas drift data, One-Class SVM (0.698 AUROC) beats it at novelty (0.666), and nearest centroid (60.1%) beats it at 5-shot classification (42.7%). Shuffled wiring performs the same as the real wiring.",
       code: `from necksense import VibrationFrontEnd, MushroomNoveltyDetector\n\nfe = VibrationFrontEnd()\ndet = MushroomNoveltyDetector(n_inputs=16, antennal=True, n_kc=1024)\nscore = det.update_and_score(fe.extract(accel_256_window))\nprint("Bearing resonance anomaly:", score)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
       pypi: "https://pypi.org/project/necksense/",
-      pypiLabel: "PyPI v2.0.0"
+      pypiLabel: "PyPI v3.0.0"
     },
     nltp: {
       colorVar: "--nltp",
@@ -300,11 +300,6 @@
   // -------------------------------------------------------------------------
   const RAW = "https://raw.githubusercontent.com/indian-aman/";
   const BENCH = {
-    v2g4: {
-      src: "assets/necklink_v2_g4_benchmarks.png", w: 3150, h: 1764,
-      alt: "NeckLink CNS v2.0.0 RTX PRO 6000 Blackwell G4 benchmark summary",
-      caption: "RTX PRO 6000 Blackwell (G4) v2.0 benchmark suite: (1) BANC v888 157,789-neuron connectome pathway enrichment (1,000 GPU permutations), (2) 3D MuJoCo EGL camera thin-pole & looming AUROC, (3) 6-DOF ±25° pitch/roll + 65° dip + 130° magnetic spike AHRS error, (4) 3D MuJoCo 18-DOF hexapod leg-loss & 6-DOF hexacopter dead-rotor / broken-blade survival, (5) real UCI 13,910-plume continual learning & real CWRU bearing faults (including honest static MOX SVM baseline), and (6) 250-episode closed-loop multi-hazard survival."
-    },
     compass: {
       src: RAW + "necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
       alt: "NeckCompass benchmark charts",
@@ -360,7 +355,7 @@
   }
   benchImg.addEventListener("load", () => benchImg.classList.remove("loading"));
   $$("[data-bench]").forEach((btn) => btn.addEventListener("click", () => selectBench(btn.getAttribute("data-bench"))));
-  selectBench("v2g4");
+  selectBench("compass");
 
   // -------------------------------------------------------------------------
   // 5. LIVE C99 WEBASSEMBLY (necklink_cns.wasm) + WEBCAM REFLEX SIMULATOR
@@ -396,7 +391,7 @@
   let wasmEx = null;
   let wasmFrameU8 = null;
   let wasmTelemI32 = null;
-  let wasmSramBytes = 23928;
+  let wasmSramBytes = 24024;
   const localFrame64 = new Uint8Array(64 * 64);
 
   // Offscreen 64x64 canvas for live webcam downsampling & thumbnail display
@@ -531,7 +526,7 @@
       }
       if (mode === "spike") {
         spikeTicks = 55;
-        setStatus("+120° hull magnetic spike + wave roll. Ungated EKF drags ~42° off course; C99 NeckCompass v2.0 shunts the spike (<1.0°).", "--compass");
+        setStatus("+120° hull magnetic spike + wave roll. Ungated EKF drags ~42° off course; C99 NeckCompass shunts the spike (<1.0°).", "--compass");
       } else if (mode === "glare") {
         glareTicks = 50;
         setStatus("100× sunlight glare step. R1–R6 log photoreceptor + AEC guard cancels the global flash (0 false triggers).", "--sight");
@@ -542,10 +537,10 @@
       } else if (mode === "pole") {
         loomKind = "pole";
         loomProgress = 0;
-        setStatus("Thin vertical pole/mast approaching! Classical optical flow misses thin bars, while NeckSight v2.0 LC4 split-strip channel locks on.", "--sight");
+        setStatus("Thin vertical pole/mast approaching! Classical optical flow misses thin bars, while NeckSight LC4 channel locks on.", "--sight");
       } else if (mode === "foul") {
         fouledT2 = true;
-        setStatus("Port-aft thruster T2 fouled (−90%). NeckCord v2.0 active-set shunts T2 in <45 ms and rebalances surge onto surviving thrusters with zero yaw spin.", "--cord");
+        setStatus("Port-aft thruster T2 fouled (−90%). NeckCord active-set shunts T2 in <45 ms and rebalances surge onto surviving thrusters with zero yaw spin.", "--cord");
       } else {
         stopWebcam();
         if (wasmEx) wasmEx.nl_wasm_init(0);
@@ -714,7 +709,7 @@
     });
     ctx.font = "500 12px 'JetBrains Mono', monospace";
     ctx.fillStyle = C.ring;
-    ctx.fillText("NeckCompass v2 " + Math.abs(ringErr).toFixed(1) + "°", gx, p.y + p.h - 18);
+    ctx.fillText("NeckCompass " + Math.abs(ringErr).toFixed(1) + "°", gx, p.y + p.h - 18);
     ctx.fillStyle = C.ekf;
     ctx.fillText("Ungated EKF " + Math.abs(ekfErr).toFixed(1) + "°", gx + Math.min(195, gw * 0.54), p.y + p.h - 18);
   }
@@ -808,7 +803,7 @@
   }
 
   function drawCord(p) {
-    title(p, "NECKCORD v2 · ACTIVE-SET + 4B CERVICAL");
+    title(p, "NECKCORD · ACTIVE-SET + 4B CERVICAL");
     const labels = ["T1 port-fwd", "T2 port-aft", "T3 stbd-fwd", "T4 stbd-aft"];
     const top = p.y + 46, avail = p.h - 92, rowH = avail / 4;
     const lx = p.x + 20, bx = p.x + 120, bw = Math.max(40, p.w - 140);
