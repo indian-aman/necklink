@@ -573,6 +573,7 @@
         <div class="tab-bar" role="tablist" aria-label="Language SDKs">
           <button type="button" class="tab-btn active" role="tab" aria-selected="true" data-sdk-tab="py">Python (pynltp)</button>
           <button type="button" class="tab-btn" role="tab" aria-selected="false" data-sdk-tab="esp">ESP32 / ESP8266 (Arduino)</button>
+          <button type="button" class="tab-btn" role="tab" aria-selected="false" data-sdk-tab="mqtt">NLTP + MQTT Bridge</button>
           <button type="button" class="tab-btn" role="tab" aria-selected="false" data-sdk-tab="cli">CLI &amp; 4G CGNAT Relay</button>
           <button type="button" class="tab-btn" role="tab" aria-selected="false" data-sdk-tab="js">Node.js / TypeScript</button>
           <button type="button" class="tab-btn" role="tab" aria-selected="false" data-sdk-tab="c99">ANSI C99 (4.76 KB MCU)</button>
@@ -623,6 +624,34 @@ void setup() {
 void loop() {
   node.poll(); // Drives TX pacing, Cauchy FEC repairs, and confirmed Reflexes
 }</code></pre>
+          </div>
+        </div>
+
+        <div class="tab-panel" id="sdk-mqtt" hidden>
+          <div class="code-card">
+            <div class="code-bar">
+              <span>First-Mile Edge Ingest → Cloud MQTT Broker (Mosquitto / EMQX / AWS IoT) · <a href="examples/nltp_mqtt_bridge.py" download style="color:#e4b45c">Download .py</a></span>
+              <button type="button" class="pip-copy-btn" data-copy-target="code-mqtt">Copy</button>
+            </div>
+            <pre><code id="code-mqtt">import json, paho.mqtt.client as mqtt
+from nltp import NLTPServer
+
+mq = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+mq.connect("127.0.0.1", 1883)
+mq.loop_start()
+
+# Heal 0-35% wireless packet loss on the first mile, then fan out to existing MQTT topics:
+with NLTPServer(("0.0.0.0", 9000), psk=FLEET_KEY) as ingest:
+    while True:
+        item = ingest.recv(timeout=5.0)
+        if not item:
+            continue
+        if item.kind == "reflex":
+            mq.publish("fleet/alerts/reflex", item.data, qos=1)  # 0 HOL blocking
+        elif item.sha256_verified:
+            for line in item.data.decode().splitlines():
+                node = json.loads(line).get("node", "sensor")
+                mq.publish(f"fleet/telemetry/{node}", line, qos=1)</code></pre>
           </div>
         </div>
 
