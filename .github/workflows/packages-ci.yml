@@ -30,7 +30,7 @@ permissions:
 jobs:
   test:
     name: ${{ matrix.package }} / py${{ matrix.python }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -62,7 +62,7 @@ jobs:
 
   necklink_cns:
     name: necklink_cns / py${{ matrix.python }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
@@ -95,7 +95,7 @@ jobs:
 
   nltp:
     name: nltp / py${{ matrix.python }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.python == '3.9' && 'ubuntu-24.04' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:
