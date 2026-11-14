@@ -679,10 +679,10 @@ nltp send-file --relay &lt;RELAY_IP&gt;:9000 --room buoy-01 --psk "&lt;KEY&gt;" 
         <div class="tab-panel" id="sdk-js" hidden>
           <div class="code-card">
             <div class="code-bar">
-              <span>Node.js 18+ &amp; Transport-Agnostic ES2022 Core (ESM + CommonJS + .d.ts)</span>
+              <span>Node.js 18+ · npm install nltp-js (or @amannotsofunny/nltp) · ESM + CJS + .d.ts</span>
               <button type="button" class="pip-copy-btn" data-copy-target="code-js">Copy</button>
             </div>
-            <pre><code id="code-js">import { NLTPServer, NLTPClient, generateNltpKey } from 'nltp';
+            <pre><code id="code-js">import { NLTPServer, NLTPClient, generateNltpKey } from 'nltp-js';
 
 const key = generateNltpKey();
 const server = await NLTPServer.listen({ host: '0.0.0.0', port: 9000, psk: key });
@@ -786,6 +786,8 @@ try (var server = NLTPServer.listen("0.0.0.0", 9000, key, Path.of("./inbox"));
       <div class="footer-links">
         <a href="../">NeckLink v3.0 CNS</a>
         <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener">PyPI pynltp</a>
+        <a href="https://www.npmjs.com/package/nltp-js" target="_blank" rel="noopener">npm nltp-js</a>
+        <a href="https://github.com/indian-aman/NLTP-Arduino" target="_blank" rel="noopener">Arduino Library</a>
         <a href="https://github.com/indian-aman/necklink/tree/main/packages/nltp" target="_blank" rel="noopener">GitHub Documentation</a>
         <a href="https://github.com/indian-aman/necklink/tree/main/packages/nltp/results" target="_blank" rel="noopener">Raw Benchmark JSONs</a>
       </div>
