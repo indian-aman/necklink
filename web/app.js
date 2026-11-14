@@ -193,11 +193,11 @@
     let lastPaintedIdx = -1;
 
     const ACT_TITLES = [
-      "ACT 01 · ADULT DROSOPHILA CNS (BANC v888 · 157,789 NEURONS)",
-      "ACT 02 · OPTIC LOBE (64 LPLC2 + 32 LC4) & 50-EPG RING COMPASS",
-      "ACT 03 · CERVICAL NECK BOTTLENECK (10 DNs → 6 VNC MOTOR POOLS)",
-      "ACT 04 · DECAPPED QFN-48 DIE (24,024 B STATIC SRAM · 0 FLOATS)",
-      "ACT 05 · CONNECTOME-TO-SILICON FULL STACK (PYTHON · C99 · WASM)"
+      "ACT 01 · WET EM SPECIMEN (BANC v888 CNS · IMMERSION OIL 1.515)",
+      "ACT 02 · CERVICAL NECK CONNECTIVE (DNp01 & DNa01 OSMIUM TRACTS)",
+      "ACT 03 · OPTICAL STAGE DIVE (BOROSILICATE SLIDE → CARRIER PCB)",
+      "ACT 04 · DECAPPED LCC-44 DIE (24,024 B THIN-FILM SRAM · 44 GOLD BONDS)",
+      "ACT 05 · NECKLINK-CNS REV 3.0 HARDWARE (PYTHON · C99 · 107.5 KB WASM)"
     ];
 
     function resizeScrollCanvas() {
@@ -239,7 +239,7 @@
       const clamped = Math.max(0, Math.min(TOTAL_FRAMES - 1, idx));
       const img = nearestLoadedFrame(clamped);
       if (!img || !img.complete || img.naturalWidth === 0) {
-        sctx.fillStyle = "#020409";
+        sctx.fillStyle = "#08090b";
         sctx.fillRect(0, 0, scW, scH);
         return;
       }

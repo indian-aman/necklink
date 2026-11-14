@@ -4,29 +4,29 @@
    ========================================================================== */
 
 :root {
-  --bg: #03050a;
-  --bg-elev: #070b14;
-  --bg-panel: rgba(9, 14, 26, 0.78);
-  --bg-glass: rgba(7, 11, 21, 0.72);
-  --border: rgba(148, 163, 184, 0.14);
-  --border-strong: rgba(148, 163, 184, 0.28);
+  --bg: #08090b;
+  --bg-elev: #0e1014;
+  --bg-panel: rgba(15, 17, 21, 0.82);
+  --bg-glass: rgba(12, 13, 16, 0.74);
+  --border: rgba(226, 232, 240, 0.12);
+  --border-strong: rgba(228, 180, 92, 0.34);
   --text: #f8fafc;
-  --text-soft: #cbd5e1;
-  --text-muted: #94a3b8;
+  --text-soft: #d4d8e0;
+  --text-muted: #949ba8;
 
-  --accent: #38bdf8;
-  --sight: #22d3ee;
-  --compass: #f59e0b;
-  --cord: #fb7185;
-  --sense: #34d399;
-  --nltp: #818cf8;
-  --ok: #34d399;
-  --warn: #fbbf24;
+  --accent: #e4b45c;
+  --sight: #5cc8d8;
+  --compass: #e4b45c;
+  --cord: #e07a68;
+  --sense: #58b892;
+  --nltp: #9aa5ce;
+  --ok: #58b892;
+  --warn: #e4b45c;
 
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --radius-sm: 10px;
-  --shadow-glass: 0 24px 70px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --radius-lg: 18px;
+  --radius-md: 12px;
+  --radius-sm: 8px;
+  --shadow-glass: 0 24px 68px rgba(0, 0, 0, 0.72), inset 0 1px 0 rgba(255, 255, 255, 0.07);
 }
 
 *, *::before, *::after {
@@ -44,7 +44,7 @@ html {
 
 body {
   margin: 0;
-  background: radial-gradient(1200px 600px at 50% -100px, rgba(14, 165, 233, 0.09), transparent 70%), var(--bg);
+  background: radial-gradient(1200px 600px at 50% -100px, rgba(228, 180, 92, 0.06), transparent 70%), var(--bg);
   color: var(--text);
   line-height: 1.6;
   overflow-x: clip;
@@ -58,9 +58,9 @@ code {
   font-size: 0.88em;
   padding: 0.14em 0.42em;
   border-radius: 6px;
-  background: rgba(56, 189, 248, 0.09);
-  border: 1px solid rgba(56, 189, 248, 0.18);
-  color: #bae6fd;
+  background: rgba(228, 180, 92, 0.09);
+  border: 1px solid rgba(228, 180, 92, 0.22);
+  color: #f3d79b;
 }
 
 pre code {
@@ -301,30 +301,30 @@ html.no-intro #intro-splash,
 .btn-xs { padding: 5px 11px; font-size: 0.76rem; }
 
 .btn-primary {
-  background: linear-gradient(135deg, #38bdf8 0%, #0284c7 100%);
-  color: #020617;
-  box-shadow: 0 8px 28px rgba(56, 189, 248, 0.34);
+  background: linear-gradient(135deg, #f0c978 0%, #c89135 100%);
+  color: #090a0c;
+  box-shadow: 0 8px 26px rgba(228, 180, 92, 0.28);
 }
 .btn-primary:hover {
-  background: linear-gradient(135deg, #7dd3fc 0%, #0ea5e9 100%);
-  box-shadow: 0 10px 34px rgba(56, 189, 248, 0.48);
+  background: linear-gradient(135deg, #f7dca0 0%, #d9a144 100%);
+  box-shadow: 0 10px 32px rgba(228, 180, 92, 0.40);
 }
 .btn-secondary {
-  background: rgba(15, 23, 42, 0.82);
+  background: rgba(18, 20, 25, 0.86);
   color: var(--text);
   border-color: var(--border-strong);
 }
 .btn-secondary:hover {
-  background: rgba(30, 41, 59, 0.9);
-  border-color: rgba(56, 189, 248, 0.5);
+  background: rgba(28, 31, 38, 0.94);
+  border-color: rgba(228, 180, 92, 0.55);
 }
 .btn-glass {
-  background: rgba(56, 189, 248, 0.12);
-  color: #e0f2fe;
-  border-color: rgba(56, 189, 248, 0.35);
+  background: rgba(228, 180, 92, 0.12);
+  color: #f8e8c4;
+  border-color: rgba(228, 180, 92, 0.34);
 }
 .btn-glass:hover {
-  background: rgba(56, 189, 248, 0.22);
+  background: rgba(228, 180, 92, 0.22);
 }
 .btn-ghost {
   background: rgba(255, 255, 255, 0.04);
@@ -339,7 +339,7 @@ html.no-intro #intro-splash,
   background: none;
   border: 0;
   padding: 0;
-  color: #bae6fd;
+  color: #f3d79b;
 }
 
 .icon-btn {
@@ -369,7 +369,7 @@ html.no-intro #intro-splash,
   height: 100svh;
   width: 100%;
   overflow: hidden;
-  background: #020409;
+  background: #08090b;
 }
 #scroll-canvas {
   position: absolute;
@@ -383,8 +383,8 @@ html.no-intro #intro-splash,
   inset: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 58% 48%, transparent 32%, rgba(2, 4, 9, 0.62) 100%),
-    linear-gradient(180deg, rgba(3, 5, 10, 0.65) 0%, transparent 18%, transparent 78%, rgba(3, 5, 10, 0.92) 100%);
+    radial-gradient(circle at 56% 48%, transparent 46%, rgba(8, 9, 11, 0.34) 100%),
+    linear-gradient(180deg, rgba(8, 9, 11, 0.45) 0%, transparent 14%, transparent 84%, rgba(8, 9, 11, 0.88) 100%);
 }
 
 .dive-hud-top {
@@ -466,8 +466,8 @@ html.no-intro #intro-splash,
   color: var(--accent);
 }
 .rail-step.active {
-  background: rgba(14, 165, 233, 0.18);
-  border-color: rgba(56, 189, 248, 0.55);
+  background: rgba(228, 180, 92, 0.16);
+  border-color: rgba(228, 180, 92, 0.52);
   color: #ffffff;
   transform: translateX(-4px);
 }
@@ -544,10 +544,10 @@ html.no-intro #intro-splash,
   gap: 9px;
   padding: 5px 13px 5px 7px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.1);
-  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: rgba(228, 180, 92, 0.10);
+  border: 1px solid rgba(228, 180, 92, 0.30);
   font-size: 0.79rem;
-  color: #e0f2fe;
+  color: #f8e8c4;
   margin-bottom: 18px;
 }
 .release-tag {
@@ -557,7 +557,7 @@ html.no-intro #intro-splash,
   padding: 2px 8px;
   border-radius: 999px;
   background: var(--accent);
-  color: #020617;
+  color: #090a0c;
 }
 .hero-glass h1 {
   margin: 0 0 14px;
@@ -567,7 +567,7 @@ html.no-intro #intro-splash,
   font-weight: 800;
 }
 .gradient-text {
-  background: linear-gradient(95deg, #7dd3fc 0%, #38bdf8 48%, #fbbf24 100%);
+  background: linear-gradient(95deg, #f8fafc 0%, #f3d285 48%, #d99b38 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
