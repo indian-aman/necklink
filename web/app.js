@@ -1,60 +1,21 @@
 /* ==========================================================================
-   NeckLink v3.0 — Connectome-to-Silicon Interactive Controller
-   1. Intro splash, glass navigation, copy helpers & 18s Film Cinema Modal
-   2. 144-frame Ray-Traced Blender Cycles OptiX 3D Scroll-Scrub Engine
-   3. Interactive 3D "Scramble the Connectome" Stage + Audited Scoreboard
-   4. 24 KB Silicon Die Floorplan & 6-Module Inspector + Benchmark Drawer
+   NeckLink v3.0 — Locked-Boundary Interactive Controller
+   1. Navigation, Copy Helpers & 18s Film Cinema Modal
+   2. 144-Frame Ray-Traced Blender Cycles OptiX 3D Scroll-Scrub Engine
+   3. Interactive 3D "Scramble the Connectome" Stage + Fixed Audit Table
+   4. 24 KB Silicon Die Floorplan & 6-Module Inspector (Zero Reflow)
    5. Live 107.5 KB ANSI C99 WebAssembly (necklink_cns.wasm) + Webcam Cockpit
    ========================================================================== */
 
 (function () {
   "use strict";
 
-  const root = document.documentElement;
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 
   // -------------------------------------------------------------------------
-  // 1. INTRO SPLASH, NAVIGATION, COPY & FILM MODAL
+  // 1. NAVIGATION, COPY HELPERS & FILM MODAL
   // -------------------------------------------------------------------------
-  const splash = $("#intro-splash");
-  let introTimer = null;
-
-  function finishIntro() {
-    if (introTimer) {
-      clearTimeout(introTimer);
-      introTimer = null;
-    }
-    if (splash) splash.classList.add("fade-out");
-    root.classList.add("intro-done");
-    try { sessionStorage.setItem("necklink-v3-intro", "1"); } catch (e) {}
-  }
-
-  function playIntro() {
-    if (!splash) return;
-    if (introTimer) clearTimeout(introTimer);
-    root.classList.remove("no-intro", "intro-done");
-    splash.classList.remove("fade-out", "animate");
-    void splash.offsetWidth;
-    splash.classList.add("animate");
-    introTimer = setTimeout(finishIntro, 1650);
-  }
-
-  if (splash && !root.classList.contains("no-intro")) {
-    requestAnimationFrame(playIntro);
-    splash.addEventListener("click", finishIntro);
-  }
-  const skipBtn = $("#skip-intro-btn");
-  if (skipBtn) skipBtn.addEventListener("click", finishIntro);
-  const replayBtn = $("#replay-intro-btn");
-  if (replayBtn) {
-    replayBtn.addEventListener("click", () => {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      playIntro();
-    });
-  }
-
-  // Mobile Menu & Scroll Spy
   const nav = $(".nav");
   const menuBtn = $("#menu-btn");
   function setMenu(open) {
@@ -123,7 +84,7 @@
       inlineVideo.muted = !inlineVideo.muted;
       unmutePill.classList.toggle("sound-on", !inlineVideo.muted);
       if (unmuteLabel) {
-        unmuteLabel.textContent = inlineVideo.muted ? "Tap for Stereo Sound" : "Stereo Sound On";
+        unmuteLabel.textContent = inlineVideo.muted ? "Stereo Sound Off" : "Stereo Sound On";
       }
       if (inlineVideo.paused) inlineVideo.play().catch(() => {});
     });
@@ -132,7 +93,6 @@
   window.addEventListener("keydown", (e) => {
     if (e.key !== "Escape") return;
     if (filmModal && !filmModal.hidden) closeFilmModal();
-    if (splash && !splash.classList.contains("fade-out")) finishIntro();
     setMenu(false);
   });
 
@@ -152,7 +112,7 @@
       ta.remove();
     }
     btn.classList.add("copied");
-    setTimeout(() => btn.classList.remove("copied"), 1600);
+    setTimeout(() => btn.classList.remove("copied"), 1500);
   }
 
   const installCode = $("#install-code");
@@ -175,9 +135,6 @@
   // -------------------------------------------------------------------------
   const diveSection = $("#dive");
   const scrollCanvas = $("#scroll-canvas");
-  const hudActLabel = $("#hud-act-label");
-  const hudFrameReadout = $("#hud-frame-readout");
-  const hudLoadBar = $("#hud-load-bar");
   const scrollCue = $("#scroll-cue");
   const railSteps = $$(".rail-step");
 
@@ -186,19 +143,10 @@
     const TOTAL_FRAMES = 144;
     const frames = new Array(TOTAL_FRAMES);
     let posterImg = null;
-    let loadedCount = 0;
     let scW = 0, scH = 0;
     let targetFrame = 0;
     let smoothFrame = 0;
     let lastPaintedIdx = -1;
-
-    const ACT_TITLES = [
-      "ACT 01 · WET EM SPECIMEN (BANC v888 CNS · IMMERSION OIL 1.515)",
-      "ACT 02 · CERVICAL NECK CONNECTIVE (DNp01 & DNa01 OSMIUM TRACTS)",
-      "ACT 03 · OPTICAL STAGE DIVE (BOROSILICATE SLIDE → CARRIER PCB)",
-      "ACT 04 · DECAPPED LCC-44 DIE (24,024 B THIN-FILM SRAM · 44 GOLD BONDS)",
-      "ACT 05 · NECKLINK-CNS REV 3.0 HARDWARE (PYTHON · C99 · 107.5 KB WASM)"
-    ];
 
     function resizeScrollCanvas() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -212,8 +160,8 @@
     }
 
     function drawCoverImage(img) {
-      const iw = img.naturalWidth || 1280;
-      const ih = img.naturalHeight || 720;
+      const iw = img.naturalWidth || 1600;
+      const ih = img.naturalHeight || 900;
       const scale = Math.max(scW / iw, scH / ih);
       const dw = iw * scale;
       const dh = ih * scale;
@@ -254,7 +202,6 @@
       targetFrame = p * (TOTAL_FRAMES - 1);
 
       const actIdx = Math.min(4, Math.floor(p * 5));
-      if (hudActLabel) hudActLabel.textContent = ACT_TITLES[actIdx];
       railSteps.forEach((btn, i) => btn.classList.toggle("active", i === actIdx));
       if (scrollCue) scrollCue.style.opacity = p > 0.05 ? "0" : "1";
     }
@@ -264,15 +211,10 @@
       const idx = Math.round(smoothFrame);
       if (idx !== lastPaintedIdx) {
         paintScrollFrame(idx);
-        if (hudFrameReadout) {
-          const fStr = String(idx + 1).padStart(3, "0");
-          hudFrameReadout.textContent = "OPTIX RAY-TRACE · " + fStr + " / 144";
-        }
       }
       requestAnimationFrame(tickScroll);
     }
 
-    // Strided progressive frame loader (loads keyframes across the whole dive first!)
     function buildStridedOrder(n) {
       const seen = new Uint8Array(n);
       const order = [];
@@ -306,10 +248,6 @@
         img.decoding = "async";
         frames[fIdx] = img;
         const done = () => {
-          loadedCount++;
-          if (hudLoadBar) {
-            hudLoadBar.style.width = Math.max(8, Math.round((loadedCount / TOTAL_FRAMES) * 100)) + "%";
-          }
           if (Math.abs(fIdx - Math.round(smoothFrame)) <= 4) {
             paintScrollFrame(Math.round(smoothFrame));
           }
@@ -341,7 +279,7 @@
   }
 
   // -------------------------------------------------------------------------
-  // 3. INTERACTIVE 3D "SCRAMBLE THE CONNECTOME" STAGE & AUDITED SCOREBOARD
+  // 3. INTERACTIVE 3D "SCRAMBLE THE CONNECTOME" STAGE & FIXED AUDIT TABLE
   // -------------------------------------------------------------------------
   const scrambleCanvas = $("#scramble-canvas");
   const scoreboardRowsEl = $("#scoreboard-rows");
@@ -352,15 +290,15 @@
   const roMb = $("#ro-mb");
 
   const FALLBACK_BENCHMARKS = [
-    { organ: "NeckCompass", task: "Closed-loop GPS-denied homing", unit: "% arrival", higher_better: true, real: 100.0, shuffled: 4.7, analytic: 100.0, classical: 100.0, classical_name: "χ² EKF", p: 0.0099, verdict: "PASS", note: "Real wiring arrives 100% vs 4.7% shuffled (r=0/100); analytic & EKF home closer to 0 m." },
-    { organ: "NeckCompass", task: "Wave tilt + 125° magnetic spikes", unit: "° RMS", higher_better: false, real: 12.84, shuffled: 62.82, analytic: 0.99, classical: 0.81, classical_name: "χ² EKF", p: 0.0099, verdict: "PASS", note: "Shuffling destroys the ring (62.8°), though real biological asymmetry drifts (~12.8° vs 0.81° EKF)." },
-    { organ: "NeckCord", task: "Emergent 6-leg tripod gait order", unit: "R_tripod", higher_better: true, real: 0.855, shuffled: 0.411, analytic: 1.000, classical: 1.000, classical_name: "Fixed table", p: 0.0099, verdict: "PASS", note: "6×6 BANC VNC premotor inhibition spontaneously locks into tripod coordination (r=0/100)." },
-    { organ: "NeckLink CNS", task: "Closed-loop USV hazard mission", unit: "% safe", higher_better: true, real: 58.3, shuffled: 4.6, analytic: 80.0, classical: 0.0, classical_name: "Ungated stack", p: 0.0297, verdict: "MARGINAL", note: "66.7% over 30 seeds (58.3% vs 4.6% in 12-seed shuffle gate, r=2/100); analytic model reaches 80.0%." },
-    { organ: "NeckSight", task: "Thin poles & wires (3D MuJoCo)", unit: "AUROC", higher_better: true, real: 0.755, shuffled: 0.672, analytic: 0.987, classical: 0.635, classical_name: "Farneback+gyro", p: 0.0396, verdict: "MARGINAL", note: "Adding 32 LC4 neurons lifts AUROC from 0.624 (LPLC2-only) to 0.755, beating Farneback (0.635)." },
-    { organ: "NeckSense", task: "UCI gas sensor drift novelty", unit: "AUROC", higher_better: true, real: 0.666, shuffled: 0.672, analytic: 0.670, classical: 0.698, classical_name: "One-Class SVM", p: 0.7426, verdict: "NULL", note: "Honest null: degree-matched random Kenyon-cell claws match real BANC claws (Dasgupta et al., 2017)." }
+    { organ: "NeckCompass", task: "GPS-denied homing", unit: "% arrival", real: 100.0, shuffled: 4.7, analytic: 100.0, classical: 100.0, classical_name: "χ² EKF", p: 0.0099, verdict: "PASS" },
+    { organ: "NeckCompass", task: "Waves + 125° mag spikes", unit: "° RMS", real: 12.84, shuffled: 62.82, analytic: 0.99, classical: 0.81, classical_name: "χ² EKF", p: 0.0099, verdict: "PASS" },
+    { organ: "NeckCord", task: "Emergent 6-leg tripod", unit: "R_tripod", real: 0.855, shuffled: 0.411, analytic: 1.000, classical: 1.000, classical_name: "Fixed table", p: 0.0099, verdict: "PASS" },
+    { organ: "NeckLink CNS", task: "USV hazard survival", unit: "% safe", real: 58.3, shuffled: 4.6, analytic: 80.0, classical: 0.0, classical_name: "Ungated", p: 0.0297, verdict: "MARGINAL" },
+    { organ: "NeckSight", task: "Thin poles & wires", unit: "AUROC", real: 0.755, shuffled: 0.672, analytic: 0.987, classical: 0.635, classical_name: "Farneback", p: 0.0396, verdict: "MARGINAL" },
+    { organ: "NeckSense", task: "Gas drift novelty", unit: "AUROC", real: 0.666, shuffled: 0.672, analytic: 0.670, classical: 0.698, classical_name: "OC-SVM", p: 0.7426, verdict: "NULL" }
   ];
 
-  let wiringMode = "real"; // "real" | "shuffled" | "analytic"
+  let wiringMode = "real";
   let sceneData = null;
 
   function fmtMetric(val, unit) {
@@ -371,32 +309,22 @@
 
   function renderScoreboard(rows) {
     if (!scoreboardRowsEl) return;
+    $$(".score-table thead th[data-col]").forEach((th) => {
+      th.classList.toggle("active-col", th.getAttribute("data-col") === wiringMode);
+    });
+
     scoreboardRowsEl.innerHTML = "";
     rows.forEach((r) => {
-      const row = document.createElement("div");
-      row.className = "score-row";
-      const vLabel = r.verdict === "NULL" ? "HONEST NULL (p=" + r.p.toFixed(2) + ")" : (r.verdict + " · p=" + r.p.toFixed(4));
-      row.innerHTML =
-        '<div class="score-top">' +
-          '<span class="score-title"><em>' + r.organ + '</em>' + r.task.trim() + '</span>' +
-          '<span class="verdict-pill verdict-' + r.verdict + '">' + vLabel + '</span>' +
-        '</div>' +
-        '<div class="score-bars">' +
-          '<div class="sbar ' + (wiringMode === "real" ? "active-col" : "") + '">' +
-            '<span class="sbar-lbl">Real BANC</span><span class="sbar-val">' + fmtMetric(r.real, r.unit) + '</span>' +
-          '</div>' +
-          '<div class="sbar ' + (wiringMode === "shuffled" ? "active-col" : "") + '">' +
-            '<span class="sbar-lbl">Shuffled (K=100)</span><span class="sbar-val">' + fmtMetric(r.shuffled, r.unit) + '</span>' +
-          '</div>' +
-          '<div class="sbar ' + (wiringMode === "analytic" ? "active-col" : "") + '">' +
-            '<span class="sbar-lbl">v2_analytic</span><span class="sbar-val">' + fmtMetric(r.analytic, r.unit) + '</span>' +
-          '</div>' +
-          '<div class="sbar">' +
-            '<span class="sbar-lbl">' + r.classical_name + '</span><span class="sbar-val">' + fmtMetric(r.classical, r.unit) + '</span>' +
-          '</div>' +
-        '</div>' +
-        '<p class="score-note">' + r.note + '</p>';
-      scoreboardRowsEl.appendChild(row);
+      const tr = document.createElement("tr");
+      const vLabel = r.verdict === "NULL" ? "NULL" : r.verdict;
+      tr.innerHTML =
+        '<td><span class="task-organ">' + r.organ + '</span><span class="task-name">' + r.task.trim() + '</span></td>' +
+        '<td class="' + (wiringMode === "real" ? "active-col" : "") + '">' + fmtMetric(r.real, r.unit) + '</td>' +
+        '<td class="' + (wiringMode === "shuffled" ? "active-col" : "") + '">' + fmtMetric(r.shuffled, r.unit) + '</td>' +
+        '<td class="' + (wiringMode === "analytic" ? "active-col" : "") + '">' + fmtMetric(r.analytic, r.unit) + '</td>' +
+        '<td>' + fmtMetric(r.classical, r.unit) + '<span class="sub-lbl">' + r.classical_name + '</span></td>' +
+        '<td><span class="verdict-pill verdict-' + r.verdict + '">' + vLabel + '</span></td>';
+      scoreboardRowsEl.appendChild(tr);
     });
   }
 
@@ -409,22 +337,22 @@
     });
     if (mode === "real") {
       if (stageBadge) { stageBadge.textContent = "LIVE 3D TOPOLOGY · REAL BANC v888"; stageBadge.style.color = "var(--compass)"; }
-      if (stageDesc) stageDesc.textContent = "Coherent EPG compass bump + emergent 3+3 VNC tripod wave across 10 cervical axons.";
-      if (roBump) { roBump.textContent = "0.89 · Bump Locked (100% Homing)"; roBump.style.color = "#fcd34d"; }
-      if (roTripod) { roTripod.textContent = "0.855 · Emergent 3+3 Tripod"; roTripod.style.color = "#6ee7b7"; }
-      if (roMb) { roMb.textContent = "0.666 AUROC (Degree-Invariant)"; roMb.style.color = "#cbd5e1"; }
+      if (stageDesc) stageDesc.textContent = "Coherent EPG compass bump + emergent 3+3 VNC tripod wave.";
+      if (roBump) { roBump.textContent = "0.89 · Locked"; roBump.style.color = "#f3d285"; }
+      if (roTripod) { roTripod.textContent = "0.855 · 3+3 Gait"; roTripod.style.color = "#8fd8b8"; }
+      if (roMb) { roMb.textContent = "0.666 AUROC"; roMb.style.color = "#d2d6de"; }
     } else if (mode === "shuffled") {
-      if (stageBadge) { stageBadge.textContent = "MASLOV–SNEPPEN SHUFFLED · TOPOLOGY DESTROYED"; stageBadge.style.color = "var(--cord)"; }
-      if (stageDesc) stageDesc.textContent = "Exact same node degrees & total weight — but scrambled recurrent chords shatter the bump and gait.";
-      if (roBump) { roBump.textContent = "0.14 · Collapsed (4.7% Homing)"; roBump.style.color = "#fb7185"; }
-      if (roTripod) { roTripod.textContent = "0.411 · Uncoordinated Limbs"; roTripod.style.color = "#fb7185"; }
-      if (roMb) { roMb.textContent = "0.672 AUROC (Unchanged! p=0.74)"; roMb.style.color = "#6ee7b7"; }
+      if (stageBadge) { stageBadge.textContent = "MASLOV–SNEPPEN SHUFFLE · SCRAMBLED"; stageBadge.style.color = "var(--cord)"; }
+      if (stageDesc) stageDesc.textContent = "Same node degrees — scrambled chords collapse bump and gait.";
+      if (roBump) { roBump.textContent = "0.14 · Collapsed"; roBump.style.color = "#e88c7d"; }
+      if (roTripod) { roTripod.textContent = "0.411 · Uncoupled"; roTripod.style.color = "#e88c7d"; }
+      if (roMb) { roMb.textContent = "0.672 (Invariant)"; roMb.style.color = "#8fd8b8"; }
     } else {
-      if (stageBadge) { stageBadge.textContent = "v2_ANALYTIC · HAND-TUNED ENGINEERING"; stageBadge.style.color = "var(--accent)"; }
-      if (stageDesc) stageDesc.textContent = "Idealized cosine ring + symmetric anti-phase table: maximum engineering precision (0.99° RMS).";
-      if (roBump) { roBump.textContent = "0.99 · Zero-Drift Cosine (0.99°)"; roBump.style.color = "#7dd3fc"; }
-      if (roTripod) { roTripod.textContent = "1.000 · Ideal Phase Table"; roTripod.style.color = "#7dd3fc"; }
-      if (roMb) { roMb.textContent = "0.670 AUROC (Random Hash)"; roMb.style.color = "#cbd5e1"; }
+      if (stageBadge) { stageBadge.textContent = "v2_ANALYTIC · HAND-TUNED BASELINE"; stageBadge.style.color = "var(--sight)"; }
+      if (stageDesc) stageDesc.textContent = "Symmetric cosine ring + fixed tripod phase table (0.99° RMS).";
+      if (roBump) { roBump.textContent = "0.99 · Cosine"; roBump.style.color = "#8fd0df"; }
+      if (roTripod) { roTripod.textContent = "1.000 · Fixed"; roTripod.style.color = "#8fd0df"; }
+      if (roMb) { roMb.textContent = "0.670 AUROC"; roMb.style.color = "#d2d6de"; }
     }
     renderScoreboard(sceneData && sceneData.benchmarks ? sceneData.benchmarks : FALLBACK_BENCHMARKS);
   }
@@ -442,8 +370,8 @@
 
     function resize3D() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      w3 = scrambleCanvas.parentElement.clientWidth || 520;
-      h3 = scrambleCanvas.parentElement.clientHeight || 360;
+      w3 = scrambleCanvas.parentElement.clientWidth || 500;
+      h3 = scrambleCanvas.parentElement.clientHeight || 326;
       scrambleCanvas.width = Math.round(w3 * dpr);
       scrambleCanvas.height = Math.round(h3 * dpr);
       ctx3.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -482,7 +410,7 @@
     function drawStage3D() {
       if (stageVisible) {
         animT += 0.028;
-        if (!dragging) rotY += 0.0032;
+        if (!dragging) rotY += 0.0030;
 
         ctx3.clearRect(0, 0, w3, h3);
 
@@ -501,14 +429,12 @@
         const zRing = 0.52;
         const bumpAngle = (animT * 0.9) % (Math.PI * 2);
 
-        // 1. Draw 16x16 EPG/PEN recurrent ring chords
         for (let i = 0; i < 16; i++) {
           for (let j = i + 1; j < 16; j++) {
             let w = 0;
             if (wiringMode === "analytic") {
               const d = Math.abs(i - j);
-              const wrapD = Math.min(d, 16 - d);
-              w = wrapD <= 2 ? 0.35 : 0.0;
+              w = Math.min(d, 16 - d) <= 2 ? 0.35 : 0.0;
             } else if (mExc) {
               w = 0.5 * (mExc[i][j] + mExc[j][i]);
             } else {
@@ -519,9 +445,9 @@
               const p1 = proj(rRing * Math.cos(a1), rRing * 0.55 * Math.sin(a1), zRing + rRing * 0.55 * Math.sin(a1));
               const p2 = proj(rRing * Math.cos(a2), rRing * 0.55 * Math.sin(a2), zRing + rRing * 0.55 * Math.sin(a2));
               ctx3.strokeStyle = wiringMode === "shuffled"
-                ? "rgba(251, 113, 133, " + Math.min(0.55, w * 1.3).toFixed(2) + ")"
-                : (wiringMode === "analytic" ? "rgba(56, 189, 248, 0.38)" : "rgba(245, 158, 11, " + Math.min(0.62, w * 1.5).toFixed(2) + ")");
-              ctx3.lineWidth = wiringMode === "shuffled" ? 1.1 : 1.5;
+                ? "rgba(216, 122, 104, " + Math.min(0.52, w * 1.3).toFixed(2) + ")"
+                : (wiringMode === "analytic" ? "rgba(103, 183, 201, 0.38)" : "rgba(228, 180, 92, " + Math.min(0.58, w * 1.4).toFixed(2) + ")");
+              ctx3.lineWidth = wiringMode === "shuffled" ? 1.1 : 1.4;
               ctx3.beginPath();
               ctx3.moveTo(p1.x, p1.y);
               ctx3.lineTo(p2.x, p2.y);
@@ -530,7 +456,6 @@
           }
         }
 
-        // 2. Draw 10 Cervical Descending Axons (Brain -> VNC)
         const legCoords = [
           [-0.34, 0.10, -0.24], [0.34, 0.10, -0.24],
           [-0.38, 0.06, -0.48], [0.38, 0.06, -0.48],
@@ -544,25 +469,23 @@
           const [lx, ly, lz] = legCoords[tgtIdx];
           const pb = proj(bx, by, bz), pn = proj(nx, ny, nz), pl = proj(lx * 0.65, ly * 0.65, lz);
 
-          ctx3.strokeStyle = wiringMode === "shuffled" ? "rgba(251, 113, 133, 0.32)" : "rgba(251, 191, 36, 0.44)";
-          ctx3.lineWidth = 1.4;
+          ctx3.strokeStyle = wiringMode === "shuffled" ? "rgba(216, 122, 104, 0.30)" : "rgba(228, 180, 92, 0.40)";
+          ctx3.lineWidth = 1.3;
           ctx3.beginPath();
           ctx3.moveTo(pb.x, pb.y);
           ctx3.quadraticCurveTo(pn.x, pn.y, pl.x, pl.y);
           ctx3.stroke();
 
-          // Traveling action potential spike
           const u = (animT * 0.85 + k * 0.13) % 1.0;
           const iu = 1 - u;
           const sx = iu * iu * pb.x + 2 * iu * u * pn.x + u * u * pl.x;
           const sy = iu * iu * pb.y + 2 * iu * u * pn.y + u * u * pl.y;
-          ctx3.fillStyle = wiringMode === "shuffled" ? "#fda4af" : "#fef08a";
+          ctx3.fillStyle = wiringMode === "shuffled" ? "#e88c7d" : "#f3d285";
           ctx3.beginPath();
-          ctx3.arc(sx, sy, 2.4, 0, Math.PI * 2);
+          ctx3.arc(sx, sy, 2.2, 0, Math.PI * 2);
           ctx3.fill();
         }
 
-        // 3. Draw 50 EPG Ring Neurons + Heading Bump
         thetaEpg.forEach((ang, idx) => {
           const px = rRing * Math.cos(ang);
           const py = rRing * 0.55 * Math.sin(ang);
@@ -576,16 +499,15 @@
             const sigma = wiringMode === "analytic" ? 0.42 : 0.52;
             act = Math.exp(-(dAng * dAng) / (2 * sigma * sigma));
           }
-          const rad = 2.6 + act * 4.4;
+          const rad = 2.4 + act * 4.2;
           ctx3.fillStyle = act > 0.55
-            ? (wiringMode === "analytic" ? "#7dd3fc" : "#fde047")
-            : (wiringMode === "shuffled" ? "rgba(251, 113, 133, 0.65)" : "rgba(245, 158, 11, 0.48)");
+            ? (wiringMode === "analytic" ? "#8fd0df" : "#f3d285")
+            : (wiringMode === "shuffled" ? "rgba(216, 122, 104, 0.62)" : "rgba(228, 180, 92, 0.45)");
           ctx3.beginPath();
           ctx3.arc(p.x, p.y, rad, 0, Math.PI * 2);
           ctx3.fill();
         });
 
-        // 4. Draw Dorsal Mushroom Body Kenyon Cloud (invariant under shuffle!)
         for (let m = 0; m < 28; m++) {
           const sgn = m % 2 === 0 ? -1 : 1;
           const ma = (m / 28) * Math.PI * 2;
@@ -594,17 +516,16 @@
           const mz = 0.68 + 0.10 * Math.sin(ma * 2);
           const pm = proj(mx, my, mz);
           const fire = Math.sin(animT * 1.8 + m * 1.7) > 0.82;
-          ctx3.fillStyle = fire ? "#6ee7b7" : "rgba(52, 211, 153, 0.35)";
+          ctx3.fillStyle = fire ? "#8fd8b8" : "rgba(95, 180, 144, 0.34)";
           ctx3.beginPath();
-          ctx3.arc(pm.x, pm.y, fire ? 3.5 : 2.0, 0, Math.PI * 2);
+          ctx3.arc(pm.x, pm.y, fire ? 3.2 : 1.9, 0, Math.PI * 2);
           ctx3.fill();
         }
 
-        // 5. Draw 6x6 VNC Leg Motor Pools & Tripod Phase State
         const cVnc = (sceneData && sceneData.vnc_dn)
           ? (wiringMode === "shuffled" ? sceneData.vnc_dn.C_vnc_inh_shuf : sceneData.vnc_dn.C_vnc_inh_real)
           : null;
-        const tripodGroupA = [0, 3, 4]; // L1, R2, L3
+        const tripodGroupA = [0, 3, 4];
 
         for (let i = 0; i < 6; i++) {
           for (let j = i + 1; j < 6; j++) {
@@ -612,8 +533,8 @@
             if (w > 0.12) {
               const p1 = proj(legCoords[i][0], legCoords[i][1], legCoords[i][2]);
               const p2 = proj(legCoords[j][0], legCoords[j][1], legCoords[j][2]);
-              ctx3.strokeStyle = wiringMode === "shuffled" ? "rgba(251, 113, 133, 0.35)" : "rgba(52, 211, 153, 0.36)";
-              ctx3.lineWidth = 1.3;
+              ctx3.strokeStyle = wiringMode === "shuffled" ? "rgba(216, 122, 104, 0.34)" : "rgba(95, 180, 144, 0.34)";
+              ctx3.lineWidth = 1.2;
               ctx3.beginPath();
               ctx3.moveTo(p1.x, p1.y);
               ctx3.lineTo(p2.x, p2.y);
@@ -634,28 +555,27 @@
             const jitter = wiringMode === "real" ? (idx * 0.12) : 0;
             swing = 0.5 + 0.5 * Math.sin(animT * 3.2 + phase + jitter);
           }
-          const r = 6.0 + swing * 5.5;
+          const r = 5.5 + swing * 5.0;
           ctx3.fillStyle = swing > 0.55
-            ? (wiringMode === "shuffled" ? "#fb7185" : (isA ? "#34d399" : "#38bdf8"))
-            : "rgba(30, 41, 59, 0.9)";
-          ctx3.strokeStyle = isA ? "#34d399" : "#38bdf8";
-          ctx3.lineWidth = 2;
+            ? (wiringMode === "shuffled" ? "#d87a68" : (isA ? "#5fb490" : "#67b7c9"))
+            : "rgba(24, 28, 36, 0.95)";
+          ctx3.strokeStyle = isA ? "#5fb490" : "#67b7c9";
+          ctx3.lineWidth = 1.8;
           ctx3.beginPath();
           ctx3.arc(p.x, p.y, r, 0, Math.PI * 2);
           ctx3.fill();
           ctx3.stroke();
 
-          ctx3.fillStyle = "#e2e8f0";
+          ctx3.fillStyle = "#d2d6de";
           ctx3.font = "600 10px 'JetBrains Mono', monospace";
           ctx3.fillText(legNames[idx], p.x + r + 5, p.y + 3);
         });
 
-        // Subtle anatomical region labels
-        ctx3.fillStyle = "rgba(148, 163, 184, 0.65)";
+        ctx3.fillStyle = "rgba(139, 146, 160, 0.72)";
         ctx3.font = "500 10px 'JetBrains Mono', monospace";
-        ctx3.fillText("50 EPG RING + MB CLAWS", 14, 22);
+        ctx3.fillText("50 EPG RING + MB CLAWS", 14, 20);
         ctx3.fillText("10 CERVICAL DNs", 14, h3 * 0.52);
-        ctx3.fillText("6×6 VNC TRIPOD POOLS", 14, h3 - 14);
+        ctx3.fillText("6×6 VNC TRIPOD POOLS", 14, h3 - 12);
       }
       requestAnimationFrame(drawStage3D);
     }
@@ -670,7 +590,6 @@
     requestAnimationFrame(drawStage3D);
   }
 
-  // Load real BANC v888 scene tensors + benchmarks JSON
   renderScoreboard(FALLBACK_BENCHMARKS);
   fetch("data/banc_scene_data.json")
     .then((r) => (r.ok ? r.json() : Promise.reject(new Error("HTTP " + r.status))))
@@ -681,106 +600,106 @@
     .catch(() => {});
 
   // -------------------------------------------------------------------------
-  // 4. 24 KB SILICON DIE EXPLORER & BENCHMARK DRAWER
+  // 4. 24 KB SILICON DIE EXPLORER (100% Locked Panel Heights)
   // -------------------------------------------------------------------------
   const ORGANS = {
     cns: {
       colorVar: "--accent",
-      region: "Whole-CNS · BANC v888 (157,789 neurons, 23.55M synapses)",
-      tests: "7 Py + 7 C99 (ASan) + ESP32 + 107.5 KB WASM",
+      region: "Whole-CNS · BANC v888",
+      tests: "7 Py + 7 C99 + WASM",
       name: "NeckLink CNS",
       pkg: "necklink-cns",
-      desc: "Unified 4-organ reflex controller combining NeckSight, NeckCompass, NeckSense, and NeckCord. Its decision layer multiplies 11 brain populations (LPLC2, LC4, LPLC1, PFL3, PFL2, MBON) through compiled BANC v888 weights onto 10 descending neurons (DNp01, MDN, DNa02, …) and 6 motor pools, plus MAVLink v2 and ROS 2 bridges.",
-      ram: "24,024 B (23.5 KB), 0 B heap",
-      speed: "~166 µs / tick (desktop C99)",
-      gain: "66.7% 30-seed · 58.3% vs 4.6% shuf",
+      desc: "Unified 4-organ reflex copilot projecting 11 brain populations onto 10 cervical descending channels and 6 motor pools with MAVLink v2.",
+      ram: "24,024 B (0 B heap)",
+      speed: "166.3 µs / tick",
+      gain: "58.3% vs 4.6% shuf",
       tradeoffLabel: "Honest scope boundary",
-      tradeoff: "In closed-loop USV simulation, real BANC wiring reaches 66.7% safe arrival (58.3% vs 4.6% in the 12-seed K=100 shuffle gate, p = 0.0297) — while hand-tuned v2_analytic reaches 80.0%. It is a 24 KB reflex copilot, not a SLAM planner, and has not yet been tested on physical vehicles.",
-      code: "from necklink_cns import NeckLinkCNS\n\ncns = NeckLinkCNS(vehicle=\"hexacopter\", grid_size=32)\nout = cns.step(dt=0.02, speed_m_s=1.8, gyro_xyz=[0.02, -0.01, 0.05],\n               accel_xyz=[0.2, -0.1, 9.80], mag_xyz=[0.45, 0.05, 0.89], camera_frame=cam_32x32)\nprint(out.descending.behavior_mode, len(out.cervical_wire_4b), out.mavlink_manual_pkt[0])",
+      tradeoff: "Reaches 66.7% 30-seed survival (58.3% vs 4.6% shuffle gate; v2_analytic reaches 80.0%). Simulation-verified reflex copilot, not flight-tested.",
+      code: "from necklink_cns import NeckLinkCNS\n\ncns = NeckLinkCNS(vehicle=\"hexacopter\", grid_size=32)\nout = cns.step(dt=0.02, speed_m_s=1.8, gyro_xyz=[0.02, -0.01, 0.05],\n               accel_xyz=[0.2, -0.1, 9.8], mag_xyz=[0.45, 0.05, 0.89], camera_frame=cam)\nprint(out.descending.behavior_mode, len(out.cervical_wire_4b))",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns",
       pypi: "https://pypi.org/project/necklink-cns/",
       pypiLabel: "PyPI v3.0.0"
     },
     sight: {
       colorVar: "--sight",
-      region: "Optic lobe · R1–R6 / T4–T5 / 64 LPLC2 + 32 LC4",
-      tests: "35 Py + C99 self-test + ESP32-CAM build",
+      region: "Optic Lobe · 64 LPLC2 + 32 LC4",
+      tests: "35 Py + C99 + ESP32",
       name: "NeckSight",
       pkg: "necksight",
-      desc: "Logarithmic R1–R6 glare guard, elementary T4/T5 ON/OFF motion, 3-DOF (yaw, pitch, roll) gyro derotation, and 64 LPLC2 + 32 LC4 looming/edge detectors whose spatial receptive fields are inferred from BANC v888 connectivity, emitting contralateral DNa02 dodge vectors.",
+      desc: "Logarithmic R1–R6 glare guard, T4/T5 motion, 3-DOF gyro derotation, and BANC-mapped LPLC2/LC4 looming & thin-wire dodge vectors.",
       ram: "14,624 B (14.28 KB)",
-      speed: "~6,557 FPS (desktop C99, 32×32)",
-      gain: "0.755 AUROC on thin poles (LC4)",
+      speed: "6,557 FPS (32×32)",
+      gain: "0.755 AUROC (poles)",
       tradeoffLabel: "Where analytic & Farneback win",
-      tradeoff: "Across all 3D MuJoCo obstacle types with identical gyro derotation, v2_analytic (0.890 AUROC) and derotated Farneback (0.818) beat BANC receptive fields overall (0.806; shuffle p = 0.079). On thin poles and wires, adding LC4 beats Farneback (0.755 vs 0.635, p = 0.0396).",
-      code: "from necksight import NeckSightPipeline, imu_to_ego_motion\n\noptic = NeckSightPipeline(grid_size=64, enable_lc4_bar=True)\nego = imu_to_ego_motion(yaw_rate, pitch_rate, roll_rate, dt=1/60, grid_width=64)\nres = optic.step(frame_u8, dt=1/60, ego_shift_px=ego)\nif res.triggered:\n    print(res.looming_score, res.bar_score, (res.avoid_x, res.avoid_y))",
+      tradeoff: "v2_analytic (0.890) and Farneback (0.818) lead across all obstacles; adding 32 LC4 channels beats Farneback on thin poles (0.755 vs 0.635).",
+      code: "from necksight import NeckSightPipeline, imu_to_ego_motion\n\noptic = NeckSightPipeline(grid_size=64, enable_lc4_bar=True)\nego = imu_to_ego_motion(yaw_r, pitch_r, roll_r, dt=1/60, grid_width=64)\nres = optic.step(frame_u8, dt=1/60, ego_shift_px=ego)\nprint(res.triggered, res.looming_score, res.bar_score)",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
       pypiLabel: "PyPI v3.0.0"
     },
     compass: {
       colorVar: "--compass",
-      region: "Central complex · 50 EPG / 42 PEN / 40 Delta7 / PFL3+2",
-      tests: "48 Py + 14 C99 + ESP32 build",
+      region: "Central Complex · 50 EPG Ring",
+      tests: "48 Py + 14 C99 + ESP32",
       name: "NeckCompass",
       pkg: "neckcompass",
-      desc: "Zero-float 9-axis tilt-compensated heading on an EPG ↔ Delta7 ring attractor and PFL3/PFL2 GPS-denied homing, running on ~3,900 synaptic weights compiled from BANC v888, plus a 1,104-byte online soft-iron calibration ring.",
-      ram: "1,444 B (tilt + plastic ring)",
-      speed: "0.96 µs (9-DOF) · 8.10 µs full",
-      gain: "100% homing vs 4.7% shuffled",
+      desc: "Zero-float 9-axis tilt-compensated heading on a 50-EPG / 40-Delta7 ring attractor and PFL3/PFL2 GPS-denied homing (~3,900 weights).",
+      ram: "1,444 B static",
+      speed: "0.96 µs / 8.10 µs",
+      gain: "100% vs 4.7% homing",
       tradeoffLabel: "Where v2_analytic & χ² EKF win",
-      tradeoff: "Real biological wiring heterogeneity causes ring drift: 12.84° RMS under waves + 125° magnetic spikes vs 0.99° (v2_analytic) and 0.81° (χ²-gated EKF). Pass connectome_weights=\"v2_analytic\" whenever sub-degree compass accuracy is priority.",
-      code: "from neckcompass import RingCompass, FanBodyNavigator\n\nnav = FanBodyNavigator(compass=RingCompass(n_wedges=16))\nhdg, dist_m, brg = nav.step_with_compass_9dof(\n    gx, gy, gz, ax, ay, az, mx, my, mz, speed_m_s=1.8, dt=0.02\n)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)",
+      tradeoff: "Biological ring heterogeneity drifts 12.84° RMS under waves + spikes vs 0.99° (v2_analytic) and 0.81° (χ² EKF). Pass v2_analytic for sub-degree lock.",
+      code: "from neckcompass import RingCompass, FanBodyNavigator\n\nnav = FanBodyNavigator(compass=RingCompass(n_wedges=16))\nhdg, dist_m, brg = nav.step_with_compass_9dof(\n    gx, gy, gz, ax, ay, az, mx, my, mz, speed_m_s=1.8, dt=0.02\n)\nprint(hdg, nav.steering_cmd(max_turn_rate=1.0))",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
       pypi: "https://pypi.org/project/neckcompass/",
       pypiLabel: "PyPI v3.0.0"
     },
     cord: {
       colorVar: "--cord",
-      region: "Ventral nerve cord · 6×6 premotor + active-set allocator",
-      tests: "48 Py + 19 C99 + ESP32 build",
+      region: "Ventral Nerve Cord · 6×6 CPG",
+      tests: "48 Py + 19 C99 + ESP32",
       name: "NeckCord",
       pkg: "neckcord",
-      desc: "Six-limb gait whose alternating tripod coordination emerges spontaneously from a 6×6 VNC premotor inhibition matrix compiled from BANC v888, paired with engineering layers: zero-heap active-set thruster/rotor allocator, sensorless ESC observer, 18-servo IK, and 4-byte CRC-4 framing.",
-      ram: "930 B (all C99 structs)",
-      speed: "5.57 µs / full tick (desktop C99)",
-      gain: "Tripod 0.855 vs 0.411 shuffled",
+      desc: "Emergent 6-limb alternating tripod gait from BANC premotor inhibition, paired with active-set thruster allocation and ESC fault shunting.",
+      ram: "930 B static",
+      speed: "5.57 µs / tick",
+      gain: "0.855 vs 0.411 gait",
       tradeoffLabel: "Where fixed table & SciPy QP win",
-      tradeoff: "A hardcoded tripod phase table achieves 1.000 order and walks slightly farther after leg amputation. In 30-seed MuJoCo hexacopter rotor loss, all allocators survived while SciPy bounded QP held slightly lower tilt (0.17° vs 0.25°).",
-      code: "from neckcord import ESCObserver, ShuntingThrusterCord\nimport numpy as np\n\ncord = ShuntingThrusterCord.multicopter_hex_6(u_max=4.5, prioritize_attitude=True)\nesc = ESCObserver(n_actuators=6, u_nom=4.5, rpm_max=9000.0)\nres = cord.step(np.array([17.7, 0.0, 0.0, 0.0]), esc_observer=esc, esc_rpm=rpm, esc_current_a=amps, dt=0.01)\nprint(res.commands, res.health)",
+      tradeoff: "A fixed phase table hits 1.000 tripod order; in MuJoCo rotor loss, all allocators survive while SciPy QP holds 0.17° vs 0.25° tilt.",
+      code: "from neckcord import ESCObserver, ShuntingThrusterCord\nimport numpy as np\n\ncord = ShuntingThrusterCord.multicopter_hex_6(u_max=4.5)\nesc = ESCObserver(n_actuators=6, u_nom=4.5, rpm_max=9000.0)\nres = cord.step(np.array([17.7, 0.0, 0.0, 0.0]), esc_observer=esc, dt=0.01)",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
       pypiLabel: "PyPI v3.0.0"
     },
     sense: {
       colorVar: "--sense",
-      region: "Mushroom body · 1,024 Kenyon claws + APL + MBON",
-      tests: "27 Py + 9 C99 + ESP32 build",
+      region: "Mushroom Body · 1,024 KC",
+      tests: "27 Py + 9 C99 + ESP32",
       name: "NeckSense",
       pkg: "necksense",
-      desc: "Integer Mushroom Body sparse expansion using real BANC v888 Kenyon-cell claws (1,024 cells), divisive antennal normalization, APL winner-take-all feedback, 2-compartment continual synaptic memory, and a 16-band vibration front-end.",
-      ram: "5,804 B (NS_TINY) · 20.3 KB full",
-      speed: "16.4 µs (tiny) · 31.1 µs full",
-      gain: "0.666 vs 0.672 shuffled (Honest Null)",
-      tradeoffLabel: "Honest null & classical comparison",
-      tradeoff: "Degree-preserving shuffle performs identically to real BANC claws (0.666 vs 0.672 AUROC, p = 0.74), confirming random sparse expansion suffices here. On UCI gas drift data, One-Class SVM (0.698) and nearest-centroid (60.1%) score higher in Python — NeckSense fits inside 5.8 KB of integer C99 RAM.",
-      code: "from necksense import VibrationFrontEnd, MushroomNoveltyDetector\n\nfe = VibrationFrontEnd()\ndet = MushroomNoveltyDetector(n_inputs=16, antennal=True, n_kc=1024)\nscore = det.update_and_score(fe.extract(accel_256_window))\nprint(\"Bearing resonance anomaly:\", score)",
+      desc: "Integer sparse expansion over 1,024 Kenyon-cell claws, divisive antennal normalization, APL inhibition, and 2-compartment continual memory.",
+      ram: "5,804 B (NS_TINY)",
+      speed: "16.4 µs / sample",
+      gain: "0.666 AUROC (Null)",
+      tradeoffLabel: "Honest null & classical baseline",
+      tradeoff: "Degree-matched shuffles match real BANC claws (0.666 vs 0.672, p = 0.74). One-Class SVM (0.698) scores higher on desktop; NeckSense fits in 5.8 KB.",
+      code: "from necksense import VibrationFrontEnd, MushroomNoveltyDetector\n\nfe = VibrationFrontEnd()\ndet = MushroomNoveltyDetector(n_inputs=16, antennal=True, n_kc=1024)\nscore = det.update_and_score(fe.extract(accel_256_window))\nprint(\"Novelty score:\", score)",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
       pypi: "https://pypi.org/project/necksense/",
       pypiLabel: "PyPI v3.0.0"
     },
     nltp: {
       colorVar: "--nltp",
-      region: "Cervical wire protocol · Standalone v1.6.0",
-      tests: "32 Py + 16 C99 + 248 interop + ESP-NOW",
+      region: "Cervical Wire Bus · v1.6.0",
+      tests: "248 Interop + ESP-NOW",
       name: "NLTP",
       pkg: "pynltp",
-      desc: "Loss-healing file, telemetry, and reflex command transport with GF(2^8) Cauchy FEC and LZ4 over UDP and routerless ESP-NOW, secured by X25519 + PSK forward-secret ChaCha20-Poly1305 AEAD, RFC 5389 STUN hole-punching, and a 4.76 KB TX-only MCU profile.",
-      ram: "4.76 KB TX-only · ~65 KB ESP32",
-      speed: "956 MB/s GF(2^8) · 17.75 Mbps ESP-NOW",
-      gain: "100% SHA-256 @ 35% packet loss",
+      desc: "Loss-healing telemetry & reflex transport with GF(2^8) Cauchy FEC and LZ4 over UDP and ESP-NOW, secured by X25519 + ChaCha20-Poly1305.",
+      ram: "4.76 KB TX MCU",
+      speed: "956 MB/s GF(2^8)",
+      gain: "100% @ 35% loss",
       tradeoffLabel: "Where kernel TCP BBR wins",
-      tradeoff: "On clean, loss-free wired Ethernet or fiber, kernel TCP BBR reaches higher multi-hundred-Mbps bulk throughput than userspace UDP FEC. NLTP v1.6.0 shines on lossy radio, Wi-Fi fades, ESP32/ESP8266 ESP-NOW meshes, and 4G CGNAT links.",
+      tradeoff: "On clean wired Ethernet, kernel TCP BBR reaches higher bulk throughput; NLTP v1.6.0 targets lossy radio, ESP-NOW meshes, and 4G CGNAT links.",
       code: "from nltp import NLTPClient, generate_nltp_key\n\nwith NLTPClient((\"127.0.0.1\", 9000), psk=generate_nltp_key()) as cli:\n    cli.send_reflex(\"LOOM_ESTOP\")\n    receipt = cli.send_file(\"telemetry_batch.bin\")\n    assert receipt[\"verified_sha256\"]",
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/nltp",
       pypi: "https://pypi.org/project/pynltp/",
@@ -828,61 +747,6 @@
   if (copyCodeBtn) copyCodeBtn.addEventListener("click", (e) => copyText(e.currentTarget, currentCode));
   selectOrgan("cns");
 
-  // Per-package classical benchmark chart drawer
-  const RAW = "https://raw.githubusercontent.com/indian-aman/";
-  const BENCH = {
-    compass: {
-      src: RAW + "necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
-      alt: "NeckCompass benchmark charts",
-      caption: "Analytic ring attractor against 3-sigma gated EKF, ungated EKF, and complementary IMU+mag filter across 70°–150° magnetic spikes and 600 s GPS-blackout homing."
-    },
-    sight: {
-      src: RAW + "necklink/main/packages/necksight/assets/necksight_benchmarks.png", w: 3564, h: 1232,
-      alt: "NeckSight benchmark charts",
-      caption: "Optic-lobe looming selectivity, giant-fiber trigger timing prior to collision, and C99 throughput / SRAM footprint."
-    },
-    cord: {
-      src: RAW + "necklink/main/packages/neckcord/assets/neckcord_benchmarks.png", w: 3850, h: 1276,
-      alt: "NeckCord benchmark charts",
-      caption: "X-vectored USV wave corridor thruster fault isolation and six-limb coupled oscillator stability."
-    },
-    sense: {
-      src: RAW + "necklink/main/packages/necksense/assets/necksense_benchmarks.png", w: 3872, h: 1210,
-      alt: "NeckSense benchmark charts",
-      caption: "Concentration-invariant FlyHash retrieval, drifting plumes, and continual 2-compartment MBON anomaly scoring."
-    },
-    nltp: {
-      src: RAW + "necklink/main/assets/nltp_v12_benchmarks.png", w: 2992, h: 1188,
-      alt: "NLTP benchmark charts",
-      caption: "Lossy UDP & satellite transfer against kcptun, QUIC (ngtcp2), and Linux TCP BBR, plus ESP32 ESP-NOW goodput."
-    }
-  };
-
-  const benchImg = $("#bench-img");
-  if (benchImg) {
-    function selectBench(key) {
-      const b = BENCH[key];
-      if (!b) return;
-      $$("[data-bench]").forEach((btn) => {
-        const on = btn.getAttribute("data-bench") === key;
-        btn.classList.toggle("active", on);
-        btn.setAttribute("aria-selected", String(on));
-      });
-      $("#bench-caption").textContent = b.caption;
-      $("#bench-open").href = b.src;
-      if (benchImg.getAttribute("src") !== b.src) {
-        benchImg.classList.add("loading");
-        benchImg.width = b.w;
-        benchImg.height = b.h;
-        benchImg.alt = b.alt;
-        benchImg.src = b.src;
-      }
-    }
-    benchImg.addEventListener("load", () => benchImg.classList.remove("loading"));
-    $$("[data-bench]").forEach((btn) => btn.addEventListener("click", () => selectBench(btn.getAttribute("data-bench"))));
-    selectBench("compass");
-  }
-
   // -------------------------------------------------------------------------
   // 5. LIVE C99 WEBASSEMBLY (necklink_cns.wasm) + WEBCAM HARDWARE COCKPIT
   // -------------------------------------------------------------------------
@@ -898,19 +762,19 @@
   const histRing = new Array(N_HIST).fill(0);
   const histEkf = new Array(N_HIST).fill(0);
   const C = {
-    grid: "rgba(148, 163, 184, 0.10)",
-    divider: "rgba(148, 163, 184, 0.16)",
-    label: "#94a3b8",
-    text: "#cbd5e1",
-    ring: "#38bdf8",
-    ekf: "#f97316",
-    optic: "#22d3ee",
-    pole: "#a78bfa",
-    ok: "#34d399",
-    bar: "#818cf8",
-    barBg: "rgba(30, 41, 59, 0.9)",
-    fault: "#fb7185",
-    bg: "#050811"
+    grid: "rgba(255, 255, 255, 0.06)",
+    divider: "rgba(255, 255, 255, 0.10)",
+    label: "#8b92a0",
+    text: "#d2d6de",
+    ring: "#e4b45c",
+    ekf: "#d87a68",
+    optic: "#67b7c9",
+    pole: "#9ba5c9",
+    ok: "#5fb490",
+    bar: "#e4b45c",
+    barBg: "rgba(255, 255, 255, 0.06)",
+    fault: "#d87a68",
+    bg: "#090b0e"
   };
 
   let wasmEx = null;
@@ -939,9 +803,9 @@
 
   function nominalMessage() {
     if (wasmEx) {
-      return "WASM C99 LIVE (" + wasmSramBytes.toLocaleString() + " B static SRAM, 0 B heap). 9-DOF ring compass locked, LPLC2+LC4 scanning, 4B cervical wire active.";
+      return "WASM C99 LIVE (" + wasmSramBytes.toLocaleString() + " B static SRAM, 0 B heap) · 9-DOF ring compass locked.";
     }
-    return "Nominal cruise. Ring compass locked (0.4° error), LPLC2+LC4 optic lobe scanning, 4-byte cervical link at 100 Hz.";
+    return "Nominal cruise · Ring compass locked (0.4° error), LPLC2+LC4 scanning, 4B cervical wire active.";
   }
 
   function setStatus(msg, colorVar) {
@@ -996,14 +860,9 @@
       webcamActive = true;
       if (webcamBtn) webcamBtn.classList.add("active");
       if (webcamBtnLabel) webcamBtnLabel.textContent = "Stop Webcam";
-      setStatus(
-        wasmEx
-          ? "LIVE WEBCAM → C99 WASM: Move your hand or a thin pen/pole rapidly toward the camera to fire LPLC2/LC4 looming + DNa02 dodge!"
-          : "LIVE WEBCAM active (serve over HTTP/HTTPS to bind necklink_cns.wasm).",
-        "--ok"
-      );
+      setStatus("LIVE WEBCAM → C99 WASM · Move hand or pen rapidly toward camera to trigger LPLC2/LC4 dodge.", "--ok");
     } catch (err) {
-      setStatus("Camera permission denied or unavailable (" + (err && err.message ? err.message : "blocked") + ").", "--warn");
+      setStatus("Camera permission denied or unavailable.", "--warn");
     }
   }
 
@@ -1014,15 +873,14 @@
       mediaStream = null;
     }
     if (webcamBtn) webcamBtn.classList.remove("active");
-    if (webcamBtnLabel) webcamBtnLabel.textContent = "Live Webcam (WASM)";
+    if (webcamBtnLabel) webcamBtnLabel.textContent = "Live Webcam";
   }
 
   function resize() {
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     cssW = canvas.parentElement.clientWidth || 900;
+    cssH = canvas.parentElement.clientHeight || 340;
     narrow = cssW < 680;
-    cssH = narrow ? 600 : 340;
-    canvas.style.height = cssH + "px";
     canvas.width = Math.round(cssW * dpr);
     canvas.height = Math.round(cssH * dpr);
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1050,21 +908,21 @@
       }
       if (mode === "spike") {
         spikeTicks = 55;
-        setStatus("+120° hull magnetic spike + wave roll. Ungated EKF drags ~42° off course; C99 NeckCompass shunts the spike (<1.0°).", "--compass");
+        setStatus("+120° magnetic spike · Ungated EKF drags ~42°; C99 NeckCompass shunts spike (<1.0°).", "--compass");
       } else if (mode === "glare") {
         glareTicks = 50;
-        setStatus("100× sunlight glare step. R1–R6 log photoreceptor + AEC guard cancels the global flash (0 false triggers).", "--sight");
+        setStatus("100× sunlight glare · R1–R6 log photoreceptor + AEC cancels global flash (0 false alarms).", "--sight");
       } else if (mode === "loom") {
         loomKind = "boulder";
         loomProgress = 0;
-        setStatus("Off-axis boulder approaching on port side. C99 LPLC2 4-quadrant gate tracks expansion and fires contralateral DNa02 dodge.", "--sight");
+        setStatus("Boulder approaching port · C99 LPLC2 4-quadrant gate fires contralateral DNa02 dodge.", "--sight");
       } else if (mode === "pole") {
         loomKind = "pole";
         loomProgress = 0;
-        setStatus("Thin vertical pole/mast approaching! Classical optical flow misses thin bars, while NeckSight LC4 channel locks on.", "--sight");
+        setStatus("Thin pole approaching · NeckSight LC4 high-acuity edge channel locks on.", "--sight");
       } else if (mode === "foul") {
         fouledT2 = true;
-        setStatus("Port-aft thruster T2 fouled (−90%). NeckCord active-set shunts T2 in <45 ms and rebalances surge onto surviving thrusters.", "--cord");
+        setStatus("Thruster T2 fouled (−90%) · NeckCord active-set shunts T2 and rebalances surviving rotors.", "--cord");
       } else {
         stopWebcam();
         if (wasmEx) wasmEx.nl_wasm_init(0);
@@ -1168,13 +1026,13 @@
         estopFlash = 38;
         const via = lastLc4Score > 0.04 && loomKind === "pole" ? "LC4 thin-pole" : "LPLC2 looming";
         const dirTxt = lastAvoidX > 0.15 ? "stbd (+X)" : (lastAvoidX < -0.15 ? "port (-X)" : "brake");
-        setStatus("C99 WASM " + via + " triggered! DNa02 dodge → " + dirTxt + " · 4B wire " + lastWireHex, "--ok");
+        setStatus("C99 WASM " + via + " triggered · DNa02 dodge → " + dirTxt + " · 4B wire " + lastWireHex, "--ok");
       }
     } else {
       if (loomProgress >= 60 && loomProgress < 64) {
         estopFlash = 40;
         lastAvoidX = loomKind === "pole" ? -0.9 : 0.9;
-        setStatus((loomKind === "pole" ? "LC4 thin-pole" : "LPLC2 looming") + " reflex dispatched over 4-byte cervical link!", "--ok");
+        setStatus((loomKind === "pole" ? "LC4 thin-pole" : "LPLC2 looming") + " reflex dispatched over 4-byte cervical link.", "--ok");
       }
       t2Health = fouledT2 ? Math.max(0.02, t2Health * 0.72) : Math.min(1.0, t2Health + 0.08);
       lastThrust = estopFlash > 0 ? [0.12, 0.0, 0.85, 0.85]
@@ -1213,7 +1071,7 @@
       ctx.beginPath(); ctx.moveTo(gx, y); ctx.lineTo(gx + gw, y); ctx.stroke();
     }
     const yOf = (v) => gy + gh - Math.max(0, Math.min(gh, (Math.abs(v) / 50) * gh));
-    [[histEkf, C.ekf, 2], [histRing, C.ring, 2.4]].forEach(([hist, color, lw]) => {
+    [[histEkf, C.ekf, 1.8], [histRing, C.ring, 2.2]].forEach(([hist, color, lw]) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = lw;
       ctx.lineJoin = "round";
@@ -1237,7 +1095,7 @@
     const R = Math.max(30, Math.min(p.w * 0.36, (p.h - 84) / 2));
 
     if (glareTicks > 0) {
-      ctx.fillStyle = "rgba(250, 204, 21, " + (0.16 * (glareTicks / 50)).toFixed(3) + ")";
+      ctx.fillStyle = "rgba(228, 180, 92, " + (0.16 * (glareTicks / 50)).toFixed(3) + ")";
       ctx.fillRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
     }
 
@@ -1247,10 +1105,10 @@
       for (let i = 0; i < 4096; i++) {
         const g = srcBuf[i];
         const o = i * 4;
-        dst[o] = Math.round(g * 0.72);
-        dst[o + 1] = Math.min(255, Math.round(g * 0.95));
-        dst[o + 2] = Math.min(255, Math.round(g * 1.05));
-        dst[o + 3] = 220;
+        dst[o] = Math.round(g * 0.88);
+        dst[o + 1] = Math.round(g * 0.90);
+        dst[o + 2] = Math.round(g * 0.92);
+        dst[o + 3] = 225;
       }
       camCtx.putImageData(retinaImgData, 0, 0);
       ctx.save();
@@ -1261,8 +1119,8 @@
       ctx.restore();
     }
 
-    ctx.strokeStyle = estopFlash > 0 ? C.ok : "rgba(56, 189, 248, 0.42)";
-    ctx.lineWidth = estopFlash > 0 ? 3 : 1.5;
+    ctx.strokeStyle = estopFlash > 0 ? C.ok : "rgba(228, 180, 92, 0.42)";
+    ctx.lineWidth = estopFlash > 0 ? 2.5 : 1.4;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
 
     ctx.strokeStyle = C.grid;
@@ -1276,14 +1134,14 @@
       if (loomKind === "boulder") {
         const lr = R * (0.08 + (loomProgress / 100) * 0.68);
         const ox = cx - R * 0.24;
-        ctx.fillStyle = "rgba(34, 211, 238, 0.24)";
+        ctx.fillStyle = "rgba(103, 183, 201, 0.22)";
         ctx.strokeStyle = C.optic;
         ctx.lineWidth = 2;
         ctx.beginPath(); ctx.arc(ox, cy, lr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
       } else {
         const pw = Math.max(3, R * (0.04 + (loomProgress / 100) * 0.30));
         const ox = cx + R * 0.24;
-        ctx.fillStyle = "rgba(167, 139, 250, 0.30)";
+        ctx.fillStyle = "rgba(155, 165, 201, 0.26)";
         ctx.strokeStyle = C.pole;
         ctx.lineWidth = 2;
         ctx.fillRect(ox - pw / 2, cy - R * 0.78, pw, R * 1.56);
@@ -1295,19 +1153,19 @@
       const ax = cx + lastAvoidX * R * 0.62;
       const ay = cy + lastAvoidY * R * 0.45;
       ctx.strokeStyle = C.ok;
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.8;
       ctx.beginPath();
       ctx.moveTo(cx, cy);
       ctx.lineTo(ax, ay);
       ctx.stroke();
       ctx.fillStyle = C.ok;
       ctx.beginPath();
-      ctx.arc(ax, ay, 4.5, 0, Math.PI * 2);
+      ctx.arc(ax, ay, 4.2, 0, Math.PI * 2);
       ctx.fill();
     }
 
     ctx.font = "500 12px 'JetBrains Mono', monospace";
-    ctx.fillStyle = estopFlash > 0 ? C.ok : C.ring;
+    ctx.fillStyle = estopFlash > 0 ? C.ok : C.optic;
     let label = "LPLC2 " + lastLoomScore.toFixed(2) + " · LC4 " + lastLc4Score.toFixed(2);
     if (estopFlash > 0) {
       label = "DODGE! LPLC2 " + lastLoomScore.toFixed(2) + " LC4 " + lastLc4Score.toFixed(2);
@@ -1322,7 +1180,7 @@
     const labels = ["T1 port-fwd", "T2 port-aft", "T3 stbd-fwd", "T4 stbd-aft"];
     const top = p.y + 46, avail = p.h - 92, rowH = avail / 4;
     const lx = p.x + 20, bx = p.x + 120, bw = Math.max(40, p.w - 140);
-    const barH = Math.min(16, rowH * 0.5);
+    const barH = Math.min(15, rowH * 0.48);
     lastThrust.forEach((v, i) => {
       const y = top + i * rowH + (rowH - barH) / 2;
       ctx.fillStyle = C.text;
