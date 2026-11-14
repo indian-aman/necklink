@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "neckcord"
-version = "1.1.0"
-description = "Descending cervical 4-byte command bottleneck, self-healing hexapod VNC CPG, and presynaptic-shunting fault-tolerant thruster allocator"
+version = "2.0.0"
+description = "Descending cervical 4-byte command bottleneck, 18-servo hexapod VNC CPG+IK, sensorless ESC fault observer, and box-constrained active-set thruster/multicopter allocator"
 readme = "README.md"
 requires-python = ">=3.9"
 license = "MIT"
@@ -26,9 +26,13 @@ keywords = [
   "fault-tolerant-control",
   "usv",
   "rov",
+  "multicopter",
+  "esc-telemetry",
   "hexapod",
+  "inverse-kinematics",
   "robotics",
   "embedded-c99",
+  "arduino",
 ]
 classifiers = [
   "Development Status :: 5 - Production/Stable",

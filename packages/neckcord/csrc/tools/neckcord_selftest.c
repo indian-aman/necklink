@@ -1,8 +1,8 @@
 /*
- * NeckCord v1.1.0 - Pure Integer ANSI C99 Verification Suite (11 tests)
+ * NeckCord v2.0.0 - Pure Integer ANSI C99 Verification Suite (18 tests)
  *
  * Verifies:
- *   1. Static RAM footprint (< 3 KB, zero heap)
+ *   1. Static RAM footprint (< 3 KB total, < 600 B v1.x core, zero heap)
  *   2. 16-bit BAM Q15 sin/cos LUT identity across all 65,536 angles
  *   3. 4-byte cervical codec roundtrip & Python wire-format golden parity
  *   4. CRC-4 single-bit error (32/32 bits x 256 frames) & stuck-bus rejection
@@ -13,6 +13,13 @@
  *   9. 4-thruster vectored USV online fault isolation & zero-spin rebalancing
  *  10. 8-actuator octo-ROV dual-fault wrench rebalancing
  *  11. Recovery probe: transient fault returns to service, persistent fault stays isolated
+ *  12. Integer isqrt, atan2_bam, and acos_q15_bam full-domain accuracy
+ *  13. 4-DOF [0, u_max] 6-rotor hexacopter motor-loss survival vs unconstrained pinv
+ *  14. 4-DOF [0, u_max] 8-rotor octocopter single- & dual-rotor-loss survival
+ *  15. Asymmetric BlueRobotics T200 (-40 N / +52.5 N + deadzone) active-set allocation
+ *  16. Sensorless ESC observer: broken propeller blade caught & shunted in < 50 ms
+ *  17. Sensorless ESC observer: weed-foul overcurrent (>1.6x I_exp) & open-phase stall
+ *  18. Exact 3-DOF 18-servo hexapod leg IK (1000..2000 us) & L2 pentapod +45 mm parking
  *
  * Copyright (c) 2026 Amandeep Singh Bains. MIT License.
  */
@@ -20,6 +27,7 @@
 #include "../neckcord.h"
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 static int g_passed = 0;
 static int g_failed = 0;
@@ -48,15 +56,36 @@ static uint16_t bam_dist(uint16_t a, uint16_t b)
 
 static void test_1_static_ram_budget(void)
 {
-    size_t total_ram = sizeof(nc_descending_frame_t)
-                     + sizeof(nc_cpg_cord_t)
-                     + sizeof(nc_cpg_state_t)
-                     + sizeof(nc_shunting_cord_t)
-                     + sizeof(nc_alloc_result_t);
-    printf("Test 1: Static RAM footprint = %lu bytes (budget < 3072 bytes)\n",
-           (unsigned long)total_ram);
-    CHECK(total_ram < 3072u && total_ram < 600u,
-          "Combined runtime structs fit under 600 B (< 3 KB static RAM, 0 heap)");
+    size_t v1_ram = sizeof(nc_descending_frame_t)
+                  + sizeof(nc_cpg_cord_t)
+                  + sizeof(nc_cpg_state_t)
+                  + sizeof(nc_shunting_cord_t)
+                  + sizeof(nc_alloc_result_t);
+    size_t v2_ram = sizeof(nc_shunting4d_t)
+                  + sizeof(nc_alloc4d_result_t)
+                  + sizeof(nc_esc_observer_t)
+                  + sizeof(nc_esc_obs_result_t)
+                  + sizeof(nc_hexapod_ik_cfg_t)
+                  + sizeof(nc_hexapod_ik_out_t);
+    size_t total_ram = v1_ram + v2_ram;
+
+    printf("Test 1: Static RAM footprint: v1=%lu B, v2_ext=%lu B, combined=%lu B (budget < 3072 B)\n",
+           (unsigned long)v1_ram, (unsigned long)v2_ram, (unsigned long)total_ram);
+    printf("    sizeof: desc=%lu cpg=%lu cpg_st=%lu shunt3d=%lu res3d=%lu "
+           "shunt4d=%lu res4d=%lu esc=%lu esc_res=%lu ik_cfg=%lu ik_out=%lu\n",
+           (unsigned long)sizeof(nc_descending_frame_t),
+           (unsigned long)sizeof(nc_cpg_cord_t),
+           (unsigned long)sizeof(nc_cpg_state_t),
+           (unsigned long)sizeof(nc_shunting_cord_t),
+           (unsigned long)sizeof(nc_alloc_result_t),
+           (unsigned long)sizeof(nc_shunting4d_t),
+           (unsigned long)sizeof(nc_alloc4d_result_t),
+           (unsigned long)sizeof(nc_esc_observer_t),
+           (unsigned long)sizeof(nc_esc_obs_result_t),
+           (unsigned long)sizeof(nc_hexapod_ik_cfg_t),
+           (unsigned long)sizeof(nc_hexapod_ik_out_t));
+    CHECK(v1_ram < 600u && total_ram < 3072u && total_ram < 1200u,
+          "All v1.x (<600 B) and v2.0 (<1.2 KB) structs fit well under 3 KB static RAM, 0 heap");
 }
 
 static void test_2_trig_lut_accuracy(void)
@@ -82,9 +111,6 @@ static void test_2_trig_lut_accuracy(void)
 
 static void test_3_cervical_roundtrip_and_python_parity(void)
 {
-    /* Golden Python wire vector from `neckcord demo`:
-     * drive_fwd=0.82 -> 26869 Q15, turn_yaw=-0.25 -> -8192 Q15,
-     * strafe_lat=0.10 -> 3277 Q15, gait=0, freeze=0, seq=2 => 0x68E00C20 */
     nc_descending_frame_t tx;
     nc_descending_frame_t rx;
     uint8_t raw[4];
@@ -180,7 +206,6 @@ static void test_5_tripod_antiphase_invariants(void)
     int step;
 
     nc_cpg_init(&cpg, 1u);
-    /* Perturb initial phases away from equilibrium to verify Kuramoto convergence */
     cpg.phases_bam[0] = 1000u;
     cpg.phases_bam[1] = 28000u;
     cpg.phases_bam[2] = 35000u;
@@ -189,14 +214,13 @@ static void test_5_tripod_antiphase_invariants(void)
     cpg.phases_bam[5] = 30000u;
 
     memset(&cmd, 0, sizeof(cmd));
-    cmd.drive_fwd_q15 = 29000; /* Fast walk -> Tripod */
+    cmd.drive_fwd_q15 = 29000;
     cmd.gait_mode = (uint8_t)NC_GAIT_AUTO;
 
     for (step = 0; step < 200; ++step) {
         (void)nc_cpg_step(&cpg, &cmd, 10u, &st);
     }
 
-    /* Tripod A: {L1=0, R2=3, L3=4} in-phase; Tripod B: {R1=1, L2=2, R3=5} anti-phase (32768 BAM) */
     CHECK(st.active_gait == (uint8_t)NC_GAIT_TRIPOD &&
           bam_dist(st.phases_bam[0], st.phases_bam[3]) < 500u &&
           bam_dist(st.phases_bam[0], st.phases_bam[4]) < 500u &&
@@ -216,7 +240,7 @@ static void test_6_wave_gait_metachronal_lag(void)
 
     nc_cpg_init(&cpg, 1u);
     memset(&cmd, 0, sizeof(cmd));
-    cmd.drive_fwd_q15 = 6500; /* Slow heavy-load walk -> Metachronal Wave */
+    cmd.drive_fwd_q15 = 6500;
     cmd.gait_mode = (uint8_t)NC_GAIT_AUTO;
 
     for (step = 0; step < 250; ++step) {
@@ -270,12 +294,11 @@ static void test_8_hexapod_single_leg_amputation_adaptation(void)
     nc_cpg_init(&cpg_adapt, 1u);
     nc_cpg_init(&cpg_fixed, 0u);
 
-    /* Amputate / jam L2 (mesothoracic left, index 2) */
     (void)nc_cpg_set_limb_health(&cpg_adapt, 2u, 0);
     (void)nc_cpg_set_limb_health(&cpg_fixed, 2u, 0);
 
     memset(&cmd, 0, sizeof(cmd));
-    cmd.drive_fwd_q15 = 27852; /* 0.85 fast forward command */
+    cmd.drive_fwd_q15 = 27852;
     cmd.gait_mode = (uint8_t)NC_GAIT_AUTO;
 
     for (step = 0; step < 100; ++step) {
@@ -307,8 +330,8 @@ static void test_9_usv4_fault_isolation_and_zero_spin_rebalance(void)
 {
     nc_shunting_cord_t cord;
     nc_alloc_result_t res;
-    int32_t w_des[3] = { 16384, 0, 0 }; /* Pure forward surge Fx = 1.0 * u_max (Q14) */
-    int16_t true_eff_q15[4] = { NC_Q15_ONE, NC_Q15_ONE, 2621, NC_Q15_ONE }; /* T2 = 8% */
+    int32_t w_des[3] = { 16384, 0, 0 };
+    int16_t true_eff_q15[4] = { NC_Q15_ONE, NC_Q15_ONE, 2621, NC_Q15_ONE };
     int step;
     int isolated_tick = -1;
     int32_t true_fx_q14 = 0;
@@ -317,9 +340,8 @@ static void test_9_usv4_fault_isolation_and_zero_spin_rebalance(void)
     uint8_t i;
 
     nc_shunting_init_usv4(&cord, 450, 350);
-    cord.tau_act_ms = 0u; /* Direct actuator feedback for crisp deterministic latency check */
+    cord.tau_act_ms = 0u;
 
-    /* Initial nominal step */
     (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
 
     for (step = 1; step <= 8; ++step) {
@@ -379,7 +401,6 @@ static void test_10_octo8_dual_fault_rebalance(void)
           "8-channel octo-ROV allocator isolates 2 failed thrusters & tracks full 3-DOF wrench");
 }
 
-/* Drive the USV4 cord for n ticks with T2 at efficiency eff_q15; returns 1 if T2 is isolated. */
 static int run_usv4_ticks(nc_shunting_cord_t *cord, nc_alloc_result_t *res, int16_t eff_t2_q15, int n)
 {
     int32_t w_des[3] = { 16384, 0, 0 };
@@ -405,22 +426,19 @@ static void test_11_recovery_probe(void)
     int persistent_isolated_ticks = 0;
     int k;
 
-    /* Transient brownout: T2 fails for 1 s, then works again. Probe every 2 s. */
     nc_shunting_init_usv4(&cord, 450, 350);
     cord.tau_act_ms = 0u;
     nc_shunting_set_probe_interval(&cord, 2000u);
     (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
-    isolated_after_fault = run_usv4_ticks(&cord, &res, 1000, 50);       /* 1 s at 3% */
-    isolated_after_clear = run_usv4_ticks(&cord, &res, NC_Q15_ONE, 200); /* 4 s healthy */
+    isolated_after_fault = run_usv4_ticks(&cord, &res, 1000, 50);
+    isolated_after_clear = run_usv4_ticks(&cord, &res, NC_Q15_ONE, 200);
 
-    /* Same without probing: it stays isolated forever. */
     nc_shunting_init_usv4(&cord, 450, 350);
     cord.tau_act_ms = 0u;
     (void)nc_shunting_step(&cord, w_des, NULL, 20u, &res);
     (void)run_usv4_ticks(&cord, &res, 1000, 50);
     isolated_without_probe = run_usv4_ticks(&cord, &res, NC_Q15_ONE, 200);
 
-    /* Persistent fault with probing: isolated for the large majority of ticks. */
     nc_shunting_init_usv4(&cord, 450, 350);
     cord.tau_act_ms = 0u;
     nc_shunting_set_probe_interval(&cord, 2000u);
@@ -436,9 +454,428 @@ static void test_11_recovery_probe(void)
           "Recovery probe returns a cleared thruster to service and keeps a dead one isolated");
 }
 
+/* =========================================================================
+ * v2.0.0 Expanded Self-Tests (Tests 12..18)
+ * ========================================================================= */
+
+static void test_12_integer_math_isqrt_atan2_acos(void)
+{
+    int ok_sqrt = 1;
+    int32_t max_acos_err = 0;
+    int32_t max_atan_err = 0;
+    uint32_t s;
+    int32_t c;
+    uint32_t ang;
+
+    if (nc_isqrt_u32(0u) != 0u || nc_isqrt_u32(1u) != 1u ||
+        nc_isqrt_u32(0xFFFFFFFFu) != 65535u ||
+        nc_isqrt_u64(0xFFFFFFFFFFFFFFFFULL) != 4294967295u) {
+        ok_sqrt = 0;
+    }
+    for (s = 2u; s < 500000u; s = s * 3u + 17u) {
+        uint64_t r = nc_isqrt_u32(s);
+        if (r * r > s || (r + 1u) * (r + 1u) <= s) {
+            ok_sqrt = 0;
+        }
+    }
+
+    for (ang = 0u; ang < 65536u; ang += 64u) {
+        int32_t sy = nc_sin_bam_q15((uint16_t)ang);
+        int32_t cx = nc_cos_bam_q15((uint16_t)ang);
+        uint16_t rec = nc_atan2_bam(sy, cx);
+        int32_t err = (int32_t)bam_dist(rec, (uint16_t)ang);
+        if (err > max_atan_err) {
+            max_atan_err = err;
+        }
+    }
+
+    for (c = -NC_Q15_ONE; c <= NC_Q15_ONE; c += 31) {
+        uint16_t b = nc_acos_q15_bam((int16_t)c);
+        int32_t c_rec = nc_cos_bam_q15(b);
+        int32_t err = abs_i32(c_rec - c);
+        if (err > max_acos_err) {
+            max_acos_err = err;
+        }
+    }
+
+    CHECK(ok_sqrt == 1 && max_atan_err <= 24 && max_acos_err <= 80 &&
+          nc_acos_q15_bam(NC_Q15_ONE) == 0u &&
+          nc_acos_q15_bam(0) == 16384u &&
+          nc_acos_q15_bam(-NC_Q15_ONE) == 32768u,
+          "Integer isqrt, atan2_bam (<=0.13 deg), and acos_q15_bam (<0.25%) pass full-domain sweep");
+}
+
+static void test_13_hex6_unidirectional_motor_loss_survival(void)
+{
+    nc_shunting4d_t hex_box;
+    nc_shunting4d_t hex_uncon;
+    nc_alloc4d_result_t res_box;
+    nc_alloc4d_result_t res_uncon;
+    /* Hover Fz = 2.0 * u_max (36 N on 18 N rotors), nose-up pitch Ty = -1.2 N*m (-1092 Q14) */
+    int32_t w_pitch[4] = { 32768, 0, -1092, 0 };
+    int32_t w_hover[4] = { 32768, 546, -546, 0 };
+    int32_t clipped_ty_q14 = 0;
+    int all_six_ok = 1;
+    uint8_t i;
+    uint8_t r_dead;
+
+    nc_shunting4d_init_hex6(&hex_box, 280, 18);
+    (void)nc_shunting4d_set_health(&hex_box, 0u, 0);
+    (void)nc_shunting4d_allocate(&hex_box, w_pitch, &res_box);
+
+    /* Unconstrained symmetric [-32767, +32767] 4-DOF pseudo-inverse with oracle R0 drop */
+    nc_shunting4d_init_hex6(&hex_uncon, 280, 18);
+    for (i = 0u; i < 6u; ++i) {
+        hex_uncon.u_min_q15[i] = -NC_Q15_ONE;
+    }
+    hex_uncon.prioritize_attitude = 0u;
+    (void)nc_shunting4d_set_health(&hex_uncon, 0u, 0);
+    (void)nc_shunting4d_allocate(&hex_uncon, w_pitch, &res_uncon);
+
+    /* Physical rotor clipping max(u_i, 0) on unconstrained pseudo-inverse */
+    for (i = 1u; i < 6u; ++i) {
+        int32_t u_pos = (res_uncon.cmd_q15[i] > 0) ? res_uncon.cmd_q15[i] : 0;
+        clipped_ty_q14 += (int32_t)(((int64_t)hex_uncon.W_q14[2][i] * u_pos) / NC_Q15_ONE);
+    }
+
+    /* Sweep all 6 single-rotor failures under combined roll + pitch hover */
+    for (r_dead = 0u; r_dead < 6u; ++r_dead) {
+        nc_shunting4d_t hc;
+        nc_alloc4d_result_t hr;
+        nc_shunting4d_init_hex6(&hc, 280, 18);
+        (void)nc_shunting4d_set_health(&hc, r_dead, 0);
+        if (nc_shunting4d_allocate(&hc, w_hover, &hr) != NC_OK || hr.cmd_q15[r_dead] != 0) {
+            all_six_ok = 0;
+        }
+        for (i = 0u; i < 6u; ++i) {
+            if (hr.cmd_q15[i] < hc.u_min_q15[i] || hr.cmd_q15[i] > hc.u_max_q15[i]) {
+                all_six_ok = 0;
+            }
+        }
+        if (abs_i32(hr.pred_wrench_q14[0] - w_hover[0]) > 655 ||
+            abs_i32(hr.pred_wrench_q14[1] - w_hover[1]) > 16 ||
+            abs_i32(hr.pred_wrench_q14[2] - w_hover[2]) > 16) {
+            all_six_ok = 0;
+        }
+    }
+
+    printf("    Hex6 R0 dead: uncon u3=%d Q15 (<0 illegal!, clipped Ty=%d vs -1092) | "
+           "NeckCord u3=%d, Fz=%d, Tx=%d, Ty=%d\n",
+           (int)res_uncon.cmd_q15[3], (int)clipped_ty_q14,
+           (int)res_box.cmd_q15[3],
+           (int)res_box.pred_wrench_q14[0],
+           (int)res_box.pred_wrench_q14[1],
+           (int)res_box.pred_wrench_q14[2]);
+
+    CHECK(res_uncon.cmd_q15[3] < -4000 &&
+          abs_i32(clipped_ty_q14 - w_pitch[2]) > 600 &&
+          res_box.cmd_q15[0] == 0 &&
+          res_box.cmd_q15[3] >= 0 && res_box.cmd_q15[3] <= 2 &&
+          abs_i32(res_box.pred_wrench_q14[0] - w_pitch[0]) < 128 &&
+          abs_i32(res_box.pred_wrench_q14[1] - w_pitch[1]) < 16 &&
+          abs_i32(res_box.pred_wrench_q14[2] - w_pitch[2]) < 16 &&
+          all_six_ok == 1,
+          "Hex6 active-set keeps u in [0, u_max] and <0.5% [Fz,Tx,Ty] error on all 6 rotor failures");
+}
+
+static void test_14_octo8_single_and_dual_rotor_loss(void)
+{
+    nc_shunting4d_t octo;
+    nc_alloc4d_result_t r1;
+    nc_alloc4d_result_t r2;
+    int32_t w_des[4] = { 40960, 820, -900, 140 };
+    int bounds_ok = 1;
+    uint8_t i;
+
+    nc_shunting4d_init_octo8(&octo, 320, 18);
+    (void)nc_shunting4d_set_health(&octo, 1u, 0);
+    (void)nc_shunting4d_allocate(&octo, w_des, &r1);
+
+    (void)nc_shunting4d_set_health(&octo, 4u, 0);
+    (void)nc_shunting4d_allocate(&octo, w_des, &r2);
+
+    for (i = 0u; i < 8u; ++i) {
+        if (r1.cmd_q15[i] < octo.u_min_q15[i] || r1.cmd_q15[i] > octo.u_max_q15[i] ||
+            r2.cmd_q15[i] < octo.u_min_q15[i] || r2.cmd_q15[i] > octo.u_max_q15[i]) {
+            bounds_ok = 0;
+        }
+    }
+
+    CHECK(bounds_ok == 1 &&
+          r1.cmd_q15[1] == 0 &&
+          r2.cmd_q15[1] == 0 && r2.cmd_q15[4] == 0 &&
+          abs_i32(r1.pred_wrench_q14[0] - w_des[0]) < 200 &&
+          abs_i32(r1.pred_wrench_q14[1] - w_des[1]) < 18 &&
+          abs_i32(r1.pred_wrench_q14[2] - w_des[2]) < 18 &&
+          abs_i32(r2.pred_wrench_q14[0] - w_des[0]) < 300 &&
+          abs_i32(r2.pred_wrench_q14[1] - w_des[1]) < 18 &&
+          abs_i32(r2.pred_wrench_q14[2] - w_des[2]) < 18,
+          "Octo8 [0, u_max] active-set survives 1 and 2 dead rotors with <1% [Fz,Tx,Ty] error");
+}
+
+static void test_15_usv_t200_asymmetric_and_deadzone(void)
+{
+    nc_shunting4d_t t200;
+    nc_alloc4d_result_t r_rev;
+    nc_alloc4d_result_t r_dz;
+    int32_t w_rev[3] = { -22000, 0, 3200 };
+    int32_t w_gentle[3] = { 2000, 0, 0 };
+    int asym_ok = 1;
+    int dz_ok = 1;
+    uint8_t i;
+
+    /* T200: -40.0 N reverse / +52.5 N forward -> u_min = -24965, deadzone = 1966 (6%) */
+    nc_shunting4d_init_usv_t200(&t200, 450, 350, -24965, 1966);
+    (void)nc_shunting4d_set_health(&t200, 2u, 0);
+    (void)nc_shunting4d_allocate(&t200, w_rev, &r_rev);
+
+    for (i = 0u; i < 4u; ++i) {
+        if (r_rev.cmd_q15[i] < t200.u_min_q15[i] || r_rev.cmd_q15[i] > t200.u_max_q15[i]) {
+            asym_ok = 0;
+        }
+    }
+
+    nc_shunting4d_init_usv_t200(&t200, 450, 350, -24965, 1966);
+    (void)nc_shunting4d_allocate(&t200, w_gentle, &r_dz);
+    for (i = 0u; i < 4u; ++i) {
+        int32_t au = abs_i32(r_dz.cmd_q15[i]);
+        if (au > 0 && au < 1966) {
+            dz_ok = 0;
+        }
+    }
+
+    printf("    T200 rev u=[%d,%d,%d,%d] Tz=%d | dz u=[%d,%d,%d,%d] Fx=%d\n",
+           (int)r_rev.cmd_q15[0], (int)r_rev.cmd_q15[1], (int)r_rev.cmd_q15[2], (int)r_rev.cmd_q15[3],
+           (int)r_rev.pred_wrench_q14[2],
+           (int)r_dz.cmd_q15[0], (int)r_dz.cmd_q15[1], (int)r_dz.cmd_q15[2], (int)r_dz.cmd_q15[3],
+           (int)r_dz.pred_wrench_q14[0]);
+
+    CHECK(asym_ok == 1 && dz_ok == 1 &&
+          r_rev.cmd_q15[2] == 0 &&
+          r_rev.cmd_q15[0] <= -24963 && r_rev.cmd_q15[0] >= -24965 &&
+          abs_i32(r_rev.pred_wrench_q14[2] - w_rev[2]) < 120 &&
+          abs_i32(r_dz.pred_wrench_q14[0] - w_gentle[0]) < 120,
+          "Asymmetric T200 [-40,+52.5 N] clamps reverse at -24965, preserves yaw, and clears deadzone");
+}
+
+static void test_16_esc_observer_broken_blade_fast_isolation(void)
+{
+    nc_esc_observer_t obs;
+    nc_esc_obs_result_t obs_res;
+    nc_shunting4d_t hex6;
+    nc_alloc4d_result_t alloc_res;
+    int32_t w_des[4] = { 32768, 0, -1092, 0 };
+    int detect_ms = -1;
+    int isolate_ms = -1;
+    int tick;
+    uint8_t i;
+
+    (void)nc_esc_observer_init(&obs, 6u, 11500, 450, 21500);
+    obs.tau_motor_ms = 0u;
+    nc_shunting4d_init_hex6(&hex6, 280, 18);
+    hex6.tau_act_ms = 0u;
+
+    (void)nc_shunting4d_step(&hex6, w_des, NULL, 5u, &alloc_res);
+
+    /* 200 Hz telemetry (5 ms/tick): Rotor 0 loses blade -> spins freely at normal RPM, 8% load current */
+    for (tick = 1; tick <= 20; ++tick) {
+        int32_t rpm[6];
+        int32_t cur_ma[6];
+        for (i = 0u; i < 6u; ++i) {
+            uint32_t su = nc_isqrt_u64((uint64_t)(uint32_t)alloc_res.cmd_q15[i] * (uint64_t)NC_Q15_ONE);
+            int32_t r_nom = (int32_t)(((int64_t)11500 * (int64_t)su) / NC_Q15_ONE);
+            int32_t nr_q15 = (int32_t)(((int64_t)r_nom * NC_Q15_ONE) / 11500);
+            int32_t r3_q15 = (int32_t)((((int64_t)nr_q15 * nr_q15) / NC_Q15_ONE * nr_q15) / NC_Q15_ONE);
+            int32_t load_ma = (int32_t)(((int64_t)21500 * r3_q15) / NC_Q15_ONE);
+            rpm[i] = r_nom;
+            cur_ma[i] = 450 + ((i == 0u) ? (load_ma / 15) : load_ma);
+        }
+        (void)nc_esc_observer_update(&obs, alloc_res.cmd_q15, rpm, cur_ma, 5u, &obs_res);
+        if (detect_ms < 0 && (obs_res.broken_prop_mask & 1u) != 0u) {
+            detect_ms = tick * 5;
+        }
+        (void)nc_shunting4d_step(&hex6, w_des, obs_res.est_thrust_q15, 5u, &alloc_res);
+        if (isolate_ms < 0 && (alloc_res.isolated_mask & 1u) != 0u) {
+            isolate_ms = tick * 5;
+        }
+    }
+
+    printf("    ESC broken-blade R0 detected at %d ms, shunted at %d ms | Fz=%d, Ty=%d\n",
+           detect_ms, isolate_ms,
+           (int)alloc_res.pred_wrench_q14[0], (int)alloc_res.pred_wrench_q14[2]);
+
+    CHECK(detect_ms > 0 && detect_ms < 50 &&
+          isolate_ms > 0 && isolate_ms <= 50 &&
+          alloc_res.cmd_q15[0] == 0 &&
+          abs_i32(alloc_res.pred_wrench_q14[0] - w_des[0]) < 128 &&
+          abs_i32(alloc_res.pred_wrench_q14[2] - w_des[2]) < 16,
+          "Sensorless ESC observer catches broken blade in <50 ms & shunts Hex6 R0 cleanly");
+}
+
+static void test_17_esc_observer_weed_foul_overcurrent_and_stall(void)
+{
+    nc_esc_observer_t obs;
+    nc_esc_obs_result_t res;
+    int16_t cmd_q15[4] = { 24000, 24000, 24000, 24000 };
+    int32_t rpm[4];
+    int32_t cur_ma[4];
+    int oc_ms = -1;
+    int stall_ms = -1;
+    int tick;
+
+    /* T200 ESC observer: 3900 RPM max, 500 mA idle, 23500 mA full cubic load */
+    (void)nc_esc_observer_init(&obs, 4u, 3900, 500, 23500);
+    obs.tau_motor_ms = 0u;
+
+    /* T0,T3 nominal (~3337 RPM, ~15000 mA); T1 open-phase stalled (0 RPM, 0 mA);
+     * T2 weed-fouled (sagged to 2100 RPM = 63% speed, current spikes to 26000 mA > 1.6x I_exp) */
+    rpm[0] = 3337; cur_ma[0] = 15000;
+    rpm[1] = 0;    cur_ma[1] = 0;
+    rpm[2] = 2100; cur_ma[2] = 26000;
+    rpm[3] = 3337; cur_ma[3] = 15000;
+
+    for (tick = 1; tick <= 10; ++tick) {
+        (void)nc_esc_observer_update(&obs, cmd_q15, rpm, cur_ma, 5u, &res);
+        if (oc_ms < 0 && (res.overcurrent_mask & (1u << 2)) != 0u) {
+            oc_ms = tick * 5;
+        }
+        if (stall_ms < 0 && (res.stall_mask & (1u << 1)) != 0u) {
+            stall_ms = tick * 5;
+        }
+    }
+
+    CHECK(oc_ms > 0 && oc_ms < 50 &&
+          stall_ms > 0 && stall_ms < 50 &&
+          res.fault_code[0] == (uint8_t)NC_ESC_OK &&
+          res.fault_code[1] == (uint8_t)NC_ESC_FAULT_STALL_OPEN &&
+          res.fault_code[2] == (uint8_t)NC_ESC_FAULT_OVERCURR &&
+          res.est_thrust_q15[1] == 0 &&
+          res.est_thrust_q15[2] < 5000,
+          "ESC observer flags weed-foul >1.6x overcurrent & open-phase stall in <50 ms");
+}
+
+static void test_18_hexapod_18servo_3dof_ik_and_pentapod_parking(void)
+{
+    static const int16_t k_hx[6] = { +120, +120,    0,    0, -120, -120 };
+    static const int16_t k_hy[6] = {  +55,  -55,  +65,  -65,  +55,  -55 };
+    static const uint16_t k_mbam[6] = { 8192u, 57344u, 16384u, 49152u, 24576u, 40960u };
+    nc_hexapod_ik_cfg_t cfg;
+    nc_cpg_cord_t cpg;
+    nc_cpg_state_t st;
+    nc_hexapod_ik_out_t ik;
+    nc_descending_frame_t cmd;
+    int pwm_ok = 1;
+    int fk_ok = 1;
+    int step;
+    uint8_t i;
+    uint8_t j;
+
+    nc_hexapod_ik_default_cfg(&cfg);
+    nc_cpg_init(&cpg, 1u);
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.drive_fwd_q15 = 26000;
+
+    /* Intact Tripod gait check + integer FK verification */
+    for (step = 0; step < 60; ++step) {
+        (void)nc_cpg_step(&cpg, &cmd, 10u, &st);
+        (void)nc_hexapod_ik_3dof(&cfg, &cpg, &st, &ik);
+        if (ik.reachable_mask != 0x3Fu || ik.parked_mask != 0u) {
+            pwm_ok = 0;
+        }
+        for (i = 0u; i < 6u; ++i) {
+            for (j = 0u; j < 3u; ++j) {
+                if (ik.pwm_us[i][j] < 1000u || ik.pwm_us[i][j] > 2000u) {
+                    pwm_ok = 0;
+                }
+            }
+        }
+    }
+
+    /* Integer forward kinematics check on all 6 legs */
+    for (i = 0u; i < 6u; ++i) {
+        uint16_t coxa_bam = (uint16_t)((int32_t)k_mbam[i] + ((int32_t)ik.coxa_cdeg[i] * 32768) / 18000);
+        uint16_t fem_bam = (uint16_t)(((int32_t)ik.femur_cdeg[i] * 32768) / 18000);
+        uint16_t knee_bam = (uint16_t)((int32_t)fem_bam - 16384 + ((int32_t)ik.tibia_cdeg[i] * 32768) / 18000);
+        int32_t r_fem = ((int32_t)cfg.l_femur_mm * nc_cos_bam_q15(fem_bam)
+                       + (int32_t)cfg.l_tibia_mm * nc_cos_bam_q15(knee_bam)) / NC_Q15_ONE;
+        int32_t r_tot = cfg.l_coxa_mm + r_fem;
+        int32_t fx_fk = k_hx[i] + (r_tot * nc_cos_bam_q15(coxa_bam)) / NC_Q15_ONE;
+        int32_t fy_fk = k_hy[i] + (r_tot * nc_sin_bam_q15(coxa_bam)) / NC_Q15_ONE;
+        int32_t fz_fk = cfg.body_z_mm
+                      + ((int32_t)cfg.l_femur_mm * nc_sin_bam_q15(fem_bam)
+                       + (int32_t)cfg.l_tibia_mm * nc_sin_bam_q15(knee_bam)) / NC_Q15_ONE;
+        if (abs_i32(fx_fk - st.foot_x_mm[i]) > 2 ||
+            abs_i32(fy_fk - st.foot_y_mm[i]) > 2 ||
+            abs_i32(fz_fk - ik.foot_z_mm[i]) > 2) {
+            fk_ok = 0;
+        }
+    }
+
+    /* Amputate L2 -> pentapod walk with L2 parked safely at z = +45 mm */
+    (void)nc_cpg_set_limb_health(&cpg, 2u, 0);
+    for (step = 0; step < 60; ++step) {
+        (void)nc_cpg_step(&cpg, &cmd, 10u, &st);
+        (void)nc_hexapod_ik_3dof(&cfg, &cpg, &st, &ik);
+        if (ik.parked_mask != (1u << 2) || ik.foot_z_mm[2] != 45 || ik.reachable_mask != 0x3Fu) {
+            pwm_ok = 0;
+        }
+        for (i = 0u; i < 6u; ++i) {
+            for (j = 0u; j < 3u; ++j) {
+                if (ik.pwm_us[i][j] < 1000u || ik.pwm_us[i][j] > 2000u) {
+                    pwm_ok = 0;
+                }
+            }
+        }
+    }
+
+    CHECK(pwm_ok == 1 && fk_ok == 1 && st.active_gait == (uint8_t)NC_GAIT_PENTAPOD,
+          "18-servo 3-DOF integer IK matches FK (<=2 mm), keeps 1000..2000 us, & parks L2 at +45 mm");
+}
+
+static void run_timing_benchmark(void)
+{
+    nc_shunting4d_t hex6;
+    nc_alloc4d_result_t ares;
+    nc_esc_observer_t obs;
+    nc_esc_obs_result_t ores;
+    nc_cpg_cord_t cpg;
+    nc_cpg_state_t cst;
+    nc_hexapod_ik_cfg_t ik_cfg;
+    nc_hexapod_ik_out_t ik_out;
+    nc_descending_frame_t cmd;
+    int32_t w_des[4] = { 32768, 300, -1092, 0 };
+    int32_t rpm[6] = { 0, 8200, 7900, 0, 7900, 8200 };
+    int32_t cur[6] = { 450, 8100, 7400, 450, 7400, 8100 };
+    clock_t t0, t1;
+    long elapsed_us;
+    int iter;
+
+    nc_shunting4d_init_hex6(&hex6, 280, 18);
+    (void)nc_shunting4d_set_health(&hex6, 0u, 0);
+    (void)nc_esc_observer_init(&obs, 6u, 11500, 450, 21500);
+    nc_cpg_init(&cpg, 1u);
+    (void)nc_cpg_set_limb_health(&cpg, 2u, 0);
+    nc_hexapod_ik_default_cfg(&ik_cfg);
+    memset(&cmd, 0, sizeof(cmd));
+    cmd.drive_fwd_q15 = 26000;
+
+    t0 = clock();
+    for (iter = 0; iter < 10000; ++iter) {
+        (void)nc_esc_observer_update(&obs, ares.cmd_q15, rpm, cur, 5u, &ores);
+        (void)nc_shunting4d_allocate(&hex6, w_des, &ares);
+        (void)nc_cpg_step(&cpg, &cmd, 5u, &cst);
+        (void)nc_hexapod_ik_3dof(&ik_cfg, &cpg, &cst, &ik_out);
+    }
+    t1 = clock();
+    elapsed_us = (long)(((int64_t)(t1 - t0) * 1000000) / CLOCKS_PER_SEC);
+    printf("    Timing (10,000 full ticks of ESC + 4-DOF Hex6 Active-Set + CPG + 18-DOF IK): "
+           "%ld us total (~%ld ns/tick)\n",
+           elapsed_us, (elapsed_us * 100L) / 1000L);
+}
+
 int main(void)
 {
-    printf("=== NeckCord v1.1.0 ANSI C99 Fixed-Point Self-Test ===\n");
+    printf("=== NeckCord v2.0.0 ANSI C99 Fixed-Point Self-Test (18 Tests) ===\n");
     test_1_static_ram_budget();
     test_2_trig_lut_accuracy();
     test_3_cervical_roundtrip_and_python_parity();
@@ -450,6 +887,14 @@ int main(void)
     test_9_usv4_fault_isolation_and_zero_spin_rebalance();
     test_10_octo8_dual_fault_rebalance();
     test_11_recovery_probe();
+    test_12_integer_math_isqrt_atan2_acos();
+    test_13_hex6_unidirectional_motor_loss_survival();
+    test_14_octo8_single_and_dual_rotor_loss();
+    test_15_usv_t200_asymmetric_and_deadzone();
+    test_16_esc_observer_broken_blade_fast_isolation();
+    test_17_esc_observer_weed_foul_overcurrent_and_stall();
+    test_18_hexapod_18servo_3dof_ik_and_pentapod_parking();
+    run_timing_benchmark();
 
     printf("=== Summary: %d/%d passed, %d failed ===\n",
            g_passed, g_passed + g_failed, g_failed);

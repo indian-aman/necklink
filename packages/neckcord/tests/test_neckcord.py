@@ -1,7 +1,8 @@
-"""Comprehensive test suite for `neckcord` v1.1.0."""
+"""Comprehensive test suite for `neckcord` v2.0.0 (including 100% v1.1.0 backward compatibility)."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import math
 from pathlib import Path
@@ -9,11 +10,15 @@ import re
 import numpy as np
 import pytest
 
+import neckcord
 from neckcord import (
     CervicalBottleneckLink,
     CervicalCRCError,
     DescendingFrame,
+    ESCFaultCode,
+    ESCObserver,
     GaitMode,
+    HexapodLegIK,
     LIMB_NAMES,
     SegmentalCPGCord,
     ShuntingThrusterCord,
@@ -444,3 +449,233 @@ def test_crc4_documented_multibit_escape_rate() -> None:
         except CervicalCRCError:
             pass
     assert 0.04 < accepted / len(words) < 0.08
+
+
+# =========================================================================
+# NeckCord v2.0.0 Test Suite
+# =========================================================================
+
+
+def test_v2_version_and_cervical_wrench_4d() -> None:
+    """Verify v2.0.0 version string and 4-DOF aerial wrench decoding."""
+    assert neckcord.__version__ == "2.0.0"
+    f_nom = DescendingFrame(drive_fwd=0.5, turn_yaw=-0.4, strafe_lat=0.25)
+    w4 = f_nom.to_wrench_4d(hover_thrust=36.0, max_pitch=3.0, max_roll=3.0, max_yaw=0.6)
+    assert w4.shape == (4,)
+    assert w4[0] == pytest.approx(36.0)
+    assert w4[1] == pytest.approx(-0.75)
+    assert w4[2] == pytest.approx(1.50)
+    assert w4[3] == pytest.approx(-0.24)
+
+    f_freeze = DescendingFrame(drive_fwd=0.8, freeze_reflex=True)
+    assert np.allclose(f_freeze.to_wrench_4d(), np.zeros(4))
+
+
+@pytest.mark.parametrize("dead_rotor", range(6))
+def test_v2_multicopter_hex6_motor_loss_vs_unconstrained_pinv(dead_rotor: int) -> None:
+    """Prove Hex6 active-set keeps u in [0, u_max] & <2% hover error where unconstrained pinv fails."""
+    hex6 = ShuntingThrusterCord.multicopter_hex_6(arm_m=0.28, k_yaw=0.018, u_max=18.0)
+    hex6.set_actuator_health(dead_rotor, 0.0)
+
+    # Command hover Fz=36 N + pitch/roll demanding moment from the failed rotor's arm
+    ang = 2.0 * math.pi * dead_rotor / 6.0
+    tx_cmd = +1.20 * math.sin(ang)
+    ty_cmd = -1.20 * math.cos(ang)
+    w_des = np.array([36.0, tx_cmd, ty_cmd, 0.0], dtype=np.float64)
+
+    # Classical unconstrained 4-DOF pseudo-inverse EVEN WITH oracle FDI dropping dead_rotor:
+    w_surv = hex6.W.copy()
+    w_surv[:, dead_rotor] = 0.0
+    u_pinv = np.linalg.pinv(w_surv) @ w_des
+    assert float(np.min(u_pinv)) < -2.0, "Unconstrained 4-DOF pinv commands illegal negative rotor thrust"
+
+    # Physical rotors clip at u >= 0 -> naive clipping loses >50% of attitude restoration torque
+    u_clipped = np.clip(u_pinv, 0.0, 18.0)
+    w_clipped = w_surv @ u_clipped
+    att_err_clipped = np.linalg.norm(w_clipped[1:3] - w_des[1:3]) / np.linalg.norm(w_des[1:3])
+    assert att_err_clipped > 0.50
+
+    # NeckCord v2.0 box-constrained active-set with attitude-over-yaw priority:
+    res = hex6.allocate(w_des)
+    assert res.commands[dead_rotor] == 0.0
+    assert np.all(res.commands >= -1e-9) and np.all(res.commands <= 18.0 + 1e-9)
+    w_deliv = w_surv @ res.commands
+    fz_rel_err = abs(w_deliv[0] - w_des[0]) / w_des[0]
+    att_rel_err = float(np.linalg.norm(w_deliv[1:3] - w_des[1:3]) / np.linalg.norm(w_des[1:3]))
+    assert fz_rel_err < 0.02
+    assert att_rel_err < 0.02
+
+
+def test_v2_multicopter_octo8_single_and_dual_rotor_loss() -> None:
+    """Prove 8-rotor [0, u_max] octocopter survives 1 and 2 dead rotors within <2% error."""
+    octo = ShuntingThrusterCord.multicopter_octo_8(arm_m=0.32, k_yaw=0.018, u_max=16.0)
+    w_des = np.array([44.0, 0.90, -1.10, 0.15], dtype=np.float64)
+
+    octo.set_actuator_health(1, 0.0)
+    r1 = octo.allocate(w_des)
+    assert r1.commands[1] == 0.0
+    assert np.all(r1.commands >= 0.0) and np.all(r1.commands <= 16.0 + 1e-9)
+    assert abs(r1.predicted_wrench[0] - w_des[0]) / w_des[0] < 0.02
+    assert np.linalg.norm(r1.predicted_wrench[1:3] - w_des[1:3]) / np.linalg.norm(w_des[1:3]) < 0.02
+
+    octo.set_actuator_health(4, 0.0)
+    r2 = octo.allocate(w_des)
+    assert r2.commands[1] == 0.0 and r2.commands[4] == 0.0
+    assert np.all(r2.commands >= 0.0) and np.all(r2.commands <= 16.0 + 1e-9)
+    assert abs(r2.predicted_wrench[0] - w_des[0]) / w_des[0] < 0.02
+    assert np.linalg.norm(r2.predicted_wrench[1:3] - w_des[1:3]) / np.linalg.norm(w_des[1:3]) < 0.02
+
+
+def test_v2_usv_t200_asymmetric_bounds_and_deadzone() -> None:
+    """BlueRobotics T200 (-40 N / +52.5 N + deadzone) respects asymmetric limits and clears deadband."""
+    t200 = ShuntingThrusterCord.usv_t200_vectored_4(
+        lx=0.45, ly=0.35, u_min=-40.0, u_max=52.5, deadzone=2.5
+    )
+    t200.set_actuator_health(2, 0.0)  # Port-Aft fouled
+
+    w_rev = np.array([-75.0, 0.0, 10.0], dtype=np.float64)
+    res_rev = t200.allocate(w_rev)
+    assert res_rev.commands[2] == 0.0
+    assert np.all(res_rev.commands >= -40.0 - 1e-7)
+    assert np.all(res_rev.commands <= 52.5 + 1e-7)
+    assert res_rev.commands[0] == pytest.approx(-40.0, abs=1e-3)
+    assert res_rev.predicted_wrench[2] == pytest.approx(10.0, abs=0.15)
+
+    # Gentle surge where symmetric 4-way split (~1.77 N) would stall inside (-2.5, +2.5) N deadzone
+    t200_intact = ShuntingThrusterCord.usv_t200_vectored_4(deadzone=2.5)
+    w_gentle = np.array([5.0, 0.0, 0.0], dtype=np.float64)
+    res_dz = t200_intact.allocate(w_gentle)
+    for u_val in res_dz.commands:
+        assert u_val == 0.0 or abs(float(u_val)) >= 2.5 - 1e-7
+    assert res_dz.predicted_wrench[0] == pytest.approx(5.0, abs=0.05)
+
+
+def test_v2_esc_observer_broken_blade_stall_and_overcurrent() -> None:
+    """Sensorless ESC observer catches broken blade (<50 ms), open-phase stall, and >1.6x weed foul."""
+    obs = ESCObserver.multicopter_hex_6(u_nom=18.0, tau_motor=0.0)
+    hex6 = ShuntingThrusterCord.multicopter_hex_6(u_max=18.0, tau_actuator=0.0, tau_fault=0.018)
+    w_des = np.array([36.0, 0.0, -1.20, 0.0], dtype=np.float64)
+
+    alloc = hex6.step(w_des, dt=0.005)
+    detect_ms: float | None = None
+    for tick in range(1, 16):
+        u = alloc.commands
+        rpm = obs.rpm_max * np.sqrt(np.clip(u / 18.0, 0.0, 1.0))
+        cur = obs.i_idle_a + obs.k_load_a * ((rpm / obs.rpm_max) ** 3)
+        # Rotor 0 shears a blade: spins at normal RPM, aerodynamic current collapses to 5% load
+        cur[0] = float(obs.i_idle_a + 0.05 * obs.k_load_a * ((rpm[0] / obs.rpm_max) ** 3))
+
+        esc_res = obs.update(u, rpm, cur, dt=0.005)
+        if detect_ms is None and bool(esc_res.broken_prop_mask[0]):
+            detect_ms = tick * 5.0
+        alloc = hex6.step(w_des, feedback_thrust=esc_res.estimated_thrust, dt=0.005)
+
+    assert detect_ms is not None and detect_ms < 50.0
+    assert bool(alloc.isolated_mask[0]) is True
+    assert alloc.commands[0] == 0.0
+    assert abs(alloc.predicted_wrench[0] - 36.0) / 36.0 < 0.02
+    assert abs(alloc.predicted_wrench[2] - (-1.20)) / 1.20 < 0.02
+
+    # Also verify integrated `esc_observer` pathway on USV T200 for stall + weed-fouled overcurrent
+    obs_usv = ESCObserver.usv_t200_4(tau_motor=0.0)
+    usv = ShuntingThrusterCord.usv_t200_vectored_4(tau_actuator=0.0, tau_fault=0.02)
+    u_cmd = np.array([35.0, 35.0, 35.0, 35.0])
+    rpm_nom = float(obs_usv.rpm_max * math.sqrt(35.0 / 52.5))
+    cur_nom = float(obs_usv.i_idle_a + obs_usv.k_load_a * ((rpm_nom / obs_usv.rpm_max) ** 3))
+
+    rpm_vec = np.array([rpm_nom, 0.0, 0.62 * rpm_nom, rpm_nom])
+    cur_vec = np.array([cur_nom, 0.0, 26.0, cur_nom])  # T1 open-phase stall, T2 >1.6x weed-fouled
+    for _ in range(5):
+        r_usv = obs_usv.update(u_cmd, rpm_vec, cur_vec, dt=0.005)
+
+    assert r_usv.fault_codes[0] == int(ESCFaultCode.NONE)
+    assert r_usv.fault_codes[1] == int(ESCFaultCode.STALL_OR_OPEN)
+    assert bool(r_usv.stall_mask[1]) is True
+    assert r_usv.fault_codes[2] == int(ESCFaultCode.OVERCURRENT_FOUL)
+    assert bool(r_usv.overcurrent_mask[2]) is True
+
+    step_res = usv.step(
+        np.array([40.0, 0.0, 0.0]),
+        esc_observer=obs_usv,
+        esc_rpm=rpm_vec,
+        esc_current_a=cur_vec,
+        dt=0.02,
+    )
+    assert step_res.esc_result is not None
+    assert bool(step_res.esc_result.overcurrent_mask[2]) is True
+
+
+def test_v2_hexapod_leg_ik_3dof_fk_roundtrip_and_pentapod_parking() -> None:
+    """Verify exact 3-DOF FK/IK roundtrip, 18-servo 1000..2000 us bounds, and +45 mm parking."""
+    ik = HexapodLegIK()
+    targets_mm = np.array(
+        [
+            [+210.0, +135.0, 0.0],
+            [+195.0, -125.0, 18.0],
+            [+15.0, +165.0, 0.0],
+            [-10.0, -160.0, 25.0],
+            [-205.0, +135.0, 0.0],
+            [-190.0, -130.0, 12.0],
+        ],
+        dtype=np.float64,
+    )
+    res_ik = ik.solve_all(targets_mm)
+    assert np.all(res_ik.reachable_mask)
+    assert np.all((res_ik.pwm_us >= 1000) & (res_ik.pwm_us <= 2000))
+    fk_mm = ik.forward_all(res_ik.angles_deg)
+    assert np.allclose(fk_mm, targets_mm, atol=1e-6)
+
+    # Integrated CPG + 18-servo IK during intact Tripod and L2-amputated Pentapod walking
+    cpg = SegmentalCPGCord(adapt_to_damage=True, ik=ik)
+    cmd = DescendingFrame(drive_fwd=0.85)
+    for _ in range(40):
+        st = cpg.step(cmd, dt=0.01)
+        assert st.leg_ik is not None
+        assert np.all(st.leg_ik.reachable_mask)
+        assert not np.any(st.leg_ik.parked_mask)
+        assert np.all((st.leg_ik.pwm_us >= 1000) & (st.leg_ik.pwm_us <= 2000))
+
+    cpg.inject_limb_fault("L2")
+    for _ in range(50):
+        st = cpg.step(cmd, dt=0.01)
+    assert st.active_gait == "adaptive_pentapod"
+    assert st.leg_ik is not None
+    assert bool(st.leg_ik.parked_mask[2]) is True
+    assert st.leg_ik.foot_xyz_mm[2, 2] == pytest.approx(45.0, abs=1e-6)
+    assert np.all((st.leg_ik.pwm_us >= 1000) & (st.leg_ik.pwm_us <= 2000))
+
+
+def test_v2_arduino_library_structure_and_sha256_c99_parity() -> None:
+    """Verify Arduino library layout, zero-FP/heap rules, and SHA-256 byte-identity with csrc/."""
+    root = Path(__file__).resolve().parents[1]
+    csrc = root / "csrc"
+    ard = root / "arduino" / "NeckCord"
+
+    props_text = (ard / "library.properties").read_text(encoding="utf-8")
+    props = dict(
+        line.split("=", 1)
+        for line in props_text.splitlines()
+        if "=" in line and not line.strip().startswith("#")
+    )
+    assert props["name"] == "NeckCord"
+    assert props["version"] == "2.0.0"
+    assert props["architectures"] == "*"
+
+    sketch = (
+        ard
+        / "examples"
+        / "ESP32_Multicopter_USV_FaultRecovery"
+        / "ESP32_Multicopter_USV_FaultRecovery.ino"
+    )
+    assert sketch.is_file()
+    assert (ard / "src" / "NeckCord.h").is_file()
+
+    forbidden = re.compile(r"\b(float|double|malloc|calloc|realloc|free)\b")
+    for rel in (Path("NeckCord.h"), Path("csrc/neckcord.h"), Path("csrc/neckcord.c")):
+        text = (ard / "src" / rel).read_text(encoding="utf-8")
+        assert forbidden.findall(text) == [], f"Forbidden token in arduino/NeckCord/src/{rel}"
+
+    for mirrored in ("neckcord.h", "neckcord.c"):
+        h_csrc = hashlib.sha256((csrc / mirrored).read_bytes()).hexdigest()
+        h_ard = hashlib.sha256((ard / "src" / "csrc" / mirrored).read_bytes()).hexdigest()
+        assert h_csrc == h_ard, f"SHA-256 mismatch between csrc/{mirrored} and arduino mirror"

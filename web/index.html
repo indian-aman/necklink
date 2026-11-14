@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NeckLink — Fruit-Fly Brain Edge Autonomy &amp; Wire Suite</title>
-  <meta name="description" content="Connectome-inspired perception, navigation, motor-reflex, and loss-healing wire primitives distilled from the adult Drosophila brain into zero-float ANSI C99 and Python SDKs.">
+  <title>NeckLink v2.0 — Adult Drosophila Connectome Edge Autonomy &amp; Wire Suite</title>
+  <meta name="description" content="Whole-CNS perception, 9-DOF navigation, fault-tolerant motor reflexes, continual Mushroom Body learning, and loss-healing wire primitives distilled from 157,789 proofread adult Drosophila BANC v888 neurons into zero-float ANSI C99, WebAssembly, ESP32, and Python.">
   <link rel="canonical" href="https://indian-aman.github.io/necklink/">
-  <meta property="og:title" content="NeckLink — Fruit-Fly Brain Edge Autonomy &amp; Wire Suite">
-  <meta property="og:description" content="Five connectome-inspired neuromorphic engines in zero-float ANSI C99 and Python for lossy radios, GPS-denied vessels, and microcontrollers.">
+  <meta property="og:title" content="NeckLink v2.0 — Fruit-Fly Brain Edge Autonomy &amp; Wire Suite">
+  <meta property="og:description" content="Entire 4-organ adult Drosophila CNS + MAVLink v2 survival copilot in 23.37 KB of zero-float ANSI C99 RAM (38.8 KB WASM), plus NLTP v1.6.0.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://indian-aman.github.io/necklink/">
   <meta property="og:image" content="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/necklink_brand_banner.png">
@@ -53,7 +53,7 @@
       </div>
       <div class="intro-wordmark">
         <div class="intro-title">Neck<span>Link</span></div>
-        <div class="intro-subtitle">Fruit-fly brain edge autonomy</div>
+        <div class="intro-subtitle">Adult Drosophila CNS edge autonomy</div>
       </div>
     </div>
     <button id="skip-intro-btn" class="intro-skip" type="button" tabindex="-1">Skip</button>
@@ -74,7 +74,7 @@
         <nav class="nav-links" id="nav-links" aria-label="Primary">
           <a href="#modules">Modules</a>
           <a href="#architecture">Architecture</a>
-          <a href="#simulator">Simulator</a>
+          <a href="#simulator">WASM Simulator</a>
           <a href="#benchmarks">Benchmarks</a>
           <a href="#install">Install</a>
         </nav>
@@ -101,25 +101,24 @@
       <section class="hero">
         <div class="hero-glow" aria-hidden="true"></div>
         <div class="container hero-inner">
-          <a class="release-pill" href="https://pypi.org/project/pynltp/1.4.0/" target="_blank" rel="noopener">
-            <span class="release-tag">v1.4.0</span>
-            <span><span class="hide-sm">Latest release: </span>NLTP v1.4.0 + Organ Suite v1.1.0</span>
+          <a class="release-pill" href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener">
+            <span class="release-tag">v2.0.0</span>
+            <span><span class="hide-sm">Latest release: </span>Whole-CNS &amp; Organ Suite v2.0.0 + NLTP v1.6.0</span>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
           </a>
 
           <h1>Tiny brains.<br><span class="gradient-text">Unbreakable autonomy.</span></h1>
 
           <p class="hero-lead">
-            Five open-source engines modelled on the fruit-fly central nervous system, built for lossy radios,
-            GPS-denied vessels, micro-drones and $4 microcontrollers, with zero heap allocations.
+            Six open-source engines empirically grounded in the 157,789-neuron adult <em>Drosophila</em> BANC v888 connectome — fitting a complete 4-organ survival copilot plus MAVLink v2 inside 23.37 KB of zero-float, zero-heap ANSI C99 RAM for GPS-denied vessels, multirotors, legged robots, and $4 microcontrollers.
           </p>
 
           <div class="hero-cta">
-            <a href="#install" class="btn btn-primary">
-              Get started
+            <a href="#simulator" class="btn btn-primary">
+              Try live C99 WASM + Webcam
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
             </a>
-            <a href="#architecture" class="btn btn-secondary">Explore the architecture</a>
+            <a href="#architecture" class="btn btn-secondary">Explore the BANC v888 CNS</a>
           </div>
 
           <div class="terminal" id="install">
@@ -127,21 +126,21 @@
               <span class="terminal-dots" aria-hidden="true"><i></i><i></i><i></i></span>
               <div class="terminal-tabs" role="tablist" aria-label="Install command">
                 <button class="terminal-tab active" role="tab" aria-selected="true" type="button"
-                        data-cmd="pip install pynltp neckcompass necksight neckcord necksense">Python</button>
+                        data-cmd="pip install necklink pynltp necklink-cns neckcompass necksight neckcord necksense">Python</button>
                 <button class="terminal-tab" role="tab" aria-selected="false" type="button"
-                        data-cmd="necklink suite-demo --loss 0.15">5-module demo</button>
+                        data-cmd="necklink-cns demo --vehicle hexacopter">Whole-CNS demo</button>
                 <button class="terminal-tab" role="tab" aria-selected="false" type="button"
-                        data-cmd="npm install https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-js-1.2.0.tgz">JavaScript</button>
+                        data-cmd="necklink suite-demo --loss 0.15">NLTP reflex demo</button>
                 <button class="terminal-tab" role="tab" aria-selected="false" type="button"
-                        data-cmd="curl -LO https://github.com/indian-aman/necklink/releases/download/v1.2.0/nltp-java-1.2.0.jar">Java</button>
+                        data-cmd="pio ci --board=esp32dev --lib=packages/necklink_cns/arduino/NeckLinkCNS packages/necklink_cns/arduino/NeckLinkCNS/examples/ESP32_MAVLink_Survival_Copilot/ESP32_MAVLink_Survival_Copilot.ino">ESP32 MAVLink</button>
                 <button class="terminal-tab" role="tab" aria-selected="false" type="button"
-                        data-cmd="lib_deps = https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip">ESP32</button>
+                        data-cmd="make -C packages/necklink_cns/csrc clean all test">C99 (23.4 KB)</button>
                 <button class="terminal-tab" role="tab" aria-selected="false" type="button"
-                        data-cmd="make -C csrc all test">C99</button>
+                        data-cmd="pip install pynltp==1.6.0">NLTP v1.6.0</button>
               </div>
             </div>
             <div class="terminal-body">
-              <code><span class="prompt" aria-hidden="true">$</span> <span id="install-code">pip install pynltp neckcompass necksight neckcord necksense</span></code>
+              <code><span class="prompt" aria-hidden="true">$</span> <span id="install-code">pip install necklink pynltp necklink-cns neckcompass necksight neckcord necksense</span></code>
               <button id="copy-cmd-btn" class="copy-btn" type="button" aria-label="Copy command">
                 <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
                 <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
@@ -150,9 +149,9 @@
           </div>
 
           <p class="hero-meta">
-            <span>Distilled from 325,354 adult <em>Drosophila</em> neurons</span>
+            <span>Grounded in 157,789 proofread <em>BANC v888</em> CNS neurons (23.55M synapses)</span>
             <span class="dot-sep" aria-hidden="true"></span>
-            <span>Python, ANSI C99, JavaScript, Java and ESP32</span>
+            <span>Python, zero-float ANSI C99, WebAssembly (38.8 KB), JS, Java &amp; ESP32</span>
             <span class="dot-sep" aria-hidden="true"></span>
             <span>MIT licensed</span>
           </p>
@@ -163,29 +162,29 @@
       <section class="container" aria-label="Headline results">
         <dl class="metrics">
           <div class="metric" style="--c: var(--compass)">
-            <dt>Compass heading error under 70°–150° spikes</dt>
-            <dd><span class="metric-val">0.44</span>° RMSE</dd>
-            <dd class="metric-sub">NeckCompass, on par with a gated EKF</dd>
+            <dt>6-DOF ±25° wave tilt + 130° spike error</dt>
+            <dd><span class="metric-val">0.90</span>° RMS</dd>
+            <dd class="metric-sub">NeckCompass v2.0 (beats 3σ-EKF 1.48° &amp; Madgwick 4.90°)</dd>
           </div>
           <div class="metric" style="--c: var(--sight)">
-            <dt>Looming detection AUROC</dt>
-            <dd><span class="metric-val">0.999</span></dd>
-            <dd class="metric-sub">NeckSight, synthetic clutter, ~12k FPS in C99</dd>
+            <dt>3D MuJoCo camera looming AUROC</dt>
+            <dd><span class="metric-val">0.984</span></dd>
+            <dd class="metric-sub">NeckSight v2.0 (85.7% thin-pole recall vs 0% Farneback/LK)</dd>
           </div>
           <div class="metric" style="--c: var(--cord)">
-            <dt>Fouled-thruster isolation</dt>
-            <dd><span class="metric-val">42</span> ms</dd>
-            <dd class="metric-sub">NeckCord, with recovery probing</dd>
+            <dt>Whole-CNS + MAVLink v2 static SRAM</dt>
+            <dd><span class="metric-val">23.37</span> KB</dd>
+            <dd class="metric-sub">NeckLink CNS v2.0 (~5,000 Hz C99 · 38.8 KB WASM)</dd>
           </div>
           <div class="metric" style="--c: var(--sense)">
-            <dt>One-shot novelty AUROC in 4 KB</dt>
-            <dd><span class="metric-val">0.994</span></dd>
-            <dd class="metric-sub">NeckSense, integer-only C99</dd>
+            <dt>Real CWRU variable-load bearing AUROC</dt>
+            <dd><span class="metric-val">1.000</span></dd>
+            <dd class="metric-sub">NeckSense v2.0 (&lt;5.8 KB RAM · 93.4% continual LTM)</dd>
           </div>
           <div class="metric" style="--c: var(--nltp)">
-            <dt>Encrypted interop checks</dt>
-            <dd><span class="metric-val">216/216</span></dd>
-            <dd class="metric-sub">NLTP, Python ↔ C99 ↔ JS ↔ Java</dd>
+            <dt>Encrypted cross-language checks</dt>
+            <dd><span class="metric-val">248/248</span></dd>
+            <dd class="metric-sub">NLTP v1.6.0 · Python ↔ C99 ↔ JS ↔ Java + 4.76 KB MCU</dd>
           </div>
         </dl>
       </section>
@@ -194,8 +193,8 @@
       <section id="modules" class="section container">
         <div class="section-head">
           <p class="kicker">Modules</p>
-          <h2>Five standalone modules. One architecture.</h2>
-          <p>Install only the module you need, or combine all five into a closed-loop reflex stack.</p>
+          <h2>Five standalone organs + one unified Whole-CNS copilot.</h2>
+          <p>Install any individual organ on its own, or deploy the unified 23.37 KB <code>NeckLinkCNS</code> survival controller with wire-valid MAVLink v2 and ROS 2 bridges.</p>
         </div>
 
         <div class="module-grid">
@@ -204,18 +203,18 @@
               <span class="module-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><rect x="6" y="3" width="12" height="18" rx="4"/><path d="M10 7v10M14 7v10"/></svg>
               </span>
-              <span class="module-region">Cervical connective</span>
+              <span class="module-region">Cervical connective · v1.6.0</span>
             </div>
             <h3>NLTP <code>pynltp</code></h3>
-            <p>Loss-resilient UDP file, telemetry and reflex transport with GF(2^8) Cauchy FEC, per-session ChaCha20-Poly1305 AEAD and single-port 4G CGNAT traversal, across Python, C99, JS/TS, Java and ESP32.</p>
+            <p>Loss-resilient UDP &amp; ESP-NOW file, telemetry and reflex transport with GF(2^8) Cauchy FEC, per-session ChaCha20-Poly1305 AEAD, and single-port 4G CGNAT traversal across Python, C99, JS/TS, Java and ESP32.</p>
             <ul class="module-stats">
-              <li><strong>20% loss</strong> without stalling</li>
+              <li><strong>35% loss</strong> 100% SHA-256</li>
               <li><strong>~65 KB</strong> on ESP32</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="nltp">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/nltp" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener" class="text-link">PyPI v1.4.0</a>
+              <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener" class="text-link">PyPI v1.6.0</a>
             </div>
           </article>
 
@@ -224,18 +223,18 @@
               <span class="module-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" stroke-dasharray="2.4 2"/><circle cx="16.2" cy="7.8" r="1.4" class="fill"/></svg>
               </span>
-              <span class="module-region">Central complex</span>
+              <span class="module-region">Central complex · v2.0.0</span>
             </div>
             <h3>NeckCompass <code>neckcompass</code></h3>
-            <p>A 16-wedge E-PG ring-attractor compass and CPU4 GPS-denied path integrator. It rejects 70°–150° magnetic spikes as well as a gated EKF, and re-anchors after heading upsets where the EKF stays stuck, in 324 bytes of C99 RAM.</p>
+            <p>9-axis 3D tilt-compensated ring-attractor AHRS (<code>0.25g</code> wave-slam gate), <code>1,104 B</code> online steel-hull calibration ring, Delta7 recurrent sharpening, and PFL3/PFL2 GPS-denied path integration.</p>
             <ul class="module-stats">
-              <li><strong>0.44°</strong> RMSE under spikes</li>
-              <li><strong>~1 µs</strong> per step (desktop)</li>
+              <li><strong>0.90°</strong> 6-DOF spike RMS</li>
+              <li><strong>2.48 s</strong> 90° upset recovery</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="compass">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcompass" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="text-link">PyPI v1.1.0</a>
+              <a href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="text-link">v2.0.0</a>
             </div>
           </article>
 
@@ -244,18 +243,18 @@
               <span class="module-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M12 3l7.8 4.5v9L12 21l-7.8-4.5v-9z"/><path d="M12 12l4-4M12 12l-4-4M12 12l4 4M12 12l-4 4"/></svg>
               </span>
-              <span class="module-region">Optic lobe</span>
+              <span class="module-region">Optic lobe · v2.0.0</span>
             </div>
             <h3>NeckSight <code>necksight</code></h3>
-            <p>R1–R6 glare adaptation, T4/T5 motion detectors and an LPLC2 four-quadrant looming E-stop (0.9988 AUROC on synthetic clutter), with gyro derotation so obstacles are still caught during fast turns.</p>
+            <p>R1–R6 + AEC glare guard, T5 OFF-dominant Reichardt motion, 3-DOF <code>(yaw, pitch, roll)</code> derotation, and dual <code>LPLC2</code> + <code>LC4/LPLC1</code> thin-pole/wire detection with <code>DNa02</code> contralateral dodge vectors.</p>
             <ul class="module-stats">
-              <li><strong>~12,000 FPS</strong> in C99 (desktop)</li>
-              <li><strong>14.27 KB</strong> at 32×32</li>
+              <li><strong>85.7%</strong> thin-pole / <strong>100%</strong> wire</li>
+              <li><strong>14.28 KB</strong> C99 (~6.5k FPS)</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="sight">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksight" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://pypi.org/project/necksight/" target="_blank" rel="noopener" class="text-link">PyPI v1.1.0</a>
+              <a href="https://pypi.org/project/necksight/" target="_blank" rel="noopener" class="text-link">v2.0.0</a>
             </div>
           </article>
 
@@ -264,18 +263,18 @@
               <span class="module-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><rect x="8.5" y="3" width="7" height="18" rx="3.5"/><path d="M8.5 8H4M8.5 12H3.5M8.5 16H4M15.5 8H20M15.5 12h5M15.5 16H20"/></svg>
               </span>
-              <span class="module-region">Ventral nerve cord</span>
+              <span class="module-region">Ventral nerve cord · v2.0.0</span>
             </div>
             <h3>NeckCord <code>neckcord</code></h3>
-            <p>A 4-byte descending motor command frame (400 B/s at 100 Hz), a self-healing six-limb hexapod CPG and a fault-tolerant thruster allocator that isolates failed thrusters and can return them to service.</p>
+            <p>Box-constrained <code>[u_min, u_max]</code> 3-DOF T200 USV &amp; 4-DOF <code>[0, u_max]</code> hexacopter/octocopter rotor-loss allocator, sensorless ESC <code>RPM + Current</code> broken-blade observer, and 18-servo 3-DOF hexapod IK.</p>
             <ul class="module-stats">
-              <li><strong>42 ms</strong> fault isolation</li>
-              <li><strong>322 B</strong> of C99 state</li>
+              <li><strong>2.07×</strong> faster 5-leg walking</li>
+              <li><strong>916 B</strong> total C99 SRAM</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="cord">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcord" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://pypi.org/project/neckcord/" target="_blank" rel="noopener" class="text-link">PyPI v1.1.0</a>
+              <a href="https://pypi.org/project/neckcord/" target="_blank" rel="noopener" class="text-link">v2.0.0</a>
             </div>
           </article>
 
@@ -284,36 +283,39 @@
               <span class="module-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24"><path d="M6 20c2-3 6-5 6-11M12 13l5-4M12 13l-5-3M12 9c0-2 1-4 3-6"/><circle cx="12" cy="13" r="1.6" class="fill"/></svg>
               </span>
-              <span class="module-region">Antennal lobe &amp; mushroom body</span>
+              <span class="module-region">Mushroom body &amp; chordotonal · v2.0.0</span>
             </div>
             <h3>NeckSense <code>necksense</code></h3>
-            <p>Olsen-Wilson concentration-invariant normalisation feeding a multiplication-free winner-take-all FlyHash, for one-shot classification and one-shot anomaly detection on integer-only MCUs.</p>
+            <p>24× smaller integer Mushroom Body (<code>5.8 KB</code> tiny / <code>20.3 KB</code> full) with 2-compartment <code>KCg + KCab</code> zero-forgetting continual memory, whiff-rate tracking, and a 16-band motor/bearing vibration front-end.</p>
             <ul class="module-stats">
-              <li><strong>0.994</strong> anomaly AUROC (4 KB)</li>
-              <li><strong>Bit-identical</strong> Python ↔ C99</li>
+              <li><strong>1.000</strong> CWRU bearing AUROC</li>
+              <li><strong>93.4%</strong> zero-replay retention</li>
             </ul>
             <div class="module-links">
               <a href="#architecture" class="text-link" data-show-organ="sense">Details</a>
               <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksense" target="_blank" rel="noopener" class="text-link">GitHub</a>
-              <a href="https://pypi.org/project/necksense/" target="_blank" rel="noopener" class="text-link">PyPI v1.1.0</a>
+              <a href="https://pypi.org/project/necksense/" target="_blank" rel="noopener" class="text-link">v2.0.0</a>
             </div>
           </article>
 
-          <article class="module-card module-card-cta">
+          <article class="module-card" style="--c: var(--accent)">
             <div class="module-top">
               <span class="module-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24"><path d="M4 17l6-6-6-6M12 19h8"/></svg>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 12v4M7 20h10M9 16h6"/></svg>
               </span>
-              <span class="module-region">All five together</span>
+              <span class="module-region">Unified Whole-CNS · v2.0.0</span>
             </div>
-            <h3>Run the closed-loop demo</h3>
-            <p>The <code>necklink</code> command ships with <code>pynltp</code> and runs a live five-module autonomy and reflex mission over NLTP, with simulated packet loss.</p>
-            <div class="mini-terminal">
-              <code><span class="prompt" aria-hidden="true">$</span> necklink suite-demo --loss 0.15</code>
-              <button class="copy-btn" type="button" data-copy="necklink suite-demo --loss 0.15" aria-label="Copy command">
-                <svg class="icon icon-copy" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-                <svg class="icon icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-              </button>
+            <h3>NeckLink CNS <code>necklink-cns</code></h3>
+            <p>Fuses all four BANC v888 organs through connectome descending arbitration (<code>DNp01 / MDN / DNa02 / PFL3 / MBON</code>) plus wire-valid MAVLink v2 and ROS 2 in <code>23,928 B</code> of C99 RAM (<code>14.5%</code> ESP32 RAM).</p>
+            <ul class="module-stats">
+              <li><strong>100%</strong> 250-episode survival</li>
+              <li><strong>38.8 KB</strong> standalone WASM</li>
+            </ul>
+            <div class="module-links">
+              <a href="#architecture" class="text-link" data-show-organ="cns">Details</a>
+              <a href="https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns" target="_blank" rel="noopener" class="text-link">GitHub</a>
+              <a href="https://pypi.org/project/necklink-cns/" target="_blank" rel="noopener" class="text-link">PyPI v2.0.0</a>
+              <a href="#simulator" class="text-link">Live WASM</a>
             </div>
           </article>
         </div>
@@ -323,13 +325,13 @@
       <section id="architecture" class="section container">
         <div class="section-head">
           <p class="kicker">Architecture</p>
-          <h2>Mapped onto the <em>Drosophila</em> nervous system</h2>
-          <p>Select a subsystem to see its memory footprint, headline result, where the classical baseline still wins, and a Python quick start.</p>
+          <h2>Empirically grounded in the <em>BANC v888</em> adult <em>Drosophila</em> CNS</h2>
+          <p>Every pathway is statistically verified against 1,000 GPU degree-preserving permutations across 157,789 proofread neurons and 23.55M synapses (p &le; 0.005). Select a subsystem to inspect its C99 RAM, headline benchmark, honest classical tradeoff, and Python quick start.</p>
         </div>
 
         <div class="explorer">
           <div class="panel cns-panel">
-            <svg class="cns-svg" viewBox="0 0 420 420" fill="none" role="img" aria-label="Fruit-fly central nervous system with the five NeckLink modules">
+            <svg class="cns-svg" viewBox="0 0 420 420" fill="none" role="img" aria-label="Fruit-fly central nervous system with the NeckLink modules">
               <path class="cns-body" d="M 135 88 C 65 82, 42 155, 88 205 C 118 232, 165 225, 184 238 L 188 308 C 182 325, 182 375, 210 392 C 238 375, 238 325, 232 308 L 236 238 C 255 225, 302 232, 332 205 C 378 155, 355 82, 285 88 C 255 58, 165 58, 135 88 Z"/>
 
               <g class="cns-node" data-organ="sense" style="--c: var(--sense)">
@@ -366,8 +368,9 @@
             </svg>
 
             <div class="segmented chips" role="tablist" aria-label="Subsystem">
-              <button class="seg-btn" role="tab" type="button" data-organ="compass">NeckCompass</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="cns">Whole-CNS</button>
               <button class="seg-btn" role="tab" type="button" data-organ="sight">NeckSight</button>
+              <button class="seg-btn" role="tab" type="button" data-organ="compass">NeckCompass</button>
               <button class="seg-btn" role="tab" type="button" data-organ="cord">NeckCord</button>
               <button class="seg-btn" role="tab" type="button" data-organ="sense">NeckSense</button>
               <button class="seg-btn" role="tab" type="button" data-organ="nltp">NLTP</button>
@@ -405,41 +408,49 @@
             </div>
 
             <div class="detail-links">
-              <a id="det-repo" href="https://github.com/indian-aman/necklink/tree/main/packages/neckcompass" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
+              <a id="det-repo" href="https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns" target="_blank" rel="noopener" class="btn btn-primary btn-sm">
                 View repository
                 <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
               </a>
-              <a id="det-pypi" href="https://pypi.org/project/neckcompass/" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">PyPI v1.1.0</a>
+              <a id="det-pypi" href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">v2.0.0</a>
             </div>
           </div>
         </div>
       </section>
 
-      <!-- LIVE REFLEX SIMULATOR -->
+      <!-- LIVE WEBASSEMBLY + WEBCAM REFLEX SIMULATOR -->
       <section id="simulator" class="section container">
         <div class="section-head">
-          <p class="kicker">Simulator</p>
-          <h2>Closed-loop reflex simulator</h2>
-          <p>Trigger marine and aerial hazards and watch the neuromorphic modules respond alongside a classical filter. This is an illustrative animation of the benchmarked behaviour, running in your browser.</p>
+          <p class="kicker">Live C99 WebAssembly + Webcam Simulator</p>
+          <h2>Real 23.37 KB C99 Whole-CNS running in your browser</h2>
+          <p>Trigger magnetic spikes, 100&times; glare, boulders, thin poles, or thruster fouling — or enable your <strong>live webcam</strong> to feed 64&times;64 grayscale frames directly into the compiled <code>necklink_cns.wasm</code> (38.8 KB) engine and watch <code>LPLC2 + LC4</code> looming and <code>DNa02</code> contralateral dodge reflexes fire in real time.</p>
         </div>
 
         <div class="panel sim">
-          <div class="sim-controls" role="group" aria-label="Hazards">
+          <div class="sim-controls" role="group" aria-label="Hazards and live webcam">
             <button class="sim-btn" data-sim="spike" type="button" style="--c: var(--compass)">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 2 3 14h9l-1 8 10-12h-9l1-8z"/></svg>
               Magnetic spike +120°
             </button>
             <button class="sim-btn" data-sim="glare" type="button" style="--c: var(--sight)">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>
-              100× sunlight glare
+              100&times; sunlight glare
             </button>
             <button class="sim-btn" data-sim="loom" type="button" style="--c: var(--sight)">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></svg>
-              Looming obstacle
+              Looming boulder (LPLC2)
+            </button>
+            <button class="sim-btn" data-sim="pole" type="button" style="--c: var(--sight)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="10.5" y="3" width="3" height="18" rx="1"/></svg>
+              Thin pole (LC4)
             </button>
             <button class="sim-btn" data-sim="foul" type="button" style="--c: var(--cord)">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><path d="M12 9v4M12 17h.01"/></svg>
-              Foul thruster T2 (−90%)
+              Foul thruster T2 (&minus;90%)
+            </button>
+            <button class="sim-btn" id="webcam-btn" data-sim="webcam" type="button" style="--c: var(--ok)">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8z"/></svg>
+              <span id="webcam-btn-label">Live Webcam (WASM)</span>
             </button>
             <button class="sim-btn sim-btn-reset" data-sim="reset" type="button">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
@@ -447,11 +458,11 @@
             </button>
           </div>
           <div class="sim-canvas-wrap">
-            <canvas id="reflex-canvas" aria-label="Live plots of compass error, optic-lobe looming gate and thruster allocation"></canvas>
+            <canvas id="reflex-canvas" aria-label="Live C99 WASM plots of compass error, optic-lobe LPLC2/LC4 looming gate with DNa02 dodge vector, and thruster allocation"></canvas>
           </div>
           <div class="sim-status">
             <span class="status-dot" id="sim-dot" aria-hidden="true"></span>
-            <span id="sim-status" role="status">Nominal cruise. Ring compass locked (0.4° error), optic lobe scanning, 4-byte cervical link at 100 Hz.</span>
+            <span id="sim-status" role="status">Initializing zero-float ANSI C99 Whole-CNS engine (23,928 B SRAM)...</span>
           </div>
         </div>
       </section>
@@ -460,12 +471,13 @@
       <section id="benchmarks" class="section container">
         <div class="section-head">
           <p class="kicker">Benchmarks</p>
-          <h2>Head-to-head against classical baselines</h2>
-          <p>Every engine is benchmarked against strong classical methods, reporting both where the fly circuits win and where the classical algorithm is still better.</p>
+          <h2>Head-to-head on 3D MuJoCo physics, real sensor datasets &amp; RTX PRO 6000</h2>
+          <p>Every v2.0 organ is benchmarked against strong classical baselines on 3D MuJoCo physics, real camera video, 13,910 real UCI gas plumes, and real CWRU motor bearing faults — reporting both where the fly circuits win and where classical baselines still excel.</p>
         </div>
 
         <div class="segmented segmented-scroll bench-tabs" role="tablist" aria-label="Benchmark">
-          <button class="seg-btn active" role="tab" aria-selected="true" type="button" data-bench="compass">NeckCompass vs EKF</button>
+          <button class="seg-btn active" role="tab" aria-selected="true" type="button" data-bench="v2g4">v2.0 Whole-CNS (RTX PRO 6000)</button>
+          <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="compass">NeckCompass vs EKF</button>
           <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="sight">NeckSight vs Lucas-Kanade</button>
           <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="cord">NeckCord thrusters &amp; CPG</button>
           <button class="seg-btn" role="tab" aria-selected="false" type="button" data-bench="sense">NeckSense vs SimHash</button>
@@ -475,12 +487,12 @@
 
         <figure class="bench-figure">
           <div class="bench-frame">
-            <img id="bench-img" src="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png"
-                 alt="NeckCompass benchmark charts" loading="lazy" width="4070" height="1298">
+            <img id="bench-img" src="assets/necklink_v2_g4_benchmarks.png"
+                 alt="NeckLink CNS v2.0.0 RTX PRO 6000 G4 benchmark summary" loading="lazy" width="3150" height="1764">
           </div>
           <figcaption>
             <span id="bench-caption"></span>
-            <a id="bench-open" class="text-link" href="https://raw.githubusercontent.com/indian-aman/necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png" target="_blank" rel="noopener">Open full size</a>
+            <a id="bench-open" class="text-link" href="assets/necklink_v2_g4_benchmarks.png" target="_blank" rel="noopener">Open full size</a>
           </figcaption>
         </figure>
       </section>
@@ -497,21 +509,22 @@
             </svg>
             <span class="brand-word">Neck<span>Link</span></span>
           </a>
-          <p>Fruit-fly brain edge autonomy and wire suite, in Python and zero-heap ANSI C99.</p>
+          <p>Adult <em>Drosophila</em> connectome edge autonomy and wire suite in Python, WebAssembly, ESP32, and zero-heap ANSI C99.</p>
         </div>
         <div class="footer-col">
           <h4>Modules</h4>
-          <a href="https://github.com/indian-aman/necklink" target="_blank" rel="noopener">NLTP</a>
-          <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcompass" target="_blank" rel="noopener">NeckCompass</a>
-          <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksight" target="_blank" rel="noopener">NeckSight</a>
-          <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcord" target="_blank" rel="noopener">NeckCord</a>
-          <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksense" target="_blank" rel="noopener">NeckSense</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns" target="_blank" rel="noopener">NeckLink CNS v2.0</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/nltp" target="_blank" rel="noopener">NLTP v1.6.0</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcompass" target="_blank" rel="noopener">NeckCompass v2.0</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksight" target="_blank" rel="noopener">NeckSight v2.0</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/neckcord" target="_blank" rel="noopener">NeckCord v2.0</a>
+          <a href="https://github.com/indian-aman/necklink/tree/main/packages/necksense" target="_blank" rel="noopener">NeckSense v2.0</a>
         </div>
         <div class="footer-col">
           <h4>Resources</h4>
           <a href="https://github.com/indian-aman/necklink/releases" target="_blank" rel="noopener">Releases</a>
           <a href="https://pypi.org/project/pynltp/" target="_blank" rel="noopener">pynltp on PyPI</a>
-          <a href="https://github.com/indian-aman/necklink/releases/download/v1.2.0/NLTP-Arduino-1.2.0.zip">Arduino library</a>
+          <a href="https://pypi.org/project/necklink/" target="_blank" rel="noopener">necklink on PyPI</a>
           <a href="https://github.com/indian-aman/necklink/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>
         </div>
         <div class="footer-col">
@@ -522,7 +535,7 @@
       </div>
       <div class="container">
         <div class="footer-bottom">
-          <span>© 2026 Amandeep Singh Bains. Released under the MIT License.</span>
+          <span>&copy; 2026 Amandeep Singh Bains. Released under the MIT License.</span>
           <button id="replay-intro-btn" class="text-btn" type="button">Replay intro</button>
         </div>
       </div>

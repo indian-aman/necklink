@@ -1,8 +1,8 @@
-"""Antennal Lobe sensory conditioning and divisive lateral inhibition.
+"""Antennal Lobe sensory conditioning, plume whiff tracking, and LN normalization.
 
-Implements dual-timescale olfactory receptor neuron (ORN) baseline adaptation
-followed by Olsen-Wilson GABAergic local interneuron (LN) divisive gain
-normalization:
+Implements dual-timescale olfactory receptor neuron (ORN) baseline adaptation,
+turbulent plume phasic whiff / intermittency tracking, and Olsen-Wilson
+GABAergic local interneuron (LN) divisive gain normalization:
 
     r_i = max(0, u_i)^n / (sigma^n + (gamma * mean_pool)^n + max(0, u_i)^n)
 
@@ -11,9 +11,13 @@ References:
       mediates gain control in an olfactory circuit. Nature, 452, 956-960.
     - Nagel, K. I. & Wilson, R. I. (2011). Biophysical mechanisms underlying
       olfactory receptor neuron dynamics. Nature Neuroscience, 14, 208-216.
+    - Celani, A., Villermaux, E. & Vergassola, M. (2014). Odor landscapes in
+      turbulent environments. Physical Review X, 4(4), 041015.
 """
 
 from __future__ import annotations
+
+from typing import Any
 
 import numpy as np
 
@@ -37,42 +41,14 @@ def q16_to_float(values: np.ndarray) -> np.ndarray:
 
 
 class AntennalNormalizer:
-    """Dual-timescale receptor drift removal + Olsen-Wilson LN normalization.
+    """Dual-timescale receptor drift removal, whiff tracking & LN normalization.
 
     Subtracts slow tonic baseline drift (thermal, humidity, or sensor aging)
-    while preserving fast phasic plume/event transients, then applies lateral
-    GABAergic divisive normalization so combinatorial channel patterns remain
-    invariant across 100x+ concentration swings without amplifying zero-input
-    sensor noise.
-
-    Parameters
-    ----------
-    n_channels : int
-        Number of sensory input channels (`D >= 1`).
-    sigma : float, default=0.01
-        Semisaturation constant (`sigma > 0`) that suppresses low-level
-        electronic noise when no plume/event is present.
-    gamma : float, default=1.0
-        Lateral `LN` divisive inhibition strength multiplying `mean_pool`.
-    hill_n : float, default=2.0
-        Hill exponent `n` (`n > 0`). In `c_parity=True` mode, `hill_n` must be
-        `1` or `2`.
-    tonic_alpha : float, default=0.01
-        Slow tonic baseline drift adaptation rate in `[0, 1]`.
-    tonic_down_alpha : float | None, default=None
-        Baseline recovery rate when signal drops below tonic estimate. Defaults
-        to `min(1.0, tonic_alpha * 5.0)` when `tonic_alpha > 0`, else `0.0`.
-    tonic_slew_limit : float | None, default=0.02
-        Maximum upward baseline increment per step so high-concentration plumes
-        do not pull up the baseline and blind subsequent weak plumes. Set `None`
-        to disable slew clamping.
-    phasic_gain : float, default=0.5
-        Gain applied to fast phasic transients (`x - fast_state`).
-    fast_alpha : float, default=0.35
-        Adaptation rate of the fast receptor state in `[0, 1]`.
-    c_parity : bool, default=False
-        If `True`, executes Q16.16 fixed-point integer arithmetic matching
-        `csrc/necksense.c` (`ns_antennal_step` / `ns_antennal_normalize`).
+    while preserving fast phasic plume/event transients, tracks turbulent
+    phasic whiff up-crossings (`whiff_rate` and `intermittency`) for chemical
+    source-proximity estimation, and applies lateral GABAergic divisive
+    normalization so combinatorial channel patterns remain invariant across
+    100x+ concentration or load swings without amplifying dark sensor noise.
     """
 
     def __init__(
@@ -87,6 +63,8 @@ class AntennalNormalizer:
         tonic_slew_limit: float | None = 0.02,
         phasic_gain: float = 0.5,
         fast_alpha: float = 0.35,
+        whiff_threshold: float | None = None,
+        whiff_alpha: float = 0.10,
         c_parity: bool = False,
     ) -> None:
         if n_channels < 1:
@@ -103,6 +81,10 @@ class AntennalNormalizer:
             raise ValueError("phasic_gain must be >= 0")
         if not (0.0 <= fast_alpha <= 1.0):
             raise ValueError("fast_alpha must be in [0, 1]")
+        if whiff_threshold is not None and whiff_threshold <= 0.0:
+            raise ValueError("whiff_threshold must be > 0 or None")
+        if not (0.0 < whiff_alpha <= 1.0):
+            raise ValueError("whiff_alpha must be in (0, 1]")
         if c_parity and int(hill_n) not in (1, 2):
             raise ValueError("c_parity=True supports integer hill_n in {1, 2}")
 
@@ -122,6 +104,8 @@ class AntennalNormalizer:
         self.tonic_slew_limit = None if tonic_slew_limit is None else float(tonic_slew_limit)
         self.phasic_gain = float(phasic_gain)
         self.fast_alpha = float(fast_alpha)
+        self.whiff_threshold = 2.0 * self.sigma if whiff_threshold is None else float(whiff_threshold)
+        self.whiff_alpha = float(whiff_alpha)
         self.c_parity = bool(c_parity)
 
         # Q16.16 fixed-point parameters for exact C99 parity
@@ -134,14 +118,35 @@ class AntennalNormalizer:
         )
         self._phasic_gain_q16 = int(round(self.phasic_gain * Q16_ONE))
         self._fast_alpha_q16 = int(round(self.fast_alpha * Q16_ONE))
+        if whiff_threshold is None:
+            self._whiff_thresh_q16 = min(_INT32_MAX, self._sigma_q16 * 2)
+        else:
+            self._whiff_thresh_q16 = max(1, min(_INT32_MAX, int(round(self.whiff_threshold * Q16_ONE))))
+        self._whiff_alpha_q16 = int(round(self.whiff_alpha * Q16_ONE))
 
         self.tonic_baseline = np.zeros(self.n_channels, dtype=np.float64)
         self.fast_state = np.zeros(self.n_channels, dtype=np.float64)
         self._tonic_q16 = np.zeros(self.n_channels, dtype=np.int32)
         self._fast_q16 = np.zeros(self.n_channels, dtype=np.int32)
 
+        self.steps: int = 0
+        self.whiff_count: int = 0
+        self.whiff_rate: float = 0.0
+        self.intermittency: float = 0.0
+        self._in_whiff: bool = False
+        self._whiff_rate_q16: int = 0
+        self._intermittency_q16: int = 0
+
     def reset(self, baseline: np.ndarray | float | None = None) -> None:
-        """Reset tonic and fast receptor states to zero or an explicit baseline."""
+        """Reset tonic, fast, and plume whiff states to zero or an explicit baseline."""
+        self.steps = 0
+        self.whiff_count = 0
+        self.whiff_rate = 0.0
+        self.intermittency = 0.0
+        self._in_whiff = False
+        self._whiff_rate_q16 = 0
+        self._intermittency_q16 = 0
+
         if baseline is None:
             self.tonic_baseline.fill(0.0)
             self.fast_state.fill(0.0)
@@ -224,11 +229,7 @@ class AntennalNormalizer:
         raise ValueError("x_q16 must be 1D (D,) or 2D (N, D)")
 
     def normalize(self, x: np.ndarray) -> np.ndarray:
-        """Stateless Olsen-Wilson LN divisive gain normalization (no state update).
-
-        Accepts a 1D vector `(D,)` or 2D batch `(N, D)` and returns normalized
-        responses in `[0, 1)`.
-        """
+        """Stateless Olsen-Wilson LN divisive gain normalization (no state update)."""
         arr = np.asarray(x, dtype=np.float64)
         if arr.ndim not in (1, 2):
             raise ValueError("x must be 1D (D,) or 2D (N, D)")
@@ -255,12 +256,13 @@ class AntennalNormalizer:
         return num / den
 
     def step_q16(self, x_q16: np.ndarray) -> np.ndarray:
-        """Single-step stateful Q16.16 receptor adaptation + LN normalization."""
+        """Single-step stateful Q16.16 adaptation, whiff tracking & LN normalization."""
         arr = np.asarray(x_q16, dtype=np.int32)
         if arr.ndim != 1 or arr.shape[0] != self.n_channels:
             raise ValueError(f"Expected 1D vector of length {self.n_channels}")
 
         pos = np.zeros(self.n_channels, dtype=np.int32)
+        pos_phasic_sum = 0
         for i in range(self.n_channels):
             xv = int(arr[i])
             bv = int(self._tonic_q16[i])
@@ -268,6 +270,8 @@ class AntennalNormalizer:
 
             diff_tonic = xv - bv
             diff_fast = xv - fv
+            if diff_fast > 0:
+                pos_phasic_sum += diff_fast
             phasic_term = (diff_fast * self._phasic_gain_q16) >> 16
             drive = diff_tonic + phasic_term
             if drive > 0:
@@ -285,6 +289,37 @@ class AntennalNormalizer:
                 step_b = (diff_tonic * self._tonic_down_q16) >> 16
                 bv_next = bv + step_b
             self._tonic_q16[i] = int(np.clip(bv_next, _INT32_MIN, _INT32_MAX))
+
+        mean_phasic = pos_phasic_sum // self.n_channels
+        up_cross = 0
+        if not self._in_whiff:
+            if mean_phasic >= self._whiff_thresh_q16:
+                self._in_whiff = True
+                self.whiff_count += 1
+                up_cross = Q16_ONE
+        else:
+            if mean_phasic <= (self._whiff_thresh_q16 >> 2):
+                self._in_whiff = False
+
+        active_q16 = Q16_ONE if self._in_whiff else 0
+        self._whiff_rate_q16 = int(
+            np.clip(
+                self._whiff_rate_q16 + (((up_cross - self._whiff_rate_q16) * self._whiff_alpha_q16) >> 16),
+                _INT32_MIN,
+                _INT32_MAX,
+            )
+        )
+        self._intermittency_q16 = int(
+            np.clip(
+                self._intermittency_q16
+                + (((active_q16 - self._intermittency_q16) * self._whiff_alpha_q16) >> 16),
+                _INT32_MIN,
+                _INT32_MAX,
+            )
+        )
+        self.whiff_rate = self._whiff_rate_q16 / float(Q16_ONE)
+        self.intermittency = self._intermittency_q16 / float(Q16_ONE)
+        self.steps += 1
 
         self.tonic_baseline[:] = q16_to_float(self._tonic_q16)
         self.fast_state[:] = q16_to_float(self._fast_q16)
@@ -304,6 +339,22 @@ class AntennalNormalizer:
         diff_fast = arr - self.fast_state
         drive = diff_tonic + self.phasic_gain * diff_fast
 
+        mean_phasic = float(np.mean(np.maximum(diff_fast, 0.0)))
+        up_cross = 0.0
+        if not self._in_whiff:
+            if mean_phasic >= self.whiff_threshold:
+                self._in_whiff = True
+                self.whiff_count += 1
+                up_cross = 1.0
+        else:
+            if mean_phasic <= 0.25 * self.whiff_threshold:
+                self._in_whiff = False
+
+        active_flag = 1.0 if self._in_whiff else 0.0
+        self.whiff_rate += self.whiff_alpha * (up_cross - self.whiff_rate)
+        self.intermittency += self.whiff_alpha * (active_flag - self.intermittency)
+        self.steps += 1
+
         # Update fast phasic tracker
         self.fast_state += self.fast_alpha * diff_fast
 
@@ -315,6 +366,27 @@ class AntennalNormalizer:
         self.tonic_baseline += np.where(diff_tonic >= 0.0, up_step, down_step)
 
         return self.normalize(drive)
+
+    def step_with_whiff(self, x: np.ndarray) -> tuple[np.ndarray, float]:
+        """Process one sensory sample `(D,)` and return `(normalized_vec, whiff_rate)`."""
+        norm = self.step(x)
+        return norm, float(self.whiff_rate)
+
+    def diagnostics(self, *, sample_rate_hz: float = 1.0) -> dict[str, Any]:
+        """Return turbulent plume whiff & baseline adaptation diagnostics."""
+        if sample_rate_hz <= 0.0:
+            raise ValueError("sample_rate_hz must be > 0")
+        return {
+            "steps": int(self.steps),
+            "whiff_count": int(self.whiff_count),
+            "whiff_rate": float(self.whiff_rate),
+            "whiff_hz": float(self.whiff_rate * sample_rate_hz),
+            "intermittency": float(self.intermittency),
+            "in_whiff": bool(self._in_whiff),
+            "tonic_mean": float(np.mean(self.tonic_baseline)),
+            "whiff_rate_q16": int(self._whiff_rate_q16),
+            "intermittency_q16": int(self._intermittency_q16),
+        }
 
     def transform(self, X: np.ndarray, *, reset_state: bool = False) -> np.ndarray:
         """Process a 1D sample `(D,)` or sequential 2D stream `(T, D)`."""

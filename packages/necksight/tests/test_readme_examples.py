@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -19,9 +20,13 @@ def test_readme_has_python_examples() -> None:
 
 @pytest.mark.parametrize("index", range(len(BLOCKS)))
 def test_readme_python_example_runs(index: int, tmp_path: Path) -> None:
+    env = os.environ.copy()
+    existing_pp = env.get("PYTHONPATH", "")
+    env["PYTHONPATH"] = f"{ROOT}{os.pathsep}{existing_pp}" if existing_pp else str(ROOT)
     proc = subprocess.run(
         [sys.executable, "-c", BLOCKS[index]],
         cwd=tmp_path,
+        env=env,
         capture_output=True,
         text=True,
         timeout=600,

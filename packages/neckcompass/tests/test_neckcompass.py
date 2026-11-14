@@ -13,12 +13,16 @@ import numpy as np
 import pytest
 
 from neckcompass import (
+    BANC_CONNECTOME_COUNTS,
     FanBodyNavigator,
     PlasticLandmarkRing,
     RingCompass,
+    TiltCompensatedAHRS,
+    TiltCompensatedCompass,
     __version__,
     basin_sigma_for_noise,
     circular_error_rad,
+    synthesize_9dof_frame,
     wrap_angle,
 )
 from neckcompass.cli import main as cli_main
@@ -500,3 +504,345 @@ def test_plastic_self_supervised_stays_calibrated_with_noise_and_gyro_bias() -> 
     grid = np.linspace(-math.pi, math.pi, 72, endpoint=False)
     errs = [math.degrees(float(circular_error_rad(plastic.map_raw_heading(warp(float(a)))[0], float(a)))) for a in grid]
     assert float(np.sqrt(np.mean(np.square(errs)))) < 3.0
+
+
+# ---------------------------------------------------------------------------
+# NeckCompass v2.0.0 Tests (BANC v888, 9-DOF Tilt+Wave Gate, C99 Plasticity,
+# PFL2 180-deg Anti-Goal Turn Boost, and Arduino SHA-256 Parity)
+# ---------------------------------------------------------------------------
+
+
+def test_banc_connectome_counts_and_delta7_antiphase_readout() -> None:
+    assert __version__ == "2.0.0"
+    assert BANC_CONNECTOME_COUNTS == {
+        "EPG": 50,
+        "PEN": 42,
+        "Delta7": 40,
+        "PFL3": 25,
+        "PFL2": 12,
+    }
+    compass = RingCompass(n_wedges=16, initial_heading_rad=math.radians(45.0))
+    d7 = compass.delta7_wedges
+    assert d7.shape == (16,)
+    assert float(np.min(d7)) >= 0.0
+    assert float(np.max(d7)) <= 1.0 + 1e-12
+    # Delta7 glutamatergic inhibition is strictly anti-phase to the E-PG bump heading
+    expected = 0.5 * (1.0 - np.cos(compass.thetas - compass.heading_rad))
+    np.testing.assert_allclose(d7, expected, atol=1e-12)
+
+
+@pytest.mark.parametrize("dip_deg", [60.0, 65.0])
+def test_tilt_compensated_ahrs_static_roll25_pitch20_under_steep_dip(dip_deg: float) -> None:
+    roll_rad = math.radians(25.0)
+    pitch_rad = math.radians(20.0)
+    flat_errs_deg = []
+    comp_errs_deg = []
+
+    for yaw_deg in (-165.0, -120.0, -60.0, -15.0, 0.0, 37.0, 95.0, 150.0):
+        yaw_rad = math.radians(yaw_deg)
+        gx, gy, gz, ax, ay, az, mx, my, mz = synthesize_9dof_frame(
+            yaw_rad, pitch_rad, roll_rad, dip_deg=dip_deg
+        )
+        # Flat 2D magnetometer suffers severe 15-50+ deg geomagnetic dip distortion when banked
+        flat_mag = float(wrap_angle(math.atan2(-my, mx)))
+        flat_errs_deg.append(abs(math.degrees(float(circular_error_rad(flat_mag, yaw_rad)))))
+
+        tc = TiltCompensatedCompass()
+        est = tc.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt=0.02)
+        comp_errs_deg.append(abs(math.degrees(float(circular_error_rad(est, yaw_rad)))))
+
+        rc = RingCompass(n_wedges=16)
+        est_rc = rc.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt=0.02)
+        assert abs(math.degrees(float(circular_error_rad(est_rc, yaw_rad)))) < 0.25
+
+    assert max(flat_errs_deg) > 25.0
+    assert max(comp_errs_deg) < 0.25
+
+
+def test_tilt_compensation_wave_slam_gravity_gate_rejects_linear_accel() -> None:
+    dt = 0.02
+    rc = RingCompass(n_wedges=16)
+    nav = FanBodyNavigator(n_columns=16, compass=rc)
+
+    yaw = 0.25
+    roll = math.radians(18.0)
+    pitch = math.radians(-14.0)
+    gated_steps = 0
+    max_heading_err_deg = 0.0
+
+    for k in range(250):
+        t = k * dt
+        roll_dot = 0.35 * math.cos(1.1 * t)
+        pitch_dot = 0.28 * math.sin(0.9 * t)
+        yaw_dot = 0.22 * math.sin(0.4 * t)
+        if k > 0:
+            roll = float(wrap_angle(roll + roll_dot * dt))
+            pitch = float(np.clip(pitch + pitch_dot * dt, math.radians(-45.0), math.radians(45.0)))
+            yaw = float(wrap_angle(yaw + yaw_dot * dt))
+
+        # Inject heavy +0.85g lateral/vertical wave slam from t=1.5 s to t=2.5 s (|a - g| > 0.25g)
+        slam = (2.5, 6.8, 4.5) if (1.5 <= t < 2.5) else (0.0, 0.0, 0.0)
+        gx, gy, gz, ax, ay, az, mx, my, mz = synthesize_9dof_frame(
+            yaw,
+            pitch,
+            roll,
+            dip_deg=65.0,
+            euler_rates_rad_s=(roll_dot, pitch_dot, yaw_dot),
+            linear_accel_body=slam,
+        )
+        est, _, _ = nav.step_with_compass_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, speed_m_s=1.5, dt=dt)
+        if 1.5 <= t < 2.5:
+            assert rc.tilt_ahrs.accel_gated is True
+            gated_steps += 1
+        err_deg = abs(math.degrees(float(circular_error_rad(est, yaw))))
+        max_heading_err_deg = max(max_heading_err_deg, err_deg)
+
+    assert gated_steps == 50
+    assert max_heading_err_deg < 0.8
+
+
+def test_plastic_landmark_ring_update_9dof_tilted_harbor_warp() -> None:
+    def harbor_warp(psi: float) -> float:
+        return float(wrap_angle(psi + math.radians(20.0) * math.sin(psi) + math.radians(15.0) * math.sin(2.0 * psi)))
+
+    plastic = PlasticLandmarkRing(n_wedges=16, n_ring_neurons=32, learning_rate=3.5)
+    dt = 0.02
+    yaw = 0.0
+    roll = math.radians(20.0)
+    pitch = math.radians(-15.0)
+    omega_yaw = 2.0 * math.pi / 8.0
+
+    for _ in range(int(32.0 / dt)):
+        yaw = float(wrap_angle(yaw + omega_yaw * dt))
+        # Synthesize 9-DOF frame where horizontal magnetic azimuth has a 30-deg harbor warp
+        gx, gy, gz, ax, ay, az, _, _, _ = synthesize_9dof_frame(
+            yaw, pitch, roll, dip_deg=62.0, euler_rates_rad_s=(0.0, 0.0, omega_yaw)
+        )
+        _, _, _, _, _, _, mx, my, mz = synthesize_9dof_frame(
+            harbor_warp(yaw), pitch, roll, dip_deg=62.0
+        )
+        plastic.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt, learn=True, anchor_gain_scale=0.12)
+
+    grid = np.linspace(-math.pi, math.pi, 72, endpoint=False)
+    errs = [
+        math.degrees(float(circular_error_rad(plastic.map_raw_heading(harbor_warp(float(a)))[0], float(a))))
+        for a in grid
+    ]
+    assert float(np.sqrt(np.mean(np.square(errs)))) < 3.5
+
+
+@pytest.mark.parametrize("anti_offset_deg", [179.0, -179.0, 179.9, -179.9, 180.0])
+def test_pfl2_180_antigoal_turn_boost_no_hesitation(anti_offset_deg: float) -> None:
+    nav = FanBodyNavigator(n_columns=16)
+    # Displace 25 m along +X -> home bearing is pi (180 deg)
+    nav.update(speed_m_s=25.0, dt=1.0, heading_rad=0.0)
+    max_rate = 1.2
+    # Heading error = wrap_angle(home_bearing - psi) = anti_offset_deg
+    _, home_bearing = nav.home_vector()
+    psi = float(wrap_angle(home_bearing - math.radians(anti_offset_deg)))
+    cmd = nav.steering_cmd(max_turn_rate=max_rate, current_heading_rad=psi)
+
+    # Must command > 80% of full turn rate immediately (zero sin(180)=0 hesitation!)
+    assert abs(cmd) > 0.80 * max_rate
+    if abs(anti_offset_deg) < 180.0:
+        expected_sign = 1.0 if anti_offset_deg > 0.0 else -1.0
+        assert math.copysign(1.0, cmd) == expected_sign
+
+    # And on-course (0 deg error) must command exact 0.0 turn rate
+    assert math.isclose(
+        nav.steering_cmd(max_turn_rate=max_rate, current_heading_rad=home_bearing),
+        0.0,
+        abs_tol=1e-12,
+    )
+
+
+class _NcImu9(ctypes.Structure):
+    _fields_ = [
+        ("gx_bam_s", ctypes.c_int32),
+        ("gy_bam_s", ctypes.c_int32),
+        ("gz_bam_s", ctypes.c_int32),
+        ("ax_mg", ctypes.c_int32),
+        ("ay_mg", ctypes.c_int32),
+        ("az_mg", ctypes.c_int32),
+        ("mx", ctypes.c_int32),
+        ("my", ctypes.c_int32),
+        ("mz", ctypes.c_int32),
+    ]
+
+
+class _NcTilt(ctypes.Structure):
+    _fields_ = [
+        ("roll_sub_bam", ctypes.c_int32),
+        ("pitch_sub_bam", ctypes.c_int32),
+        ("tau_ms", ctypes.c_uint16),
+        ("gate_tol_mg", ctypes.c_uint16),
+        ("accel_gated", ctypes.c_uint8),
+        ("initialized", ctypes.c_uint8),
+    ]
+
+
+def test_c99_v2_header_version_and_struct_sizes(tmp_path: Path) -> None:
+    header = (Path(__file__).resolve().parents[1] / "csrc" / "neckcompass.h").read_text(encoding="utf-8")
+    assert '#define NC_VERSION_STRING    "2.0.0"' in header
+    assert "#define NC_BANC_EPG_COUNT    50" in header
+    assert "#define NC_BANC_PFL2_COUNT   12" in header
+    assert ctypes.sizeof(_NcImu9) == 36
+    assert ctypes.sizeof(_NcTilt) == 16
+
+
+def test_c99_tilt_9dof_dip65_and_wave_slam_ctypes(tmp_path: Path) -> None:
+    lib = _build_c_core(tmp_path)
+    lib.nc_tilt_update_9dof.restype = ctypes.c_int16
+    lib.nc_compass_update_9dof.restype = ctypes.c_int16
+
+    bam_per_rad = 65536.0 / (2.0 * math.pi)
+    for yaw_deg in (-140.0, -35.0, 25.0, 115.0):
+        yaw_rad = math.radians(yaw_deg)
+        gx, gy, gz, ax, ay, az, mx, my, mz = synthesize_9dof_frame(
+            yaw_rad, math.radians(20.0), math.radians(25.0), dip_deg=65.0, g_ref=1000.0, field_strength=50000.0
+        )
+        tilt = _NcTilt()
+        lib.nc_tilt_init(ctypes.byref(tilt))
+        out_yaw_rate = ctypes.c_int32(0)
+        mag_bam = lib.nc_tilt_update_9dof(
+            ctypes.byref(tilt),
+            ctypes.c_int32(int(round(gx * bam_per_rad))),
+            ctypes.c_int32(int(round(gy * bam_per_rad))),
+            ctypes.c_int32(int(round(gz * bam_per_rad))),
+            ctypes.c_int32(int(round(ax))),
+            ctypes.c_int32(int(round(ay))),
+            ctypes.c_int32(int(round(az))),
+            ctypes.c_int32(int(round(mx))),
+            ctypes.c_int32(int(round(my))),
+            ctypes.c_int32(int(round(mz))),
+            ctypes.c_uint32(20),
+            ctypes.byref(out_yaw_rate),
+        )
+        err_deg = abs(math.degrees(float(circular_error_rad(mag_bam / bam_per_rad, yaw_rad))))
+        assert err_deg < 0.5
+        assert tilt.accel_gated == 0
+
+        # Inject +850 mg wave slam -> must gate gravity update cleanly
+        lib.nc_tilt_update_9dof(
+            ctypes.byref(tilt),
+            ctypes.c_int32(0),
+            ctypes.c_int32(0),
+            ctypes.c_int32(0),
+            ctypes.c_int32(int(round(ax))),
+            ctypes.c_int32(int(round(ay)) + 850),
+            ctypes.c_int32(int(round(az))),
+            ctypes.c_int32(int(round(mx))),
+            ctypes.c_int32(int(round(my))),
+            ctypes.c_int32(int(round(mz))),
+            ctypes.c_uint32(20),
+            ctypes.byref(out_yaw_rate),
+        )
+        assert tilt.accel_gated == 1
+
+
+def test_c99_plastic_ring_self_supervised_and_supervised_ctypes(tmp_path: Path) -> None:
+    lib = _build_c_core(tmp_path)
+    lib.nc_plastic_ring_update.restype = ctypes.c_int16
+
+    bam_per_rad = 65536.0 / (2.0 * math.pi)
+
+    def to_bam(rad: float) -> int:
+        v = int(round(float(wrap_angle(rad)) * bam_per_rad))
+        return ((v + 32768) % 65536) - 32768
+
+    def harbor_warp(psi: float) -> float:
+        return float(wrap_angle(psi + math.radians(20.0) * math.sin(psi) + math.radians(16.0) * math.sin(2.0 * psi)))
+
+    rng = np.random.default_rng(19)
+    pr_buf = ctypes.create_string_buffer(1200)
+    lib.nc_plastic_ring_init(pr_buf)
+
+    dt = 0.02
+    psi = 0.0
+    bias = math.radians(0.9)
+    for k in range(int(240.0 / dt)):
+        omega = 0.6 + 0.3 * math.sin(0.05 * k * dt)
+        psi = float(wrap_angle(psi + omega * dt))
+        gyro = omega + bias + rng.normal(0.0, math.radians(1.5))
+        raw_mag = harbor_warp(psi) + rng.normal(0.0, math.radians(2.0))
+        lib.nc_plastic_ring_update(
+            pr_buf,
+            ctypes.c_int32(int(round(gyro * bam_per_rad))),
+            ctypes.c_uint32(20),
+            ctypes.c_int16(to_bam(raw_mag)),
+            ctypes.c_int16(0),
+            ctypes.c_uint8(0),
+            ctypes.c_uint8(1),
+        )
+
+    grid = np.linspace(-math.pi, math.pi, 72, endpoint=False)
+    errs = []
+    corr_bam = ctypes.c_int16(0)
+    conf_q15 = ctypes.c_int16(0)
+    for a in grid:
+        lib.nc_plastic_ring_map(
+            pr_buf,
+            ctypes.c_int16(to_bam(harbor_warp(float(a)))),
+            ctypes.byref(corr_bam),
+            ctypes.byref(conf_q15),
+        )
+        assert conf_q15.value > 8000
+        errs.append(abs(math.degrees(float(circular_error_rad(corr_bam.value / bam_per_rad, float(a))))))
+    assert float(np.mean(errs)) < 3.5
+
+
+def test_c99_pfl2_180_antigoal_turn_boost_ctypes(tmp_path: Path) -> None:
+    lib = _build_c_core(tmp_path)
+    lib.nc_navigator_steering_cmd.restype = ctypes.c_int32
+    lib.nc_cdeg_to_bam.restype = ctypes.c_int16
+    lib.nc_cdeg_s_to_bam_s.restype = ctypes.c_int32
+    lib.nc_bam_s_to_cdeg_s.restype = ctypes.c_int32
+
+    nav_buf = ctypes.create_string_buffer(512)
+    lib.nc_navigator_init(nav_buf, ctypes.c_int32(1500))
+    # Move +20 m at 0 deg -> home is at 180 deg
+    lib.nc_navigator_update(nav_buf, ctypes.c_int32(20000), ctypes.c_uint32(1000), ctypes.c_int16(0))
+
+    max_rate_bam_s = lib.nc_cdeg_s_to_bam_s(ctypes.c_int32(6000))  # 60 deg/s
+    # Heading = +1 deg -> err = +179 deg; Heading = -1 deg -> err = -179 deg; Heading = 0 deg -> err = 180 deg
+    cmd_p179 = lib.nc_bam_s_to_cdeg_s(
+        lib.nc_navigator_steering_cmd(nav_buf, lib.nc_cdeg_to_bam(100), max_rate_bam_s)
+    )
+    cmd_m179 = lib.nc_bam_s_to_cdeg_s(
+        lib.nc_navigator_steering_cmd(nav_buf, lib.nc_cdeg_to_bam(-100), max_rate_bam_s)
+    )
+    cmd_180 = lib.nc_bam_s_to_cdeg_s(
+        lib.nc_navigator_steering_cmd(nav_buf, ctypes.c_int16(0), max_rate_bam_s)
+    )
+    cmd_home = lib.nc_bam_s_to_cdeg_s(
+        lib.nc_navigator_steering_cmd(nav_buf, ctypes.c_int16(-32768), max_rate_bam_s)
+    )
+
+    assert cmd_p179 > 4800
+    assert cmd_m179 < -4800
+    assert abs(cmd_180) > 4800
+    assert abs(cmd_home) <= 5
+
+
+def test_arduino_library_structure_and_c99_sha256_parity() -> None:
+    import hashlib
+
+    root = Path(__file__).resolve().parents[1]
+    ard_dir = root / "arduino" / "NeckCompass"
+    props_text = (ard_dir / "library.properties").read_text(encoding="utf-8")
+    assert "name=NeckCompass" in props_text
+    assert f"version={__version__}" in props_text
+    assert "architectures=*" in props_text
+
+    assert (ard_dir / "src" / "NeckCompass.h").is_file()
+    assert (
+        ard_dir
+        / "examples"
+        / "ESP32_9DOF_SelfCalibrating_Compass"
+        / "ESP32_9DOF_SelfCalibrating_Compass.ino"
+    ).is_file()
+
+    for fname in ("neckcompass.h", "neckcompass.c"):
+        h_csrc = hashlib.sha256((root / "csrc" / fname).read_bytes()).hexdigest()
+        h_ard = hashlib.sha256((ard_dir / "src" / "csrc" / fname).read_bytes()).hexdigest()
+        assert h_csrc == h_ard, f"SHA-256 mismatch for {fname}: {h_csrc} != {h_ard}"

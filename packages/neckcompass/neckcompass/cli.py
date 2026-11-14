@@ -253,9 +253,9 @@ def _run_quick_benchmark(seed: int = 101, as_json: bool = False) -> dict:
             print(f"{label:<28} | {c_rmse:>16.2f} | {s_rmse:>16.2f} | {s_p95:>15.2f}")
         print("-" * 82)
         print(
-            "Note: a properly gated EKF is as accurate as NeckCompass on these streams. NeckCompass's\n"
-            "edge is recovery from heading upsets (see scripts/benchmark_neckcompass.py, scenario D)\n"
-            "and a 324 B zero-float C99 core."
+            "Note: a properly gated EKF is as accurate as NeckCompass on flat 2D Gaussian/spike streams.\n"
+            "NeckCompass's edge is 9-DOF wave-gated tilt compensation, online self-supervised soft-iron\n"
+            "plasticity (nc_plastic_ring_t, 1,104 B), recovery from heading upsets, and a 324 B zero-float C99 core."
         )
     return result
 

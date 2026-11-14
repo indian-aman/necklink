@@ -19,6 +19,8 @@ from .cervical import (
     encode_descending_4b,
 )
 from .cpg import LIMB_NAMES, SegmentalCPGCord
+from .esc_observer import ESCObserver
+from .ik import HexapodLegIK
 
 
 def _run_usv_quick_trial(
@@ -162,8 +164,9 @@ def cmd_demo(as_json: bool = False) -> int:
     wire = encode_descending_4b(frame)
     decoded = decode_descending_4b(wire)
 
-    # Step hexapod CPG intact -> L2 jammed
-    cpg = SegmentalCPGCord(adapt_to_damage=True)
+    # Step hexapod CPG intact -> L2 jammed + 18-servo 3-DOF IK
+    ik_solver = HexapodLegIK()
+    cpg = SegmentalCPGCord(adapt_to_damage=True, ik=ik_solver)
     for _ in range(100):
         st_intact = cpg.step(decoded, dt=0.01)
 
@@ -174,6 +177,7 @@ def cmd_demo(as_json: bool = False) -> int:
         if k >= 50 and st_dmg.is_statically_stable:
             stable_ticks += 1
     stability_pct = 100.0 * stable_ticks / 250.0
+    assert st_dmg.leg_ik is not None
 
     # Step 4-thruster vectored USV cord across Port-Aft fault
     thruster_cord = ShuntingThrusterCord.usv_vectored_4()
@@ -184,7 +188,27 @@ def cmd_demo(as_json: bool = False) -> int:
         fb = true_eff * res_nom.commands
         res_nom = thruster_cord.step(w_nom, feedback_thrust=fb, dt=0.02)
 
+    # Step 6-rotor unidirectional hexacopter through Rotor 0 loss + ESC broken-blade detection
+    hex_cord = ShuntingThrusterCord.multicopter_hex_6(arm_m=0.28, k_yaw=0.018, u_max=18.0, tau_actuator=0.0)
+    esc_obs = ESCObserver.multicopter_hex_6(u_nom=18.0, tau_motor=0.0)
+    w_hover = np.array([36.0, 0.0, -1.2, 0.0])
+    hex_res = hex_cord.step(w_hover, dt=0.01)
+    for _ in range(5):
+        rpm_sim = esc_obs.k_rpm * np.sqrt(np.maximum(0.0, hex_res.commands))
+        curr_sim = esc_obs.expected_current_from_rpm(rpm_sim)
+        curr_sim[0] = esc_obs.i_idle_a + 0.05  # Rotor 0 broken blade (free-spinning, near-zero load)
+        hex_res = hex_cord.step(
+            w_hover,
+            esc_observer=esc_obs,
+            esc_rpm=rpm_sim,
+            esc_current_a=curr_sim,
+            dt=0.01,
+        )
+    true_hex_eff = np.array([0.0, 1.0, 1.0, 1.0, 1.0, 1.0])
+    delivered_hex = hex_cord.W @ (true_hex_eff * hex_res.commands)
+
     payload: dict[str, Any] = {
+        "version": __version__,
         "wire_hex": wire.hex(),
         "wire_bytes": len(wire),
         "bandwidth_100hz_bps": 400,
@@ -194,11 +218,20 @@ def cmd_demo(as_json: bool = False) -> int:
         "intact_gait": st_intact.active_gait,
         "damaged_L2_gait": st_dmg.active_gait,
         "damaged_L2_stability_pct": round(stability_pct, 1),
+        "damaged_L2_park_z_mm": round(float(st_dmg.leg_ik.foot_xyz_mm[2, 2]), 1),
+        "servo_pwm_L1_us": [int(v) for v in st_dmg.leg_ik.pwm_us[0]],
         "thruster_commands_after_T2_fault_N": [round(float(v), 2) for v in res_nom.commands],
         "thruster_isolated": [bool(x) for x in res_nom.isolated_mask],
         "delivered_wrench_Fx_Fy_Tz": [
             round(float(v), 3) for v in (thruster_cord.W @ (true_eff * res_nom.commands))
         ],
+        "hexacopter_rotor0_broken_blade": {
+            "rotor_commands_N": [round(float(v), 2) for v in hex_res.commands],
+            "delivered_Fz_Tx_Ty_Tz": [round(float(v), 3) for v in delivered_hex],
+            "broken_prop_detected": bool(
+                hex_res.esc_result.broken_prop_mask[0] if hex_res.esc_result is not None else False
+            ),
+        },
     }
 
     if as_json:
@@ -214,11 +247,14 @@ def cmd_demo(as_json: bool = False) -> int:
         f"turn_yaw={decoded.turn_yaw:+.3f}, strafe_lat={decoded.strafe_lat:+.3f}, seq={decoded.seq}"
     )
     print(
-        f"2. VNC Hexapod CPG     : intact={st_intact.active_gait} -> "
+        f"2. VNC Hexapod CPG+IK  : intact={st_intact.active_gait} -> "
         f"L2-jammed={st_dmg.active_gait} ({stability_pct:.1f}% static polygon stability)"
     )
     grounded_names = [LIMB_NAMES[i] for i in range(6) if st_dmg.stance_mask[i]]
-    print(f"   Grounded Survivors  : {', '.join(grounded_names)} (margin={st_dmg.support_margin_m:.3f} m)")
+    print(
+        f"   Grounded Survivors  : {', '.join(grounded_names)} (margin={st_dmg.support_margin_m:.3f} m) | "
+        f"L2 parked at z=+{st_dmg.leg_ik.foot_xyz_mm[2, 2]:.0f} mm"
+    )
     print(
         f"3. Shunting Thrusters  : T2 (Port-Aft) shunted={bool(res_nom.isolated_mask[2])} | "
         f"u={payload['thruster_commands_after_T2_fault_N']} N"
@@ -227,6 +263,14 @@ def cmd_demo(as_json: bool = False) -> int:
         f"   Rebalanced Wrench   : Fx={payload['delivered_wrench_Fx_Fy_Tz'][0]:.2f} N, "
         f"Fy={payload['delivered_wrench_Fx_Fy_Tz'][1]:+.3f} N, "
         f"Tz={payload['delivered_wrench_Fx_Fy_Tz'][2]:+.3f} N*m"
+    )
+    print(
+        f"4. Hex6 Broken-Blade   : R0 broken_prop={payload['hexacopter_rotor0_broken_blade']['broken_prop_detected']} | "
+        f"u={payload['hexacopter_rotor0_broken_blade']['rotor_commands_N']} N (>= 0)"
+    )
+    print(
+        f"   Relaxed-Hover Wrench: Fz={delivered_hex[0]:.2f} N, Tx={delivered_hex[1]:+.3f} N*m, "
+        f"Ty={delivered_hex[2]:+.3f} N*m"
     )
     return 0
 

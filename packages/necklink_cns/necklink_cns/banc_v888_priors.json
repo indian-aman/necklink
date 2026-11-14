@@ -1,0 +1,215 @@
+{
+  "dataset": "Female Adult Drosophila Whole-CNS Connectome (BANC v888)",
+  "total_neurons": 157789,
+  "total_synapses": 23553107,
+  "total_directed_edges": 3036600,
+  "male_cns_v1_neurons": 167565,
+  "cell_counts": {
+    "EPG": 50,
+    "PEN": 42,
+    "Delta7": 40,
+    "PFL3": 25,
+    "PFL2": 12,
+    "T4": 4196,
+    "T5": 4682,
+    "LPLC2": 181,
+    "LC4": 114,
+    "LPLC1": 124,
+    "DNp01": 2,
+    "DNa01": 2,
+    "DNa02": 2,
+    "MDN": 4,
+    "DNp09": 2,
+    "APL": 2,
+    "ORN": 3006,
+    "Chordotonal": 2132,
+    "ALPN": 699,
+    "ALLN": 429,
+    "KC_all": 4553,
+    "KC_gamma": 2057,
+    "KC_alphabeta": 1943,
+    "KC_apbp": 122,
+    "MBON_all": 104,
+    "DAN_all": 301,
+    "DN_all": 1316,
+    "AN_all": 1849,
+    "MN_all": 805,
+    "MN_leg": 393,
+    "MN_wing": 62,
+    "MN_haltere": 25
+  },
+  "pathways": {
+    "T4->LPLC2": {
+      "edges": 897,
+      "synapses": 3330
+    },
+    "T5->LPLC2": {
+      "edges": 1748,
+      "synapses": 6586
+    },
+    "T4->LC4": {
+      "edges": 31,
+      "synapses": 173
+    },
+    "T5->LC4": {
+      "edges": 91,
+      "synapses": 305
+    },
+    "T4->LPLC1": {
+      "edges": 815,
+      "synapses": 3205
+    },
+    "T5->LPLC1": {
+      "edges": 1134,
+      "synapses": 4535
+    },
+    "LPLC2->DNp01": {
+      "edges": 84,
+      "synapses": 403
+    },
+    "LC4->DNp01": {
+      "edges": 21,
+      "synapses": 71
+    },
+    "LPLC2->DN_all": {
+      "edges": 529,
+      "synapses": 2896
+    },
+    "LC4->DN_all": {
+      "edges": 226,
+      "synapses": 1108
+    },
+    "LPLC1->DN_all": {
+      "edges": 182,
+      "synapses": 945
+    },
+    "EPG->Delta7": {
+      "edges": 901,
+      "synapses": 6998
+    },
+    "Delta7->EPG": {
+      "edges": 336,
+      "synapses": 4646
+    },
+    "EPG->PEN": {
+      "edges": 491,
+      "synapses": 6151
+    },
+    "PEN->EPG": {
+      "edges": 521,
+      "synapses": 7998
+    },
+    "EPG->PFL3": {
+      "edges": 91,
+      "synapses": 1442
+    },
+    "Delta7->PFL3": {
+      "edges": 249,
+      "synapses": 6066
+    },
+    "EPG->PFL2": {
+      "edges": 57,
+      "synapses": 1071
+    },
+    "Delta7->PFL2": {
+      "edges": 132,
+      "synapses": 3712
+    },
+    "PFL3->DNa02": {
+      "edges": 23,
+      "synapses": 259
+    },
+    "PFL3->DN_all": {
+      "edges": 169,
+      "synapses": 1772
+    },
+    "PFL2->DN_all": {
+      "edges": 44,
+      "synapses": 1047
+    },
+    "ORN->ALPN": {
+      "edges": 13678,
+      "synapses": 190238
+    },
+    "ORN->ALLN": {
+      "edges": 19599,
+      "synapses": 107521
+    },
+    "ALLN->ALPN": {
+      "edges": 17450,
+      "synapses": 170732
+    },
+    "ALPN->KC_all": {
+      "edges": 15844,
+      "synapses": 159648
+    },
+    "KC_all->APL": {
+      "edges": 3290,
+      "synapses": 18468
+    },
+    "APL->KC_all": {
+      "edges": 3311,
+      "synapses": 21486
+    },
+    "KC_all->MBON_all": {
+      "edges": 3121,
+      "synapses": 12544
+    },
+    "KC_gamma->MBON_all": {
+      "edges": 1393,
+      "synapses": 5645
+    },
+    "KC_alphabeta->MBON_all": {
+      "edges": 1533,
+      "synapses": 6110
+    },
+    "DAN_all->KC_all": {
+      "edges": 89,
+      "synapses": 304
+    },
+    "DAN_all->MBON_all": {
+      "edges": 115,
+      "synapses": 817
+    },
+    "MBON_all->DN_all": {
+      "edges": 149,
+      "synapses": 2008
+    },
+    "DNp01->MN_all": {
+      "edges": 6,
+      "synapses": 28
+    },
+    "DNa02->MN_all": {
+      "edges": 56,
+      "synapses": 775
+    },
+    "DNa01->MN_all": {
+      "edges": 38,
+      "synapses": 354
+    },
+    "MDN->MN_all": {
+      "edges": 0,
+      "synapses": 0
+    },
+    "DN_all->MN_all": {
+      "edges": 9068,
+      "synapses": 143565
+    }
+  },
+  "derived_biophysical_ratios": {
+    "optic_t5_to_t4_lplc2_off_dominance": 1.9778,
+    "optic_lplc2_dn_share": 0.5852,
+    "optic_lc4_dn_share": 0.2239,
+    "optic_lplc1_dn_share": 0.1909,
+    "cx_pfl2_to_pfl3_antigoal_ratio": 0.48,
+    "cx_delta7_to_epg_inhibition_ratio": 0.6639,
+    "mb_alpn_to_kc_claws_mean": 3.92,
+    "mb_alpn_to_kc_claws_median": 4.0,
+    "mb_kc_gamma_fast_fraction": 0.5142,
+    "mb_kc_alphabeta_ltm_fraction": 0.4858,
+    "neck_an_to_dn_ratio": 1.405,
+    "neck_bottleneck_fraction": 0.02006,
+    "cns_excitatory_fraction": 0.669,
+    "cns_inhibitory_fraction": 0.331
+  }
+}

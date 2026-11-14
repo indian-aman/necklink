@@ -146,11 +146,40 @@ def _run_demo(grid: int = 64, frames: int = 36, as_json: bool = False) -> Dict[s
         }
     )
 
+    # 5. Thin vertical pole looming off-center on the left (LC4 bar channel + DNa02 dodge)
+    pipe.reset()
+    max_loom = 0.0
+    max_bar = 0.0
+    trig_any = False
+    trig_avoid_x = 0.0
+    pole_cx = 0.32 * (grid - 1)
+    dist_x = np.abs(xx - pole_cx)
+    for t in range(frames):
+        ttc_true = max((frames - t) * dt, 0.025)
+        half_w = np.clip(0.03 * grid / ttc_true, 1.0, 0.14 * grid)
+        edge = np.clip((half_w - dist_x) / 1.0 + 0.5, 0.0, 1.0)
+        frame = crop * (1.0 - edge) + 12.0 * edge
+        _, _, trig = pipe.step_full(frame, dt=dt)
+        max_loom = max(max_loom, trig.looming_score)
+        max_bar = max(max_bar, trig.bar_score)
+        if trig.triggered and not trig_any:
+            trig_any = True
+            trig_avoid_x = trig.avoid_x
+    scenarios.append(
+        {
+            "scenario": "thin_pole_looming_lc4",
+            "peak_looming_score": round(max_loom, 5),
+            "peak_bar_score": round(max_bar, 5),
+            "triggered": trig_any,
+            "avoid_x": round(trig_avoid_x, 3),
+        }
+    )
+
     summary = {"version": __version__, "grid": grid, "scenarios": scenarios}
     if as_json:
         print(json.dumps(summary, indent=2))
     else:
-        print(f"NeckSight v{__version__} -- Optic Lobe T4/T5 + LPLC2 Demo ({grid}x{grid})")
+        print(f"NeckSight v{__version__} -- Optic Lobe T4/T5 + LPLC2/LC4 Demo ({grid}x{grid})")
         print("-" * 74)
         for item in scenarios:
             name = item["scenario"]
@@ -162,6 +191,8 @@ def _run_demo(grid: int = 64, frames: int = 36, as_json: bool = False) -> Dict[s
                     f" | lead={item['lead_time_ms']} ms"
                     f" | est_ttc={item['est_ttc_at_trigger_s']} s"
                 )
+            elif "avoid_x" in item:
+                extra = f" | bar={item['peak_bar_score']:.4f} | avoid_x={item['avoid_x']:+.2f}"
             elif "mean_vx_flow" in item:
                 extra = f" | vx_flow={item['mean_vx_flow']:+.4f}"
             print(f"  {name:<26s} | score={score:.4f} | {trig_flag}{extra}")
@@ -304,7 +335,7 @@ def _run_benchmark_quick(
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="necksight",
-        description="NeckSight: Drosophila Optic Lobe T4/T5 Motion & LPLC2 Looming Reflex.",
+        description="NeckSight: Drosophila Optic Lobe T4/T5 Motion, LPLC2/LC4 Looming & DNa02 Avoidance.",
     )
     parser.add_argument(
         "--version", action="version", version=f"necksight {__version__}"

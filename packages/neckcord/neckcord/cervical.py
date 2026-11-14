@@ -113,6 +113,26 @@ class DescendingFrame:
             dtype=np.float64,
         )
 
+    def to_wrench_4d(
+        self,
+        hover_thrust: float = 36.0,
+        max_roll: float = 4.0,
+        max_pitch: float = 4.0,
+        max_yaw: float = 2.0,
+    ) -> np.ndarray:
+        """Map descending intent to 4-DOF aerial wrench `[Fz, Tx, Ty, Tz]` (`0` when frozen)."""
+        if self.freeze_reflex:
+            return np.zeros(4, dtype=np.float64)
+        return np.array(
+            [
+                float(hover_thrust),
+                -self.strafe_lat * float(max_roll),
+                self.drive_fwd * float(max_pitch),
+                self.turn_yaw * float(max_yaw),
+            ],
+            dtype=np.float64,
+        )
+
 
 def encode_descending_4b(
     frame: DescendingFrame | None = None,

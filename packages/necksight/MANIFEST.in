@@ -6,6 +6,7 @@ include csrc/Makefile
 include csrc/necksight.h
 include csrc/necksight.c
 include csrc/tools/necksight_selftest.c
+recursive-include arduino *
 prune assets
 prune csrc/build
 prune results

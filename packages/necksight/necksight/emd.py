@@ -75,6 +75,7 @@ class T4T5MotionEngine:
         veto_gain: float = 12.0,
         stride2_weight: float = 0.5,
         output_gain: float = 10.0,
+        t5_off_gain: float = 1.35,
     ) -> None:
         if isinstance(grid_size, int):
             self.grid_shape: Tuple[int, int] = (grid_size, grid_size)
@@ -88,11 +89,14 @@ class T4T5MotionEngine:
             raise ValueError("delay_alpha must be in (0.0, 1.0]")
         if veto_gain < 0.0:
             raise ValueError("veto_gain must be >= 0.0")
+        if t5_off_gain < 0.0:
+            raise ValueError("t5_off_gain must be >= 0.0")
 
         self.delay_alpha = float(delay_alpha)
         self.veto_gain = float(veto_gain)
         self.stride2_weight = float(stride2_weight)
         self.output_gain = float(output_gain)
+        self.t5_off_gain = float(t5_off_gain)
 
         self._d_on: Optional[np.ndarray] = None
         self._d_off: Optional[np.ndarray] = None
@@ -122,13 +126,17 @@ class T4T5MotionEngine:
         self._d_on = None
         self._d_off = None
 
-    def shift_state(self, dx: float, dy: float) -> None:
-        """Shift the T4/T5 delay lines by ``(dx, dy)`` grid pixels (ego-motion derotation)."""
+    def shift_state(self, dx: float, dy: float, dtheta_rad: float = 0.0) -> None:
+        """Shift or 3-DOF warp the T4/T5 delay lines (ego-motion derotation)."""
         if self._d_on is not None and self._d_off is not None:
-            from .egomotion import shift_grid
+            from .egomotion import warp_grid_3dof
 
-            self._d_on = shift_grid(self._d_on, dx, dy)
-            self._d_off = shift_grid(self._d_off, dx, dy)
+            self._d_on = warp_grid_3dof(self._d_on, dx, dy, dtheta_rad)
+            self._d_off = warp_grid_3dof(self._d_off, dx, dy, dtheta_rad)
+
+    def warp_state(self, dx: float, dy: float, dtheta_rad: float = 0.0) -> None:
+        """Warp the T4/T5 delay lines by ``(dx, dy, dtheta_rad)`` around grid center."""
+        self.shift_state(dx, dy, dtheta_rad)
 
     def _compute_cardinal_stride(
         self,
@@ -255,10 +263,11 @@ class T4T5MotionEngine:
         self._d_on = ((1.0 - a) * self._d_on + a * l1).astype(np.float32, copy=False)
         self._d_off = ((1.0 - a) * self._d_off + a * l2).astype(np.float32, copy=False)
 
-        pos_x = t4["+X"] + t5["+X"]
-        neg_x = t4["-X"] + t5["-X"]
-        pos_y = t4["+Y"] + t5["+Y"]
-        neg_y = t4["-Y"] + t5["-Y"]
+        g_off = self.t5_off_gain
+        pos_x = (t4["+X"] + g_off * t5["+X"]).astype(np.float32, copy=False)
+        neg_x = (t4["-X"] + g_off * t5["-X"]).astype(np.float32, copy=False)
+        pos_y = (t4["+Y"] + g_off * t5["+Y"]).astype(np.float32, copy=False)
+        neg_y = (t4["-Y"] + g_off * t5["-Y"]).astype(np.float32, copy=False)
 
         flow_x = pos_x - neg_x
         flow_y = pos_y - neg_y

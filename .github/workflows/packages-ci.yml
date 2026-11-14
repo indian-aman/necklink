@@ -1,6 +1,6 @@
 name: packages-ci
 
-# Tests NeckCompass, NeckCord, NeckSense, NeckSight and NLTP.
+# Tests NeckCompass, NeckCord, NeckSense, NeckSight, NeckLink CNS and NLTP.
 on:
   push:
     paths:
@@ -8,7 +8,9 @@ on:
       - "packages/neckcord/**"
       - "packages/necksense/**"
       - "packages/necksight/**"
+      - "packages/necklink_cns/**"
       - "packages/nltp/**"
+      - "umbrella/**"
       - ".github/workflows/packages-ci.yml"
   pull_request:
     paths:
@@ -16,7 +18,9 @@ on:
       - "packages/neckcord/**"
       - "packages/necksense/**"
       - "packages/necksight/**"
+      - "packages/necklink_cns/**"
       - "packages/nltp/**"
+      - "umbrella/**"
       - ".github/workflows/packages-ci.yml"
   workflow_dispatch:
 
@@ -51,10 +55,43 @@ jobs:
         run: |
           ${{ matrix.package }} --version
           ${{ matrix.package }} demo > /dev/null
-      - name: Tests (includes running every README example)
+      - name: Tests (includes running every README example and Arduino SHA-256 parity)
         run: |
-          mkdir -p /tmp/t && cp -r tests README.md pyproject.toml csrc /tmp/t/
+          mkdir -p /tmp/t && cp -r tests README.md pyproject.toml csrc arduino /tmp/t/
           cd /tmp/t && python -m pytest -q -p no:cacheprovider tests
+
+  necklink_cns:
+    name: necklink_cns / py${{ matrix.python }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.13"]
+    defaults:
+      run:
+        working-directory: packages/necklink_cns
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: C99 Whole-CNS core + ASan/UBSan self-tests (<24 KB SRAM, 0 floats, 0 heap)
+        run: make -C csrc clean all test sanitize
+      - name: Build and install organ + necklink-cns wheels
+        run: |
+          python -m pip install --upgrade pip build pytest
+          python -m pip install ../neckcompass ../neckcord ../necksense ../necksight
+          python -m build --wheel --outdir dist .
+          python -m pip install dist/*.whl
+      - name: CLI smoke test
+        run: |
+          necklink-cns --version
+          necklink-cns demo > /dev/null
+          necklink-cns priors > /dev/null
+      - name: Tests (MAVLink v2, ROS2 adapter, closed-loop pole dodge & Arduino parity)
+        run: |
+          mkdir -p /tmp/t_cns && cp -r tests README.md pyproject.toml csrc arduino /tmp/t_cns/
+          cd /tmp/t_cns && python -m pytest -q -p no:cacheprovider tests
 
   nltp:
     name: nltp / py${{ matrix.python }}

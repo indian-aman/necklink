@@ -3,6 +3,7 @@ include README.md
 include pyproject.toml
 recursive-include neckcord *.py py.typed
 recursive-include csrc *.c *.h Makefile
+recursive-include arduino *.c *.h *.ino *.properties
 prune csrc/build
 prune assets
 prune dist

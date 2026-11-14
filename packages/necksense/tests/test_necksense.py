@@ -1,7 +1,8 @@
-"""Comprehensive pytest suite for NeckSense (`necksense` v1.1.0)."""
+"""Comprehensive pytest suite for NeckSense (`necksense` v2.0.0)."""
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -11,13 +12,18 @@ from pathlib import Path
 import numpy as np
 import pytest
 
+import necksense
 from necksense import (
+    NS_VIB_CHANNELS,
     Q16_ONE,
+    VIBRATION_CHANNEL_NAMES,
     AntennalNormalizer,
     KenyonHasher,
     KenyonIndex,
     MushroomNoveltyDetector,
     MushroomValenceClassifier,
+    VibrationAnalyzer,
+    VibrationFrontEnd,
     float_to_q16,
     popcount_overlap,
     popcount_u64,
@@ -287,6 +293,7 @@ def test_cli_demo_benchmark_and_hash_csv(tmp_path: Path, capsys: pytest.CaptureF
     assert demo_data["antennal_100x_cosine_similarity"] > 0.9999
     assert demo_data["novelty_after_3_exposures"] < 0.25
     assert demo_data["novelty_orthogonal_anomaly"] > 0.85
+    assert demo_data["vibration_1shot_10x_prediction"] == "bearing_spall"
 
     rc_bench = cli_main(["benchmark-quick", "--json", "--seed", "42"])
     assert rc_bench == 0
@@ -337,10 +344,19 @@ def test_c99_source_zero_heap_zero_float_static_audit() -> None:
         REPO_ROOT / "csrc" / "necksense.h",
         REPO_ROOT / "csrc" / "necksense.c",
         REPO_ROOT / "csrc" / "tools" / "necksense_selftest.c",
+        REPO_ROOT / "arduino" / "NeckSense" / "src" / "NeckSense.h",
+        REPO_ROOT / "arduino" / "NeckSense" / "src" / "csrc" / "necksense.h",
+        REPO_ROOT / "arduino" / "NeckSense" / "src" / "csrc" / "necksense.c",
+        REPO_ROOT
+        / "arduino"
+        / "NeckSense"
+        / "examples"
+        / "ESP32_Vibration_And_Gas_Anomaly"
+        / "ESP32_Vibration_And_Gas_Anomaly.ino",
     ]
     forbidden = re.compile(r"\b(float|double|malloc|calloc|realloc|free)\b")
     for path in c_files:
-        assert path.exists(), f"Missing C99 source file: {path}"
+        assert path.exists(), f"Missing C99/Arduino source file: {path}"
         stripped = _strip_c_comments(path.read_text(encoding="utf-8"))
         hits = forbidden.findall(stripped)
         assert not hits, f"Forbidden heap/float token(s) {hits} found in {path.name}"
@@ -367,6 +383,7 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         opponent_inh=9830 / Q16_ONE,
         c_parity=True,
     )
+    vib = VibrationFrontEnd(window_size=64, input_shift=6, c_parity=True)
 
     step1_q16 = ant.step_q16(x_in_q16)
     step2_q16 = ant.step_q16(x_in_q16 * 5 + 1200)
@@ -385,6 +402,26 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
     val.learn_tag(hasher.hash_q16(alt_norm_q16), 1, reward=1.0)
     py_scores = val.predict_scores_tag(tag1)
 
+    val.consolidate(0.25)
+    for _ in range(15):
+        val.learn_tag(tag2, 1, reward=1.0)
+    py_ltm_scores = val.predict_scores_tag(tag1)
+
+    sin32 = np.array(
+        [
+            0, 200, 392, 569, 724, 851, 946, 1004,
+            1024, 1004, 946, 851, 724, 569, 392, 200,
+            0, -200, -392, -569, -724, -851, -946, -1004,
+            -1024, -1004, -946, -851, -724, -569, -392, -200,
+        ],
+        dtype=np.int32,
+    )
+    vib_in_q16 = np.empty(64, dtype=np.int32)
+    for i in range(64):
+        imp = 98304 if (i % 16 == 0) else (-65536 if (i % 16 == 1) else 0)
+        vib_in_q16[i] = int(sin32[i & 31]) * 32 + imp + 4096
+    vib_feat_py = vib.extract_q16(vib_in_q16)
+
     # Golden bit-exact reference emitted by `csrc/build/necksense_selftest --json-parity`
     c99_golden = {
         "step1_q16": [58857, 28349, 1939, 0, 53380, 9790, 318, 43332],
@@ -398,8 +435,17 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
         "overlap_1_2": 51,
         "nov_q16": [65536, 29491, 13270, 5971],
         "val_scores_q16": [65536, 0],
+        "whiff_count": 1,
+        "whiff_rate_q16": 5898,
+        "intermittency_q16": 12452,
+        "ltm_scores_q16": [65536, 62024],
+        "vib_feat_q16": [
+            11050, 7396, 7970, 13717, 13547, 0, 9306, 13248,
+            17306, 26324, 17496, 63019, 59819, 9180, 13505, 5568,
+        ],
     }
 
+    diag = ant.diagnostics()
     assert step1_q16.tolist() == c99_golden["step1_q16"]
     assert step2_q16.tolist() == c99_golden["step2_q16"]
     assert KenyonHasher.tag_to_hex(tag1) == c99_golden["tag1_hex"]
@@ -407,20 +453,38 @@ def test_python_c_parity_exact_q16_equivalence() -> None:
     assert [n1, n2, n3, na3] == c99_golden["nov_q16"]
     assert int(round(py_scores[0] * Q16_ONE)) == c99_golden["val_scores_q16"][0]
     assert int(round(py_scores[1] * Q16_ONE)) == c99_golden["val_scores_q16"][1]
+    assert diag["whiff_count"] == c99_golden["whiff_count"]
+    assert diag["whiff_rate_q16"] == c99_golden["whiff_rate_q16"]
+    assert diag["intermittency_q16"] == c99_golden["intermittency_q16"]
+    assert int(round(py_ltm_scores[0] * Q16_ONE)) == c99_golden["ltm_scores_q16"][0]
+    assert int(round(py_ltm_scores[1] * Q16_ONE)) == c99_golden["ltm_scores_q16"][1]
+    assert vib_feat_py.tolist() == c99_golden["vib_feat_q16"]
     assert q16_to_float(float_to_q16(0.5))[()] == pytest.approx(0.5)
 
-    # On native POSIX or when NECKSENSE_TEST_WSL=1, also cross-check the live binary
+    # On native POSIX or when NECKSENSE_TEST_WSL=1, also cross-check the live binaries
     selftest_bin = REPO_ROOT / "csrc" / "build" / "necksense_selftest"
+    tiny_bin = REPO_ROOT / "csrc" / "build" / "necksense_selftest_tiny"
     if selftest_bin.exists() and (os.name != "nt" or os.environ.get("NECKSENSE_TEST_WSL") == "1"):
         if os.name != "nt":
             cmd = [str(selftest_bin), "--json-parity"]
+            tiny_cmd = [str(tiny_bin)]
         else:
             wsl_path = "/mnt/" + selftest_bin.drive[0].lower() + selftest_bin.as_posix()[2:]
             cmd = ["wsl.exe", "--", wsl_path, "--json-parity"]
+            wsl_tiny = "/mnt/" + tiny_bin.drive[0].lower() + tiny_bin.as_posix()[2:]
+            tiny_cmd = ["wsl.exe", "--", wsl_tiny]
         proc = subprocess.run(cmd, capture_output=True, text=True, timeout=60, check=True)
         c_out = json.loads(proc.stdout)
         assert c_out["tag1_hex"] == c99_golden["tag1_hex"]
         assert c_out["step1_q16"] == c99_golden["step1_q16"]
+        assert c_out["vib_feat_q16"] == c99_golden["vib_feat_q16"]
+        assert c_out["ltm_scores_q16"] == c99_golden["ltm_scores_q16"]
+
+        if tiny_bin.exists():
+            t_proc = subprocess.run(tiny_cmd, capture_output=True, text=True, timeout=60, check=True)
+            assert "All 8/8 ANSI C99 NeckSense self-tests PASSED." in t_proc.stdout
+            m_tot = re.search(r"total=(\d+) B", t_proc.stdout)
+            assert m_tot is not None and int(m_tot.group(1)) < 6000
 
 
 def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> None:
@@ -454,3 +518,215 @@ def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> N
             scores.append(s)
             labels.append(label)
     assert _auroc_rank(np.asarray(labels), np.asarray(scores)) > 0.98
+
+
+def test_version_2_0_0_and_vibration_exports() -> None:
+    assert necksense.__version__ == "2.0.0"
+    assert VibrationAnalyzer is VibrationFrontEnd
+    assert NS_VIB_CHANNELS == 16
+    assert len(VIBRATION_CHANNEL_NAMES) == 16
+
+
+def test_vibration_frontend_1shot_fault_detection_across_10x_amplitude_swings() -> None:
+    rng = np.random.default_rng(2026)
+    fe = VibrationFrontEnd(window_size=128)
+    ant = AntennalNormalizer(16, sigma=0.004, gamma=1.0, hill_n=2.0)
+    clf = MushroomValenceClassifier(16, antennal=ant, n_kc=1024, d_proj=6, wta_frac=0.05, seed=77)
+    nov = MushroomNoveltyDetector(16, antennal=ant, n_kc=1024, wta_frac=0.02, lr=0.55, seed=77)
+
+    def make_motor_window(mode: str, amp: float, phase: float) -> np.ndarray:
+        t = np.arange(128, dtype=np.float64)
+        w0 = 2.0 * np.pi * t / 32.0 + phase
+        if mode == "healthy":
+            sig = np.sin(w0) + 0.12 * np.sin(2.0 * w0)
+        elif mode == "misalignment":
+            sig = 0.25 * np.sin(w0) + 1.0 * np.sin(2.0 * w0) + 0.75 * np.sin(3.0 * w0)
+        elif mode == "bearing_spall":
+            sig = 0.25 * np.sin(w0)
+            imp_idx = (np.arange(128) + int(round(phase * 5.0))) % 16
+            sig += np.where(imp_idx == 0, 2.2, np.where(imp_idx == 1, -1.6, np.where(imp_idx == 2, 0.9, 0.0)))
+        elif mode == "chipped_blade":
+            s2 = np.sin(2.0 * w0)
+            sig = np.where(s2 > 0.0, s2 + 0.5 * np.sin(5.0 * w0), 0.12 * s2)
+        else:
+            raise ValueError(mode)
+        return amp * sig
+
+    # Verify strict degree-1 homogeneity: f(10 * x) == 10 * f(x)
+    f_1x = fe.extract(make_motor_window("bearing_spall", 1.0, 0.0))
+    f_10x = fe.extract(make_motor_window("bearing_spall", 10.0, 0.0))
+    assert np.allclose(f_10x, 10.0 * f_1x, rtol=1e-12, atol=1e-12)
+
+    modes = ["healthy", "misalignment", "bearing_spall", "chipped_blade"]
+    for m in modes:
+        clf.learn(fe.extract(make_motor_window(m, 1.0, 0.0)), m)
+
+    # Habituate novelty detector to healthy vibration across varying RPM load
+    for step_i in range(4):
+        s_h = nov.update_and_score(fe.extract(make_motor_window("healthy", 1.0 + 2.0 * step_i, 0.3 * step_i)))
+    assert s_h < 0.25
+    assert nov.score(fe.extract(make_motor_window("bearing_spall", 8.0, 1.1))) > 0.85
+
+    # 100% 1-shot fault classification across 0.2x to 10x amplitude + random phase + sensor noise
+    for amp in (0.2, 1.0, 4.0, 10.0):
+        for m in modes:
+            phase = float(rng.uniform(0.0, 2.0 * np.pi))
+            noisy = make_motor_window(m, amp, phase) + rng.normal(0.0, 0.015 * amp, size=128)
+            assert clf.predict(fe.extract(noisy)) == m
+
+
+def test_vibration_frontend_3axis_tilted_gravity_and_batch() -> None:
+    fe = VibrationFrontEnd(window_size=128)
+    t = np.arange(128, dtype=np.float64)
+    # Tilted IMU with static 1g vector (0.6g, -0.3g, +0.74g) + dynamic vibration
+    xyz_1x = np.column_stack(
+        [
+            0.60 + 0.20 * np.sin(2.0 * np.pi * t / 32.0),
+            -0.30 + 0.10 * np.cos(2.0 * np.pi * t / 32.0),
+            0.74 + np.where((t % 16) == 0, 0.45, 0.0),
+        ]
+    )
+    xyz_8x = np.column_stack(
+        [
+            -0.40 + 8.0 * 0.20 * np.sin(2.0 * np.pi * t / 32.0),
+            0.85 + 8.0 * 0.10 * np.cos(2.0 * np.pi * t / 32.0),
+            0.35 + 8.0 * np.where((t % 16) == 0, 0.45, 0.0),
+        ]
+    )
+    ant = AntennalNormalizer(16, sigma=0.002)
+    r1 = ant.normalize(fe.extract(xyz_1x))
+    r8 = ant.normalize(fe.extract(xyz_8x))
+    cos_sim = float(np.dot(r1, r8) / (np.linalg.norm(r1) * np.linalg.norm(r8)))
+    assert cos_sim > 0.9999
+
+    batch_out = fe.transform(np.stack([xyz_1x, xyz_8x], axis=0))
+    assert batch_out.shape == (2, 16)
+
+    i16_xyz = np.round(xyz_1x * 1000.0).astype(np.int16)
+    q16_feat = fe.extract_i16(i16_xyz)
+    assert q16_feat.shape == (16,) and q16_feat.dtype == np.int32
+
+
+def test_antennal_whiff_intermittency_turbulent_vs_static_cloud() -> None:
+    odor = np.array([0.50, 0.25, 0.12, 0.03, 0.38, 0.06, 0.02, 0.20], dtype=np.float64)
+    clean_air = np.zeros(8, dtype=np.float64)
+
+    # Static well-mixed cloud: single initial up-crossing, whiff_rate decays near 0
+    ant_static = AntennalNormalizer(8, sigma=0.01)
+    for _ in range(80):
+        ant_static.step(odor)
+    d_static = ant_static.diagnostics(sample_rate_hz=20.0)
+    assert d_static["whiff_count"] == 1
+    assert d_static["whiff_rate"] < 0.01
+
+    # Turbulent pulsatile plume (near chemical source): repeated phasic whiffs
+    ant_turb = AntennalNormalizer(8, sigma=0.01)
+    for t in range(80):
+        sample = odor if (t % 5) < 2 else clean_air
+        norm_vec, w_rate = ant_turb.step_with_whiff(sample)
+        assert norm_vec.shape == (8,)
+    d_turb = ant_turb.diagnostics(sample_rate_hz=20.0)
+    assert d_turb["whiff_count"] >= 14
+    assert d_turb["whiff_rate"] > 0.12
+    assert d_turb["whiff_hz"] > 2.4
+    assert d_turb["intermittency"] > 0.25
+    assert w_rate == pytest.approx(d_turb["whiff_rate"])
+
+
+@pytest.mark.parametrize("c_parity", [False, True])
+def test_valence_gamma_alpha_beta_zero_forgetting_continual_learning(c_parity: bool) -> None:
+    rng = np.random.default_rng(707)
+    dim = 20
+    shared_bg = np.zeros(dim, dtype=np.float64)
+    shared_bg[:8] = 1.0
+
+    # 6 sequential tasks sharing a strong 8-channel carrier + 2 task-diagnostic channels
+    prototypes: dict[str, np.ndarray] = {}
+    for idx, name in enumerate(["A", "B", "C", "D", "E", "F"]):
+        vec = shared_bg.copy()
+        vec[8 + idx * 2] = 0.85
+        vec[9 + idx * 2] = 0.85
+        prototypes[name] = vec
+
+    clf_stm_only = MushroomValenceClassifier(
+        dim,
+        n_kc=1024,
+        wta_frac=0.05,
+        min_lr=0.25,
+        opponent_inh=0.55,
+        ltm_alpha_beta=False,
+        seed=42,
+        c_parity=c_parity,
+    )
+    clf_ltm = MushroomValenceClassifier(
+        dim,
+        n_kc=1024,
+        wta_frac=0.05,
+        min_lr=0.25,
+        opponent_inh=0.55,
+        ltm_alpha_beta=True,
+        seed=42,
+        c_parity=c_parity,
+    )
+
+    # Phase 1: Learn early classes A and B from 1 single shot each, consolidating each task
+    for early in ("A", "B"):
+        clf_stm_only.learn(prototypes[early], early, reward=1.0)
+        clf_ltm.learn(prototypes[early], early, reward=1.0)
+        consolidated_synapses = clf_ltm.consolidate(thresh=0.50)
+        assert consolidated_synapses > 0
+
+    # Phase 2: Sequentially train new classes C, D, E, F for 35 trials each (140 updates)
+    for later in ("C", "D", "E", "F"):
+        for _ in range(35):
+            noisy = prototypes[later] + rng.normal(0.0, 0.005, size=dim)
+            clf_stm_only.learn(noisy, later, reward=1.0)
+            clf_ltm.learn(noisy, later, reward=1.0)
+        clf_ltm.consolidate(thresh=0.50)
+
+    # 2-compartment KCg + KCab LTM retains 100% (6/6 classes, 0% forgetting of A..E)
+    for name, proto in prototypes.items():
+        assert clf_ltm.predict(proto) == name
+
+    # Unconsolidated gamma-only STM suffers 100% catastrophic forgetting on earlier classes A & B
+    assert clf_stm_only.predict(prototypes["A"]) != "A"
+    assert clf_stm_only.predict(prototypes["B"]) != "B"
+    stm_a = clf_stm_only.predict_scores(prototypes["A"])["A"]
+    ltm_a = clf_ltm.predict_scores(prototypes["A"])["A"]
+    assert ltm_a > 0.90
+    assert ltm_a > stm_a + 0.65
+
+    # Explicit aversive extinction (`reward = -1.0`) must still reverse a consolidated memory
+    for _ in range(8):
+        clf_ltm.learn(prototypes["A"], "A", reward=-1.0)
+    assert clf_ltm.predict_scores(prototypes["A"])["A"] < 0.0
+
+
+def test_arduino_library_structure_and_sha256_parity() -> None:
+    ard_root = REPO_ROOT / "arduino" / "NeckSense"
+    props_path = ard_root / "library.properties"
+    umb_path = ard_root / "src" / "NeckSense.h"
+    ino_path = (
+        ard_root
+        / "examples"
+        / "ESP32_Vibration_And_Gas_Anomaly"
+        / "ESP32_Vibration_And_Gas_Anomaly.ino"
+    )
+    assert props_path.exists()
+    assert umb_path.exists()
+    assert ino_path.exists()
+
+    props = dict(
+        line.split("=", 1)
+        for line in props_path.read_text(encoding="utf-8").splitlines()
+        if "=" in line and not line.startswith("#")
+    )
+    assert props["name"] == "NeckSense"
+    assert props["version"] == "2.0.0"
+    assert props["architectures"] == "*"
+    assert props["includes"] == "NeckSense.h"
+
+    for fname in ("necksense.h", "necksense.c"):
+        h_csrc = hashlib.sha256((REPO_ROOT / "csrc" / fname).read_bytes()).hexdigest()
+        h_ard = hashlib.sha256((ard_root / "src" / "csrc" / fname).read_bytes()).hexdigest()
+        assert h_csrc == h_ard, f"SHA-256 mismatch between csrc/{fname} and arduino/NeckSense/src/csrc/{fname}"

@@ -155,6 +155,47 @@ class FanBodyNavigator:
         dist_m, home_bearing = self.update(speed_m_s=speed_m_s, dt=dt, heading_rad=heading)
         return heading, dist_m, home_bearing
 
+    def step_with_compass_9dof(
+        self,
+        gx: float,
+        gy: float,
+        gz: float,
+        ax: float,
+        ay: float,
+        az: float,
+        mx: float,
+        my: float,
+        mz: float,
+        speed_m_s: float,
+        dt: float,
+        *,
+        sun_heading_rad: Optional[float] = None,
+        mag_confidence: float = 1.0,
+        sun_confidence: float = 1.0,
+        g_ref: Optional[float] = None,
+    ) -> tuple[float, float, float]:
+        """Update attached ``RingCompass`` via 9-DOF tilt compensation and integrate path in one step."""
+        if self.compass is None:
+            raise RuntimeError("FanBodyNavigator has no attached RingCompass; pass compass=... or call update()")
+        heading = self.compass.update_9dof(
+            gx,
+            gy,
+            gz,
+            ax,
+            ay,
+            az,
+            mx,
+            my,
+            mz,
+            dt,
+            sun_heading_rad=sun_heading_rad,
+            mag_confidence=mag_confidence,
+            sun_confidence=sun_confidence,
+            g_ref=g_ref,
+        )
+        dist_m, home_bearing = self.update(speed_m_s=speed_m_s, dt=dt, heading_rad=heading)
+        return heading, dist_m, home_bearing
+
     @property
     def displacement_xy_m(self) -> tuple[float, float]:
         """Decoded outbound Cartesian displacement ``(x_m, y_m)`` from home origin."""
@@ -220,14 +261,18 @@ class FanBodyNavigator:
         norm_factor = 0.5 * self.n_columns * math.sin(phi_shift)
         raw_asym = float(np.sum(pfl3_right) - np.sum(pfl3_left)) / max(norm_factor, 1e-9)
 
-        # PFL2 boosts turning when facing away from home (resolves 180-deg anti-goal saddle; max mean = 0.25)
-        anti_drive = float(np.mean(pfl2_boost))
-        if abs(raw_asym) < 1e-4 and anti_drive > 0.18:
-            # Break exact 180-deg symmetry deterministically using shortest signed wrap
+        # PFL2 (12 connectome anti-goal neurons) drives crisp full-rate turning across the
+        # entire anti-goal hemisphere (179-180 deg away from home) where PFL3 sin(err) -> 0,
+        # while vanishing quadratically near 0 deg so on-course tracking stays smooth.
+        anti_drive = float(np.mean(pfl2_boost))  # (1 - cos(err)) / 8 in [0, 0.25]
+        if abs(raw_asym) > 1e-6:
+            turn_sign = 1.0 if raw_asym > 0.0 else -1.0
+        else:
             err = float(wrap_angle(home_bearing - psi))
-            raw_asym = math.copysign(0.25, err if err != 0.0 else 1.0)
+            turn_sign = 1.0 if err >= 0.0 else -1.0
 
-        boosted = raw_asym * (1.0 + self.pfl2_boost_gain * anti_drive)
+        pfl2_term = self.pfl2_boost_gain * 4.0 * (anti_drive * anti_drive)
+        boosted = raw_asym + turn_sign * pfl2_term
         arrival_taper = min(1.0, dist_m / self.arrival_radius_m)
         cmd = max_turn_rate * arrival_taper * math.tanh(self.steering_gain * boosted)
         return float(np.clip(cmd, -max_turn_rate, max_turn_rate))

@@ -1,0 +1,211 @@
+{
+  "suite_version": "2.0.0",
+  "total_wall_seconds": 71.83,
+  "gpu_banc_v888_specificity": {
+    "gpu_device": "NVIDIA RTX PRO 6000 Blackwell Server Edition",
+    "gpu_vram_gb": 94.97,
+    "connectome_neurons": 157789,
+    "connectome_edges": 3036600,
+    "connectome_synapses": 23553108,
+    "permutations": 1000,
+    "elapsed_seconds": 0.917,
+    "optic_looming_to_escape_dn": {
+      "observed_synapses": 2677.0,
+      "null_mean": 268.79,
+      "null_std": 85.41,
+      "fold_enrichment": 9.96,
+      "z_score": 28.19,
+      "p_value": 0.000999
+    },
+    "cx_ring_to_steering_dn_2hop": {
+      "observed_weighted_drive": 0.55,
+      "null_mean": 0.04,
+      "fold_enrichment": 13.6,
+      "z_score": 6.82,
+      "p_value": 0.004995
+    },
+    "mb_alpn_kc_mbon_2hop": {
+      "observed_weighted_drive": 20.12,
+      "null_mean": 8.66,
+      "fold_enrichment": 2.32,
+      "z_score": 10.4,
+      "p_value": 0.000999
+    },
+    "cervical_dn_to_motor_bottleneck": {
+      "observed_synapses": 143565.0,
+      "null_mean": 12659.56,
+      "fold_enrichment": 11.34,
+      "z_score": 48.09,
+      "p_value": 0.000999
+    }
+  },
+  "necksight_3d": {
+    "methods": {
+      "necksight_v2": {
+        "overall_3d_auroc": 0.9841,
+        "boulder_recall_at_5pct_fpr": 1.0,
+        "thin_pole_recall_at_5pct_fpr": 0.857,
+        "thin_wire_recall_at_5pct_fpr": 1.0,
+        "untextured_wall_recall": 0.0,
+        "max_negative_score": 0.0428
+      },
+      "necksight_v1_1": {
+        "overall_3d_auroc": 0.4841,
+        "boulder_recall_at_5pct_fpr": 1.0,
+        "thin_pole_recall_at_5pct_fpr": 0.0,
+        "thin_wire_recall_at_5pct_fpr": 0.0,
+        "untextured_wall_recall": 0.0,
+        "max_negative_score": 0.0262
+      },
+      "farneback": {
+        "overall_3d_auroc": 0.6349,
+        "boulder_recall_at_5pct_fpr": 1.0,
+        "thin_pole_recall_at_5pct_fpr": 0.0,
+        "thin_wire_recall_at_5pct_fpr": 0.0,
+        "untextured_wall_recall": 1.0,
+        "max_negative_score": 0.5697
+      },
+      "lucas_kanade": {
+        "overall_3d_auroc": 0.2222,
+        "boulder_recall_at_5pct_fpr": 0.0,
+        "thin_pole_recall_at_5pct_fpr": 0.0,
+        "thin_wire_recall_at_5pct_fpr": 0.0,
+        "untextured_wall_recall": 0.0,
+        "max_negative_score": 9.1046
+      }
+    },
+    "real_video_vtest_120f_false_triggers": 0,
+    "real_video_approach_recall_10_clips": 0.7
+  },
+  "neckcord_mujoco_3d": {
+    "hexapod_18dof": {
+      "intact_6leg_v2": {
+        "post_fault_forward_m": 0.525,
+        "post_fault_speed_m_s": 0.131,
+        "tilt_rms_deg": 0.56,
+        "min_torso_height_m": 0.117,
+        "torso_ground_strikes": 0
+      },
+      "L2_amputated_open_loop": {
+        "post_fault_forward_m": 0.174,
+        "post_fault_speed_m_s": 0.043,
+        "tilt_rms_deg": 3.92,
+        "min_torso_height_m": 0.122,
+        "torso_ground_strikes": 0
+      },
+      "L2_amputated_v1_1_no_ik_park": {
+        "post_fault_forward_m": 0.159,
+        "post_fault_speed_m_s": 0.04,
+        "tilt_rms_deg": 4.35,
+        "min_torso_height_m": 0.122,
+        "torso_ground_strikes": 0
+      },
+      "L2_amputated_neckcord_v2": {
+        "post_fault_forward_m": 0.36,
+        "post_fault_speed_m_s": 0.09,
+        "tilt_rms_deg": 1.84,
+        "min_torso_height_m": 0.116,
+        "torso_ground_strikes": 0
+      }
+    },
+    "hexacopter_6dof": {
+      "rotor2_loss_pinv_15line_fdi": {
+        "survived": true,
+        "final_altitude_m": 1.536,
+        "post_fault_alt_mae_m": 0.0275,
+        "post_fault_tilt_rms_deg": 3.54,
+        "mean_python_solve_us": 44.4
+      },
+      "rotor2_loss_scipy_qp": {
+        "survived": true,
+        "final_altitude_m": 1.5,
+        "post_fault_alt_mae_m": 0.0007,
+        "post_fault_tilt_rms_deg": 0.75,
+        "mean_python_solve_us": 1156.6
+      },
+      "rotor2_loss_neckcord_v2": {
+        "survived": true,
+        "final_altitude_m": 1.5,
+        "post_fault_alt_mae_m": 0.0007,
+        "post_fault_tilt_rms_deg": 0.75,
+        "mean_python_solve_us": 192.3
+      },
+      "rotor2_broken_blade_sensorless_esc_v2": {
+        "survived": true,
+        "final_altitude_m": 1.498,
+        "post_fault_alt_mae_m": 0.0032,
+        "post_fault_tilt_rms_deg": 0.69,
+        "mean_python_solve_us": 107.1
+      }
+    }
+  },
+  "necksense_real": {
+    "uci_gas_drift_samples": 13910,
+    "uci_8shot_50x_plume_dilution_acc": {
+      "necksense_v2_1024kc": 0.3309,
+      "raw_euclidean_1nn": 0.5795,
+      "l2_norm_rbf_svm_float": 0.7892
+    },
+    "uci_36month_aging_online_2shot_vs_static": {
+      "necksense_v2_online_2shot_per_batch": 0.3555,
+      "static_l2_rbf_svm_no_recal": 0.4453,
+      "static_raw_1nn_no_recal": 0.3795
+    },
+    "uci_continual_no_replay_early_class_retention": {
+      "necksense_v2_kcg_kcab_ltm": 0.9336,
+      "necksense_v1_stm_only": 0.2768,
+      "mlp_sgd_online": 0.6052
+    },
+    "cwru_bearing_variable_load_anomaly_auroc": {
+      "necksense_v2_chordotonal_5_8kb": 1.0,
+      "isolation_forest_raw_spectrum": 0.0287,
+      "one_class_svm_raw_spectrum": 0.617,
+      "classical_rms_threshold": 0.5126
+    },
+    "cwru_bearing_3shot_0hp_to_2hp_4class_acc": 0.715
+  },
+  "neckcompass_6dof": {
+    "pitch_roll_25deg_dip_65deg_spike_130deg_rms_deg": {
+      "neckcompass_v2": 0.9,
+      "neckcompass_v1_flat": 18.02,
+      "madgwick_9dof": 4.9,
+      "gated_ekf_9dof": 1.48,
+      "gyro_only": 21.99
+    },
+    "steel_hull_35deg_warp_rms_deg": {
+      "plastic_ring_v2_post_cal": 7.08,
+      "uncalibrated_madgwick_9dof": 13.13
+    },
+    "collision_90deg_upset_recovery_seconds": {
+      "neckcompass_v2": 2.48,
+      "gated_ekf_9dof": 10.0
+    }
+  },
+  "closed_loop_gauntlet": {
+    "classical_stack": {
+      "survival_and_homing_rate": 0.012,
+      "collision_rate": 0.0,
+      "lost_rate": 0.988,
+      "median_return_miss_m": 6.6
+    },
+    "necklink_v1_1": {
+      "survival_and_homing_rate": 0.772,
+      "collision_rate": 0.036,
+      "lost_rate": 0.192,
+      "median_return_miss_m": 1.77
+    },
+    "necklink_cns_v2": {
+      "survival_and_homing_rate": 1.0,
+      "collision_rate": 0.0,
+      "lost_rate": 0.0,
+      "median_return_miss_m": 1.75
+    },
+    "shuffled_connectome_null": {
+      "survival_and_homing_rate": 0.0,
+      "collision_rate": 0.016,
+      "lost_rate": 0.984,
+      "median_return_miss_m": 12.37
+    }
+  },
+  "wasm_binary_size": "38.82 KB"
+}

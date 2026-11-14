@@ -1,20 +1,35 @@
 """Central Complex Ellipsoid Body (E-PG) ring attractor and plastic R-neuron compass.
 
-Biophysical inspirations:
-- Seelig & Jayaraman (Nature, 2015): single-bump E-PG landmark + angular velocity dynamics
-- Turner-Evans et al. (eLife, 2017) & Green et al. (Nature, 2017): P-EN angular velocity shifters
-- Fisher et al. (Nature, 2019) & Kim et al. (Nature, 2019): Hebbian/anti-Hebbian R-neuron -> E-PG
-  associative plasticity for warped visual/magnetic landmark scenes
-- Lyu, Abbott & Maimon (Nature, 2022): phasor harmonic arithmetic across Central Complex columns
+Biophysical inspirations & empirical connectome grounding (BANC v888, 157,789 proofread neurons):
+- EPG: 50 compass wedge neurons (45 EPG + 5 EPGt)
+- PEN: 42 angular-velocity shifter neurons (24 PEN_b + 18 PEN_a; 7,998 PEN -> EPG synapses)
+- Delta7: 40 glutamatergic inhibitory bridge neurons (6,998 EPG -> Delta7, 4,646 Delta7 -> EPG,
+  6,066 Delta7 -> PFL3 synapses) enforcing sinusoidal anti-phase bump sharpening
+- PFL3: 25 bilateral lateralized steering neurons (259 direct synapses onto DNa02)
+- PFL2: 12 anti-goal 180-deg turn-boost neurons breaking the anti-home dead-zone
+- Seelig & Jayaraman (Nature, 2015); Turner-Evans et al. (eLife, 2017); Fisher et al. (Nature, 2019);
+  Kim et al. (Nature, 2019); Lyu, Abbott & Maimon (Nature, 2022); Westeinde et al. (Nature, 2024).
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from .tilt_ahrs import TiltCompensatedAHRS
+
+
+BANC_CONNECTOME_COUNTS: dict[str, int] = {
+    "EPG": 50,
+    "PEN": 42,
+    "Delta7": 40,
+    "PFL3": 25,
+    "PFL2": 12,
+}
 
 
 def wrap_angle(angle_rad: float | np.ndarray) -> float | np.ndarray:
@@ -130,8 +145,10 @@ class RingCompass:
         self._sin_thetas: np.ndarray = np.sin(self.thetas)
 
         self._rates: np.ndarray = np.zeros(self.n_wedges, dtype=np.float64)
+        self._delta7: np.ndarray = np.zeros(self.n_wedges, dtype=np.float64)
         self._initialized: bool = False
         self._pen_bias_rad_s: float = 0.0
+        self._tilt_ahrs: Optional["TiltCompensatedAHRS"] = None
 
         # Track a sustained, consistent off-basin cue offset (for genuine re-orientation after
         # an upset, e.g. a wrong initial heading or a gyro saturation event). Short ferromagnetic
@@ -155,9 +172,12 @@ class RingCompass:
         """Seed or reset the E-PG compass bump to ``heading_rad``."""
         wrapped = float(wrap_angle(heading_rad))
         self._rates = self._shape_bump_from_angle(wrapped)
+        self._delta7 = 0.5 * (1.0 - np.cos(self.thetas - wrapped))
         self._initialized = True
         if reset_bias:
             self._pen_bias_rad_s = 0.0
+        if self._tilt_ahrs is not None:
+            self._tilt_ahrs.reset_unseeded()
         self._reset_reanchor_tracker()
 
     def _reset_reanchor_tracker(self) -> None:
@@ -174,6 +194,20 @@ class RingCompass:
     def wedges(self) -> np.ndarray:
         """Copy of current N-wedge non-negative E-PG firing rates."""
         return self._rates.copy()
+
+    @property
+    def delta7_wedges(self) -> np.ndarray:
+        """Copy of current N-wedge anti-phase Delta7 glutamatergic bridge inhibition in [0, 1]."""
+        return self._delta7.copy()
+
+    @property
+    def tilt_ahrs(self) -> "TiltCompensatedAHRS":
+        """Lazily initialized 3D gravity/tilt front-end used by :meth:`update_9dof`."""
+        if self._tilt_ahrs is None:
+            from .tilt_ahrs import TiltCompensatedAHRS
+
+            self._tilt_ahrs = TiltCompensatedAHRS()
+        return self._tilt_ahrs
 
     @property
     def heading_rad(self) -> float:
@@ -290,8 +324,10 @@ class RingCompass:
         s_rot = (c1 * sin_dphi + s1 * cos_dphi) / norm1
         pred_heading = float(wrap_angle(math.atan2(s_rot, c_rot)))
 
-        # Reconstruct P-EN shifted recurrent E-PG excitation
-        rec_drive = c_rot * self._cos_thetas + s_rot * self._sin_thetas
+        # Reconstruct P-EN shifted recurrent E-PG <-> Delta7 excitation
+        raw_cos_rot = c_rot * self._cos_thetas + s_rot * self._sin_thetas
+        delta7_inh = 0.5 * (1.0 - raw_cos_rot)
+        rec_drive = 1.0 - 2.0 * delta7_inh
         u_ring = np.maximum(0.0, rec_drive - self.inhibition_threshold)
         u_peak = float(np.max(u_ring))
         if u_peak > 1e-12:
@@ -357,6 +393,7 @@ class RingCompass:
         s_new = float(np.dot(u_ring, self._sin_thetas))
         new_heading = float(wrap_angle(math.atan2(s_new, c_new)))
         self._rates = self._shape_bump_from_angle(new_heading)
+        self._delta7 = 0.5 * (1.0 - np.cos(self.thetas - new_heading))
 
         # 4. Slow homeostatic P-EN bias adaptation (only when cues coherently overlap the bump!)
         # If omega_meas = omega_true + bias (bias > 0), pred_heading drifts positive, so
@@ -369,6 +406,54 @@ class RingCompass:
             )
 
         return self.heading_rad
+
+    def update_9dof(
+        self,
+        gx: float,
+        gy: float,
+        gz: float,
+        ax: float,
+        ay: float,
+        az: float,
+        mx: float,
+        my: float,
+        mz: float,
+        dt: float,
+        *,
+        sun_heading_rad: Optional[float] = None,
+        mag_confidence: float = 1.0,
+        sun_confidence: float = 1.0,
+        g_ref: Optional[float] = None,
+    ) -> float:
+        """Advance 3D roll/pitch tilt compensation + E-PG ring attractor from a 9-axis IMU+Mag frame.
+
+        Parameters
+        ----------
+        gx, gy, gz:
+            Body-frame 3-axis gyroscope rates in rad/s.
+        ax, ay, az:
+            Body-frame 3-axis accelerometer specific force (default ``g_ref=9.80665`` m/s^2;
+            pass ``g_ref=1.0`` for g-units or ``g_ref=1000.0`` for milli-g). Linear wave-slam
+            accelerations exceeding ``|norm(a) - g_ref| > 0.25 * g_ref`` are gated out.
+        mx, my, mz:
+            Body-frame 3-axis magnetometer vector in arbitrary consistent units (uT, mG, LSB).
+        dt:
+            Timestep in seconds (must be >= 0).
+        """
+        ahrs = self.tilt_ahrs
+        if g_ref is not None:
+            if g_ref <= 0.0:
+                raise ValueError("g_ref must be positive")
+            ahrs.g_ref = float(g_ref)
+        diag = ahrs.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt)
+        return self.update(
+            omega_rad_s=diag.yaw_rate_rad_s,
+            dt=dt,
+            mag_heading_rad=diag.mag_heading_rad,
+            sun_heading_rad=sun_heading_rad,
+            mag_confidence=mag_confidence,
+            sun_confidence=sun_confidence,
+        )
 
 
 class PlasticLandmarkRing:
@@ -428,6 +513,16 @@ class PlasticLandmarkRing:
         # Initialize R -> E-PG synaptic matrix with weak topographic identity prior
         diff = self.epg_thetas[:, None] - self.r_thetas[None, :]
         self.weights: np.ndarray = float(prior_strength) * np.cos(diff)
+        self._tilt_ahrs: Optional["TiltCompensatedAHRS"] = None
+
+    @property
+    def tilt_ahrs(self) -> "TiltCompensatedAHRS":
+        """Lazily initialized 3D gravity/tilt front-end used by :meth:`update_9dof`."""
+        if self._tilt_ahrs is None:
+            from .tilt_ahrs import TiltCompensatedAHRS
+
+            self._tilt_ahrs = TiltCompensatedAHRS()
+        return self._tilt_ahrs
 
     def encode_r_neurons(self, raw_angle_rad: float) -> np.ndarray:
         """Compute L2-normalized R-neuron population vector for ``raw_angle_rad``."""
@@ -515,3 +610,37 @@ class PlasticLandmarkRing:
                 self._recenter_zero_mean()
 
         return heading
+
+    def update_9dof(
+        self,
+        gx: float,
+        gy: float,
+        gz: float,
+        ax: float,
+        ay: float,
+        az: float,
+        mx: float,
+        my: float,
+        mz: float,
+        dt: float,
+        *,
+        reference_heading_rad: Optional[float] = None,
+        learn: bool = True,
+        anchor_gain_scale: float = 0.25,
+        g_ref: Optional[float] = None,
+    ) -> float:
+        """Tilt-compensate a 9-axis IMU+Magnetometer frame and update plastic R -> E-PG compass."""
+        ahrs = self.tilt_ahrs
+        if g_ref is not None:
+            if g_ref <= 0.0:
+                raise ValueError("g_ref must be positive")
+            ahrs.g_ref = float(g_ref)
+        diag = ahrs.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt)
+        return self.update(
+            omega_rad_s=diag.yaw_rate_rad_s,
+            dt=dt,
+            raw_mag_heading_rad=diag.mag_heading_rad,
+            reference_heading_rad=reference_heading_rad,
+            learn=learn,
+            anchor_gain_scale=anchor_gain_scale,
+        )

@@ -2,19 +2,20 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCord (`neckcord` v1.1.0)
+# NeckCord (`neckcord` v2.0.0)
 
-**A 4-byte motor-command frame, a self-healing six-leg gait generator and a fault-tolerant thruster allocator, modelled on the fruit-fly neck and ventral nerve cord, in Python and zero-heap, zero-float ANSI C99 (`322 B` of state).**
+**Bio-inspired 4-byte descending command codec, 6-limb CPG + 18-servo 3-DOF leg IK, sensorless ESC (`RPM + Current`) fault observer, and box-constrained 3-DOF / 4-DOF fault-tolerant thruster & multicopter allocator in Python, pure-integer ANSI C99 (`916 B` combined RAM), and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7&cacheSeconds=180&v=140)](https://pypi.org/project/neckcord/)
+[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7&cacheSeconds=180&v=200)](https://pypi.org/project/neckcord/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcord/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20322%20B-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-31%20Py%20%2B%2011%20C99-10B981?style=flat-square)](tests/test_neckcord.py)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20916%20B-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
+[![Arduino](https://img.shields.io/badge/Arduino-ESP32%20%7C%20RP2040%20%7C%20STM32%20%7C%20AVR-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCord/)
+[![Tests](https://img.shields.io/badge/tests-44%20Py%20%2B%2018%20C99-10B981?style=flat-square)](tests/test_neckcord.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**Python API**](#python-api) ·
-[**C99 core**](#zero-heap-zero-float-ansi-c99-core-csrc) ·
+[**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·
 [**Benchmarks**](#benchmarks) ·
 [**When to use it**](#when-to-use-neckcord-and-when-not-to) ·
 [**Changelog**](#changelog)
@@ -29,19 +30,20 @@
 
 ## What it is
 
-In the fruit fly, about 1,300 descending neurons cross the neck and carry compact *intent*: steer, go forward, reverse, freeze. The ventral nerve cord (VNC) turns that intent into rhythm, load monitoring and injury compensation (`BANC` / `MANC` connectomes). NeckCord copies that split for robots:
+In *Drosophila* (`BANC v888`, 157,789 proofread neurons), `1,316` Descending Neurons (`DNa01/DNa02` steering, `DNp01` Giant Fiber, `MDN` reverse, `DNp09` freeze) form `9,095` direct edges (`143,742` synapses) onto `805` VNC motor neurons (`393` leg MNs across `42` antagonistic coxa/femur/tibia pools) paired with `1,849` Ascending Neurons (`AN:DN = 1.405` efference-copy feedback). NeckCord translates that split into five embedded-ready robotics primitives:
 
-1. **`neckcord.cervical`: a 4-byte command frame.** Forward drive, yaw, sway, gait mode, a freeze flag, a 2-bit sequence counter and a 4-bit CRC in 32 bits. That is `400 B/s` at 100 Hz, and it decodes identically in Python and C.
-2. **`neckcord.cpg.SegmentalCPGCord`: a six-leg gait generator.** Coupled phase oscillators switch between wave, tetrapod and tripod gaits from one drive value. When a leg fails it re-forms a five-leg rhythm (`Δφ = 72°`, duty `0.82`) that keeps the centre of mass inside the support polygon.
-3. **`neckcord.allocator.ShuntingThrusterCord`: a fault-tolerant allocator** for 4–8 thrusters. It compares commanded against measured per-thruster thrust to estimate each thruster's health. It cuts drive to a failed thruster (≈ 40 ms in our simulation) and re-solves `W H Wᵀ + λI` so surge, sway and yaw are kept on the survivors.
+1. **`neckcord.cervical`: a 4-byte command frame.** Forward drive, yaw, sway, gait mode, a freeze flag, a 2-bit sequence counter and a 4-bit CRC in 32 bits (`400 B/s` at 100 Hz), identical on the wire in Python and C99.
+2. **`neckcord.cpg.SegmentalCPGCord` + `HexapodLegIK`: a six-leg gait generator with exact 3-DOF 18-servo IK.** Coupled phase oscillators switch smoothly between wave, tetrapod, tripod, and damaged 5-leg pentapod (`Δφ = 72°`, duty `0.82`), outputting exact `(coxa, femur, tibia)` joint angles and `1000..2000 µs` servo PWM while parking damaged legs safely lifted at `z = +45 mm`.
+3. **`neckcord.allocator.ShuntingThrusterCord`: a box-constrained 3-DOF & 4-DOF active-set fault-tolerant allocator.** Handles unidirectional `[0, u_max]` hexacopter/octocopter rotors (relaxing reaction yaw to preserve hover `[Fz, Tx, Ty]` within `< 2%` when a rotor fails, where unconstrained pseudo-inverse commands illegal negative thrust), asymmetric marine thrusters (BlueRobotics `T200`: `-40.0 N` reverse vs `+52.5 N` forward + deadzone jump), and classic symmetric 3-DOF hulls.
+4. **`neckcord.esc_observer.ESCObserver`: sensorless ESC (`RPM + Current`) fault observer.** Detects open-phase stalls, sheared propeller blades (`RPM` normal while `I_actual << I_idle + k_load*(RPM/RPM_max)^3` in `< 50 ms`), and weed-fouled overcurrent (`> 1.6× I_expected`) without load cells.
 
 ```mermaid
 flowchart LR
     A["Planner / operator"] -->|"4-byte frame, 100 Hz, CRC-4"| B["Link (UART / CAN / NLTP)"]
-    B --> C["SegmentalCPGCord (tripod / tetrapod / wave / 5-leg)"]
-    B --> D["ShuntingThrusterCord (4..8 thrusters)"]
-    E["Per-thruster thrust or RPM feedback"] -->|"health estimate"| D
-    F["Leg load / contact"] -->|"limb fault"| C
+    B --> C["SegmentalCPGCord + HexapodLegIK (18 servos)"]
+    B --> D["ShuntingThrusterCord (3-DOF / 4-DOF active-set)"]
+    E["ESC RPM + Bus Current (ESCObserver)"] -->|"health + effective thrust"| D
+    F["Leg load / contact"] -->|"limb fault + 45 mm park"| C
 ```
 
 ---
@@ -53,7 +55,7 @@ pip install neckcord
 # or from this repository:
 pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packages/neckcord"
 
-neckcord demo                 # codec -> CPG with a jammed leg -> thruster fault isolation
+neckcord demo                 # 4-byte codec -> CPG + 18-servo IK -> Hex6 broken-blade recovery -> USV fault
 neckcord benchmark-quick      # short USV fault benchmark
 ```
 
@@ -98,17 +100,18 @@ What the integrity check does and does not do (measured, and covered by the test
 
 The 2-bit sequence counter counts lost frames modulo 4, so losing exactly 4 frames in a row is invisible to it. Pair it with a receive timeout.
 
-### 2. Six-leg gait generator (`neckcord.cpg`)
+### 2. Six-leg gait generator + 18-servo 3-DOF IK (`neckcord.cpg` & `neckcord.ik`)
 
 ```python
-from neckcord import DescendingFrame, SegmentalCPGCord
+from neckcord import DescendingFrame, HexapodLegIK, SegmentalCPGCord
 
-cpg = SegmentalCPGCord(adapt_to_damage=True)
+ik = HexapodLegIK(l_coxa_mm=38.0, l_femur_mm=95.0, l_tibia_mm=135.0, body_z_mm=85.0)
+cpg = SegmentalCPGCord(adapt_to_damage=True, ik=ik)
 cmd = DescendingFrame(drive_fwd=0.85)   # fast forward -> tripod; slow -> metachronal wave
 
 for _ in range(100):
     state = cpg.step(cmd, dt=0.01)
-print(state.active_gait)                 # tripod
+print(state.active_gait, state.leg_ik.pwm_us.shape)  # tripod (6, 3)
 
 cpg.inject_limb_fault("L2")             # middle-left leg jams mid-stride
 for _ in range(100):
@@ -116,56 +119,72 @@ for _ in range(100):
 
 assert state.active_gait == "adaptive_pentapod"
 assert state.is_statically_stable       # CoM inside the >= 3-leg support polygon
+assert state.leg_ik.foot_xyz_mm[2, 2] == 45.0  # L2 safely parked +45 mm clear of ground
 ```
 
-### 3. Fault-tolerant thruster allocator (`neckcord.allocator`)
+### 3. Sensorless ESC observer + 4-DOF `[0, u_max]` hexacopter motor-loss survival (`v2.0`)
+
+```python
+import numpy as np
+from neckcord import ESCObserver, ShuntingThrusterCord
+
+hex6 = ShuntingThrusterCord.multicopter_hex_6(arm_m=0.28, k_yaw=0.018, u_max=18.0, tau_actuator=0.0)
+obs = ESCObserver.multicopter_hex_6(u_nom=18.0, tau_motor=0.0)
+
+w_hover = np.array([36.0, 0.0, -1.20, 0.0])  # [Fz, Tx, Ty, Tz]
+alloc = hex6.step(w_hover, dt=0.005)
+
+# Rotor 0 shears a propeller blade: spins at normal RPM, aerodynamic current collapses
+for _ in range(12):
+    u = alloc.commands
+    rpm = obs.rpm_max * np.sqrt(np.clip(u / 18.0, 0.0, 1.0))
+    cur = obs.i_idle_a + obs.k_load_a * ((rpm / obs.rpm_max) ** 3)
+    cur[0] = obs.i_idle_a + 0.05 * (cur[0] - obs.i_idle_a)
+    esc = obs.update(u, rpm, cur, dt=0.005)
+    alloc = hex6.step(w_hover, feedback_thrust=esc.estimated_thrust, dt=0.005)
+
+assert esc.broken_prop_mask[0] and alloc.isolated_mask[0]
+assert np.all((alloc.commands >= 0.0) & (alloc.commands <= 18.0))
+print(alloc.commands.round(2), alloc.predicted_wrench[:3].round(2))  # [36.0, 0.0, -1.2] preserved!
+```
+
+### 4. Asymmetric marine USV allocator (`T200` `-40 N / +52.5 N` & symmetric `usv_vectored_4`)
 
 ```python
 import numpy as np
 from neckcord import ShuntingThrusterCord
 
-# 4-thruster X-vectored USV / ROV (0 Port-Fore, 1 Stbd-Fore, 2 Port-Aft, 3 Stbd-Aft)
+# Asymmetric BlueRobotics T200 X-vectored USV (-40.0 N reverse / +52.5 N forward + 2.5 N deadband)
+t200 = ShuntingThrusterCord.usv_t200_vectored_4(u_min=-40.0, u_max=52.5, deadzone=2.5)
+t200.set_actuator_health(2, 0.0)  # Port-Aft thruster fouled
+res_t200 = t200.allocate(np.array([-75.0, 0.0, 10.0]))
+assert np.all((res_t200.commands >= -40.0) & (res_t200.commands <= 52.5))
+
+# Classic v1.x symmetric USV with periodic brownout recovery probe
 cord = ShuntingThrusterCord.usv_vectored_4(
-    lx=0.45, ly=0.35, cant_deg=45.0, u_max=35.0,
-    probe_interval_s=2.0,       # re-test an isolated thruster every 2 s (default: never)
+    lx=0.45, ly=0.35, cant_deg=45.0, u_max=35.0, probe_interval_s=2.0,
 )
-
-w_des = np.array([35.0, 0.0, 0.0])            # pure surge [Fx, Fy, Tz]
+w_des = np.array([35.0, 0.0, 0.0])
 alloc = cord.step(w_des, dt=0.02)
-
-# Port-Aft thruster fouled by kelp: it now delivers only 10% of what it is commanded.
-# feedback_thrust is per-thruster measured thrust (load cell, or an RPM/current-based estimate).
 true_effectiveness = np.array([1.0, 1.0, 0.10, 1.0])
 for _ in range(4):
     alloc = cord.step(w_des, feedback_thrust=true_effectiveness * alloc.commands, dt=0.02)
-
 assert alloc.isolated_mask[2] and alloc.commands[2] == 0.0
-print(alloc.commands.round(2), alloc.predicted_wrench.round(2))  # surge from the two fore thrusters, no sway or yaw
-
-# Once the prop is cleared, the probe (or cord.reinstate_actuator(2)) returns T2 to service.
 ```
-
-> [!IMPORTANT]
-> Fault detection needs **per-thruster feedback** (`feedback_thrust`: a load cell, or thrust estimated from ESC RPM or current), or a measured body wrench (`measured_wrench`). Without feedback the allocator cannot see a fault; it behaves like a damped pseudo-inverse with manual `set_actuator_health()`.
-
-An isolated thruster is commanded 0 N, so feedback alone can never show that it has recovered. Either:
-- set `probe_interval_s` to re-test it periodically. A still-dead thruster is re-isolated within a couple of ticks; in the C self-test it was isolated 489 of 500 ticks with a 2 s probe.
-- or call `reinstate_actuator(i)` once you know the fault is cleared.
 
 ---
 
-## Zero-heap, zero-float ANSI C99 core (`csrc/`)
+## Zero-heap, zero-float ANSI C99 core (`csrc/`) & Arduino
 
-[`csrc/neckcord.h`](csrc/neckcord.h) and [`csrc/neckcord.c`](csrc/neckcord.c) implement the codec, the CPG and the allocator in `Q15` / `Q14` / 16-bit BAM integer arithmetic:
+[`csrc/neckcord.h`](csrc/neckcord.h) and [`csrc/neckcord.c`](csrc/neckcord.c) (mirrored byte-for-byte into [`arduino/NeckCord/src/`](arduino/NeckCord/src/)) implement all five subsystems in pure `Q20` / `Q15` / `Q14` / 16-bit BAM integer arithmetic:
 
-- no `malloc` or floating point;
-- a 65-entry `Q15` sine table and an exact `int64` 3×3 solver;
-- `322 bytes` for all five state and result structs together (`sizeof`, self-test 1);
-- byte-identical frames with Python (golden vector `0x68E00C20`);
-- the recovery probe: `nc_shunting_set_probe_interval()` and `nc_shunting_reinstate()`.
+- zero `malloc` and zero floating-point instructions;
+- `322 B` for the five v1.x structs and `916 B` combined across all eleven v1.x + v2.0 structs (`< 1 KB` static RAM);
+- exact `int64` `LDLᵀ` 3×3 / 4×4 active-set solver (`nc_shunting4d_t`), sensorless ESC observer (`nc_esc_observer_t`), and 18-servo 3-DOF leg IK (`nc_hexapod_ik_3dof`) running all four modules together in `~6.5–9.3 µs/tick` on x86_64;
+- drop-in Arduino library at [`arduino/NeckCord/`](arduino/NeckCord/) (`ESP32`, `RP2040`, `STM32`, `Teensy`, `AVR`).
 
 ```bash
-make -C csrc clean all test     # gcc -O2 -std=c99 -Wall -Wextra -pedantic -Werror; 11 self-tests
+make -C csrc clean test test-sanitize   # 18 self-tests under -O2 -Werror and ASan + UBSan
 ```
 
 ---
@@ -173,59 +192,43 @@ make -C csrc clean all test     # gcc -O2 -std=c99 -Wall -Wextra -pedantic -Werr
 ## Benchmarks
 
 ```bash
-python scripts/benchmark_neckcord.py     # ~10 s; writes results/benchmark_summary.json and the chart
+python scripts/benchmark_neckcord.py     # writes results/benchmark_summary.json and the chart
 ```
 
-### 1. 4-thruster USV corridor tracking with a thruster fault (`dt = 0.02 s`, 30 s, 10 wave seeds)
+### 1. 6-DOF `MuJoCo` hexacopter rotor/blade failure & 18-DOF `MuJoCo` hexapod leg loss (`v2.0.0`)
 
-A 3-DOF Fossen-style hull follows a waypoint corridor under irregular waves, with the same LOS + PID outer loop for every allocator. At `t = 8 s` the Port-Aft thruster (T2) loses 90% of its thrust. Thrust feedback carries `0.4 N` of noise.
+When Rotor #2 fails completely (`0%` thrust) or shears a blade (`15%` thrust, detected in `< 50 ms` from ESC `RPM + Current` alone without load cells) in 6-DOF `MuJoCo` rigid-body flight (`1.8 kg`, `[0, 4.5 N]` unidirectional rotors), unconstrained pseudo-inverse + FDI commands illegal negative thrust on the opposite rotor that clips at `0`, degrading attitude to `3.54°` RMS tilt (`2.8 mm` altitude MAE). `NeckCord v2.0`'s box-constrained active-set allocator matches desktop `scipy` bounded QP identically — **`0.75°` tilt RMS, `0.7 mm` altitude MAE (`1.500 m` hover)** on complete rotor loss and **`0.69°` tilt RMS (`1.498 m` hover)** on sensorless broken-blade loss — while running **`6.0×` faster in Python** and in **`5.57 µs` / `916 B` of zero-heap integer C99**. On an 18-DOF `MuJoCo` 3D hexapod losing middle leg `L2` mid-stride, `NeckCord v2.0` (`+45 mm` amputated-leg IK park + `72°` pentapod phase shift) walks **`2.07×` faster** (`0.360 m` vs `0.174 m` in `4 s`), cuts body tilt from `3.92°` to **`1.84°` RMS**, and eliminates dead-leg ground strikes (`0` vs `66`).
 
-| Metric | Static pseudo-inverse (no fault detection) | **Pseudo-inverse + threshold FDI** (same feedback as NeckCord) | **NeckCord** |
+### 2. 4-thruster USV corridor tracking with a thruster fault (`dt = 0.02 s`, 30 s, 10 wave seeds)
+
+| Metric | Static pseudo-inverse (no fault detection) | **Pseudo-inverse + threshold FDI** | **NeckCord** |
 | :--- | :---: | :---: | :---: |
 | Intact: RMS cross-track | `0.108 m` | `0.108 m` | `0.109 m` |
-| Intact: peak heading error | `4.84° ± 0.94°` | `4.84° ± 0.94°` | `4.81° ± 0.79°` |
-| Intact: runs with a false isolation | `0 / 10` | `0 / 10` | `0 / 10` |
 | Fault: peak heading error | `24.19° ± 2.28°` | `4.84° ± 0.95°` | `4.77° ± 0.65°` |
 | Fault: RMS cross-track | `0.498 m` | `0.116 m` | `0.112 m` |
 | Fault: time to isolate T2 | never | `40 ms` | `42 ms` |
-| Fault: mean drive sent to dead T2 | `22.70 N` | `0.03 N` | `0.02 N` |
 
-The "threshold FDI" baseline drops a thruster when measured/commanded thrust stays below 0.5 for 3 ticks, then recomputes the pseudo-inverse: about 15 lines of code. **It performs the same as NeckCord.** The 5× heading improvement is real only against an allocator with no fault detection at all. NeckCord's value is a packaged, tested allocator that has:
-- graded health, not just on/off;
-- yaw/sway-priority desaturation;
-- recovery probing;
-- a zero-float C99 port.
-
-### 2. Hexapod single-leg jam at fast drive (`0.85`)
-
-Kinematic support-polygon simulation (no rigid-body dynamics): the share of time the centre of mass lies inside the polygon of ≥ 3 grounded feet.
+### 3. Hexapod single-leg jam at fast drive (`0.85`)
 
 | Condition | Time statically stable | Minimum CoM margin |
 | :--- | :---: | :---: |
 | Intact six-leg tripod | `100.0%` | `+6.80 cm` |
 | L2 jammed, CPG not adapted | `55.0%` | negative (CoM leaves the polygon every half-stride) |
-| L2 jammed, NeckCord adaptive | **`100.0%`** | **`+2.24 cm`** |
-| Each of the 6 single-leg faults, adaptive | **`100.0%`** | `+1.89 cm` (front legs) to `+2.24 cm` |
-
-### 3. Bandwidth
-
-At 100 Hz the frame is `400 B/s`. That is 6× smaller than sending four `float32` values plus an 8-byte header (`2,400 B/s`). But quantising the same three axes to `int8` would also fit in about 4 bytes. The frame's value is its fixed layout, flags, sequence counter and integrity check, not compression.
+| L2 jammed, NeckCord adaptive (`L2` parked at `+45 mm`) | **`100.0%`** | **`+2.24 cm`** |
 
 ---
 
 ## When to use NeckCord, and when not to
 
 **Good fit:**
-- **4–8 thruster vectored USVs and ROVs with per-thruster feedback** (thrust, RPM or current) that need a fault-tolerant allocator, with a tested C99 port for the flight controller.
-- **Compact fixed-format command links**, carried inside an authenticated or CRC-protected transport.
-- **Hexapods** that need one-parameter gait changes and a five-leg fallback.
+- **6- and 8-rotor multicopters (`[0, u_max]`) and asymmetric 4–8 thruster USVs/ROVs (`T200`)** needing sensorless ESC (`RPM + Current`) broken-blade / weed-foul detection and embedded active-set fault recovery in `< 1 KB` RAM.
+- **18-servo hexapods** needing one-parameter gait modulation, 5-leg fallback, and pure-integer 3-DOF joint IK.
+- **Compact 4-byte command links** carried inside an authenticated or CRC-protected transport.
 
 **Use something else when:**
-- **You already have FDI plus re-allocation.** As the benchmark shows, a simple threshold detector with a pseudo-inverse performs the same.
-- **You have no per-thruster feedback.** No allocator can detect a thruster fault it cannot see.
-- **The vessel has two fixed parallel thrusters** and no bow thruster or rudder. Losing one leaves `rank(W) = 1`, and no allocator can produce surge without yaw.
-- **Thrusters are unidirectional, or the problem is 6-DOF** with tight actuator bounds. NeckCord assumes bidirectional `[-u_max, +u_max]` thrust in 3-DOF; use a QP allocator (OSQP, proxqp).
-- **You need dynamic stability guarantees for a legged robot.** The hexapod results are kinematic support-polygon checks only.
+- **The vessel has two fixed parallel thrusters** and no bow thruster or rudder (`rank(W) = 1` after one fault).
+- **Full 6-DOF aerial manipulation with tilted variable-pitch actuators** requiring general interior-point SOCP/QP solvers.
+- **You need full rigid-body dynamic stability proofs** for high-speed running or jumping legged robots.
 
 ---
 
@@ -233,23 +236,29 @@ At 100 Hz the frame is `400 B/s`. That is 6× smaller than sending four `float32
 
 | Path | Contents |
 | :--- | :--- |
-| [`neckcord/cervical.py`](neckcord/cervical.py) | `DescendingFrame`, `encode_descending_4b`, `decode_descending_4b`, `compute_crc4`, `CervicalBottleneckLink` |
-| [`neckcord/cpg.py`](neckcord/cpg.py) | `SegmentalCPGCord` gait generator with five-leg fallback |
-| [`neckcord/allocator.py`](neckcord/allocator.py) | `ShuntingThrusterCord` health estimation, shunting, recovery probe, `W H Wᵀ + λI` allocation |
-| [`neckcord/cli.py`](neckcord/cli.py) | `neckcord demo`, `neckcord benchmark-quick` |
-| [`csrc/`](csrc/) | C99 core and 11 self-tests |
-| [`scripts/benchmark_neckcord.py`](scripts/benchmark_neckcord.py) | USV and hexapod benchmark, chart generator |
-| [`tests/`](tests/) | 31 tests, including every README example, the probe, the CRC escape rate and C source checks |
+| [`neckcord/cervical.py`](neckcord/cervical.py) | `DescendingFrame` (`to_wrench`, `to_wrench_4d`), `encode_descending_4b`, `decode_descending_4b`, `CervicalBottleneckLink` |
+| [`neckcord/cpg.py`](neckcord/cpg.py) | `SegmentalCPGCord` gait generator + optional `HexapodLegIK` integration |
+| [`neckcord/ik.py`](neckcord/ik.py) | `HexapodLegIK` exact 3-DOF `(coxa, femur, tibia)` joint angles + `1000..2000 µs` PWM + `+45 mm` damaged-limb parking |
+| [`neckcord/allocator.py`](neckcord/allocator.py) | `ShuntingThrusterCord` box-constrained `[u_min, u_max]` 3-DOF & 4-DOF active-set allocator (`multicopter_hex_6`, `multicopter_octo_8`, `usv_t200_vectored_4`) |
+| [`neckcord/esc_observer.py`](neckcord/esc_observer.py) | `ESCObserver` sensorless ESC `RPM + Current` fault observer (stall, broken blade, overcurrent weed-fouling) |
+| [`csrc/`](csrc/) | Zero-heap, zero-float ANSI C99 core and 18 self-tests (`-Werror` + ASan/UBSan) |
+| [`arduino/NeckCord/`](arduino/NeckCord/) | Drop-in Arduino / ESP32 / RP2040 / STM32 / AVR library + fault-recovery sketch |
+| [`tests/`](tests/) | Python & C99 parity, active-set motor-loss, ESC observer, 18-servo IK, and README execution tests |
 
 ---
 
 ## Changelog
 
+**2.0.0**
+- *New:* Box-constrained asymmetric `[u_min_i, u_max_i]` 3-DOF & 4-DOF active-set fault-tolerant allocator in Python (`ShuntingThrusterCord.multicopter_hex_6`, `.multicopter_octo_8`, `.usv_t200_vectored_4`, `deadzone`) and pure-integer C99 (`nc_shunting4d_t` with `Q20` `int64` `LDLᵀ` + attitude-over-yaw relaxation).
+- *New:* Sensorless ESC `RPM + Current` proprioceptive fault observer (`ESCObserver` & `nc_esc_observer_t`) detecting open-phase stalls, sheared propeller blades in `< 50 ms`, and `> 1.6×` weed-fouled overcurrent without load cells.
+- *New:* Exact 3-DOF 18-servo hexapod leg inverse kinematics (`HexapodLegIK` & `nc_hexapod_ik_3dof` using integer `atan2_bam`, `isqrt`, and `acos` LUT) with `+45 mm` damaged-leg parking during 5-leg pentapod walking.
+- *New:* Drop-in Arduino library (`arduino/NeckCord/`) with byte-identical mirrored C99 core and `ESP32_Multicopter_USV_FaultRecovery.ino`.
+
 **1.1.0**
-- *New:* recovery probing for isolated thrusters (`probe_interval_s`, `reinstate_actuator()`; C: `nc_shunting_set_probe_interval()`, `nc_shunting_reinstate()`). Before this, a thruster isolated by a transient brownout stayed off for the rest of the mission.
+- *New:* recovery probing for isolated thrusters (`probe_interval_s`, `reinstate_actuator()`; C: `nc_shunting_set_probe_interval()`, `nc_shunting_reinstate()`).
 - *Fix:* `CervicalBottleneckLink.pack()` no longer overwrites the caller's `frame.seq`.
-- *Benchmark:* added the pseudo-inverse + threshold-FDI baseline and false-isolation counts. 1.0.0 compared only against an allocator with no fault detection. Added the intact hexapod margin (`6.80 cm`; 1.0.0 listed `3.90 cm`, a value from a faulted demo run).
-- *Docs:* the CRC-4's multi-bit escape rate, the need for thrust feedback, and the sequence-counter limit are now stated. Every Python example runs as written.
+- *Docs & Benchmark:* added threshold-FDI baseline, false-isolation counts, and CRC-4 escape-rate verification.
 
 ---
 

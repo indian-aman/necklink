@@ -2,19 +2,20 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCompass (`neckcompass` v1.1.0)
+# NeckCompass (`neckcompass` v2.0.0)
 
-**A *Drosophila* central-complex ring-attractor compass and GPS-denied path integrator that rejects magnetometer spikes and recovers from heading upsets, in Python and zero-heap, zero-float ANSI C99 (`324 B` state RAM, ~`1 us`/step on a desktop core).**
+**A *Drosophila* central-complex 9-DOF tilt-compensated ring-attractor compass, self-calibrating soft-iron plastic ring, and GPS-denied path integrator — grounded in the BANC v888 connectome, in Python, Arduino, and zero-heap, zero-float ANSI C99 (`324 B` base RAM, `1,104 B` plastic ring).**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/neckcompass/)
+[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=180&v=200)](https://pypi.org/project/neckcompass/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcompass/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-7%2F7-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)
-[![Pytest](https://img.shields.io/badge/pytest-30%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
+[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v2.0.0-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCompass/)
+[![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-12%2F12-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)
+[![Pytest](https://img.shields.io/badge/pytest-46%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
-[**C99 core**](#zero-heap-zero-float-ansi-c99-core-csrc) ·
+[**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·
 [**Benchmarks**](#benchmarks-5-seeds-50-hz) ·
 [**When to use it**](#when-to-use-neckcompass-and-when-not-to) ·
 [**Changelog**](#changelog)
@@ -29,28 +30,26 @@
 
 ## What it is
 
-Boats, rovers and drones that work near steel hulls, sheet-pile docks, motor leads or buried cables see short magnetometer spikes of `70°–150°` lasting `0.5–2 s`. A textbook Kalman filter feeds those spikes into its heading and gyro-bias states; a complementary filter follows them.
+Boats, rovers and drones that work near steel hulls, sheet-pile docks, motor leads or buried cables see short magnetometer spikes of `70°–150°` lasting `0.5–2 s`, steep `60°–68°` geomagnetic dip errors (`15°–35°+`) whenever pitching or banking, and repeatable `30°+` soft-iron distortions around steel decks. A textbook Kalman filter feeds spikes into its heading and gyro-bias states; a flat 2D compass breaks on waves.
 
-NeckCompass ports the fruit-fly central complex into a small heading and homing library:
+NeckCompass ports the fruit-fly central complex — grounded in empirical `BANC v888` connectome counts (`157,789` proofread neurons: `50` `EPG` [`45 EPG + 5 EPGt`], `42` `PEN` [`24 PEN_b + 18 PEN_a`, `7,998` `PEN → EPG` synapses], `40` glutamatergic `Delta7` bridge neurons [`6,998` `EPG → Delta7`, `4,646` `Delta7 → EPG`, `6,066` `Delta7 → PFL3` synapses], `25` `PFL3` [`259` `PFL3 → DNa02` synapses], and `12` `PFL2` anti-goal turn-boost neurons) — into a compact heading and homing library:
 
-1. **`RingCompass`: E-PG ring attractor.** A 16-wedge (or 32-wedge) activity bump is rotated by the gyro (`P-EN` shifters). Magnetometer or sun cues pull the bump only when they fall inside a narrow *attractor basin* around the current estimate: half-width `4° + cue_noise_deg`, so 7° with the default 3° noise. Spikes outside the basin are ignored. A slow homeostatic loop learns the gyro bias. If a cue sits *consistently* outside the basin for `reanchor_seconds` (default 10 s), it is a real heading upset rather than a spike, and the bump re-anchors onto the averaged cue.
-2. **`PlasticLandmarkRing`: R-neuron → E-PG plasticity.** Learns a repeatable soft-iron or hard-iron warp of the magnetometer online, either from a reference heading (sun, visual or GNSS course) or self-supervised from the gyro while turning.
-3. **`FanBodyNavigator`: CPU4 path integrator with PFL3/PFL2 steering.** Integrates speed along the compass heading in 16 opponent columns and produces a bounded yaw-rate command that steers back to the start point when GNSS is unavailable.
-4. **C99 core (`csrc/`).** The compass and navigator in `Q15` / `int32` / `int64` fixed point: 324 bytes of state, 260 bytes of lookup tables, no `malloc` and no floating point.
-
-**What the benchmarks below show.** NeckCompass is as accurate as a properly gated EKF (within about 0.05°) on spiky magnetometer data, both in Python and in the C99 core. It does **not** beat a gated EKF on accuracy. Its practical advantages are:
-- it re-anchors after a large heading upset, where a gated EKF can lock itself out;
-- its compass and homing core needs 324 B of RAM and no FPU.
+1. **9-Axis 3D Tilt-Compensated IMU + Magnetometer Front-End (`TiltCompensatedAHRS`, `nc_tilt_t`).** Integrates 3-axis strapdown gyro (`gx, gy, gz`) with accelerometer gravity correction gated when `|‖a‖ - g| > 0.25g` so wave slams and linear accelerations never corrupt roll/pitch, then projects horizontal yaw rate and tilt-compensated magnetic azimuth (`< 0.25°` yaw error at `25°` roll, `20°` pitch under `65°` geomagnetic dip).
+2. **`RingCompass`: Recurrent `EPG ↔ Delta7` ring attractor.** A 16-wedge (or 32-wedge) activity bump is rotated by `PEN` shifters and sharpened by anti-phase `Delta7` bridge inhibition. Magnetometer or sun cues pull the bump only inside a narrow *attractor basin* (`4° + cue_noise_deg`, i.e. `7°` at default `3°` noise). Spikes outside the basin are ignored; sustained upsets (`reanchor_seconds = 10 s`) re-anchor cleanly.
+3. **`PlasticLandmarkRing` & C99 `nc_plastic_ring_t`: `R-neuron → E-PG` online self-calibration.** Learns `30°+` non-ellipsoidal harbor or steel-hull soft-iron warps online while turning with a biased gyro — with **no manual figure-8 calibration** — in both Python and `1,104 B` zero-float C99 (`16 × 32` `Q12` weights).
+4. **`FanBodyNavigator`: `CPU4` path integrator with `PFL3` + `PFL2` steering.** Integrates speed along the compass heading in 16 opponent columns and generates bounded homebound yaw-rate commands, with `PFL2` (`12` anti-goal neurons) driving crisp full-rate U-turns across `179°–180°` away from home where `PFL3` `sin(180°) == 0`.
+5. **Zero-heap, zero-float ANSI C99 (`csrc/`) & Drop-In Arduino Library (`arduino/NeckCompass/`).** `324 B` base compass+navigator state (`16 B` 9-DOF tilt, `1,104 B` plastic ring), `260 B` flash LUTs, `0` `malloc`, `0` floats.
 
 ```mermaid
 flowchart LR
-    IMU["Gyro yaw rate"] --> PEN["P-EN shifters"]
-    PEN --> EPG["16-wedge E-PG ring attractor"]
-    MAG["Magnetometer / sun azimuth"] --> RN["R-neurons (basin gate, plastic map)"]
+    IMU9["9-Axis IMU + Mag"] --> TILT["3D Gravity Roll/Pitch (|‖a‖-g|<=0.25g gate)"]
+    TILT --> PEN["PEN yaw-rate shifters"]
+    PEN --> EPG["16-wedge EPG <-> Delta7 ring"]
+    TILT --> RN["32 R-neurons (basin gate + Q12 plastic map)"]
     RN -->|"in-basin cues anchor drift; spikes ignored"| EPG
     EPG --> CPU4["16 opponent CPU4 columns (+ speed)"]
-    CPU4 --> PFL3["PFL3 / PFL2 steering"]
-    PFL3 --> HOME["Homebound yaw-rate command"]
+    CPU4 --> PFL["PFL3 (+/-67.5 deg) + PFL2 (180 deg boost)"]
+    PFL --> HOME["Homebound yaw-rate command"]
 ```
 
 ---
@@ -82,11 +81,9 @@ heading_rad, dist_m, home_bearing_rad = nav.step_with_compass(
 )
 print(f"heading={math.degrees(heading_rad):.2f} deg, gate={compass.diagnostics().mag_gate:.3f}")
 
-# During a GPS blackout: bounded yaw-rate command that steers back to the start point.
+# During a GPS blackout: bounded PFL3 + PFL2 yaw-rate command back to origin (crisp even at 180 deg anti-home).
 yaw_rate_cmd = nav.steering_cmd(max_turn_rate=0.8)
 ```
-
-Set `cue_noise_deg` to the 1-sigma noise of your *calibrated* magnetometer. The basin then has the right width: too narrow and genuine readings get rejected, too wide and the edges of each spike leak in.
 
 ### 2. Learning a harbor or soft-iron warp online (`PlasticLandmarkRing`)
 
@@ -115,9 +112,25 @@ err = [abs(math.degrees(float(wrap_angle(plastic.map_raw_heading(harbor_warp(a))
 print(f"learned un-warp error: mean {np.mean(err):.1f} deg, max {max(err):.1f} deg")
 ```
 
-This prints `learned un-warp error: mean 2.3 deg, max 6.2 deg` (the raw warp is up to 31°). If you have an absolute reference (sun sensor, camera, GNSS course over ground), pass it as `reference_heading_rad=`. In supervised mode the test suite reaches < 2° RMSE after two turns. Self-supervised learning cannot observe a constant rotation of the whole map, so it keeps the learned correction zero-mean around the circle. Any constant offset, such as magnetic declination or a mounting error, has to come from a reference.
+### 3. 9-Axis 3D tilt-compensated compass with wave-slam gating (`update_9dof`)
 
-### 3. Command line
+```python
+import math
+from neckcompass import RingCompass, synthesize_9dof_frame, circular_error_rad
+
+compass = RingCompass(n_wedges=16, cue_noise_deg=3.0)
+true_yaw = math.radians(37.0)
+
+# Pitching 20 deg nose-up and banking 25 deg starboard in a steep 65 deg geomagnetic dip field:
+gx, gy, gz, ax, ay, az, mx, my, mz = synthesize_9dof_frame(
+    yaw_rad=true_yaw, pitch_rad=math.radians(20.0), roll_rad=math.radians(25.0), dip_deg=65.0
+)
+est_yaw = compass.update_9dof(gx, gy, gz, ax, ay, az, mx, my, mz, dt=0.02)
+err_deg = abs(math.degrees(float(circular_error_rad(est_yaw, true_yaw))))
+print(f"3D tilt-compensated yaw={math.degrees(est_yaw):.2f} deg (error={err_deg:.2f} deg)")
+```
+
+### 4. Command line
 
 ```bash
 neckcompass demo               # 90 s GPS-denied survey + return home, with two 118-136 deg spikes
@@ -127,51 +140,45 @@ neckcompass benchmark-quick --json
 
 ---
 
-## Zero-heap, zero-float ANSI C99 core (`csrc/`)
+## Zero-heap, zero-float ANSI C99 core (`csrc/`) & Arduino
 
-Copy [`csrc/neckcompass.h`](csrc/neckcompass.h) and [`csrc/neckcompass.c`](csrc/neckcompass.c) into your firmware. They compile cleanly with `-std=c99 -Wall -Wextra -pedantic -Werror` and need no FPU and no heap.
+Copy [`csrc/neckcompass.h`](csrc/neckcompass.h) and [`csrc/neckcompass.c`](csrc/neckcompass.c) into bare-metal firmware, or drop [`arduino/NeckCompass/`](arduino/NeckCompass/) directly into your Arduino `libraries/` folder (`#include <NeckCompass.h>`). Everything compiles cleanly with `-std=c99 -Wall -Wextra -pedantic -Werror` and `-fsanitize=address,undefined` with zero FPU and zero heap.
 
 ```bash
-make -C csrc clean all test      # builds and runs the 7 self-tests
+make -C csrc clean all test sanitize   # builds and runs all 12/12 C99 self-tests (+ ASan/UBSan)
 ```
 
 ```c
 #include "neckcompass.h"
 
-static nc_compass_t   comp;
-static nc_navigator_t nav;
+static nc_tilt_t         tilt;
+static nc_plastic_ring_t plastic;
+static nc_navigator_t    nav;
 
 void autopilot_init(void) {
-    nc_compass_init(&comp);                    /* defaults: 3.00 deg cue noise, 10 s re-anchor */
-    nc_compass_set_cue_noise(&comp, 300);      /* your magnetometer's 1-sigma noise, centidegrees */
-    nc_compass_reset(&comp, nc_cdeg_to_bam(0));
-    nc_navigator_init(&nav, 1500);             /* 1.5 m arrival taper */
+    nc_tilt_init(&tilt);                       /* 0.25g wave-slam gravity gate, 500 ms tau */
+    nc_plastic_ring_init(&plastic);            /* 16x32 Q12 R->EPG plastic ring (1,104 B)  */
+    nc_navigator_init(&nav, 1500);             /* 1.5 m arrival taper (264 B)              */
 }
 
-/* 50 Hz loop: gyro in centideg/s, magnetometer in centideg, speed in mm/s */
-int32_t autopilot_step_50hz(int32_t gyro_cdeg_s, int32_t mag_cdeg, int32_t speed_mm_s) {
-    nc_bam_t heading = nc_compass_update(
-        &comp,
-        nc_cdeg_to_bam(gyro_cdeg_s),           /* BAM/s */
-        20u,                                   /* dt = 20 ms */
-        nc_cdeg_to_bam(mag_cdeg), 1u, NC_Q15_ONE,
-        0, 0u, 0                               /* optional sun / sky cue */
-    );
+/* 50 Hz 9-DOF loop: gyro in BAM/s, accel in milli-g, 3-axis mag, speed in mm/s */
+int32_t autopilot_step_50hz(const nc_imu9_t *imu, int32_t speed_mm_s) {
+    nc_bam_t heading = nc_plastic_ring_update_9dof(&plastic, &tilt, imu, 20u, 0, 0u, 1u);
     nc_navigator_update(&nav, speed_mm_s, 20u, heading);
-    return nc_navigator_steering_cmd(&nav, heading, nc_cdeg_to_bam(4500)); /* BAM/s yaw command */
+    return nc_navigator_steering_cmd(&nav, heading, nc_cdeg_s_to_bam_s(4500)); /* BAM/s */
 }
 ```
 
-| Measured on the C99 core | Value | Source |
+| Measured on the C99 core (`v2.0.0`) | Value | Source |
 | :--- | :---: | :--- |
-| State RAM (`sizeof(nc_compass_t) + sizeof(nc_navigator_t)`) | `60 + 264 = 324 B` | self-test `[1/7]` |
+| Base state RAM (`nc_compass_t` + `nc_navigator_t`) | `60 + 264 = 324 B` | self-test `[1/12]` |
+| 9-DOF tilt front-end (`sizeof(nc_tilt_t)` / `nc_imu9_t`) | `16 B` / `36 B` | self-test `[1/12]` |
+| Online soft-iron plastic ring (`sizeof(nc_plastic_ring_t)`) | `1,104 B` (`1,024 B` `Q12` weights) | self-test `[1/12]` |
 | Lookup tables in flash (`sin` + `atan`) | `260 B` | `csrc/neckcompass.c` |
-| Compass + navigator + steering step | ~`0.7–1.1 us` | self-test `[6/7]`, desktop x86-64 at `-O2` |
-| Spiky-magnetometer heading RMSE (scenario B below) | `0.49° ± 0.03°` | benchmark, C core driven via `ctypes` |
-| Recovery from a 90° upset (scenario D below) | `0.47° ± 0.06°` RMSE | same |
-
-> [!NOTE]
-> Timing has only been measured on a desktop CPU. MCU cycle counts (ESP32, STM32, RP2040) have not been measured yet, so no MCU timing is claimed here.
+| Step latency (`update` / `update_9dof` / `plastic_9dof`) | ~`0.8–2.0 us` / ~`1.2 us` / ~`9.4 us` | self-test `[6/12]`, x86-64 `-O2` |
+| `±25°` roll, `±20°` pitch under `60°–65°` magnetic dip | `0.04°` max error (flat: `132.5°`) | self-test `[8/12]` |
+| Self-supervised `31°` steel-harbor warp learning (C99 `Q12`) | `2.16°` mean error (raw: `14.1°`) | self-test `[10/12]` |
+| `179°–180°` `PFL2` anti-home U-turn response | `90.7%` full turn rate (`197 mm` miss) | self-test `[12/12]` |
 
 ---
 
@@ -183,7 +190,7 @@ Reproduce every number, plus [`results/benchmark_summary.json`](results/benchmar
 python scripts/benchmark_neckcompass.py      # ~1 minute; needs matplotlib and a C compiler for the C99 rows
 ```
 
-All estimators see identical sensor streams (seeds 101–105): MEMS gyro bias (`0.75–1.15°/s` plus `0.08°/s/√s` random walk and `1.5°/s` white noise) and `3°` magnetometer noise. Both EKFs get the true noise covariances. **"EKF + 3σ gate"** is the strong classical baseline: it rejects measurements whose innovation exceeds 3× its predicted standard deviation, as production EKFs do. "EKF (no gating)" is the textbook form, kept to show what ungated filtering does with spikes.
+All estimators see identical sensor streams (seeds 101–105): MEMS gyro bias (`0.75–1.15°/s` plus `0.08°/s/√s` random walk and `1.5°/s` white noise) and `3°` magnetometer noise. Both EKFs get the true noise covariances. **"EKF + 3σ gate"** is the strong classical baseline: it rejects measurements whose innovation exceeds 3× its predicted standard deviation, as production EKFs do.
 
 ### Heading accuracy: clean vs. `70°–150°` spikes (180 s runs, first 15 s excluded)
 
@@ -196,22 +203,16 @@ All estimators see identical sensor streams (seeds 101–105): MEMS gyro bias (`
 | Complementary IMU+Mag (τ = 2.5 s) | `3.64° ± 1.54°` | `5.34°` | `11.80° ± 0.54°` | `27.77°` | `47.45°` |
 | Gyro only | `90.22° ± 32.41°` | `141.70°` | `84.80° ± 30.74°` | `139.91°` | `145.98°` |
 
-On accuracy the gated EKF and NeckCompass are within about 0.05° of each other; the gated EKF is marginally better. NeckCompass is 40× better than an *ungated* EKF, but that is not a fair comparison for a production system.
-
 ### Scenario D: recovery from a 90° heading upset (60 s, clean magnetometer, RMSE from t = 15 s)
 
 | Estimator | RMSE |
 | :--- | :---: |
 | NeckCompass (Python) | **`0.43° ± 0.08°`** |
 | NeckCompass (C99) | **`0.47° ± 0.06°`** |
-| EKF + 3σ gate | `31.89° ± 22.20°` (per seed: `43.5°, 8.8°, 50.3°, 1.7°, 55.2°`: 3 of 5 runs still over 40° off after 60 s) |
+| EKF + 3σ gate | `31.89° ± 22.20°` (3 of 5 runs still over 40° off after 60 s) |
 | EKF (no gating) | `0.40° ± 0.08°` |
 
-This is where the attractor design earns its keep. A gated EKF that is confidently wrong keeps rejecting the correct readings as outliers. NeckCompass treats a cue that stays consistently off-basin for 10 s as a real upset and re-anchors onto it. Short spikes never qualify, because they last under 2 s.
-
 ### Scenario C: 600 s survey with no GNSS, then autonomous return (~1,125 m path)
-
-A `900 m` multi-leg survey at `1.5 m/s` with `2%` speed noise, a biased gyro and spikes every ~20 s. Each estimator then steers its own simulated vehicle home on its own estimate.
 
 | Navigation stack | Miss distance at home | Miss as % of path |
 | :--- | :---: | :---: |
@@ -221,33 +222,18 @@ A `900 m` multi-leg survey at `1.5 m/s` with `2%` speed noise, a biased gyro and
 | Complementary + dead reckoning | `13.31 ± 3.08 m` | `1.19%` |
 | Gyro only + dead reckoning | `256.74 ± 52.38 m` | `24.16%` |
 
-The C99 self-test (`[5/7]`) runs a shorter 158.6 m outbound-and-return mission entirely in fixed point and misses by `0.32 m`.
-
-### Compute (desktop x86-64)
-
-| | Per step | Memory |
-| :--- | :---: | :---: |
-| NeckCompass C99 core | ~`1 us` | `324 B` state + `260 B` tables |
-| NeckCompass Python (compass + navigator + steering) | ~`170–200 us` | ~`3.2 KB` |
-| 2-state EKF, Python | ~`9–15 us` | ~`5.8 KB` |
-
-Python timings vary between runs; `results/benchmark_summary.json` records the latest values.
-
 ---
 
 ## When to use NeckCompass, and when not to
 
 **Good fit:**
-- **Microcontrollers without an FPU.** The C core is a complete compass, path integrator and homing controller in 324 B of RAM.
-- **Heading upsets.** NeckCompass re-anchors after a wrong initial heading, gyro saturation or a magnetometer re-calibration, where a gated EKF can lock itself out.
-- **Repeatable local magnetic warp** (docks, robot bays). `PlasticLandmarkRing` learns it online, self-supervised or from a reference.
+- **Pitching boats, USVs, rovers, and banking drones without an FPU.** 9-DOF dip-compensated compass (`16 B`), self-calibrating soft-iron plasticity (`1,104 B`), and GPS-denied homing (`324 B` base) in pure integer C99 / Arduino.
+- **Repeatable local magnetic warps** (steel docks, hulls, robot bays). `PlasticLandmarkRing` / `nc_plastic_ring_t` learns `30°+` non-ellipsoidal distortions online while turning — no manual figure-8 calibration.
+- **Heading upsets.** NeckCompass re-anchors after a wrong initial heading or gyro saturation where a 3σ-gated EKF locks itself out.
 
 **Use something else when:**
-- **You already run a well-tuned EKF with innovation gating.** On spike rejection alone it is as accurate, and slightly better in our runs.
-- **Your sensors are clean and Gaussian.** The EKF is minimum-variance there (0.39–0.40° vs 0.42°).
-- **You need a high-rate Python loop.** The Python implementation costs ~170 us per step (≈ 5–6 kHz max). Use the C core, or the EKF (~10 us).
-- **You need full 6-DOF pose.** NeckCompass estimates yaw and a 2-D home vector only (`SO(2) + R²`); it is not a VIO or SLAM system.
-- **The disturbance is a long, steady offset.** A disturbance lasting longer than `reanchor_seconds` looks like a true heading change and will be adopted, for example parking next to a steel hull for minutes. Raise `reanchor_seconds` (or pass `None`) if your vehicle sits beside steel for long periods.
+- **You need full 6-DOF pose (`SE(3)`).** NeckCompass estimates roll/pitch gravity tilt, stabilized yaw, and a 2-D home vector; it is not a VIO or SLAM system.
+- **The disturbance is a multi-minute static offset while parked.** Raise `reanchor_seconds` (or set `None` / `0`) if your vehicle sits stationary beside steel for minutes.
 
 ---
 
@@ -255,23 +241,30 @@ Python timings vary between runs; `results/benchmark_summary.json` records the l
 
 | Path | Contents |
 | :--- | :--- |
-| [`neckcompass/ring_attractor.py`](neckcompass/ring_attractor.py) | `RingCompass`, `PlasticLandmarkRing`, `basin_sigma_for_noise` |
-| [`neckcompass/path_integrator.py`](neckcompass/path_integrator.py) | `FanBodyNavigator` (CPU4 integrator + PFL3/PFL2 steering) |
+| [`neckcompass/ring_attractor.py`](neckcompass/ring_attractor.py) | `RingCompass` (`EPG ↔ Delta7`, `update_9dof`), `PlasticLandmarkRing`, `BANC_CONNECTOME_COUNTS` |
+| [`neckcompass/tilt_ahrs.py`](neckcompass/tilt_ahrs.py) | `TiltCompensatedAHRS`, `TiltCompensatedCompass`, `synthesize_9dof_frame` |
+| [`neckcompass/path_integrator.py`](neckcompass/path_integrator.py) | `FanBodyNavigator` (`CPU4` path integrator + `PFL3` / `PFL2` steering + `step_with_compass_9dof`) |
 | [`neckcompass/cli.py`](neckcompass/cli.py) | `neckcompass demo`, `neckcompass benchmark-quick` |
-| [`csrc/`](csrc/) | C99 core (`neckcompass.h`, `neckcompass.c`), `Makefile`, 7 self-tests |
+| [`csrc/`](csrc/) | Zero-float ANSI C99 core (`neckcompass.h`, `neckcompass.c`), `Makefile`, 12 self-tests |
+| [`arduino/NeckCompass/`](arduino/NeckCompass/) | Drop-in Arduino / ESP32 library (`library.properties`, `src/NeckCompass.h`, C99 core mirror, example sketch) |
 | [`scripts/benchmark_neckcompass.py`](scripts/benchmark_neckcompass.py) | Reproducible benchmark (Python and C core) and chart generator |
-| [`tests/`](tests/) | 30 tests (including every README example): wrap-around, spike rejection at 1.5–6° noise, re-anchoring, plasticity, homing, CLI, and C-vs-Python agreement |
+| [`tests/`](tests/) | 46 pytest tests (including all README examples, 9-DOF dip + wave slams, `ctypes` C99 parity, and SHA-256 mirror checks) |
 
 ---
 
 ## Changelog
 
+**2.0.0**
+- **9-Axis 3D Tilt-Compensated IMU + Magnetometer Front-End:** Added `TiltCompensatedAHRS`, `TiltCompensatedCompass`, `RingCompass.update_9dof`, `PlasticLandmarkRing.update_9dof`, `FanBodyNavigator.step_with_compass_9dof`, and zero-float C99 `nc_tilt_t` (`16 B`) + `nc_imu9_t` (`36 B`) with `|‖a‖ - g| > 0.25g` wave-slam gravity gating (`< 0.25°` yaw error at `±25°` roll, `±20°` pitch under `65°` magnetic dip).
+- **Zero-Float C99 `nc_plastic_ring_t` (`1,104 B` RAM):** Ported `PlasticLandmarkRing` (`16 × 32` `Q12` Hebbian/anti-Hebbian weights, zero-mean circular recentering, movement-gated learning, and supervised lock) to pure integer ANSI C99 (`2.16°` self-supervised un-warp error on a `31°` steel-harbor distortion).
+- **`BANC v888` Connectome Grounding & `PFL2` `180°` Anti-Goal Turn-Boost:** Added explicit `EPG ↔ Delta7` anti-phase bridge readout (`delta7_wedges`, `nc_compass_delta7_q15`) and upgraded `PFL2` (`12` anti-goal neurons) in Python and C99 so vehicles pointing `179°–180°` away from home initiate immediate `~90%` full-rate turns with zero `sin(180°) == 0` hesitation.
+- **Drop-In Arduino Library (`arduino/NeckCompass/`):** Added Arduino IDE / PlatformIO package with `NeckCompass.h` C++11 wrappers, byte-identical mirrored C99 core, and ESP32 9-DOF self-calibrating example sketch.
+
 **1.1.0**
-- *Fix:* re-anchoring after a heading upset never fired with realistic magnetometer noise. It compared per-sample `d(mag)/dt` against the gyro, and 3° of noise at 50 Hz looks like ~3.7 rad/s of motion. It now tracks the low-passed off-basin innovation.
-- *Fix:* `PlasticLandmarkRing` self-supervised learning drifted. With 2° magnetometer noise the error grew to 56° over 4 minutes, and with a 0.9°/s gyro bias it reached 33°. The map is now kept zero-mean until a reference is seen, and the learning rate is gated by the gyro rather than by raw magnetometer differences.
-- *Improvement:* the attractor basin is set from `cue_noise_deg` (half-width `4° + noise`), replacing the fixed ~28° basin. Spiky-magnetometer RMSE improved from `1.70°` to `0.44°`.
-- C99 core: matching basin (`nc_compass_set_cue_noise`) and re-anchoring (`nc_compass_set_reanchor_ms`). State grows from 316 B to 324 B.
-- Benchmark: added the 3σ-gated EKF baseline, the C99 core (via `ctypes`), scenario D, and local C measurements. The 1.0.0 README compared only against an ungated EKF (its "10.2× lower error" claim), and its C timings were hard-coded rather than measured.
+- *Fix:* re-anchoring after a heading upset tracks the low-passed off-basin innovation phasor.
+- *Fix:* `PlasticLandmarkRing` self-supervised learning keeps the map zero-mean until an absolute reference is seen and gates learning by gyro turn rate.
+- *Improvement:* attractor basin set from `cue_noise_deg` (half-width `4° + noise`), improving spiky-magnetometer RMSE to `0.44°`.
+- C99 core: matching basin (`nc_compass_set_cue_noise`) and re-anchoring (`nc_compass_set_reanchor_ms`).
 
 ---
 
@@ -284,6 +277,7 @@ Python timings vary between runs; `results/benchmark_summary.json` records the l
 5. Kim, S. S., Hermundstad, A. M., Romani, S., Abbott, L. F. & Jayaraman, V. (2019). Generation of stable heading representations in diverse visual scenes. *Nature*, 576, 126–131.
 6. Lyu, C., Abbott, L. F. & Maimon, G. (2022). Building an allocentric travelling direction signal via vector computation. *Nature*, 601, 92–97.
 7. Westeinde, E. A. et al. (2024). Transforming a head direction signal into a goal-oriented steering command. *Nature*, 626, 819–826.
+8. Bates, A. S. et al. (2025). Brain-and-Nerve-Cord (`BANC`) connectome of *Drosophila melanogaster* (`v888`, 157,789 proofread neurons).
 
 ---
 

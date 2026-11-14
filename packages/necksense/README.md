@@ -2,19 +2,20 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSense (`necksense` v1.1.0)
+# NeckSense (`necksense` v2.0.0)
 
-**Concentration-invariant normalisation, sparse binary hashing, one-shot novelty detection and one-shot classification, modelled on the *Drosophila* antennal lobe and mushroom body, in Python (NumPy) and zero-heap, zero-float `Q16.16` ANSI C99 that is bit-identical to Python.**
+**Concentration- and load-invariant normalisation, zero-float vibration/acoustic spectrum conditioning, sparse binary hashing, one-shot novelty detection and continual associative classification, modelled on the *Drosophila* chordotonal organ, antennal lobe and two-compartment mushroom body (`BANC v888` / `MaleCNS`), in Python (NumPy), ANSI C99 (`< 6 KB` SRAM with `-DNS_TINY=1`) and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksense&color=10B981&cacheSeconds=180&v=140)](https://pypi.org/project/necksense/)
+[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksense&color=10B981&cacheSeconds=180&v=200)](https://pypi.org/project/necksense/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksense/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-17%20pytest%20%2B%205%20C99-10B981?style=flat-square)](tests/)
+[![SRAM](https://img.shields.io/badge/MCU%20SRAM-5.8%20KB%20(NS__TINY)-0EA5E9?style=flat-square)](csrc/)
+[![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%208%20C99-10B981?style=flat-square)](tests/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Install**](#install) ·
 [**Quick start**](#quick-start) ·
-[**C99 core**](#zero-heap-zero-float-ansi-c99-core-csrc) ·
+[**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino-library) ·
 [**Benchmarks**](#benchmarks-5-seed-mean) ·
 [**When to use it**](#when-to-use-necksense-and-when-not-to) ·
 [**Changelog**](#changelog)
@@ -29,23 +30,28 @@
 
 ## What it is
 
-Multi-channel chemical, vibration and telemetry sensors face slow baseline drift, large amplitude swings and small microcontrollers. NeckSense turns the fly's four-stage olfactory circuit into a sensor-conditioning and memory library:
+Multi-channel chemical, IMU vibration, piezo acoustic and telemetry sensors face slow baseline drift, `10×–100×` load/concentration swings, sequential class forgetting and tight microcontroller SRAM budgets. NeckSense turns the fly's sensory conditioning and Mushroom Body memory circuits (`BANC v888` connectome: `3,006` ORNs, `2,132` frequency-tuned chordotonal mechanoreceptors, `2,057` `KCγ` short-term + `1,943` `KCα/β` long-term + `122` `KCα'/β'` novelty Kenyon cells) into a compact Python + ANSI C99 library:
 
 ```
-raw sensor vector x(t)
-  │  [1] ORN dual-timescale adaptation: subtract slow (tonic) drift, keep fast transients
+raw IMU / piezo window w[0..N-1] (optional)
+  │  [0] Chordotonal VibrationFrontEnd: 16-ch integer stationary Haar + resonator
+  │      + impulse crest + envelope AM filterbank (strips static 1g tilt on 3-axis IMUs)
+  ▼
+raw or spectral vector x(t)
+  │  [1] ORN dual-timescale adaptation + phasic plume whiff-rate / intermittency tracking
   │  [2] Antennal-lobe divisive normalisation: r_i = p_i^n / (sigma^n + (gamma*mean)^n + p_i^n)
   │  [3] Mushroom-body projection: each Kenyon cell sums d_proj=6 inputs (additions only),
-  │      then global winner-take-all keeps the top k cells -> packed uint64 bit tag
+  │      then global APL winner-take-all keeps top k cells -> packed uint64 bit tag
   ├──► KenyonIndex                 popcount similarity search over binary tags
-  ├──► MushroomNoveltyDetector     one-shot habituation -> novelty score in [0, 1]
-  └──► MushroomValenceClassifier   one-shot / few-shot associative classifier
+  ├──► MushroomNoveltyDetector     KCα'/β' -> MBON-α'3 one-shot habituation & anomaly score
+  └──► MushroomValenceClassifier   KCγ (fast STM) + KCα/β (consolidated anti-forgetting LTM)
 ```
 
-- **Concentration invariance.** Channel *ratios* survive scaling: the minimum cosine similarity between 1× and 100× inputs is `> 0.99999` over 200 random 8-channel patterns. Near-zero inputs are squelched by `sigma` rather than amplified.
-- **No weight matrix.** Each Kenyon cell's 6 input indices come from a deterministic PRNG, so projection needs **0 bytes of weights and no multiplications**, only additions.
-- **One-shot memory.** Sparse codes let a new class or normal mode be stored from one example with little interference: 2% active cells for novelty, 5% for classification and search.
-- **Bit-identical Python ↔ C.** With `c_parity=True`, Python reproduces the C core's `Q16.16` outputs, tags and scores exactly. The test suite checks this against golden vectors and against the live C binary.
+- **Concentration & motor-load invariance.** Channel *ratios* survive scaling: cosine similarity between `1×` and `100×` inputs exceeds `0.99999`, and `VibrationFrontEnd` uses homogeneous degree-1 integer features so 1-shot bearing/propeller/spindle fault signatures survive `10×+` throttle or load swings.
+- **Plume whiff intermittency.** `AntennalNormalizer.step_with_whiff()` and `diagnostics()` track phasic ORN up-crossings (`2–20 Hz` turbulent odor filaments vs static background clouds) for chemical source proximity.
+- **Two-compartment continual memory (`KCγ` + `KCα/β`).** Calling `clf.consolidate()` (`ns_valence_consolidate()` in C) protects consolidated `α/β`-lobe synapses from cross-class opponent erosion while preserving explicit opposite-sign reward extinction (`0%` catastrophic forgetting across sequential multi-class updates).
+- **No weight matrix & `< 6 KB` Tiny MCU SRAM.** Deterministic `xorshift32` projection uses `0 B` of weights and zero multiplications; the entire 5-struct C99 suite fits in **`20,284 B`** by default (`6.9×` smaller than `v1.1.0`) and **`5,804 B` (`< 6 KB`)** with `-DNS_TINY=1`.
+- **Bit-identical Python ↔ C.** With `c_parity=True`, Python reproduces the C core's `Q16.16` / `Q14` outputs, tags, whiff rates, vibration features and scores bit-for-bit.
 
 ---
 
@@ -68,25 +74,36 @@ from necksense import (
     KenyonIndex,
     MushroomNoveltyDetector,
     MushroomValenceClassifier,
+    VibrationFrontEnd,
 )
 
 ethanol_1x = np.array([0.90, 0.35, 0.10, 0.02, 0.50, 0.05, 0.01, 0.20])
 acetone_1x = np.array([0.45, 0.15, 0.08, 0.80, 0.75, 0.10, 0.30, 0.05])
 
-# 1. Antennal lobe: divisive normalisation keeps channel ratios across concentration
+# 1. Antennal lobe + associative learning + KC-alpha/beta LTM consolidation
 ant = AntennalNormalizer(n_channels=8, sigma=0.008, gamma=1.0, hill_n=2.0, tonic_alpha=0.03)
-
-# 2. One-shot associative learning: recognise a 20x plume from a single 1x example
 clf = MushroomValenceClassifier(n_inputs=8, antennal=ant, n_kc=1024, d_proj=6, wta_frac=0.05)
 clf.learn(ethanol_1x, "ethanol", reward=1.0)
+clf.consolidate()  # protect in KC-alpha/beta LTM against future multi-class overwriting
 clf.learn(acetone_1x, "acetone", reward=1.0)
 assert clf.predict(20.0 * acetone_1x) == "acetone"
 
-# 3. Streaming novelty: familiar patterns habituate after a few exposures
+# 2. One-shot IMU / acoustic bearing-fault classification across a 10x load swing
+vib = VibrationFrontEnd(n_samples=128)
+vib_clf = MushroomValenceClassifier(n_inputs=16, antennal=AntennalNormalizer(16, sigma=0.004))
+t = np.arange(128, dtype=np.float64)
+healthy_1x = 0.20 * np.sin(2.0 * np.pi * t / 32.0)
+spall_1x = healthy_1x + np.where((t % 16) == 0, 0.55, 0.0)
+vib_clf.learn(vib.extract(healthy_1x), "healthy")
+vib_clf.learn(vib.extract(spall_1x), "bearing_spall")
+assert vib_clf.predict(vib.extract(10.0 * spall_1x)) == "bearing_spall"
+
+# 3. Streaming novelty + turbulent plume whiff rate
 nov = MushroomNoveltyDetector(n_inputs=8, antennal=AntennalNormalizer(8, sigma=0.008), lr=0.55)
 scores = [nov.update_and_score(ethanol_1x) for _ in range(3)]   # 1.00 -> 0.45 -> 0.20
-s_anomaly = nov.update_and_score(acetone_1x)                    # unseen pattern: 0.82
-print([round(s, 2) for s in scores], round(s_anomaly, 2))
+s_anomaly = nov.update_and_score(acetone_1x)                    # unseen pattern: > 0.75
+_, whiff_rate = ant.step_with_whiff(ethanol_1x)
+print([round(s, 2) for s in scores], round(s_anomaly, 2), round(whiff_rate, 3))
 
 # 4. Popcount similarity search over 128-byte (1024-bit) Kenyon tags
 idx = KenyonIndex(n_inputs=64, n_kc=1024, d_proj=6, wta_frac=0.05)
@@ -98,54 +115,63 @@ assert idx.query(db[42] + 0.05, top_k=5)[0].id == 42
 ### Command line
 
 ```bash
-necksense demo                    # four-stage circuit walkthrough
+necksense demo                    # four-stage circuit + vibration walkthrough
 necksense benchmark-quick         # short version of the three benchmarks
 necksense hash-csv sensors.csv --id-col 0 --n-kc 1024 --antennal-normalize -o tags.csv
 ```
 
 ---
 
-## Zero-heap, zero-float ANSI C99 core (`csrc/`)
+## Zero-heap, zero-float ANSI C99 core (`csrc/`) & Arduino library
 
-[`csrc/necksense.h`](csrc/necksense.h) and [`csrc/necksense.c`](csrc/necksense.c) use only `int32_t`, `uint32_t` and `uint64_t` (`Q16.16`, `1.0 == 65536`), with no `malloc` and no `float`/`double`. They compile cleanly with `-O2 -std=c99 -Wall -Wextra -pedantic -Werror`.
+[`csrc/necksense.h`](csrc/necksense.h) and [`csrc/necksense.c`](csrc/necksense.c) use only fixed-width integer types (`int16_t`, `uint16_t`, `int32_t`, `uint32_t`, `int64_t`, `uint64_t` in `Q16.16` / `Q14`), with zero heap allocation and zero floating-point types. Both the standard profile and `-DNS_TINY=1` compile cleanly under `-O2 -std=c99 -Wall -Wextra -pedantic -Werror` and `-fsanitize=address,undefined`.
 
 ```bash
-make -C csrc clean all test
+make -C csrc clean all test sanitize
 ```
 
 ```c
 #include "necksense.h"
 
+static ns_vib_fe_t   vib;
 static ns_antennal_t ant;
 static ns_kenyon_t   ken;
 static ns_novelty_t  nov;
 
 void sensor_init(void) {
-    ns_antennal_init(&ant, 8u, 512, NS_Q16_ONE, 2u, 655, 1311, 32768, 22938);
-    ns_kenyon_init(&ken, 8u, 1024u, 6u, 20u, 42u);   /* 20 of 1024 active (2%) for novelty */
-    ns_novelty_init(&nov, 1024u, 36045 /* lr = 0.55 */, 0);
+    ns_vib_init(&vib, 128u, 5u);
+    ns_antennal_init(&ant, NS_VIB_CHANNELS, 256, NS_Q16_ONE, 2u, 655, 1311, 32768, 22938);
+    ns_kenyon_init(&ken, NS_VIB_CHANNELS, 512u, 6u, 10u, 42u); /* 2% active for novelty */
+    ns_novelty_init(&nov, 512u, 36045 /* lr = 0.55 */, 16);
 }
 
-int32_t sensor_tick_q16(const int32_t raw_q16[8]) {
-    int32_t norm_q16[8];
-    uint64_t kc_tag[16];
-    ns_antennal_step(&ant, raw_q16, norm_q16);
+int32_t imu_window_novelty_q16(const int16_t accel_xyz_mg[128 * 3]) {
+    int32_t feat_q16[NS_VIB_CHANNELS];
+    int32_t norm_q16[NS_VIB_CHANNELS];
+    uint64_t kc_tag[8];
+    ns_vib_extract_3axis_i16(&vib, accel_xyz_mg, 128u, feat_q16);
+    ns_antennal_normalize(&ant, feat_q16, norm_q16);
     ns_kenyon_hash(&ken, norm_q16, kc_tag);
     return ns_novelty_update_and_score(&nov, kc_tag); /* 0 .. 65536 */
 }
 ```
 
-Static RAM per struct, as printed by the self-test:
+### Static SRAM footprint (verified by `necksense_selftest` & `necksense_selftest_tiny`)
 
-| Struct | Default build (`NS_MAX_KC=2048`, `NS_MAX_CLASSES=16`) | `-DNS_MAX_KC=1024 -DNS_MAX_CLASSES=6` |
-| :--- | :---: | :---: |
-| `ns_antennal_t` | `548 B` | `548 B` |
-| `ns_kenyon_t` (no weight table) | `24 B` | `24 B` |
-| `ns_novelty_t` | `8,216 B` | `4,120 B` |
-| `ns_valence_t` (classifier) | `131,172 B` | `24,628 B` |
-| **Total** | **~140 KB** | **~29.3 KB** |
+| Struct | v1.1.0 Default | **v2.0.0 Default** (`M=1024, C=8`) | **v2.0.0 `-DNS_TINY=1`** (`M=512, C=4`) |
+| :--- | :---: | :---: | :---: |
+| `ns_antennal_t` (drift + divisive + whiff) | `548 B` | **`576 B`** | **`256 B`** |
+| `ns_kenyon_t` (0-byte weight matrix) | `24 B` | **`24 B`** | **`24 B`** |
+| `ns_novelty_t` (lossless 17-bit `Q16.16`) | `8,216 B` | **`2,200 B`** | **`1,112 B`** |
+| `ns_valence_t` (`Q14` + `KCα/β` LTM mask) | `131,172 B` | **`17,472 B`** | **`4,400 B`** |
+| `ns_vib_fe_t` (16-ch chordotonal front-end) | — | **`12 B`** | **`12 B`** |
+| **Total 5-struct suite** | `139,960 B` (`~140 KB`) | **`20,284 B` (`6.9×` smaller)** | **`5,804 B` (`< 6 KB`, `24×` smaller)** |
 
-Full pipeline (normalise + hash + novelty, `D=16`, `M=1024`): **~25–30 us per sample** on a desktop x86-64 core at `-O2`. It has not been measured on MCU hardware.
+Full C99 pipeline (`D=16` normalise + hash + novelty): **~14 us/sample** (`-DNS_TINY=1`, `M=512`) to **~35 us/sample** (`M=1024`) on a single desktop x86-64 core at `-O2`.
+
+### Drop-in Arduino / PlatformIO library (`arduino/NeckSense/`)
+
+Copy [`arduino/NeckSense`](arduino/NeckSense) into `~/Documents/Arduino/libraries/NeckSense` (or add `lib_deps = symlink://.../packages/necksense/arduino/NeckSense` in `platformio.ini`) and `#include <NeckSense.h>`. AVR and ESP8266 targets automatically enable `NS_TINY=1` (`5,804 B` total SRAM); see [`ESP32_Vibration_And_Gas_Anomaly.ino`](arduino/NeckSense/examples/ESP32_Vibration_And_Gas_Anomaly/ESP32_Vibration_And_Gas_Anomaly.ino) for a complete 3-axis IMU vibration + 8-channel MOX gas anomaly sketch.
 
 ---
 
@@ -231,17 +257,26 @@ What this shows:
 
 | Path | Contents |
 | :--- | :--- |
-| [`necksense/antennal.py`](necksense/antennal.py) | `AntennalNormalizer`: drift tracking, divisive normalisation, `Q16.16` parity |
+| [`necksense/vibration.py`](necksense/vibration.py) | `VibrationFrontEnd` (`VibrationAnalyzer`): 16-ch zero-float chordotonal spectrum & envelope extractor |
+| [`necksense/antennal.py`](necksense/antennal.py) | `AntennalNormalizer`: drift tracking, divisive normalisation, plume whiff intermittency, `Q16.16` parity |
 | [`necksense/kenyon.py`](necksense/kenyon.py) | `KenyonHasher` (FlyHash) and `KenyonIndex` (popcount search, `.npz` save/load) |
-| [`necksense/mushroom.py`](necksense/mushroom.py) | `MushroomNoveltyDetector` and `MushroomValenceClassifier` |
+| [`necksense/mushroom.py`](necksense/mushroom.py) | `MushroomNoveltyDetector` and 2-compartment `MushroomValenceClassifier` (`KCγ` STM + `KCα/β` LTM) |
 | [`necksense/cli.py`](necksense/cli.py) | `necksense demo`, `benchmark-quick`, `hash-csv` |
-| [`csrc/`](csrc/) | C99 core, `Makefile`, 5 self-tests and the `--json-parity` emitter |
+| [`csrc/`](csrc/) | ANSI C99 core, `Makefile` (`default`, `NS_TINY=1`, `ASan+UBSan`), 8 self-tests & `--json-parity` |
+| [`arduino/NeckSense/`](arduino/NeckSense/) | Drop-in Arduino / PlatformIO library + `ESP32_Vibration_And_Gas_Anomaly.ino` |
 | [`scripts/benchmark_necksense.py`](scripts/benchmark_necksense.py) | Reproducible benchmark and chart generator |
-| [`tests/`](tests/) | 17 tests, including every README example, a static zero-heap/zero-float audit of the C sources and Python ↔ C bit parity |
+| [`tests/`](tests/) | 24 pytest items, including README execution, zero-heap/zero-float C/Arduino audit & live WSL bit parity |
 
 ---
 
 ## Changelog
+
+**2.0.0**
+- *C99 SRAM reduction (`6.9×–24×`) & `-DNS_TINY=1` MCU profile:* lossless 17-bit `ns_novelty_t` (`uint16_t` + full-weight bitmask) and `Q14` `int16_t` + consolidated `ltm_ab` bitmask in `ns_valence_t` shrink the default 5-struct suite from `139,960 B` (`~140 KB`) to `20,284 B`, and to **`5,804 B` (`< 6 KB`)** under `-DNS_TINY=1` while keeping `v1.1.0` `Q16.16` golden-vector bit parity.
+- *Zero-float vibration & acoustic front-end:* added `VibrationFrontEnd` (`VibrationAnalyzer`) and C99 `ns_vib_fe_t` (`ns_vib_extract_q16`, `ns_vib_extract_i16`, `ns_vib_extract_3axis_i16`) extracting 16 homogeneous degree-1 stationary Haar, quadrature resonator, impulse crest and envelope modulation channels (`10×+` load-invariant 1-shot bearing/motor fault ID; strips static `1g` tilt on 3-axis accelerometers).
+- *Plume whiff intermittency:* added phasic ORN up-crossing tracking (`step_with_whiff()`, `diagnostics()`, `ns_antennal_step_whiff`) distinguishing pulsatile turbulent plumes from static background clouds.
+- *Two-compartment `KCγ` + `KCα/β` anti-forgetting memory:* added `MushroomValenceClassifier.consolidate()` and `ns_valence_consolidate()` protecting consolidated synapses from sequential cross-class opponent erosion (`0%` catastrophic forgetting across sequential tasks) while preserving active opposite-sign extinction.
+- *Arduino library:* added drop-in `arduino/NeckSense` package (`library.properties`, `NeckSense.h`, byte-mirrored C99 core and `ESP32_Vibration_And_Gas_Anomaly.ino`).
 
 **1.1.0**
 - *Improvement:* `MushroomNoveltyDetector` now defaults to 2% sparse codes (`wta_frac=0.02`). Streaming anomaly AUROC rose from `0.9658` to `0.9942` on the benchmark seeds and from `0.961` to `0.997` on held-out seeds. For the C core, pass `k = 20` (of 1024) to `ns_kenyon_init` for novelty.

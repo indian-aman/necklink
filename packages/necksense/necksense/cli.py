@@ -23,6 +23,7 @@ import numpy as np
 from .antennal import AntennalNormalizer
 from .kenyon import KenyonHasher, KenyonIndex, popcount_u64
 from .mushroom import MushroomNoveltyDetector, MushroomValenceClassifier
+from .vibration import VibrationFrontEnd
 
 
 def _cosine_sim(a: np.ndarray, b: np.ndarray) -> float:
@@ -86,7 +87,7 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     n_after3 = nov.score(odor_a)
     n_anom = nov.update_and_score(odor_anom)
 
-    # 4. 1-shot DAN -> KC -> MBON associative valence learning
+    # 4. 1-shot DAN -> KC -> MBON associative valence learning (KCg + KCab LTM)
     clf = MushroomValenceClassifier(8, antennal=ant, n_kc=1024, seed=args.seed)
     gas_templates = {
         "ethanol": np.array([0.90, 0.35, 0.10, 0.02, 0.50, 0.05, 0.01, 0.20]),
@@ -95,9 +96,21 @@ def _cmd_demo(args: argparse.Namespace) -> int:
     }
     for name, vec in gas_templates.items():
         clf.learn(1.0 * vec, name, reward=1.0)
+    clf.consolidate()
     pred_20x = clf.predict(20.0 * gas_templates["acetone"] + 0.01 * rng.standard_normal(8))
 
+    # 5. Chordotonal 16-ch vibration 1-shot fault detection across 10x motor load
+    vib_fe = VibrationFrontEnd(window_size=128)
+    vib_clf = MushroomValenceClassifier(16, antennal=AntennalNormalizer(16, sigma=0.005), seed=args.seed)
+    t_ax = np.arange(128, dtype=np.float64)
+    healthy_1x = np.sin(2.0 * np.pi * t_ax / 32.0)
+    spall_1x = 0.25 * healthy_1x + np.where((np.arange(128) % 16) == 0, 2.2, 0.0)
+    vib_clf.learn(vib_fe.extract(healthy_1x), "healthy_rotor")
+    vib_clf.learn(vib_fe.extract(spall_1x), "bearing_spall")
+    vib_pred_10x = vib_clf.predict(vib_fe.extract(10.0 * spall_1x))
+
     payload = {
+        "version": "2.0.0",
         "antennal_100x_cosine_similarity": round(cos_100x, 6),
         "kenyon_tag_bytes": idx.hasher.tag_bytes,
         "kenyon_active_k": idx.hasher.k_winners,
@@ -107,14 +120,15 @@ def _cmd_demo(args: argparse.Namespace) -> int:
         "novelty_after_3_exposures": round(n_after3, 4),
         "novelty_orthogonal_anomaly": round(n_anom, 4),
         "valence_1shot_20x_prediction": pred_20x,
+        "vibration_1shot_10x_prediction": vib_pred_10x,
     }
 
     if args.json:
         print(json.dumps(payload, indent=2))
         return 0
 
-    print("NeckSense v1.1.0 - Drosophila Olfactory & Mushroom Body Circuit Demo")
-    print("=" * 70)
+    print("NeckSense v2.0.0 - Drosophila Olfactory, Chordotonal & Mushroom Body Demo")
+    print("=" * 74)
     print(f"[1] Antennal Lobe (Olsen-Wilson LN): 100x plume cosine sim = {cos_100x:.6f}")
     print(
         f"[2] Kenyon Calyx (M=1024, d_proj=6, 0 float muls): {idx.hasher.tag_bytes} B tag, "
@@ -124,7 +138,8 @@ def _cmd_demo(args: argparse.Namespace) -> int:
         f"[3] MBON-alpha'3 1-Shot Novelty: unseen={n1:.3f} -> after 3 shots={n_after3:.3f} "
         f"| orthogonal anomaly={n_anom:.3f}"
     )
-    print(f"[4] DAN->KC->MBON 1-Shot Valence: 20x scaled acetone predicted as '{pred_20x}'")
+    print(f"[4] KCg+KCab 1-Shot Valence: 20x scaled acetone predicted as '{pred_20x}'")
+    print(f"[5] Chordotonal Vibration: 10x load bearing spall predicted as '{vib_pred_10x}'")
     return 0
 
 

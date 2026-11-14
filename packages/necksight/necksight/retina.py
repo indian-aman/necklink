@@ -53,6 +53,7 @@ class RetinaLaminaPreproc:
         dark_floor: Optional[float] = None,
         optical_blur: bool = True,
         glare_cancel: bool = True,
+        aec_hunting_guard: bool = True,
     ) -> None:
         if isinstance(grid_size, int):
             if grid_size < 8:
@@ -77,6 +78,7 @@ class RetinaLaminaPreproc:
         self._fixed_dark_floor = float(dark_floor) if dark_floor is not None else None
         self.optical_blur = bool(optical_blur)
         self.glare_cancel = bool(glare_cancel)
+        self.aec_hunting_guard = bool(aec_hunting_guard)
 
         self._dark_floor: Optional[float] = self._fixed_dark_floor
         self._baseline_log: Optional[np.ndarray] = None
@@ -94,12 +96,16 @@ class RetinaLaminaPreproc:
         self._baseline_log = None
         self._dark_floor = self._fixed_dark_floor
 
-    def shift_state(self, dx: float, dy: float) -> None:
-        """Shift the adaptation baseline by ``(dx, dy)`` grid pixels (ego-motion derotation)."""
+    def shift_state(self, dx: float, dy: float, dtheta_rad: float = 0.0) -> None:
+        """Shift or 3-DOF warp the adaptation baseline (ego-motion derotation)."""
         if self._baseline_log is not None:
-            from .egomotion import shift_grid
+            from .egomotion import warp_grid_3dof
 
-            self._baseline_log = shift_grid(self._baseline_log, dx, dy)
+            self._baseline_log = warp_grid_3dof(self._baseline_log, dx, dy, dtheta_rad)
+
+    def warp_state(self, dx: float, dy: float, dtheta_rad: float = 0.0) -> None:
+        """Warp the adaptation baseline by ``(dx, dy, dtheta_rad)`` around grid center."""
+        self.shift_state(dx, dy, dtheta_rad)
 
     def downsample(self, frame: np.ndarray) -> np.ndarray:
         """Downsample an arbitrary ``H x W`` (or ``H x W x C``) frame to ``grid_shape``."""
@@ -207,14 +213,32 @@ class RetinaLaminaPreproc:
         shifted_base = self._baseline_log + global_step
         delta_log = log_intensity - shifted_base
 
+        # Lamina L1 (ON brightening) & L2 (OFF darkening) Naka-Rushton half-wave split
+        sigma = self.naka_rushton_sigma
+        if self.glare_cancel and self.aec_hunting_guard:
+            eff_deadband = self.deadband + 0.08 * abs(global_step)
+            if global_step > 0.05:
+                # Suppress false OFF transients on saturated highlights during exposure/glare up-steps
+                sat_mask = (dl_raw >= -self.deadband) & (-delta_log <= global_step + 0.03)
+                delta_log = np.where(sat_mask, 0.0, delta_log)
+                shifted_base = np.where(sat_mask, log_intensity, shifted_base)
+            elif global_step < -0.05:
+                # Suppress false ON transients on black-floored/recovering pixels during exposure down-steps
+                blk_mask = (dl_raw <= self.deadband) & (delta_log <= -global_step + 0.03)
+                delta_log = np.where(blk_mask, 0.0, delta_log)
+                shifted_base = np.where(blk_mask, log_intensity, shifted_base)
+            if abs(global_step) > 0.25:
+                quiet_mask = np.abs(delta_log) <= eff_deadband
+                shifted_base = np.where(quiet_mask, log_intensity, shifted_base)
+            pos = np.maximum(0.0, delta_log - eff_deadband)
+            neg = np.maximum(0.0, -delta_log - eff_deadband)
+        else:
+            pos = np.maximum(0.0, delta_log - self.deadband)
+            neg = np.maximum(0.0, -delta_log - self.deadband)
+
         # Update local photoreceptor adaptation state monotonically
         alpha = self.adapt_rate
         self._baseline_log = (1.0 - alpha) * shifted_base + alpha * log_intensity
-
-        # Lamina L1 (ON brightening) & L2 (OFF darkening) Naka-Rushton half-wave split
-        sigma = self.naka_rushton_sigma
-        pos = np.maximum(0.0, delta_log - self.deadband)
-        neg = np.maximum(0.0, -delta_log - self.deadband)
 
         l1_on = (pos / (pos + sigma)).astype(np.float32, copy=False)
         l2_off = (neg / (neg + sigma)).astype(np.float32, copy=False)

@@ -2,19 +2,20 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSight (`necksight` v1.1.0)
+# NeckSight (`necksight` v2.0.0)
 
-**A collision (looming) reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` looming neurons), in Python (NumPy) and zero-heap, zero-float ANSI C99 (`14.3 KB` state).**
+**A collision and thin-obstacle (pole/wire) avoidance reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` radial & `LC4` bar looming neurons + `DNa02` directional dodge), in Python (NumPy), zero-heap/zero-float ANSI C99 (`14.3 KB` state), and Arduino / ESP32-CAM.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9&cacheSeconds=180&v=140)](https://pypi.org/project/necksight/)
+[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9&cacheSeconds=180&v=200)](https://pypi.org/project/necksight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksight/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)
+[![Arduino / ESP32](https://img.shields.io/badge/Arduino-ESP32--CAM%20ready-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckSight/)
+[![Tests](https://img.shields.io/badge/tests-32%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**Turning platforms**](#turning-platforms-feed-the-gyro) ·
-[**C99 core**](#zero-heap-zero-float-ansi-c99-core-csrc) ·
+[**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·
 [**Benchmarks**](#benchmarks) ·
 [**When to use it**](#when-to-use-necksight-and-when-not-to) ·
 [**Changelog**](#changelog)
@@ -35,20 +36,20 @@ Cheap collision triggers on moving robots fail in two ways:
 
 NeckSight copies how the fly separates *something is coming at me* from *I am turning*:
 
-1. **`RetinaLaminaPreproc`.** Downsamples any `H×W` (or RGB) frame to a 32×32 or 64×64 grid. It applies log photoreceptor adaptation, cancels global brightness steps (median of the log change), and splits the signal into ON (brightening) and OFF (darkening) channels.
-2. **`T4T5MotionEngine`.** Four-direction elementary motion detectors (correlation with null-direction inhibition) on the ON and OFF channels, plus wide-field flow summaries (`vx`, `vy`, yaw, divergence).
-3. **`LPLC2LoomingReflex`.** At each location and scale, it takes the geometric mean of outward motion in the four arms of a cross: `(Q_L·Q_R·Q_U·Q_D)^¼`. A pan or passing object leaves at least one arm empty; an expanding object fills all four. Wide-field pan suppression and a leaky "giant fiber" integrator give the trigger, a focus of expansion and a rough time-to-contact.
-4. **Gyro derotation (new in 1.1.0).** Give the pipeline the image shift caused by camera rotation, and it keeps detecting obstacles *while* the platform turns. See below.
+1. **`RetinaLaminaPreproc`.** Downsamples any `H×W` (or RGB) frame to a 32×32 or 64×64 grid. It applies log photoreceptor adaptation, cancels global brightness steps and AEC/AGC clipping oscillations, and splits the signal into ON (brightening) and OFF (darkening) channels.
+2. **`T4T5MotionEngine`.** Four-direction elementary motion detectors (correlation with null-direction shunting inhibition) on the ON and OFF channels with connectome-grounded `T5:T4` OFF/ON weighting (`t5_off_gain=1.35`, motivated by `BANC v888` `6,586` `T5→LPLC2` vs `3,330` `T4→LPLC2` synapses), plus wide-field flow summaries (`vx`, `vy`, yaw, divergence).
+3. **`LPLC2LoomingReflex` (`LPLC2` + `LC4` + `DNa02`).** Combines the 4-arm radial gate `(Q_L·Q_R·Q_U·Q_D)^¼` (`LPLC2`, `2,896` DN synapses in `BANC v888`) with a split-strip 2-arm opponent bar/wire channel (`LC4`/`LPLC1`, `2,053` DN synapses, `lc4_weight=0.42`) and `Li` lateral surround inhibition so thin vertical poles and horizontal wires trigger reliably while translating bars, fast pans, and flicker stay silent. Outputs `DNp01` brake (`triggered`), `focus_xy`, rough `est_ttc_s`, and `DNa02` contralateral avoidance steering `(avoid_x, avoid_y)`.
+4. **Full 3-DOF `(yaw, pitch, roll)` gyro derotation (upgraded in 2.0.0).** Feed 3-axis IMU angular rates (`imu_to_ego_motion` in Python, `necksight_derotate_3dof` with integer BAM sin/cos in C99) to cancel yaw, pitch, and camera roll around grid center before stepping.
 
 ```mermaid
 flowchart LR
-    A["Camera frame"] --> B["Retina / lamina: log adapt, glare cancel, ON / OFF"]
-    G["Gyro (optional)"] -->|"derotate state"| B
-    B --> C["T4 / T5 motion detectors"]
+    A["Camera frame"] --> B["Retina / lamina: log adapt, glare + AEC guard, ON / OFF"]
+    G["3-axis IMU gyro (optional)"] -->|"3-DOF derotate"| B
+    B --> C["T4 / T5 EMDs (T5 OFF gain)"]
     C --> D["Wide-field flow (pan)"]
-    C --> E["LPLC2 four-arm radial gate"]
+    C --> E["LPLC2 4-arm radial + LC4 bar/wire gates"]
     D -->|"pan suppression"| E
-    E --> F["Trigger: score, focus, rough TTC"]
+    E --> F["DNp01 trigger + DNa02 avoid_xy + TTC"]
 ```
 
 ---
@@ -63,25 +64,26 @@ pip install "git+https://github.com/indian-aman/necklink.git#subdirectory=packag
 
 ```python
 import numpy as np
-from necksight import NeckSightPipeline, gyro_to_shift_px
+from necksight import NeckSightPipeline, imu_to_ego_motion
 
 pipe = NeckSightPipeline(grid_size=64, threshold=0.045)
 
-# Synthetic stand-in for a camera: textured background with a dark disc approaching.
+# Synthetic stand-in for a camera: textured background with an off-centre dark disc approaching.
 rng = np.random.default_rng(0)
 background = rng.uniform(60, 200, size=(240, 320)).astype(np.float32)
 yy, xx = np.mgrid[0:240, 0:320]
 for t in range(36):
     radius = 10.0 / max((36 - t) / 60.0, 0.025)           # hyperbolic growth toward impact
-    frame = np.where(np.hypot(xx - 160, yy - 120) < radius, 15.0, background)
+    frame = np.where(np.hypot(xx - 120, yy - 120) < radius, 15.0, background)
 
-    # From your IMU: body yaw/pitch rates (rad/s). Here the camera is not rotating.
-    shift = gyro_to_shift_px(yaw_rate_rad_s=0.0, pitch_rate_rad_s=0.0, dt=1 / 60,
-                             hfov_deg=70.0, grid_width=64)
-    trig = pipe.step(frame, dt=1 / 60, ego_shift_px=shift)
+    # From your 6-axis IMU: (yaw, pitch, roll) angular rates in rad/s.
+    ego_3dof = imu_to_ego_motion(yaw_rate_rad_s=0.0, pitch_rate_rad_s=0.0,
+                                 roll_rate_rad_s=0.0, dt=1 / 60, hfov_deg=70.0, grid_width=64)
+    trig = pipe.step(frame, dt=1 / 60, ego_shift_px=ego_3dof)
     if trig.triggered:
         print(f"collision warning at frame {t}: score={trig.looming_score:.3f}, "
-              f"ttc~{trig.est_ttc_s:.2f}s, focus={tuple(round(v, 1) for v in trig.focus_xy)}")
+              f"ttc~{trig.est_ttc_s:.2f}s, focus={tuple(round(v, 1) for v in trig.focus_xy)}, "
+              f"dodge=({trig.avoid_x:+.2f}, {trig.avoid_y:+.2f})")
         break
 ```
 
@@ -125,15 +127,15 @@ Don't try to estimate the shift from the images instead (for example by phase co
 
 ---
 
-## Zero-heap, zero-float ANSI C99 core (`csrc/`)
+## Zero-heap, zero-float ANSI C99 core (`csrc/`) & Arduino
 
-[`csrc/necksight.h`](csrc/necksight.h) and [`csrc/necksight.c`](csrc/necksight.c) run the 32×32 pipeline in integers only:
-- a `Q8` log lookup and a lattice-median glare filter;
-- an integer summed-area table and integer square roots;
+[`csrc/necksight.h`](csrc/necksight.h) and [`csrc/necksight.c`](csrc/necksight.c) (mirrored byte-for-byte into [`arduino/NeckSight/src/`](arduino/NeckSight/src/)) run the 32×32 pipeline in integers only:
+- a `Q8` log lookup and an 8×8 lattice-median glare + AEC/AGC clipping filter;
+- an integer summed-area table, integer square roots, and a 65-entry `Q14` BAM sin/cos table for 3-DOF roll derotation;
 - no `malloc` and no floating point;
-- `sizeof(necksight_state_t) = 14,616 B`, checked at compile time to stay under 16 KB.
+- `sizeof(necksight_state_t) = 14,624 B`, checked at compile time to stay under 16 KB.
 
-`necksight_step_frame_u8()` box-downsamples a QVGA or VGA `uint8_t` camera buffer in the same call.
+`necksight_step_frame_u8()` box-downsamples a QVGA or VGA `uint8_t` camera buffer in the same call. Drop [`arduino/NeckSight`](arduino/NeckSight) into `~/Arduino/libraries/` (or `lib_extra_dirs` in PlatformIO) and open [`ESP32CAM_Looming_Avoidance.ino`](arduino/NeckSight/examples/ESP32CAM_Looming_Avoidance/ESP32CAM_Looming_Avoidance.ino).
 
 ```c
 #include "necksight.h"
@@ -147,20 +149,26 @@ void setup_vision(void) {
     necksight_init(&optic_lobe);
 }
 
-/* Returns 1 when a looming obstacle is detected. yaw/pitch rates in mrad/s from the IMU. */
+/* Returns 1 when a looming obstacle/pole/wire is detected; angular rates in mrad/s. */
 int on_camera_frame(const uint8_t *fb, uint16_t h, uint16_t w,
-                    int32_t yaw_mrad_s, int32_t pitch_mrad_s, uint16_t dt_ms) {
+                    int32_t yaw_mrad_s, int32_t pitch_mrad_s, int32_t roll_mrad_s,
+                    uint16_t dt_ms, int8_t *avoid_x_q7, int8_t *avoid_y_q7) {
     necksight_result_t res;
-    necksight_shift_state(&optic_lobe,
-                          necksight_gyro_to_shift_q4(yaw_mrad_s, dt_ms, FOCAL_PX_Q4),
-                          necksight_gyro_to_shift_q4(pitch_mrad_s, dt_ms, FOCAL_PX_Q4));
+    necksight_derotate_3dof(
+        &optic_lobe,
+        necksight_gyro_to_shift_q4(yaw_mrad_s, dt_ms, FOCAL_PX_Q4),
+        (int16_t)(-necksight_gyro_to_shift_q4(pitch_mrad_s, dt_ms, FOCAL_PX_Q4)),
+        necksight_gyro_to_bam(roll_mrad_s, dt_ms)
+    );
     necksight_step_frame_u8(&optic_lobe, fb, h, w, w, dt_ms, &res);
-    return res.triggered; /* also: res.focus_x, res.focus_y, res.est_ttc_ms */
+    *avoid_x_q7 = res.avoid_x_q7;
+    *avoid_y_q7 = res.avoid_y_q7;
+    return res.triggered; /* also: res.lc4_score_q10, res.focus_x, res.est_ttc_ms */
 }
 ```
 
 ```bash
-make -C csrc clean all test        # -O2 -std=c99 -Wall -Wextra -pedantic -Werror
+make -C csrc clean sanitize test   # ASan+UBSan + -O2 -std=c99 -Wall -Wextra -pedantic -Werror
 ```
 
 The self-test covers a translating grating, a fast pan, 20× brightness steps, dark and bright looming discs, a QVGA buffer, throughput, and test (g). In (g) an obstacle approaches during ±3 px/frame yaw: it is **missed without derotation and caught with it**, with no false triggers on the pan alone. Measured throughput is ~11,000–13,000 frames/s on a desktop x86-64 core at `-O2`. It has not been measured on an ESP32 or other MCU.
@@ -226,8 +234,8 @@ Correlation-type motion detectors mix speed with contrast and spatial frequency.
 - **The platform turns fast and you have no gyro.** Detection drops to 56–81% at 3–4 px/frame of yaw. Feed `ego_shift_px`.
 - **You need metric velocity or odometry.** Lucas-Kanade is 2.4× more accurate at slow sub-pixel speeds.
 - **The obstacle is static and the camera is too.** With no change in the image there is no signal.
-- **The obstacle is thin and only expands in one axis** (a wire). The four-arm gate needs outward motion in all four directions.
-- **You need accurate time-to-contact.** The TTC output is a rough estimate (in the quick-start example: 0.22 s reported vs 0.32 s true).
+- **The obstacle is sub-pixel fine at collision range.** While `v2.0.0`'s `LC4` 2-arm opponent channel detects expanding vertical poles/trees and horizontal beams/wires once they span ≥ 2 grid cells, hair-thin guy wires below the 32×32 / 64×64 grid resolution will not register.
+- **You need accurate time-to-contact.** The TTC output is a rough estimate (in the quick-start example: ~0.22 s reported vs 0.32 s true).
 - **It has not been validated on your camera.** All numbers here come from synthetic sequences. Collect your own footage before relying on it for safety.
 
 ---
@@ -236,18 +244,25 @@ Correlation-type motion detectors mix speed with contrast and spatial frequency.
 
 | Path | Contents |
 | :--- | :--- |
-| [`necksight/retina.py`](necksight/retina.py) | `RetinaLaminaPreproc` |
-| [`necksight/emd.py`](necksight/emd.py) | `T4T5MotionEngine`, `MotionOutput` |
-| [`necksight/looming.py`](necksight/looming.py) | `LPLC2LoomingReflex`, `NeckSightPipeline`, `GiantFiberTrigger`, `attach_nltp_reflex` |
-| [`necksight/egomotion.py`](necksight/egomotion.py) | `gyro_to_shift_px`, `shift_grid` (derotation) |
+| [`necksight/retina.py`](necksight/retina.py) | `RetinaLaminaPreproc` (log adaptation, glare + AEC/AGC clipping guard) |
+| [`necksight/emd.py`](necksight/emd.py) | `T4T5MotionEngine` (`t5_off_gain`), `MotionOutput` |
+| [`necksight/looming.py`](necksight/looming.py) | `LPLC2LoomingReflex` (`LPLC2` + `LC4` + `DNa02`), `NeckSightPipeline`, `GiantFiberTrigger`, `attach_nltp_reflex` |
+| [`necksight/egomotion.py`](necksight/egomotion.py) | `imu_to_ego_motion`, `warp_grid_3dof`, `gyro_to_shift_px`, `shift_grid` |
 | [`necksight/cli.py`](necksight/cli.py) | `necksight demo`, `necksight benchmark-quick` |
-| [`csrc/`](csrc/) | C99 core and self-test |
+| [`csrc/`](csrc/) | Zero-heap, zero-float ANSI C99 core (`14,624 B` state) and self-test |
+| [`arduino/NeckSight/`](arduino/NeckSight/) | Drop-in Arduino / ESP32-CAM library and `ESP32CAM_Looming_Avoidance` sketch |
 | [`scripts/benchmark_necksight.py`](scripts/benchmark_necksight.py) | Benchmark and chart generator |
-| [`tests/`](tests/) | 24 tests, including every README example and derotation during yaw oscillation |
+| [`tests/`](tests/) | 32 pytest tests (thin poles/wires, 3-DOF roll derotation, DNa02 dodge, C99/Arduino SHA-256 parity, README examples) |
 
 ---
 
 ## Changelog
+
+**2.0.0**
+- *Thin-obstacle looming (`LC4`/`LPLC1`) + `BANC v888` `T5/T4` weighting:* added split-strip 2-arm opponent expansion channel (`enable_lc4_bar=True`, `lc4_weight=0.42` / `108` in Q8 matching `2,053 / (2,896 + 2,053)` `BANC v888` DN synapses) with `Li` lateral surround inhibition to catch thin vertical poles and horizontal wires missed by the 4-arm `LPLC2` gate, plus `t5_off_gain=1.35` (`346` in Q8, grounded in `6,586` `T5→LPLC2` vs `3,330` `T4→LPLC2` synapses) while preserving `0%` pan/glare/flicker false alarms.
+- *3-DOF `(yaw, pitch, roll)` derotation + AEC/AGC clipping guard:* added `imu_to_ego_motion`, `warp_grid_3dof`, and integer BAM `necksight_derotate_3dof` around `(15.5, 15.5)` (`sizeof(necksight_state_t) = 14,624 B < 16 KB`), plus photoreceptor saturation/recovery suppression during AEC exposure swings.
+- *Directional evasive reflex (`DNa02`):* added contralateral dodge vectors (`avoid_x`, `avoid_y` in `[-1, +1]`; `avoid_x_q7`, `avoid_y_q7` in `[-127, +127]`) and `bar_score` / `lc4_score_q10`.
+- *Arduino / ESP32-CAM library:* added drop-in [`arduino/NeckSight/`](arduino/NeckSight/) library with `NeckSight` C++ wrapper, byte-identical C99 mirror, and `ESP32CAM_Looming_Avoidance.ino`.
 
 **1.1.0**
 - *Safety fix:* gyro derotation (`ego_shift_px`, `gyro_to_shift_px`; C: `necksight_shift_state`, `necksight_gyro_to_shift_q4`). Before this, a fast-turning platform could miss up to half of approaching obstacles, because pan suppression hid them along with the false alarms. The 1.0.0 benchmark never tested a collision during a turn.

@@ -455,3 +455,326 @@ def test_gyro_to_shift_px_conventions_and_shift_grid() -> None:
     img = np.arange(64, dtype=np.float32).reshape(8, 8)
     moved = shift_grid(img, 2.0, 1.0)  # content moves right 2, down 1
     assert np.allclose(moved[3:, 4:], img[2:-1, 2:-2])
+
+
+def test_v2_version_consistency() -> None:
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    assert __version__ == "2.0.0"
+    header = (root / "csrc" / "necksight.h").read_text(encoding="utf-8")
+    assert '#define NECKSIGHT_VERSION_STRING "2.0.0"' in header
+    props = (root / "arduino" / "NeckSight" / "library.properties").read_text(encoding="utf-8")
+    assert "version=2.0.0" in props
+
+
+@pytest.mark.parametrize("dark_pole", [True, False])
+def test_lc4_thin_vertical_pole_looming_dark_and_bright(dark_pole: bool) -> None:
+    """Thin vertical poles (width ~3 px -> 12 px) missed by pure 4-arm LPLC2 are caught by LC4."""
+    rng = np.random.default_rng(606 if dark_pole else 607)
+    bg = _make_clutter(64, 64, rng)
+    xx = np.broadcast_to(np.arange(64, dtype=np.float32)[None, :], (64, 64))
+    pole_val = 14.0 if dark_pole else 245.0
+
+    pipe_v2 = NeckSightPipeline(grid_size=64, enable_lc4_bar=True)
+    pipe_lplc2_only = NeckSightPipeline(grid_size=64, enable_lc4_bar=False)
+
+    fired_v2 = False
+    fired_lplc2_only = False
+    peak_bar_score = 0.0
+    for t in range(28):
+        ttc = max((28 - t) / 60.0, 0.125)
+        half_w = 0.75 / ttc  # hyperbolic optical expansion: full width ~3.2 px -> 12.0 px
+        edge = np.clip((half_w - np.abs(xx - 22.0)) / 1.0 + 0.5, 0.0, 1.0)
+        frame = bg * (1.0 - edge) + pole_val * edge
+        tr_v2 = pipe_v2.step(frame)
+        tr_old = pipe_lplc2_only.step(frame)
+        fired_v2 = fired_v2 or tr_v2.triggered
+        fired_lplc2_only = fired_lplc2_only or tr_old.triggered
+        peak_bar_score = max(peak_bar_score, tr_v2.bar_score)
+
+    assert fired_v2
+    assert peak_bar_score > 0.045
+    assert not fired_lplc2_only
+
+
+def test_lc4_horizontal_wire_and_bar_false_alarm_immunity() -> None:
+    """Horizontal wires trigger LC4, while translating/receding bars and 4.5 px/f pans stay 0% FA."""
+    rng = np.random.default_rng(707)
+    bg = _make_clutter(64, 64, rng)
+    yy, xx = np.meshgrid(np.arange(64, dtype=np.float32), np.arange(64, dtype=np.float32), indexing="ij")
+    pipe = NeckSightPipeline(grid_size=64)
+
+    # 1. Horizontal overhead wire expanding hyperbolically (~3 px -> 12 px) at y=18
+    wire_trig: List[GiantFiberTrigger] = []
+    for t in range(28):
+        ttc = max((28 - t) / 60.0, 0.125)
+        half_h = 0.75 / ttc
+        edge = np.clip((half_h - np.abs(yy - 18.0)) / 1.0 + 0.5, 0.0, 1.0)
+        frame = bg * (1.0 - edge) + 15.0 * edge
+        tr = pipe.step(frame)
+        if tr.triggered:
+            wire_trig.append(tr)
+    assert len(wire_trig) >= 1
+    assert wire_trig[0].bar_score > 0.045
+    # Overhead wire at y=18 (< center 31.5) -> duck downward (+avoid_y)
+    assert wire_trig[0].avoid_y > 0.5
+    assert abs(wire_trig[0].avoid_x) < 1e-4
+
+    # 2. Translating vertical pole (constant width=5 px sweeping across FOV): 0 false alarms
+    pipe.reset()
+    for t in range(32):
+        cx = 8.0 + 1.6 * t
+        edge = np.clip((2.5 - np.abs(xx - cx)) / 1.0 + 0.5, 0.0, 1.0)
+        frame = bg * (1.0 - edge) + 15.0 * edge
+        assert not pipe.step(frame).triggered
+
+    # 3. Receding vertical pole (width shrinking 14 px -> 2 px): 0 false alarms
+    pipe.reset()
+    for t in range(28):
+        half_w = max(1.0, 7.0 - 0.22 * t)
+        edge = np.clip((half_w - np.abs(xx - 31.5)) / 1.0 + 0.5, 0.0, 1.0)
+        frame = bg * (1.0 - edge) + 15.0 * edge
+        assert not pipe.step(frame).triggered
+
+    # 4. Very fast 4.5 px/frame camera yaw pan across clutter: 0 false alarms
+    pipe.reset()
+    pano = _make_clutter(128, 320, rng, base_scale=64.0)
+    for t in range(40):
+        ox = int(round(4.5 * t))
+        assert not pipe.step(pano[32:96, ox : ox + 64]).triggered
+
+
+def test_directional_avoidance_vector_dna02_steering() -> None:
+    """DNa02 avoidance vector points away from focus_xy (and toward clearer side if dead-center)."""
+    rng = np.random.default_rng(808)
+    bg = _make_clutter(64, 64, rng)
+    yy, xx = np.meshgrid(np.arange(64, dtype=np.float32), np.arange(64, dtype=np.float32), indexing="ij")
+
+    # Left obstacle -> steer right (+avoid_x)
+    pipe_l = NeckSightPipeline(grid_size=64)
+    trig_l = None
+    for t in range(30):
+        rad = (0.09 * 64.0) / max((30 - t) / 60.0, 0.03)
+        edge = np.clip((rad - np.hypot(xx - 18.0, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        tr = pipe_l.step(bg * (1.0 - edge) + 12.0 * edge)
+        if tr.triggered and trig_l is None:
+            trig_l = tr
+    assert trig_l is not None
+    assert trig_l.avoid_x > 0.4
+    assert -1.0 <= trig_l.avoid_x <= 1.0 and -1.0 <= trig_l.avoid_y <= 1.0
+
+    # Right obstacle -> steer left (-avoid_x)
+    pipe_r = NeckSightPipeline(grid_size=64)
+    trig_r = None
+    for t in range(30):
+        rad = (0.09 * 64.0) / max((30 - t) / 60.0, 0.03)
+        edge = np.clip((rad - np.hypot(xx - 46.0, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        tr = pipe_r.step(bg * (1.0 - edge) + 12.0 * edge)
+        if tr.triggered and trig_r is None:
+            trig_r = tr
+    assert trig_r is not None
+    assert trig_r.avoid_x < -0.4
+
+    # Dead-center obstacle -> non-zero lateral escape decision within [-1, +1]
+    pipe_c = NeckSightPipeline(grid_size=64)
+    trig_c = None
+    for t in range(30):
+        rad = (0.095 * 64.0) / max((30 - t) / 60.0, 0.03)
+        edge = np.clip((rad - np.hypot(xx - 31.5, yy - 31.5)) / 1.2 + 0.5, 0.0, 1.0)
+        tr = pipe_c.step(bg * (1.0 - edge) + 12.0 * edge)
+        if tr.triggered and trig_c is None:
+            trig_c = tr
+    assert trig_c is not None
+    assert math.hypot(trig_c.avoid_x, trig_c.avoid_y) >= 0.4
+
+
+def test_3dof_imu_roll_yaw_derotation_and_aec_hunting() -> None:
+    """3-DOF (yaw, pitch, roll) derotation preserves looming under camera roll + AEC hunting stays quiet."""
+    from necksight import imu_to_ego_motion, warp_grid_3dof
+
+    dx, dy, dtheta = imu_to_ego_motion(1.0, -0.5, 1.5, 1.0 / 60.0, 90.0, 64)
+    assert math.isclose(dx, 32.0 / 60.0, rel_tol=1e-9)
+    assert math.isclose(dy, -16.0 / 60.0, rel_tol=1e-9)
+    assert math.isclose(dtheta, 1.5 / 60.0, rel_tol=1e-9)
+
+    # Pure 90 deg rotation around center maps top row near right column
+    patch = np.zeros((16, 16), dtype=np.float32)
+    patch[2, 7:9] = 100.0
+    rot = warp_grid_3dof(patch, 0.0, 0.0, math.pi / 2.0)
+    assert float(np.mean(rot[7:9, 13])) > 80.0
+
+    # Rolling + yawing camera with off-center approaching obstacle
+    rng = np.random.default_rng(909)
+    pano = _make_clutter(128, 128, rng, base_scale=64.0)
+    yy_p, xx_p = np.meshgrid(np.arange(128, dtype=np.float32), np.arange(128, dtype=np.float32), indexing="ij")
+
+    def render_3dof_frame(t: int, looming: bool) -> tuple[np.ndarray, float, float]:
+        ang = 0.28 * math.sin(2.0 * math.pi * t / 20.0)
+        ox = 7.0 * math.sin(2.0 * math.pi * t / 18.0)
+        canvas = pano.copy()
+        if looming:
+            rad = (0.095 * 64.0) / max((32 - t) / 60.0, 0.03)
+            edge = np.clip((rad - np.hypot(xx_p - 54.0, yy_p - 64.0)) / 1.2 + 0.5, 0.0, 1.0)
+            canvas = canvas * (1.0 - edge) + 12.0 * edge
+        warped = warp_grid_3dof(canvas, -ox, 0.0, ang)
+        return warped[32:96, 32:96], ox, ang
+
+    pipe_derot = NeckSightPipeline(grid_size=64)
+    pipe_bg = NeckSightPipeline(grid_size=64)
+    prev_ox, prev_ang = 0.0, 0.0
+    caught_3dof = False
+    for t in range(32):
+        f_loom, ox, ang = render_3dof_frame(t, looming=True)
+        f_bg, _, _ = render_3dof_frame(t, looming=False)
+        ddx = -(ox - prev_ox) if t > 0 else 0.0
+        ddang = (ang - prev_ang) if t > 0 else 0.0
+        prev_ox, prev_ang = ox, ang
+        caught_3dof = caught_3dof or pipe_derot.step(f_loom, ego_shift_px=(ddx, 0.0, ddang)).triggered
+        assert not pipe_bg.step(f_bg, ego_shift_px=(ddx, 0.0, ddang)).triggered
+    assert caught_3dof
+
+    # AEC/AGC exposure hunting with heavy 255 highlight clipping -> 0 false alarms
+    pipe_aec = NeckSightPipeline(grid_size=64)
+    clutter = _make_clutter(64, 64, rng)
+    for t in range(36):
+        gain = 1.0 + 0.78 * math.sin(2.0 * math.pi * t / 5.0)
+        clipped = np.clip(clutter * gain, 1.0, 255.0).astype(np.float32)
+        assert not pipe_aec.step(clipped).triggered
+
+
+def _strip_c_comments(src: str) -> str:
+    import re
+
+    src = re.sub(r"/\*.*?\*/", " ", src, flags=re.S)
+    src = re.sub(r"//[^\n]*", " ", src)
+    src = re.sub(r'"(?:\\.|[^"\\])*"', '""', src)
+    return src
+
+
+def test_c99_zero_heap_zero_float_and_arduino_sha256_parity() -> None:
+    import hashlib
+    import re
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    ard_root = root / "arduino" / "NeckSight"
+    props_path = ard_root / "library.properties"
+    umb_path = ard_root / "src" / "NeckSight.h"
+    ino_path = (
+        ard_root
+        / "examples"
+        / "ESP32CAM_Looming_Avoidance"
+        / "ESP32CAM_Looming_Avoidance.ino"
+    )
+    assert props_path.exists()
+    assert umb_path.exists()
+    assert ino_path.exists()
+
+    props = {}
+    for line in props_path.read_text(encoding="utf-8").splitlines():
+        if "=" in line and not line.startswith("#"):
+            k, v = line.split("=", 1)
+            props[k.strip()] = v.strip()
+    assert props["name"] == "NeckSight"
+    assert props["version"] == "2.0.0"
+    assert props["architectures"] == "*"
+    assert props["includes"] == "NeckSight.h"
+
+    h_csrc_hdr = hashlib.sha256((root / "csrc" / "necksight.h").read_bytes()).hexdigest()
+    h_ard_hdr = hashlib.sha256((ard_root / "src" / "csrc" / "necksight.h").read_bytes()).hexdigest()
+    assert h_csrc_hdr == h_ard_hdr
+
+    h_csrc_c = hashlib.sha256((root / "csrc" / "necksight.c").read_bytes()).hexdigest()
+    h_ard_c = hashlib.sha256((ard_root / "src" / "csrc" / "necksight.c").read_bytes()).hexdigest()
+    assert h_csrc_c == h_ard_c
+
+    c_files = [
+        root / "csrc" / "necksight.h",
+        root / "csrc" / "necksight.c",
+        root / "csrc" / "tools" / "necksight_selftest.c",
+        umb_path,
+        ard_root / "src" / "csrc" / "necksight.h",
+        ard_root / "src" / "csrc" / "necksight.c",
+        ino_path,
+    ]
+    forbidden = re.compile(r"\b(float|double|malloc|calloc|realloc|free)\b")
+    for path in c_files:
+        stripped = _strip_c_comments(path.read_text(encoding="utf-8"))
+        hits = forbidden.findall(stripped)
+        assert not hits, f"Forbidden heap/float token(s) {hits} found in {path}"
+
+
+def test_c99_and_python_agreement() -> None:
+    """Verify C99 self-test JSON metrics and behavioral parity with Python 32x32 pipeline."""
+    import shutil
+    import subprocess
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[1]
+    csrc = root / "csrc"
+    c_json = None
+
+    cc = shutil.which("gcc") or shutil.which("clang") or shutil.which("cc")
+    if cc is not None:
+        exe = csrc / "build" / ("necksight_selftest_py.exe" if shutil.which("where") else "necksight_selftest_py")
+        exe.parent.mkdir(parents=True, exist_ok=True)
+        subprocess.run(
+            [cc, "-O2", "-std=c99", "-I", str(csrc), "-o", str(exe),
+             str(csrc / "tools" / "necksight_selftest.c"), str(csrc / "necksight.c")],
+            check=True,
+        )
+        res = subprocess.run([str(exe), "--json"], capture_output=True, text=True, check=True)
+        c_json = json.loads(res.stdout)
+        exe.unlink(missing_ok=True)
+    elif shutil.which("wsl") is not None:
+        wsl_csrc = subprocess.run(
+            ["wsl", "-e", "wslpath", "-a", str(csrc)],
+            capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        res = subprocess.run(
+            ["wsl", "-e", "bash", "-lc", f"cd '{wsl_csrc}' && ./build/necksight_selftest --json"],
+            capture_output=True, text=True, check=True,
+        )
+        c_json = json.loads(res.stdout)
+
+    if c_json is not None:
+        assert c_json["version"] == "2.0.0"
+        assert c_json["state_bytes"] < 16384
+        assert c_json["failures"] == 0
+        assert c_json["pan_triggers"] == 0
+        assert c_json["flash_20x_triggers"] == 0
+        assert c_json["pole_left_triggered"] == 1
+        assert c_json["pole_left_avoid_x_q7"] > 0
+        assert c_json["pole_right_avoid_x_q7"] < 0
+        assert c_json["wire_top_triggered"] == 1
+        assert c_json["wire_top_avoid_y_q7"] > 0
+        assert c_json["roll3d_loom_derotated_triggered"] == 1
+        assert c_json["roll3d_only_triggers"] == 0
+
+    # Identical 32x32 left-pole, right-pole, and top-wire stimuli in Python must agree in trigger + dodge sign
+    yy, xx = np.meshgrid(np.arange(32, dtype=np.float32), np.arange(32, dtype=np.float32), indexing="ij")
+    bg32 = _make_clutter(32, 32, np.random.default_rng(12))
+
+    pipe_pl = NeckSightPipeline(grid_size=32)
+    pipe_pr = NeckSightPipeline(grid_size=32)
+    pipe_wt = NeckSightPipeline(grid_size=32)
+    tr_pl = tr_pr = tr_wt = None
+    for t in range(28):
+        hw = 1.0 + (5.0 * t) / 27.0
+        f_pl = np.where(np.abs(xx - 10.0) <= hw, 15.0, bg32)
+        f_pr = np.where(np.abs(xx - 21.0) <= hw, 15.0, bg32)
+        f_wt = np.where(np.abs(yy - 10.0) <= hw, 15.0, bg32)
+        r_pl = pipe_pl.step(f_pl)
+        r_pr = pipe_pr.step(f_pr)
+        r_wt = pipe_wt.step(f_wt)
+        if r_pl.triggered and tr_pl is None:
+            tr_pl = r_pl
+        if r_pr.triggered and tr_pr is None:
+            tr_pr = r_pr
+        if r_wt.triggered and tr_wt is None:
+            tr_wt = r_wt
+
+    assert tr_pl is not None and tr_pl.avoid_x > 0.0
+    assert tr_pr is not None and tr_pr.avoid_x < 0.0
+    assert tr_wt is not None and tr_wt.avoid_y > 0.0

@@ -1060,7 +1060,8 @@ html.intro-done #site-shell { opacity: 1; transform: none; }
   transition: border-color 0.15s ease, background-color 0.15s ease;
 }
 .sim-btn .icon { width: 16px; height: 16px; color: var(--c, var(--text-2)); }
-.sim-btn:hover { border-color: color-mix(in srgb, var(--c, var(--text-2)) 55%, var(--border)); background: var(--surface-3); }
+.sim-btn:hover,
+.sim-btn.active { border-color: color-mix(in srgb, var(--c, var(--text-2)) 65%, var(--border)); background: var(--surface-3); }
 .sim-btn-reset { margin-left: auto; color: var(--text-2); }
 
 .sim-canvas-wrap {
@@ -1117,7 +1118,8 @@ html.intro-done #site-shell { opacity: 1; transform: none; }
   transition: opacity 0.2s ease;
 }
 .bench-frame img.loading { opacity: 0.35; }
-.bench-figure[data-kind="suite"] .bench-frame { background: #0b1120; }
+.bench-figure[data-kind="suite"] .bench-frame,
+.bench-figure[data-kind="v2g4"] .bench-frame { background: #0b0f17; }
 
 .bench-figure figcaption {
   display: flex;

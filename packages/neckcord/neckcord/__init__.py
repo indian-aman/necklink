@@ -1,4 +1,4 @@
-"""NeckCord (`neckcord` v1.1.0): Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord."""
+"""NeckCord (`neckcord` v2.0.0): Descending Cervical Bottleneck & Self-Healing VNC Motor/Thruster Cord."""
 
 from .allocator import AllocationResult, ShuntingThrusterCord
 from .cervical import (
@@ -11,8 +11,10 @@ from .cervical import (
     encode_descending_4b,
 )
 from .cpg import CPGState, LIMB_NAMES, SegmentalCPGCord, compute_support_margin
+from .esc_observer import ESCFaultCode, ESCObserver, ESCObserverResult
+from .ik import HexapodLegIK, LegIKResult
 
-__version__ = "1.1.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "__version__",
@@ -21,8 +23,13 @@ __all__ = [
     "CervicalBottleneckLink",
     "CervicalCRCError",
     "DescendingFrame",
+    "ESCFaultCode",
+    "ESCObserver",
+    "ESCObserverResult",
     "GaitMode",
+    "HexapodLegIK",
     "LIMB_NAMES",
+    "LegIKResult",
     "SegmentalCPGCord",
     "ShuntingThrusterCord",
     "compute_crc4",

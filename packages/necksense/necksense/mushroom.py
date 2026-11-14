@@ -1,22 +1,25 @@
-"""Mushroom Body Lobe plasticity: 1-shot novelty & associative valence learning.
+"""Mushroom Body Lobe plasticity: 1-shot novelty & 2-compartment valence learning.
 
-Implements two canonical *Drosophila* Mushroom Body output neuron (MBON)
-readout circuits operating over sparse Kenyon cell (KC) codes:
+Implements canonical *Drosophila* Mushroom Body output neuron (MBON) readout
+circuits operating over sparse Kenyon cell (KC) codes (`BANC v888` / `MaleCNS`):
 
-1. :class:`MushroomNoveltyDetector` (`MBON-alpha'3` compartment):
+1. :class:`MushroomNoveltyDetector` (`KCapbp -> MBON-alpha'3` compartment):
    Rapid 1-shot anti-Hebbian synaptic depression on active KC synapses with
    optional slow exponential recovery (`tau_recover`), producing calibrated
    novelty/anomaly scores in `[0, 1]`.
-2. :class:`MushroomValenceClassifier` (`DAN -> KC -> MBON` compartments):
+2. :class:`MushroomValenceClassifier` (`DAN -> KCg / KCab -> MBON` compartments):
    Online 1-shot and few-shot reward/valence-modulated associative classifier
-   with homeostatic synaptic normalization and cross-compartment opponent
-   suppression of shared background KCs.
+   combining fast `gamma`-lobe short-term plasticity (`KCg`) with consolidated
+   `alpha/beta`-lobe anti-forgetting long-term memory (`KCab`).
 
 References:
     - Hattori, D. et al. (2017). Representations of novelty and familiarity in
       a mushroom body compartment. Cell, 169(5), 956-969.
     - Aso, Y. et al. (2014). Mushroom body output neurons encode valence and
       guide memory-based action selection in Drosophila. eLife, 3, e04580.
+    - Cervantes-Sandoval, I. et al. (2017). Reciprocal synapses between
+      mushroom body and dopamine neurons form a positive feedback loop
+      required for memory consolidation. eLife, 6, e23789.
 """
 
 from __future__ import annotations
@@ -27,6 +30,10 @@ import numpy as np
 
 from .antennal import AntennalNormalizer, Q16_ONE, float_to_q16
 from .kenyon import KenyonHasher
+
+_Q14_ONE: int = 1 << 14
+_INT16_MIN: int = -(1 << 15)
+_INT16_MAX: int = (1 << 15) - 1
 
 
 class MushroomNoveltyDetector:
@@ -126,7 +133,7 @@ class MushroomNoveltyDetector:
         return self.score_indices(KenyonHasher.unpack_indices(tag))
 
     def score(self, x: np.ndarray) -> float:
-        """Score 1D sample `x` (or 2D batch if passed via :meth:`score_batch`) without updating."""
+        """Score 1D sample `x` without updating synaptic weights."""
         arr = np.asarray(x, dtype=np.float64)
         if arr.ndim != 1:
             raise ValueError("score(x) expects a 1D vector; use score_stream(X) for 2D streams")
@@ -145,7 +152,10 @@ class MushroomNoveltyDetector:
         if self.c_parity:
             if self._rec_q16 > 0:
                 diff = Q16_ONE - self._weights_q16.astype(np.int64)
-                self._weights_q16 = (self._weights_q16 + ((diff * self._rec_q16) >> 16)).astype(np.int32)
+                self._weights_q16 = np.minimum(
+                    Q16_ONE,
+                    (self._weights_q16 + ((diff * self._rec_q16) >> 16)).astype(np.int32),
+                )
             sum_q16 = int(np.sum(self._weights_q16[idx], dtype=np.int64))
             score_q16 = sum_q16 // int(idx.size)
             self._weights_q16[idx] = (
@@ -182,7 +192,6 @@ class MushroomNoveltyDetector:
         if arr.ndim != 2 or arr.shape[1] != self.hasher.n_inputs:
             raise ValueError(f"Expected 2D array of shape (T, {self.hasher.n_inputs})")
 
-        # Fast path when no stateful antennal normalizer is attached: batch-encode KCs once
         if self.antennal is None:
             all_idx = self.hasher.active_indices(arr)
             scores = np.empty(arr.shape[0], dtype=np.float64)
@@ -197,10 +206,14 @@ class MushroomNoveltyDetector:
 
 
 class MushroomValenceClassifier:
-    """1-shot / few-shot `DAN -> KC -> MBON` associative prototype & valence classifier.
+    """2-compartment `KC-gamma` (STM) + `KC-alpha/beta` (LTM) associative classifier.
 
-    Supports multi-class odor/event identification as well as positive/negative
-    valence conditioning (`reward > 0` appetitive, `reward < 0` aversive).
+    Models the *Drosophila* Mushroom Body split between fast-adapting `KCg`
+    (`gamma` lobe, 49.9% of KCs in `BANC v888`) and slow replay-consolidated
+    `KCab` (`alpha/beta` lobe, 47.2% of KCs). Supports 1-shot / few-shot
+    multi-class identification, appetitive/aversive valence conditioning, and
+    catastrophic-forgetting-free sequential continual learning (`ltm_alpha_beta=True`
+    and :meth:`consolidate`).
     """
 
     def __init__(
@@ -216,6 +229,8 @@ class MushroomValenceClassifier:
         min_lr: float = 0.10,
         plasticity_lr: float | None = None,
         opponent_inh: float = 0.15,
+        ltm_alpha_beta: bool = True,
+        ltm_floor: float = 0.55,
         seed: int = 42,
         c_parity: bool = False,
     ) -> None:
@@ -225,6 +240,8 @@ class MushroomValenceClassifier:
             raise ValueError("plasticity_lr must be in (0, 1] or None")
         if not (0.0 <= opponent_inh <= 1.0):
             raise ValueError("opponent_inh must be in [0, 1]")
+        if not (0.0 < ltm_floor <= 1.0):
+            raise ValueError("ltm_floor must be in (0, 1]")
 
         if hasher is None:
             if n_inputs is None:
@@ -251,16 +268,22 @@ class MushroomValenceClassifier:
         self.min_lr = float(min_lr)
         self.plasticity_lr = None if plasticity_lr is None else float(plasticity_lr)
         self.opponent_inh = float(opponent_inh)
+        self.ltm_alpha_beta = bool(ltm_alpha_beta)
+        self.ltm_floor = float(ltm_floor)
 
         self._min_lr_q16 = int(round(self.min_lr * Q16_ONE))
         self._fixed_lr_q16 = 0 if self.plasticity_lr is None else int(round(self.plasticity_lr * Q16_ONE))
         self._opp_q16 = int(round(self.opponent_inh * Q16_ONE))
+        self._ltm_floor_q14 = int(round(self.ltm_floor * _Q14_ONE))
 
         self._labels: list[Any] = []
         self._label_to_slot: dict[Any, int] = {}
         self._counts: list[int] = []
         self._weights = np.empty((0, self.hasher.n_kc), dtype=np.float64)
-        self._weights_q16 = np.empty((0, self.hasher.n_kc), dtype=np.int32)
+        self._ltm_weights = np.empty((0, self.hasher.n_kc), dtype=np.float64)
+        self._ltm_mask = np.empty((0, self.hasher.n_kc), dtype=bool)
+        self._weights_q14 = np.empty((0, self.hasher.n_kc), dtype=np.int16)
+        self.consolidations: int = 0
 
     @property
     def classes(self) -> list[Any]:
@@ -273,7 +296,10 @@ class MushroomValenceClassifier:
         self._label_to_slot.clear()
         self._counts.clear()
         self._weights = np.empty((0, self.hasher.n_kc), dtype=np.float64)
-        self._weights_q16 = np.empty((0, self.hasher.n_kc), dtype=np.int32)
+        self._ltm_weights = np.empty((0, self.hasher.n_kc), dtype=np.float64)
+        self._ltm_mask = np.empty((0, self.hasher.n_kc), dtype=bool)
+        self._weights_q14 = np.empty((0, self.hasher.n_kc), dtype=np.int16)
+        self.consolidations = 0
         if self.antennal is not None:
             self.antennal.reset()
 
@@ -285,9 +311,12 @@ class MushroomValenceClassifier:
         self._label_to_slot[label] = slot
         self._counts.append(0)
         z_f = np.zeros((1, self.hasher.n_kc), dtype=np.float64)
-        z_q = np.zeros((1, self.hasher.n_kc), dtype=np.int32)
+        z_b = np.zeros((1, self.hasher.n_kc), dtype=bool)
+        z_q = np.zeros((1, self.hasher.n_kc), dtype=np.int16)
         self._weights = z_f if slot == 0 else np.vstack((self._weights, z_f))
-        self._weights_q16 = z_q if slot == 0 else np.vstack((self._weights_q16, z_q))
+        self._ltm_weights = z_f.copy() if slot == 0 else np.vstack((self._ltm_weights, z_f.copy()))
+        self._ltm_mask = z_b if slot == 0 else np.vstack((self._ltm_mask, z_b))
+        self._weights_q14 = z_q if slot == 0 else np.vstack((self._weights_q14, z_q))
         return slot
 
     def _encode_indices(self, x: np.ndarray, *, stateful: bool) -> np.ndarray:
@@ -297,7 +326,7 @@ class MushroomValenceClassifier:
         return self.hasher.active_indices(arr)
 
     def learn_indices(self, active_indices: np.ndarray, label: Any, reward: float = 1.0) -> None:
-        """Update `KC -> MBON` compartment weights directly from active KC indices."""
+        """Update `KCg` (and `KCab` LTM) compartment weights from active KC indices."""
         slot = self._ensure_slot(label)
         self._counts[slot] += 1
         n_c = self._counts[slot]
@@ -309,40 +338,124 @@ class MushroomValenceClassifier:
             else:
                 eta_q16 = max(self._min_lr_q16, Q16_ONE // n_c)
             rew_q16 = int(float_to_q16(reward))
+            rew_q14 = rew_q16 >> 2
             keep_q16 = Q16_ONE - eta_q16
+            delta_q14 = (eta_q16 * rew_q14) >> 16
+            opp_step_q16 = (eta_q16 * self._opp_q16) >> 16
+            floor_q14 = self._ltm_floor_q14
 
-            row_q = self._weights_q16[slot].astype(np.int64)
-            row_q = (row_q * keep_q16) >> 16
-            delta_q = (eta_q16 * rew_q16) >> 16
-            row_q[idx] += delta_q
-            self._weights_q16[slot] = np.clip(row_q, -(1 << 31), (1 << 31) - 1).astype(np.int32)
+            row_cur = self._weights_q14[slot].astype(np.int64)
+            row_dec = (row_cur * keep_q16) >> 16
 
-            if rew_q16 > 0 and self._opp_q16 > 0 and len(self._labels) > 1:
-                opp_step_q16 = (eta_q16 * self._opp_q16) >> 16
-                if opp_step_q16 > 0:
-                    for c2 in range(len(self._labels)):
-                        if c2 == slot:
-                            continue
-                        w_sub = self._weights_q16[c2, idx].astype(np.int64)
-                        pos_mask = w_sub > 0
-                        if np.any(pos_mask):
-                            w_sub[pos_mask] -= (w_sub[pos_mask] * opp_step_q16) >> 16
-                            self._weights_q16[c2, idx] = w_sub.astype(np.int32)
+            if self.ltm_alpha_beta and np.any(self._ltm_mask[slot]):
+                locked = self._ltm_mask[slot].copy()
+                if idx.size > 0:
+                    active_flags = np.zeros(self.hasher.n_kc, dtype=bool)
+                    active_flags[idx] = True
+                    opp_active = active_flags & (
+                        ((row_cur > 0) & (rew_q14 < 0)) | ((row_cur < 0) & (rew_q14 > 0))
+                    )
+                    locked &= ~opp_active
+                pos_prot = locked & (row_cur >= floor_q14) & (row_dec < floor_q14)
+                neg_prot = locked & (row_cur <= -floor_q14) & (row_dec > -floor_q14)
+                row_dec[pos_prot] = floor_q14
+                row_dec[neg_prot] = -floor_q14
 
-            self._weights[:] = self._weights_q16.astype(np.float64) / float(Q16_ONE)
+            row_dec = np.clip(row_dec, _INT16_MIN, _INT16_MAX)
+            if idx.size > 0:
+                row_dec[idx] = np.clip(row_dec[idx] + delta_q14, _INT16_MIN, _INT16_MAX)
+                if self.ltm_alpha_beta:
+                    weak = np.abs(row_dec[idx]) < (floor_q14 >> 1)
+                    if np.any(weak):
+                        self._ltm_mask[slot, idx[weak]] = False
+
+            self._weights_q14[slot] = row_dec.astype(np.int16)
+
+            if rew_q16 > 0 and opp_step_q16 > 0 and len(self._labels) > 1 and idx.size > 0:
+                for c2 in range(len(self._labels)):
+                    if c2 == slot:
+                        continue
+                    sub_idx = idx[~self._ltm_mask[c2, idx]] if self.ltm_alpha_beta else idx
+                    if sub_idx.size == 0:
+                        continue
+                    w_sub = self._weights_q14[c2, sub_idx].astype(np.int64)
+                    pos_mask = w_sub > 0
+                    if np.any(pos_mask):
+                        w_sub[pos_mask] -= (w_sub[pos_mask] * opp_step_q16) >> 16
+                        self._weights_q14[c2, sub_idx] = np.clip(
+                            w_sub, _INT16_MIN, _INT16_MAX
+                        ).astype(np.int16)
+
+            self._weights[:] = self._weights_q14.astype(np.float64) / float(_Q14_ONE)
             return
 
+        # Float mode: fast KC-gamma STM update
         eta = self.plasticity_lr if self.plasticity_lr is not None else max(self.min_lr, 1.0 / float(n_c))
-        self._weights[slot] *= 1.0 - eta
-        self._weights[slot, idx] += eta * float(reward)
+        rew = float(reward)
 
-        if reward > 0.0 and self.opponent_inh > 0.0 and len(self._labels) > 1:
+        row_prev = self._weights[slot].copy()
+        row_next = row_prev * (1.0 - eta)
+
+        if self.ltm_alpha_beta and np.any(self._ltm_mask[slot]):
+            locked = self._ltm_mask[slot].copy()
+            if idx.size > 0:
+                act_mask = np.zeros(self.hasher.n_kc, dtype=bool)
+                act_mask[idx] = True
+                opp_act = act_mask & (((row_prev > 0.0) & (rew < 0.0)) | ((row_prev < 0.0) & (rew > 0.0)))
+                locked &= ~opp_act
+            pos_p = locked & (row_prev >= self.ltm_floor) & (row_next < self.ltm_floor)
+            neg_p = locked & (row_prev <= -self.ltm_floor) & (row_next > -self.ltm_floor)
+            row_next[pos_p] = self.ltm_floor
+            row_next[neg_p] = -self.ltm_floor
+
+        if idx.size > 0:
+            row_next[idx] = np.clip(row_next[idx] + eta * rew, -2.0, 2.0)
+            if self.ltm_alpha_beta:
+                weak = np.abs(row_next[idx]) < (0.5 * self.ltm_floor)
+                if np.any(weak):
+                    self._ltm_mask[slot, idx[weak]] = False
+                    self._ltm_weights[slot, idx[weak]] = 0.0
+        self._weights[slot] = row_next
+
+        if rew > 0.0 and self.opponent_inh > 0.0 and len(self._labels) > 1 and idx.size > 0:
             opp_step = eta * self.opponent_inh
             for c2 in range(len(self._labels)):
                 if c2 == slot:
                     continue
-                cur = self._weights[c2, idx]
-                self._weights[c2, idx] = np.where(cur > 0.0, cur * (1.0 - opp_step), cur)
+                sub_idx = idx[~self._ltm_mask[c2, idx]] if self.ltm_alpha_beta else idx
+                if sub_idx.size == 0:
+                    continue
+                cur = self._weights[c2, sub_idx]
+                self._weights[c2, sub_idx] = np.where(cur > 0.0, cur * (1.0 - opp_step), cur)
+
+    def consolidate(self, thresh: float = 0.50) -> int:
+        """Consolidate salient `KCg` STM synapses into protected `KCab` LTM.
+
+        Matches `ns_valence_consolidate` in `csrc/necksense.c` bit-for-bit when
+        `c_parity=True`. Returns total number of consolidated synapses.
+        """
+        if not self.ltm_alpha_beta or not self._labels:
+            return 0
+        if thresh <= 0.0:
+            thresh = 0.50
+
+        if self.c_parity:
+            thresh_q16 = int(round(thresh * Q16_ONE))
+            thresh_q14 = max(1, thresh_q16 >> 2)
+            for c in range(len(self._labels)):
+                w_row = self._weights_q14[c]
+                self._ltm_mask[c] |= (w_row >= thresh_q14) | (w_row <= -thresh_q14)
+            self._weights[:] = self._weights_q14.astype(np.float64) / float(_Q14_ONE)
+            self._ltm_weights[:] = np.where(self._ltm_mask, self._weights, 0.0)
+            self.consolidations += 1
+            return int(np.sum(self._ltm_mask))
+
+        for c in range(len(self._labels)):
+            w_row = self._weights[c]
+            self._ltm_mask[c] |= (w_row >= thresh) | (w_row <= -thresh)
+        self._ltm_weights[:] = np.where(self._ltm_mask, self._weights, 0.0)
+        self.consolidations += 1
+        return int(np.sum(self._ltm_mask))
 
     def learn_tag(self, tag: np.ndarray, label: Any, reward: float = 1.0) -> None:
         """Learn an association from a packed `uint64` Kenyon tag."""
@@ -362,8 +475,8 @@ class MushroomValenceClassifier:
             return {lbl: 0.0 for lbl in self._labels}
 
         if self.c_parity:
-            sums_q16 = np.sum(self._weights_q16[:, idx], axis=1, dtype=np.int64)
-            scores_q16 = np.trunc(sums_q16 / int(idx.size)).astype(np.int64)
+            sums_q14 = np.sum(self._weights_q14[:, idx], axis=1, dtype=np.int64)
+            scores_q16 = np.trunc((sums_q14 * 4) / int(idx.size)).astype(np.int64)
             return {
                 lbl: float(scores_q16[i]) / float(Q16_ONE)
                 for i, lbl in enumerate(self._labels)

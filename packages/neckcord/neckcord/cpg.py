@@ -20,6 +20,7 @@ import math
 import numpy as np
 
 from .cervical import DescendingFrame, GaitMode, decode_descending_4b
+from .ik import HexapodLegIK, LegIKResult
 
 LIMB_NAMES: tuple[str, ...] = ("L1", "R1", "L2", "R2", "L3", "R3")
 
@@ -133,6 +134,7 @@ class CPGState:
     active_gait: str
     support_margin_m: float
     is_statically_stable: bool
+    leg_ik: LegIKResult | None = None
 
 
 class SegmentalCPGCord:
@@ -149,6 +151,7 @@ class SegmentalCPGCord:
         k_cross: float = 6.5,
         adapt_to_damage: bool = True,
         fault_threshold: float = 0.35,
+        ik: HexapodLegIK | None = None,
     ) -> None:
         self.base_freq_hz = float(base_freq_hz)
         self.max_freq_hz = float(max_freq_hz)
@@ -158,6 +161,7 @@ class SegmentalCPGCord:
         self.k_cross = float(k_cross)
         self.adapt_to_damage = bool(adapt_to_damage)
         self.fault_threshold = float(fault_threshold)
+        self.ik = ik
 
         self.phases = _OFFSETS_TRIPOD.copy()
         self.limb_health = np.ones(6, dtype=np.float64)
@@ -332,6 +336,18 @@ class SegmentalCPGCord:
                 anchors[i_front, 1] += 0.02 * y_sign * loss_hind
         return anchors
 
+    def compute_leg_ik(
+        self,
+        state: CPGState,
+        *,
+        ik: HexapodLegIK | None = None,
+    ) -> LegIKResult:
+        """Compute exact 3-DOF `(coxa, femur, tibia)` angles + `1000..2000 us` PWM for `state`."""
+        solver = self.ik if ik is None else ik
+        if solver is None:
+            solver = HexapodLegIK()
+        return solver.solve_cpg_state(state, fault_threshold=self.fault_threshold)
+
     def step(
         self,
         command: DescendingFrame | bytes | bytearray | float = 0.0,
@@ -366,7 +382,7 @@ class SegmentalCPGCord:
             joints[~healthy_mask, 1] = 1.0  # Damaged limbs parked clear of ground
             grounded_xy = anchors[stance_mask]
             margin = compute_support_margin(grounded_xy)
-            return CPGState(
+            st_freeze = CPGState(
                 phases=self.phases.copy(),
                 stance_mask=stance_mask,
                 swing_progress=swing_prog,
@@ -378,6 +394,11 @@ class SegmentalCPGCord:
                 support_margin_m=margin,
                 is_statically_stable=(int(np.sum(stance_mask)) >= 3 and margin > 0.005),
             )
+            if self.ik is not None:
+                st_freeze.leg_ik = self.ik.solve_cpg_state(
+                    st_freeze, fault_threshold=self.fault_threshold
+                )
+            return st_freeze
 
         speed_mag = min(
             1.0,
@@ -467,7 +488,7 @@ class SegmentalCPGCord:
         margin = compute_support_margin(grounded_xy)
         stable = bool(int(np.sum(stance_mask)) >= 3 and margin > 0.005)
 
-        return CPGState(
+        out_state = CPGState(
             phases=self.phases.copy(),
             stance_mask=stance_mask,
             swing_progress=swing_prog,
@@ -479,3 +500,8 @@ class SegmentalCPGCord:
             support_margin_m=margin,
             is_statically_stable=stable,
         )
+        if self.ik is not None:
+            out_state.leg_ik = self.ik.solve_cpg_state(
+                out_state, fault_threshold=self.fault_threshold
+            )
+        return out_state
