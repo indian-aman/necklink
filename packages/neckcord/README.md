@@ -6,12 +6,12 @@
 
 **Bio-inspired 4-byte descending command codec, 6-limb CPG + 18-servo 3-DOF leg IK, sensorless ESC (`RPM + Current`) fault observer, and box-constrained 3-DOF / 4-DOF fault-tolerant thruster & multicopter allocator in Python, pure-integer ANSI C99 (`916 B` combined RAM), and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcord&color=0284C7&cacheSeconds=180&v=200)](https://pypi.org/project/neckcord/)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcord/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20916%20B-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Arduino](https://img.shields.io/badge/Arduino-ESP32%20%7C%20RP2040%20%7C%20STM32%20%7C%20AVR-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCord/)
-[![Tests](https://img.shields.io/badge/tests-44%20Py%20%2B%2018%20C99-10B981?style=flat-square)](tests/test_neckcord.py)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcord&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcord/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/neckcord/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20916%20B-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
+[![Arduino](https://img.shields.io/badge/Arduino-ESP32%20%7C%20RP2040%20%7C%20STM32%20%7C%20AVR-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckCord/)
+[![Tests](https://img.shields.io/badge/tests-44%20Py%20%2B%2018%20C99-D4A24C?style=flat-square&labelColor=111318)](tests/test_neckcord.py)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**Python API**](#python-api) ·

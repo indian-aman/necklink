@@ -10,16 +10,16 @@
 
 **Six open-source libraries. Five of them run weight matrices compiled from the `157,789`-neuron adult *Drosophila* `BANC v888` connectome inside hand-designed dynamics — including a 4-organ reflex controller plus `MAVLink v2` in `24 KB` of zero-float ANSI C99 RAM (`107.5 KB` standalone WASM) — tested against degree-preserving shuffled wiring. Plus loss-healing `NLTP` transport. Research beta.**
 
-[![Website](https://img.shields.io/badge/website-indian--aman.github.io%2Fnecklink-0EA5E9?style=flat-square&logo=githubpages&logoColor=white)](https://indian-aman.github.io/necklink/)
-[![PyPI necklink](https://img.shields.io/pypi/v/necklink?style=flat-square&logo=pypi&logoColor=white&label=necklink&color=6366F1&cacheSeconds=180&v=300)](https://pypi.org/project/necklink/)
-[![PyPI necklink-cns](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&logo=pypi&logoColor=white&label=necklink--cns&color=8B5CF6&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=pynltp&color=3775A9&cacheSeconds=180&v=160)](https://pypi.org/project/pynltp/)
-[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=neckcompass&color=F59E0B&cacheSeconds=180&v=300)](https://pypi.org/project/neckcompass/)
-[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=necksight&color=06B6D4&cacheSeconds=180&v=300)](https://pypi.org/project/necksight/)
-[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&logo=pypi&logoColor=white&label=neckcord&color=F43F5E&cacheSeconds=180&v=300)](https://pypi.org/project/neckcord/)
-[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=necksense&color=10B981&cacheSeconds=180&v=300)](https://pypi.org/project/necksense/)
-[![Status](https://img.shields.io/badge/status-research%20beta-F59E0B?style=flat-square)](#v300-what-the-connectome-does-and-what-we-measured)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](https://github.com/indian-aman/necklink/blob/main/LICENSE)
+[![Website](https://img.shields.io/badge/website-indian--aman.github.io%2Fnecklink-D4A24C?style=flat-square&labelColor=111318&logo=githubpages&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/)
+[![PyPI necklink](https://img.shields.io/pypi/v/necklink?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necklink/)
+[![PyPI necklink-cns](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink--cns&color=C89236&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=pynltp&color=525B6C&cacheSeconds=180&v=160)](https://pypi.org/project/pynltp/)
+[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcompass&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcompass/)
+[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksight&color=525B6C&cacheSeconds=180&v=300)](https://pypi.org/project/necksight/)
+[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcord&color=C89236&cacheSeconds=180&v=300)](https://pypi.org/project/neckcord/)
+[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksense&color=525B6C&cacheSeconds=180&v=300)](https://pypi.org/project/necksense/)
+[![Status](https://img.shields.io/badge/status-research%20beta-D4A24C?style=flat-square&labelColor=111318)](#v300-what-the-connectome-does-and-what-we-measured)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](https://github.com/indian-aman/necklink/blob/main/LICENSE)
 
 [**Website & Live WASM Simulator**](https://indian-aman.github.io/necklink/) ·
 [**Products**](#products) ·

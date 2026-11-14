@@ -6,12 +6,12 @@
 
 **A 4-organ reflex controller whose descending decision layer runs on weight matrices compiled from the adult *Drosophila* `BANC v888` connectome — fusing `NeckSight`, `NeckCompass`, `NeckSense`, and `NeckCord` with `MAVLink v2` and `ROS 2` bridges in `24,024 B` of zero-heap, zero-float ANSI C99 (`107.5 KB` standalone WebAssembly) and Python.**
 
-[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necklink--cns&color=6366F1&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necklink-cns/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2023.5%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![WebAssembly](https://img.shields.io/badge/WASM-107.5%20KB%20standalone-654FF0?style=flat-square&logo=webassembly&logoColor=white)](https://indian-aman.github.io/necklink/#simulator)
-[![Status](https://img.shields.io/badge/status-research%20beta-F59E0B?style=flat-square)](#v300-results)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necklink--cns&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necklink-cns/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2023.5%20KB-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
+[![WebAssembly](https://img.shields.io/badge/WASM-107.5%20KB%20standalone-D4A24C?style=flat-square&labelColor=111318&logo=webassembly&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/#simulator)
+[![Status](https://img.shields.io/badge/status-research%20beta-D4A24C?style=flat-square&labelColor=111318)](#v300-results)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
 
 [**Live WASM Demo**](https://indian-aman.github.io/necklink/#simulator) ·
 [**Quick start**](#quick-start) ·

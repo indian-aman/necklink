@@ -6,12 +6,12 @@
 
 **Concentration- and load-invariant normalisation, zero-float vibration/acoustic spectrum conditioning, sparse binary hashing, one-shot novelty detection and continual associative classification, modelled on the *Drosophila* chordotonal organ, antennal lobe and two-compartment mushroom body (`BANC v888` / `MaleCNS`), in Python (NumPy), ANSI C99 (`< 6 KB` SRAM with `-DNS_TINY=1`) and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksense&color=10B981&cacheSeconds=180&v=200)](https://pypi.org/project/necksense/)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksense/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![SRAM](https://img.shields.io/badge/MCU%20SRAM-5.8%20KB%20(NS__TINY)-0EA5E9?style=flat-square)](csrc/)
-[![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%208%20C99-10B981?style=flat-square)](tests/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksense&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necksense/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necksense/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
+[![SRAM](https://img.shields.io/badge/MCU%20SRAM-5.8%20KB%20(NS__TINY)-D4A24C?style=flat-square&labelColor=111318)](csrc/)
+[![Tests](https://img.shields.io/badge/tests-24%20pytest%20%2B%208%20C99-D4A24C?style=flat-square&labelColor=111318)](tests/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
 
 [**Install**](#install) ·
 [**Quick start**](#quick-start) ·

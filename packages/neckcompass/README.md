@@ -6,13 +6,13 @@
 
 **A *Drosophila* central-complex 9-DOF tilt-compensated ring-attractor compass, self-calibrating soft-iron plastic ring, and GPS-denied path integrator — grounded in the BANC v888 connectome, in Python, Arduino, and zero-heap, zero-float ANSI C99 (`324 B` base RAM, `1,104 B` plastic ring).**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20neckcompass&color=3775A9&cacheSeconds=180&v=200)](https://pypi.org/project/neckcompass/)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/neckcompass/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v3.0.0-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckCompass/)
-[![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-12%2F12-10B981?style=flat-square)](csrc/tools/neckcompass_selftest.c)
-[![Pytest](https://img.shields.io/badge/pytest-46%20tests-10B981?style=flat-square)](tests/test_neckcompass.py)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcompass&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcompass/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/neckcompass/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
+[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v3.0.0-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckCompass/)
+[![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-12%2F12-D4A24C?style=flat-square&labelColor=111318)](csrc/tools/neckcompass_selftest.c)
+[![Pytest](https://img.shields.io/badge/pytest-46%20tests-D4A24C?style=flat-square&labelColor=111318)](tests/test_neckcompass.py)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**C99 & Arduino**](#zero-heap-zero-float-ansi-c99-core-csrc--arduino) ·

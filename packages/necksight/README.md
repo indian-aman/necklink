@@ -6,12 +6,12 @@
 
 **A collision and thin-obstacle (pole/wire) avoidance reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` radial & `LC4` bar looming neurons + `DNa02` directional dodge), in Python (NumPy), zero-heap/zero-float ANSI C99 (`14.3 KB` state), and Arduino / ESP32-CAM.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20necksight&color=3775A9&cacheSeconds=180&v=200)](https://pypi.org/project/necksight/)
-[![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?style=flat-square&logo=python&logoColor=white)](https://pypi.org/project/necksight/)
-[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-00599C?style=flat-square&logo=c&logoColor=white)](csrc/)
-[![Arduino / ESP32](https://img.shields.io/badge/Arduino-ESP32--CAM%20ready-00979D?style=flat-square&logo=arduino&logoColor=white)](arduino/NeckSight/)
-[![Tests](https://img.shields.io/badge/tests-32%20pytest%20%2B%20C99%20self--test-10B981?style=flat-square)](tests/test_necksight.py)
-[![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
+[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksight&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necksight/)
+[![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necksight/)
+[![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
+[![Arduino / ESP32](https://img.shields.io/badge/Arduino-ESP32--CAM%20ready-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckSight/)
+[![Tests](https://img.shields.io/badge/tests-32%20pytest%20%2B%20C99%20self--test-D4A24C?style=flat-square&labelColor=111318)](tests/test_necksight.py)
+[![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
 
 [**Quick start**](#quick-start) ·
 [**Turning platforms**](#turning-platforms-feed-the-gyro) ·
