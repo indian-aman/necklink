@@ -291,11 +291,11 @@ function updateCompetitorCards() {
 }
 
 function updateReadouts() {
-  roPkts.textContent = `${stats.txFrames} / ${stats.droppedFrames} drop`;
-  roParity.textContent = `${stats.parityRx} Cauchy shards`;
+  roPkts.textContent = `${stats.txFrames} tx / ${stats.droppedFrames} drop`;
+  roParity.textContent = `${stats.parityRx} shards`;
   const blocked = receiverEp ? receiverEp.authDropsRx : 0;
   const rAck = senderEp ? senderEp.reflexAcksRx : 0;
-  roReflex.textContent = `${rAck} ack · ${blocked} blocked`;
+  roReflex.textContent = `${rAck} ack / ${blocked} blk`;
 }
 
 // Step protocol timers every 12 ms
@@ -333,8 +333,8 @@ async function launchStream() {
   stats.activeXfer = xfer;
 
   const ratioStr = xfer.compressed
-    ? `${bytes.length.toLocaleString()} B → ${xfer.wirePayloadBytes.toLocaleString()} B (${(bytes.length / xfer.wirePayloadBytes).toFixed(1)}× LZ4)`
-    : `${bytes.length.toLocaleString()} B (raw auto-bypass)`;
+    ? `${(bytes.length / 1024).toFixed(1)}K → ${(xfer.wirePayloadBytes / 1024).toFixed(1)}K (${(bytes.length / xfer.wirePayloadBytes).toFixed(1)}×)`
+    : `${(bytes.length / 1024).toFixed(1)} KB (raw)`;
   roSize.textContent = ratioStr;
   labStatusText.textContent = `TRANSMITTING "${filename}" (${xfer.generations.length} gen${xfer.generations.length > 1 ? 's' : ''}) @ ${loss}% RF LOSS…`;
   labLed.style.background = '#e4b45c';
