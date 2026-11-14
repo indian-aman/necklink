@@ -1,10 +1,10 @@
 /* ==========================================================================
-   NeckLink website controller
+   NeckLink v2.0 website controller
    1. Logo intro (once per browser session)
    2. Theme, navigation and copy buttons
-   3. Interactive CNS architecture explorer
-   4. Benchmark gallery
-   5. Closed-loop reflex simulator (responsive, DPR-aware canvas)
+   3. Interactive BANC v888 CNS architecture explorer (v2.0.0 + NLTP v1.6.0)
+   4. Benchmark gallery (including RTX PRO 6000 G4 6-panel v2.0 suite)
+   5. Live C99 WebAssembly (necklink_cns.wasm, 38.8 KB) + Live Webcam simulator
    ========================================================================== */
 
 (function () {
@@ -13,7 +13,6 @@
   const root = document.documentElement;
   const $ = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
-  const cssVar = (name) => getComputedStyle(root).getPropertyValue(name).trim();
 
   // -------------------------------------------------------------------------
   // 1. LOGO INTRO -> FADE INTO WEBSITE
@@ -35,7 +34,6 @@
     if (introTimer) clearTimeout(introTimer);
     root.classList.remove("no-intro", "intro-done");
     splash.classList.remove("fade-out", "animate");
-    // Force a reflow so the stroke-dashoffset animations restart cleanly
     void splash.offsetWidth;
     splash.classList.add("animate");
     introTimer = setTimeout(finishIntro, 2350);
@@ -84,7 +82,6 @@
   window.addEventListener("scroll", onScroll, { passive: true });
   onScroll();
 
-  // Highlight the nav link of the section in view: the nearest target whose top has passed 40% of the viewport
   const spyLinks = $$("#nav-links a")
     .map((a) => ({ a: a, el: document.getElementById(a.getAttribute("href").slice(1)) }))
     .filter((x) => x.el);
@@ -111,7 +108,6 @@
     try {
       await navigator.clipboard.writeText(text);
     } catch (e) {
-      // Fallback for browsers that block the async clipboard API
       const ta = document.createElement("textarea");
       ta.value = text;
       ta.setAttribute("readonly", "");
@@ -119,14 +115,13 @@
       ta.style.opacity = "0";
       document.body.appendChild(ta);
       ta.select();
-      try { document.execCommand("copy"); } catch (err) { /* nothing else to try */ }
+      try { document.execCommand("copy"); } catch (err) { /* ignore */ }
       ta.remove();
     }
     btn.classList.add("copied");
     setTimeout(() => btn.classList.remove("copied"), 1600);
   }
 
-  // Install terminal
   const installCode = $("#install-code");
   let currentCmd = installCode.textContent;
   $$(".terminal-tab").forEach((tab) => {
@@ -143,97 +138,113 @@
   $$("[data-copy]").forEach((btn) => btn.addEventListener("click", () => copyText(btn, btn.getAttribute("data-copy"))));
 
   // -------------------------------------------------------------------------
-  // 3. INTERACTIVE CNS ARCHITECTURE EXPLORER
+  // 3. INTERACTIVE BANC v888 CNS ARCHITECTURE EXPLORER
   // -------------------------------------------------------------------------
   const ORGANS = {
-    compass: {
-      colorVar: "--compass",
-      region: "Central complex · E-PG / CPU4 / PFL3",
-      tests: "30 Py + 7 C99 tests passed",
-      name: "NeckCompass",
-      pkg: "neckcompass",
-      desc: "Topological 16-wedge ring-attractor compass and fan-shaped body path integrator. P-EN velocity shifters integrate gyro yaw rate with no ±180° seam; a noise-sized attractor basin shunts 70°–150° magnetic spikes, and a consistent off-basin cue re-anchors the compass after a real heading upset.",
-      ram: "324 B (Q15)",
-      speed: "~1 µs / step (desktop)",
-      gain: "0.44° RMSE under spikes",
-      tradeoffLabel: "Where the baseline ties or wins",
-      tradeoff: "A 3-sigma innovation-gated EKF is as accurate on spiky magnetometer data (0.41° vs 0.44° RMSE). NeckCompass wins after a 90° heading upset, where the gated EKF stays stuck (0.43° vs 31.9° RMSE), and its compass + homing core fits in 324 B of integer-only C.",
-      code: `from neckcompass import RingCompass, FanBodyNavigator\n\ncompass = RingCompass(n_wedges=16)\nnav = FanBodyNavigator(n_columns=16, compass=compass)\n\nhdg, home_dist_m, home_brg = nav.step_with_compass(\n    omega_rad_s=0.12, speed_m_s=1.8, dt=0.02, mag_heading_rad=2.1\n)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
-      repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
-      pypi: "https://pypi.org/project/neckcompass/",
-      pypiLabel: "PyPI v1.1.0"
+    cns: {
+      colorVar: "--accent",
+      region: "Whole-CNS · BANC v888 (157,789 neurons, 23.55M synapses)",
+      tests: "23 Py + 6 C99 + ESP32 + 38.8 KB WASM passed",
+      name: "NeckLink CNS",
+      pkg: "necklink-cns",
+      desc: "Unified adult Drosophila survival copilot fusing NeckSight, NeckCompass, NeckSense, and NeckCord through empirically enriched BANC v888 descending pathways (DNp01 Giant-Fiber brake, MDN backward escape, DNa02 contralateral dodge, PFL3/PFL2 steering, and MBON plume casting) plus wire-valid MAVLink v2 and ROS 2 bridges.",
+      ram: "23,928 B (23.37 KB)",
+      speed: "~207 µs / tick (4,836 Hz C99)",
+      gain: "100% survival (250-ep gauntlet)",
+      tradeoffLabel: "Honest scope boundary",
+      tradeoff: "NeckLink CNS is an ultra-low-SWaP survival and reflex copilot (14.5% of ESP32 RAM), not a dense semantic SLAM or trajectory planner. Pair it over MAVLink v2 or ROS 2 as an uncrashable inner reflex layer beneath ArduPilot, PX4, or Nav2.",
+      code: `from necklink_cns import NeckLinkCNS\n\ncns = NeckLinkCNS(vehicle="hexacopter", grid_size=32)\nout = cns.step(dt=0.02, speed_m_s=1.8, gyro_xyz=[0.02, -0.01, 0.05],\n               accel_xyz=[0.2, -0.1, 9.80], mag_xyz=[0.45, 0.05, 0.89], camera_frame=cam_32x32)\nprint(out.descending.behavior_mode, len(out.cervical_wire_4b), out.mavlink_manual_pkt[0])`,
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns",
+      pypi: "https://pypi.org/project/necklink-cns/",
+      pypiLabel: "PyPI v2.0.0"
     },
     sight: {
       colorVar: "--sight",
-      region: "Optic lobe · R1–R6 / T4–T5 / LPLC2",
-      tests: "24 Py + 7 C99 checks passed",
+      region: "Optic lobe · R1–R6 / T4–T5 / LPLC2 + LC4 (9.96× BANC enriched)",
+      tests: "31 Py + 9 C99 + ESP32-CAM passed",
       name: "NeckSight",
       pkg: "necksight",
-      desc: "Logarithmic R1–R6 photoreceptor glare cancellation, an ON/OFF lamina split, 3-arm Reichardt / Barlow-Levick motion detectors, and a four-quadrant LPLC2 radial looming gate that dispatches giant-fibre E-stop reflexes about 403 ms before collision.",
-      ram: "14.27 KB (32×32)",
-      speed: "~12,000 FPS (C99, desktop)",
-      gain: "0.9988 AUROC (synthetic)",
-      tradeoffLabel: "Where the baseline wins",
-      tradeoff: "On slow 0.05–0.35 px/frame sub-pixel visual odometry, Lucas-Kanade achieves 2.4× lower velocity MAE (0.055 vs 0.133 px/frame). NeckSight wins on looming detection under glare and fast pans (0% vs 42% false alarms for compensated pyramidal Lucas-Kanade). Feed it a gyro on fast-turning platforms.",
-      code: `from necksight import NeckSightPipeline\n\noptic = NeckSightPipeline(grid_size=64, threshold=0.045)\ntrigger = optic.step(camera_frame_u8, dt=1/60)\nif trigger.triggered:\n    print(f"LOOM E-STOP! score={trigger.looming_score:.3f} focus={trigger.focus_xy}")`,
+      desc: "Logarithmic R1–R6 + AEC glare guard, BANC-weighted T5 OFF-dominant Reichardt motion (1.98:1 OFF/ON), 3-DOF (yaw, pitch, roll) ego-motion derotation, and dual LPLC2 radial + LC4/LPLC1 2-arm split-strip thin-pole/wire detection with DNa02 contralateral avoidance vectors.",
+      ram: "14,624 B (14.28 KB)",
+      speed: "~6,557 FPS (C99, 32×32)",
+      gain: "0.984 3D AUROC · 85.7% thin-pole",
+      tradeoffLabel: "Where classical optical flow wins",
+      tradeoff: "On completely untextured blank walls with zero interior contrast edges, dense Farneback flow catches approach (100% vs 0% for edge-driven T4/T5), and Lucas-Kanade gives finer sub-pixel slow odometry. NeckSight v2.0 wins on thin poles (85.7% vs 0%), thin wires (100% vs 0%), and 100× sunlight glare immunity.",
+      code: `from necksight import NeckSightPipeline, imu_to_ego_motion\n\noptic = NeckSightPipeline(grid_size=64, enable_lc4_bar=True)\nego = imu_to_ego_motion(yaw_rate, pitch_rate, roll_rate, dt=1/60, grid_width=64)\nres = optic.step(frame_u8, dt=1/60, ego_shift_px=ego)\nif res.triggered:\n    print(res.looming_score, res.bar_score, (res.avoid_x, res.avoid_y))`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksight",
       pypi: "https://pypi.org/project/necksight/",
-      pypiLabel: "PyPI v1.1.0"
+      pypiLabel: "PyPI v2.0.0"
+    },
+    compass: {
+      colorVar: "--compass",
+      region: "Central complex · E-PG / Delta7 / PFL3+PFL2 (13.6× BANC enriched)",
+      tests: "36 Py + 12 C99 + ESP32 passed",
+      name: "NeckCompass",
+      pkg: "neckcompass",
+      desc: "Zero-float 9-axis 3D tilt-compensated E-PG ring-attractor AHRS with a 0.25g wave-slam gate (<0.04° dip error at 25° roll / 20° pitch under 65° dip), a 1,104-byte Q12 plastic ring that learns 35° steel-hull warps online, Delta7 anti-phase sharpening, and PFL2 180° anti-goal U-turn boost.",
+      ram: "1,444 B (tilt + plastic ring)",
+      speed: "0.96 µs (9-DOF) · 8.10 µs (plastic)",
+      gain: "0.90° RMS (±25° tilt + 130° spike)",
+      tradeoffLabel: "Where EKF ties on clean Gaussian noise",
+      tradeoff: "Under stationary Gaussian sensor noise without sudden heading upsets, a tuned 3σ-gated EKF tracks within fractions of a degree. NeckCompass v2.0 beats both 3σ-EKF (0.90° vs 1.48°) and Madgwick (4.90°) under combined wave tilt + 130° spikes, and recovers from 90° collision upsets in 2.48 s where gated EKF locks out (10.0 s).",
+      code: `from neckcompass import RingCompass, FanBodyNavigator\n\nnav = FanBodyNavigator(compass=RingCompass(n_wedges=16))\nhdg, dist_m, brg = nav.step_with_compass_9dof(gx, gy, gz, ax, ay, az, mx, my, mz,\n                                              speed_m_s=1.8, dt=0.02)\nyaw_cmd = nav.steering_cmd(max_turn_rate=1.0)`,
+      repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcompass",
+      pypi: "https://pypi.org/project/neckcompass/",
+      pypiLabel: "PyPI v2.0.0"
     },
     cord: {
       colorVar: "--cord",
-      region: "Ventral nerve cord · BANC / MANC",
-      tests: "31 Py + 11 C99 tests passed",
+      region: "Ventral nerve cord · DN→MN bottleneck (11.3× BANC enriched)",
+      tests: "44 Py + 18 C99 + ESP32 passed",
       name: "NeckCord",
       pkg: "neckcord",
-      desc: "Compresses descending brain motor intent into a 4-byte frame (400 B/s at 100 Hz) that drives a self-healing six-limb Kuramoto CPG and a fault-tolerant thruster allocator, which isolates fouled propulsors in about 42 ms and can probe them back into service.",
-      ram: "322 B (Q15/Q14)",
-      speed: "42 ms fault isolation",
-      gain: "100% five-leg stability",
-      tradeoffLabel: "Where they tie",
-      tradeoff: "A pseudo-inverse with a simple threshold fault detector on the same thrust feedback performs the same (40 ms vs 42 ms isolation, 4.84° vs 4.77° peak yaw). NeckCord's value is a tested package: graded health, recovery probing and a zero-float C99 port.",
-      code: `from neckcord import DescendingFrame, ShuntingThrusterCord, encode_descending_4b\n\nwire_4b = encode_descending_4b(DescendingFrame(drive_fwd=0.7, turn_yaw=-0.2))\nres = allocator.step(wire_4b, feedback_thrust=esc_thrust_n, dt=0.02)\nprint("Thruster commands (N):", res.commands, "Health:", res.health)`,
+      desc: "4-byte CRC-4 cervical frame, box-constrained [u_min, u_max] 3-DOF T200 USV & [0, u_max] 4-DOF hexacopter/octocopter active-set allocator, sensorless ESC RPM + Current broken-blade/weed-foul observer (<50 ms, zero load cells), and 18-servo 3-DOF integer hexapod IK with +45 mm amputated-leg parking.",
+      ram: "916 B (all 11 C99 structs)",
+      speed: "5.57 µs / full tick (C99)",
+      gain: "0.75° dead-rotor tilt · 2.07× 5-leg speed",
+      tradeoffLabel: "Comparison with desktop QP & Pinv",
+      tradeoff: "Desktop scipy bounded QP achieves the exact same 0.75° post-fault hexacopter tilt RMS (and 0.7 mm altitude MAE) as NeckCord v2.0, while unconstrained Pinv+FDI degrades to 3.54° tilt because negative rotor thrust clips at zero. NeckCord v2.0 matches QP accuracy 6× faster in Python and in 5.6 µs / 916 B of zero-heap C99.",
+      code: `from neckcord import ESCObserver, ShuntingThrusterCord\nimport numpy as np\n\ncord = ShuntingThrusterCord.multicopter_hex_6(u_max=4.5, prioritize_attitude=True)\nesc = ESCObserver(n_actuators=6, u_nom=4.5, rpm_max=9000.0)\nres = cord.step(np.array([17.7, 0.0, 0.0, 0.0]), esc_observer=esc, esc_rpm=rpm, esc_current_a=amps, dt=0.01)\nprint(res.commands, res.health)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/neckcord",
       pypi: "https://pypi.org/project/neckcord/",
-      pypiLabel: "PyPI v1.1.0"
+      pypiLabel: "PyPI v2.0.0"
     },
     sense: {
       colorVar: "--sense",
-      region: "Antennal lobe & mushroom body · KC / DAN / MBON",
-      tests: "17 Py + 5 C99 tests passed",
+      region: "Antennal lobe, chordotonal & mushroom body (2.32× BANC enriched)",
+      tests: "36 Py + 16 C99 + ESP32 passed",
       name: "NeckSense",
       pkg: "necksense",
-      desc: "Dual-timescale ORN thermal-drift removal and Olsen-Wilson divisive normalisation feed a multiplication-free 5% winner-take-all Kenyon FlyHash, a popcount index, and one-shot anti-Hebbian MBON novelty and associative valence memory.",
-      ram: "8.8 KB (M = 1024)",
-      speed: "~25–30 µs / sample (C99, desktop)",
-      gain: "0.994 novelty AUROC (4 KB)",
-      tradeoffLabel: "Where the baseline wins",
-      tradeoff: "At equal tag size SimHash beats FlyHash on recall (50.5% vs 27.5%), and a baseline-corrected k-NN matches NeckSense on drifting gas plumes (100% vs 99.5%). NeckSense wins on one-shot novelty at equal 4 KB memory (0.994 vs 0.940 AUROC) with no weights and no float multiplications.",
-      code: `from necksense import MushroomNoveltyDetector\n\ndet = MushroomNoveltyDetector(n_inputs=8, stateful_antennal=True, n_kc=1024)\nnovelty = det.update_and_score(enose_8ch_reading)\nif novelty > 0.75:\n    print(f"1-shot chemical plume anomaly detected: {novelty:.3f}")`,
+      desc: "24× smaller integer Mushroom Body (5,804 B tiny / 20,284 B default) with Olsen-Wilson divisive normalization, turbulent whiff-rate tracking, 2-compartment KCg (fast 1-shot) + KCab (consolidated zero-forgetting) continual memory, and a 16-band zero-float motor/bearing vibration front-end.",
+      ram: "5,804 B (NS_TINY) · 20.3 KB full",
+      speed: "16.4 µs (tiny) · 31.1 µs (full)",
+      gain: "1.000 CWRU AUROC · 93.4% continual LTM",
+      tradeoffLabel: "Where supervised float SVM wins",
+      tradeoff: "On static collinear 16-channel MOX gas arrays where all 6 gases share the same dominant heater-group resistances, batch-trained float L2-RBF SVM beats uncentered random FlyHash (78.9% vs 33.1%). NeckSense v2.0 wins on zero-replay continual learning (93.4% vs 60.5% MLP) and variable-load CWRU bearing faults (1.000 vs 0.617 OCSVM / 0.513 RMS AUROC) in 5.8 KB integer RAM.",
+      code: `from necksense import VibrationFrontEnd, MushroomNoveltyDetector\n\nfe = VibrationFrontEnd()\ndet = MushroomNoveltyDetector(n_inputs=16, antennal=True, n_kc=1024)\nscore = det.update_and_score(fe.extract(accel_256_window))\nprint("Bearing resonance anomaly:", score)`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/necksense",
       pypi: "https://pypi.org/project/necksense/",
-      pypiLabel: "PyPI v1.1.0"
+      pypiLabel: "PyPI v2.0.0"
     },
     nltp: {
       colorVar: "--nltp",
       region: "Cervical connective · loss-healing wire protocol",
-      tests: "32 Py + 16 C99 + 216 interop + ESP32/ESP8266 mesh",
+      tests: "32 Py + 16 C99 + 248 interop + ESP32/ESP8266 mesh",
       name: "NLTP",
       pkg: "pynltp",
-      desc: "Loss-healing file, message and confirmed-command transport with GF(2^8) Cauchy FEC over UDP and routerless ESP-NOW, secured by ChaCha20-Poly1305 per-session AEAD (1-RTT handshake), with RFC 5389 STUN hole-punching and a zero-knowledge single-port 4G CGNAT relay.",
-      ram: "~65 KB on ESP32",
-      speed: "~7 Mbps typical ESP-NOW v2 (best 17.75)",
+      desc: "Loss-healing file, message and confirmed-command transport with GF(2^8) Cauchy FEC and LZ4 compression over UDP and routerless ESP-NOW, secured by X25519 + PSK forward-secret ChaCha20-Poly1305 AEAD, with RFC 5389 STUN hole-punching and a 4.76 KB TX-only MCU profile.",
+      ram: "4.76 KB TX-only · ~65 KB full ESP32",
+      speed: "956 MB/s GF(2^8) · 17.75 Mbps ESP-NOW",
       gain: "100% SHA-256 @ 35% loss",
-      tradeoffLabel: "Where the baseline wins",
-      tradeoff: "On clean, loss-free wired fibre or LAN links, kernel TCP BBR reaches higher multi-hundred-Mbps bulk throughput than userspace UDP FEC. NLTP wins on lossy radio, Wi-Fi fades, ESP32/ESP8266 ESP-NOW meshes and 4G CGNAT links where TCP stalls.",
+      tradeoffLabel: "Where kernel TCP BBR wins",
+      tradeoff: "On clean, loss-free wired fibre or LAN links, kernel TCP BBR reaches higher multi-hundred-Mbps bulk throughput than userspace UDP FEC. NLTP v1.6.0 wins on lossy radio, Wi-Fi fades, ESP32/ESP8266 ESP-NOW meshes and 4G CGNAT links where TCP stalls.",
       code: `from nltp import NLTPClient, generate_nltp_key\n\nwith NLTPClient(("127.0.0.1", 9000), psk=generate_nltp_key()) as cli:\n    cli.send_reflex("LOOM_ESTOP")\n    receipt = cli.send_file("telemetry_batch.bin")\n    assert receipt["verified_sha256"]`,
       repo: "https://github.com/indian-aman/necklink/tree/main/packages/nltp",
       pypi: "https://pypi.org/project/pynltp/",
-      pypiLabel: "PyPI v1.4.0"
+      pypiLabel: "PyPI v1.6.0"
     }
   };
 
-  // Each explorer tab and map node gets its module colour
   $$("[data-organ]").forEach((el) => {
     const d = ORGANS[el.getAttribute("data-organ")];
     if (d && !el.style.getPropertyValue("--c")) el.style.setProperty("--c", "var(" + d.colorVar + ")");
@@ -246,7 +257,7 @@
     const d = ORGANS[key];
     if (!d) return;
 
-    $$(".cns-node").forEach((el) => el.classList.toggle("active", el.getAttribute("data-organ") === key));
+    $$(".cns-node").forEach((el) => el.classList.toggle("active", key === "cns" || el.getAttribute("data-organ") === key));
     $$(".seg-btn[data-organ]").forEach((btn) => {
       const on = btn.getAttribute("data-organ") === key;
       btn.classList.toggle("active", on);
@@ -282,42 +293,47 @@
     a.addEventListener("click", () => selectOrgan(a.getAttribute("data-show-organ")));
   });
   $("#copy-code-btn").addEventListener("click", (e) => copyText(e.currentTarget, currentCode));
-  selectOrgan("compass");
+  selectOrgan("cns");
 
   // -------------------------------------------------------------------------
   // 4. BENCHMARK GALLERY
   // -------------------------------------------------------------------------
   const RAW = "https://raw.githubusercontent.com/indian-aman/";
   const BENCH = {
+    v2g4: {
+      src: "assets/necklink_v2_g4_benchmarks.png", w: 3150, h: 1764,
+      alt: "NeckLink CNS v2.0.0 RTX PRO 6000 Blackwell G4 benchmark summary",
+      caption: "RTX PRO 6000 Blackwell (G4) v2.0 benchmark suite: (1) BANC v888 157,789-neuron connectome pathway enrichment (1,000 GPU permutations), (2) 3D MuJoCo EGL camera thin-pole & looming AUROC, (3) 6-DOF ±25° pitch/roll + 65° dip + 130° magnetic spike AHRS error, (4) 3D MuJoCo 18-DOF hexapod leg-loss & 6-DOF hexacopter dead-rotor / broken-blade survival, (5) real UCI 13,910-plume continual learning & real CWRU bearing faults (including honest static MOX SVM baseline), and (6) 250-episode closed-loop multi-hazard survival."
+    },
     compass: {
       src: RAW + "necklink/main/packages/neckcompass/assets/neckcompass_benchmarks.png", w: 4070, h: 1298,
       alt: "NeckCompass benchmark charts",
-      caption: "Ring attractor against a 3-sigma gated EKF, an ungated EKF and a complementary IMU+mag filter: clean Gaussian noise, 70°–150° magnetic spikes, recovery from a 90° heading upset, and a 600 s GPS-blackout survey with homebound return (5 seeds at 50 Hz).",
+      caption: "Ring attractor against a 3-sigma gated EKF, an ungated EKF and a complementary IMU+mag filter: clean Gaussian noise, 70°–150° magnetic spikes, recovery from a 90° heading upset, and a 600 s GPS-blackout survey with homebound return."
     },
     sight: {
       src: RAW + "necklink/main/packages/necksight/assets/necksight_benchmarks.png", w: 3564, h: 1232,
       alt: "NeckSight benchmark charts",
-      caption: "Looming reflex on 60 synthetic cluttered 64×64 sequences (24 looming obstacles against 36 fast yaw pans, 100× glare steps and cross-traffic): selectivity, giant-fibre trigger timing, and C99 speed and RAM."
+      caption: "Optic-lobe looming selectivity, giant-fibre trigger timing before collision, and C99 speed and RAM footprint."
     },
     cord: {
       src: RAW + "necklink/main/packages/neckcord/assets/neckcord_benchmarks.png", w: 3850, h: 1276,
       alt: "NeckCord benchmark charts",
-      caption: "A 3-DOF X-vectored four-thruster USV over 10 irregular wave seeds (vs pseudo-inverse with and without fault detection), plus a six-limb hexapod: waypoint corridor, spin-out and fault isolation, and single-leg jam stability."
+      caption: "X-vectored USV wave corridor & thruster fault isolation, plus six-limb adaptive Kuramoto CPG stability."
     },
     sense: {
       src: RAW + "necklink/main/packages/necksense/assets/necksense_benchmarks.png", w: 3872, h: 1210,
       alt: "NeckSense benchmark charts",
-      caption: "Five-seed means: retrieval against dense Gaussian SimHash, an 8-sensor e-nose under 250× plume swings and drift (vs baseline-corrected k-NN), and a 20-mode one-shot anomaly stream (vs normalised nearest-neighbour memories)."
+      caption: "Olsen-Wilson concentration-invariant FlyHash retrieval, drifting gas plumes, and one-shot MBON anomaly detection."
     },
     nltp: {
       src: RAW + "necklink/main/assets/nltp_v12_benchmarks.png", w: 2992, h: 1188,
       alt: "NLTP benchmark charts",
-      caption: "1 MB file transfer across lossy and satellite links against kcptun, QUIC (ngtcp2) and Linux TCP BBR, and ESP32 goodput against ESP-NOW (about 60 KB verified payload)."
+      caption: "Lossy UDP & satellite file transfer against kcptun, QUIC (ngtcp2) and Linux TCP BBR, plus ESP32 ESP-NOW goodput."
     },
     suite: {
       src: RAW + "necklink/main/assets/necklink_brand_banner.png", w: 1376, h: 768,
-      alt: "The five NeckLink modules mapped onto the fruit-fly nervous system",
-      caption: "The five modules mapped onto the fruit-fly central nervous system."
+      alt: "NeckLink modules mapped onto the fruit-fly nervous system",
+      caption: "NeckLink organs mapped onto the adult Drosophila central nervous system."
     }
   };
 
@@ -344,14 +360,16 @@
   }
   benchImg.addEventListener("load", () => benchImg.classList.remove("loading"));
   $$("[data-bench]").forEach((btn) => btn.addEventListener("click", () => selectBench(btn.getAttribute("data-bench"))));
-  selectBench("compass");
+  selectBench("v2g4");
 
   // -------------------------------------------------------------------------
-  // 5. CLOSED-LOOP REFLEX SIMULATOR
+  // 5. LIVE C99 WEBASSEMBLY (necklink_cns.wasm) + WEBCAM REFLEX SIMULATOR
   // -------------------------------------------------------------------------
   const canvas = $("#reflex-canvas");
   const statusEl = $("#sim-status");
   const statusDot = $("#sim-dot");
+  const webcamBtn = $("#webcam-btn");
+  const webcamBtnLabel = $("#webcam-btn-label");
   if (!canvas) return;
 
   const ctx = canvas.getContext("2d");
@@ -366,23 +384,118 @@
     ring: "#38bdf8",
     ekf: "#f97316",
     optic: "#22d3ee",
+    pole: "#a78bfa",
     ok: "#34d399",
     bar: "#818cf8",
     barBg: "rgba(30, 41, 59, 0.9)",
     fault: "#fb7185",
     bg: "#070b14"
   };
-  const NOMINAL = "Nominal cruise. Ring compass locked (0.4° error), optic lobe scanning, 4-byte cervical link at 100 Hz.";
+
+  // WASM state
+  let wasmEx = null;
+  let wasmFrameU8 = null;
+  let wasmTelemI32 = null;
+  let wasmSramBytes = 23928;
+  const localFrame64 = new Uint8Array(64 * 64);
+
+  // Offscreen 64x64 canvas for live webcam downsampling & thumbnail display
+  const camCanvas = document.createElement("canvas");
+  camCanvas.width = 64;
+  camCanvas.height = 64;
+  const camCtx = camCanvas.getContext("2d", { willReadFrequently: true });
+  const retinaImgData = camCtx.createImageData(64, 64);
+  let videoEl = null;
+  let mediaStream = null;
+  let webcamActive = false;
 
   let cssW = 0, cssH = 0, narrow = false;
   let ringErr = 0, ekfErr = 0, ekfBias = 0;
-  let spikeTicks = 0, glareTicks = 0, loomProgress = -1, estopFlash = 0;
+  let spikeTicks = 0, glareTicks = 0, loomProgress = -1, loomKind = "boulder", estopFlash = 0;
   let fouledT2 = false, t2Health = 1.0;
+  let lastLoomScore = 0, lastLc4Score = 0, lastAvoidX = 0, lastAvoidY = 0;
+  let lastThrust = [0.62, 0.62, 0.62, 0.62];
+  let lastWireHex = "0x53000093";
   let running = false;
+
+  function nominalMessage() {
+    if (wasmEx) {
+      return "WASM C99 LIVE (" + wasmSramBytes.toLocaleString() + " B static SRAM, 0 heap). 9-DOF ring compass locked, LPLC2+LC4 scanning, 4-byte cervical link active.";
+    }
+    return "Nominal cruise. Ring compass locked (0.4° error), LPLC2+LC4 optic lobe scanning, 4-byte cervical link at 100 Hz.";
+  }
 
   function setStatus(msg, colorVar) {
     statusEl.textContent = msg;
     statusDot.style.background = colorVar ? "var(" + colorVar + ")" : "";
+  }
+
+  async function initWasm() {
+    try {
+      const resp = await fetch("necklink_cns.wasm");
+      if (!resp.ok) throw new Error("HTTP " + resp.status);
+      const bytes = await resp.arrayBuffer();
+      const { instance } = await WebAssembly.instantiate(bytes, {});
+      wasmEx = instance.exports;
+      if (typeof wasmEx._initialize === "function") wasmEx._initialize();
+      wasmEx.nl_wasm_init(0); // NL_VEHICLE_USV_T200 (4 thrusters)
+      wasmSramBytes = wasmEx.nl_wasm_sizeof_cns();
+      const fptr = wasmEx.nl_wasm_frame_buf();
+      const tptr = wasmEx.nl_wasm_get_telemetry();
+      wasmFrameU8 = new Uint8Array(wasmEx.memory.buffer, fptr, 64 * 64);
+      wasmTelemI32 = new Int32Array(wasmEx.memory.buffer, tptr, 24);
+      setStatus(nominalMessage(), "--ok");
+    } catch (err) {
+      wasmEx = null;
+      setStatus(nominalMessage());
+    }
+  }
+  initWasm();
+
+  async function toggleWebcam() {
+    if (webcamActive) {
+      stopWebcam();
+      setStatus(nominalMessage(), wasmEx ? "--ok" : "");
+      return;
+    }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setStatus("Webcam requires HTTPS or localhost with browser camera support.", "--warn");
+      return;
+    }
+    try {
+      mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 160 }, height: { ideal: 120 }, facingMode: "user" },
+        audio: false
+      });
+      if (!videoEl) {
+        videoEl = document.createElement("video");
+        videoEl.setAttribute("playsinline", "");
+        videoEl.muted = true;
+      }
+      videoEl.srcObject = mediaStream;
+      await videoEl.play();
+      webcamActive = true;
+      if (webcamBtn) webcamBtn.classList.add("active");
+      if (webcamBtnLabel) webcamBtnLabel.textContent = "Stop Webcam";
+      setStatus(
+        wasmEx
+          ? "LIVE WEBCAM → C99 WASM: Move your hand or a pen/pole rapidly toward the camera to trigger LPLC2/LC4 looming + DNa02 dodge!"
+          : "LIVE WEBCAM active (serve over HTTP/HTTPS to bind necklink_cns.wasm).",
+        "--ok"
+      );
+    } catch (err) {
+      setStatus("Camera permission denied or unavailable (" + (err && err.message ? err.message : "blocked") + ").", "--warn");
+    }
+  }
+
+  function stopWebcam() {
+    webcamActive = false;
+    if (mediaStream) {
+      mediaStream.getTracks().forEach((t) => t.stop());
+      mediaStream = null;
+    }
+    if (webcamBtn) webcamBtn.classList.remove("active");
+    if (webcamBtnLabel) webcamBtnLabel.textContent = "Live Webcam (WASM)";
   }
 
   function resize() {
@@ -396,7 +509,6 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
-  // Three instrument panels: side by side on wide screens, stacked on phones
   function panels() {
     if (!narrow) {
       const w1 = Math.round(cssW * 0.38), w2 = Math.round(cssW * 0.31);
@@ -413,60 +525,164 @@
   $$("[data-sim]").forEach((btn) => {
     btn.addEventListener("click", () => {
       const mode = btn.getAttribute("data-sim");
+      if (mode === "webcam") {
+        toggleWebcam();
+        return;
+      }
       if (mode === "spike") {
         spikeTicks = 55;
-        setStatus("+120° hull magnetic spike. An EKF without outlier gating is dragged off (about 42° error); the NeckCompass ring ignores the spike (under 1.8°), as does a properly gated EKF.", "--compass");
+        setStatus("+120° hull magnetic spike + wave roll. Ungated EKF drags ~42° off course; C99 NeckCompass v2.0 shunts the spike (<1.0°).", "--compass");
       } else if (mode === "glare") {
         glareTicks = 50;
-        setStatus("100× sunlight glare step. R1–R6 log photoreceptor adaptation cancels the global flash (0.0% false alarms).", "--sight");
+        setStatus("100× sunlight glare step. R1–R6 log photoreceptor + AEC guard cancels the global flash (0 false triggers).", "--sight");
       } else if (mode === "loom") {
+        loomKind = "boulder";
         loomProgress = 0;
-        setStatus("Head-on obstacle approaching. The LPLC2 four-quadrant radial gate is tracking the expansion.", "--sight");
+        setStatus("Off-axis boulder approaching on port side. C99 LPLC2 4-quadrant gate tracks expansion and prepares contralateral DNa02 dodge.", "--sight");
+      } else if (mode === "pole") {
+        loomKind = "pole";
+        loomProgress = 0;
+        setStatus("Thin vertical pole/mast approaching! Classical optical flow misses thin bars, while NeckSight v2.0 LC4 split-strip channel locks on.", "--sight");
       } else if (mode === "foul") {
         fouledT2 = true;
-        setStatus("Port-aft thruster fouled (−90%). NeckCord isolates it in about 42 ms (0.02 N) and rebalances surge onto the surviving thrusters with no yaw.", "--cord");
+        setStatus("Port-aft thruster T2 fouled (−90%). NeckCord v2.0 active-set shunts T2 in <45 ms and rebalances surge onto surviving thrusters with zero yaw spin.", "--cord");
       } else {
+        stopWebcam();
+        if (wasmEx) wasmEx.nl_wasm_init(0);
         ringErr = ekfErr = ekfBias = 0;
         spikeTicks = glareTicks = estopFlash = 0;
         loomProgress = -1;
         fouledT2 = false;
         t2Health = 1.0;
-        setStatus(NOMINAL);
+        lastLoomScore = lastLc4Score = lastAvoidX = lastAvoidY = 0;
+        setStatus(nominalMessage(), wasmEx ? "--ok" : "");
       }
     });
   });
 
-  function step() {
-    const noise = (Math.random() - 0.5) * 0.7;
+  function synthesizeRetinaFrame(buf) {
+    if (webcamActive && videoEl && videoEl.readyState >= 2) {
+      camCtx.drawImage(videoEl, 0, 0, 64, 64);
+      const rgba = camCtx.getImageData(0, 0, 64, 64).data;
+      for (let i = 0; i < 4096; i++) {
+        const p = i * 4;
+        buf[i] = (rgba[p] * 77 + rgba[p + 1] * 150 + rgba[p + 2] * 29) >> 8;
+      }
+      return true;
+    }
 
-    // Heading dynamics
+    const baseBg = glareTicks > 0 ? 248 : 186;
+    for (let y = 0; y < 64; y++) {
+      for (let x = 0; x < 64; x++) {
+        const checker = ((x >> 3) ^ (y >> 3)) & 1 ? 8 : -8;
+        buf[y * 64 + x] = Math.max(0, Math.min(255, baseBg + checker));
+      }
+    }
+
+    if (loomProgress >= 0) {
+      if (loomKind === "boulder") {
+        const r = 2.5 + (loomProgress / 100) * 24.0;
+        const cx = 23, cy = 32; // port-side obstacle -> triggers rightward (+X) DNa02 dodge
+        for (let y = 0; y < 64; y++) {
+          const dy = y - cy;
+          for (let x = 0; x < 64; x++) {
+            const dx = x - cx;
+            if (dx * dx + dy * dy <= r * r) buf[y * 64 + x] = 24;
+          }
+        }
+      } else {
+        // Thin vertical pole expanding in width from 1 px to 11 px on starboard side (cx = 41)
+        const halfW = 0.6 + (loomProgress / 100) * 5.8;
+        const cx = 41;
+        for (let y = 4; y < 60; y++) {
+          for (let x = 0; x < 64; x++) {
+            if (Math.abs(x - cx) <= halfW) buf[y * 64 + x] = 20;
+          }
+        }
+      }
+    }
+    return true;
+  }
+
+  function step() {
+    const noise = (Math.random() - 0.5) * 0.65;
+    if (glareTicks > 0) glareTicks--;
+    if (loomProgress >= 0) {
+      loomProgress += 2.1;
+      if (loomProgress > 100) loomProgress = -1;
+    }
+
+    const targetFrame = wasmFrameU8 || localFrame64;
+    const hasCam = synthesizeRetinaFrame(targetFrame) ? 1 : 0;
+
+    if (wasmEx && wasmTelemI32) {
+      const spikeCdeg = spikeTicks > 0 ? 12000 : Math.round(noise * 70);
+      const t2HealthQ15 = fouledT2 ? 2621 : 32767;
+      const baseHdgCdeg = wasmTelemI32[0];
+
+      wasmEx.nl_wasm_step_webcam_and_imu(
+        20,
+        1500,
+        0,
+        0,
+        0,
+        spikeTicks > 0 ? 180 : 0,
+        spikeTicks > 0 ? -140 : 0,
+        spikeCdeg,
+        t2HealthQ15,
+        hasCam
+      );
+
+      const newHdgCdeg = wasmTelemI32[0];
+      let dDeg = Math.abs(newHdgCdeg - baseHdgCdeg) / 100.0;
+      if (dDeg > 180) dDeg = 360 - dDeg;
+      ringErr = ringErr * 0.75 + Math.min(2.2, dDeg + Math.abs(noise) * 0.35) * 0.25;
+
+      lastLoomScore = wasmTelemI32[2] / 1024.0;
+      lastLc4Score = wasmTelemI32[3] / 1024.0;
+      const trig = wasmTelemI32[5] !== 0;
+      lastAvoidX = wasmTelemI32[6] / 127.0;
+      lastAvoidY = wasmTelemI32[7] / 127.0;
+      t2Health = Math.max(0.0, wasmTelemI32[18] / 32767.0);
+      lastThrust = [
+        Math.max(0, wasmTelemI32[14] / 32767.0),
+        Math.max(0, wasmTelemI32[15] / 32767.0),
+        Math.max(0, wasmTelemI32[16] / 32767.0),
+        Math.max(0, wasmTelemI32[17] / 32767.0)
+      ];
+      lastWireHex = "0x" + (wasmTelemI32[22] >>> 0).toString(16).padStart(8, "0").toUpperCase();
+
+      if (trig && estopFlash === 0) {
+        estopFlash = 38;
+        const via = lastLc4Score > 0.04 && loomKind === "pole" ? "LC4 thin-pole" : "LPLC2 looming";
+        const dirTxt = lastAvoidX > 0.15 ? "stbd (+X)" : (lastAvoidX < -0.15 ? "port (-X)" : "brake");
+        setStatus("C99 WASM " + via + " triggered! DNa02 dodge → " + dirTxt + " · 4B wire " + lastWireHex, "--ok");
+      }
+    } else {
+      if (loomProgress >= 60 && loomProgress < 64) {
+        estopFlash = 40;
+        lastAvoidX = loomKind === "pole" ? -0.9 : 0.9;
+        setStatus((loomKind === "pole" ? "LC4 thin-pole" : "LPLC2 looming") + " reflex dispatched over 4-byte cervical link!", "--ok");
+      }
+      t2Health = fouledT2 ? Math.max(0.02, t2Health * 0.72) : Math.min(1.0, t2Health + 0.08);
+      lastThrust = estopFlash > 0 ? [0.12, 0.0, 0.85, 0.85]
+        : (fouledT2 ? [0.86, 0.02 * t2Health, 0.88, 0.78] : [0.62, 0.62, 0.62, 0.62]);
+    }
+
     if (spikeTicks > 0) {
       spikeTicks--;
-      ringErr = ringErr * 0.82 + 0.32 + noise * 0.3;
+      if (!wasmEx) ringErr = ringErr * 0.82 + 0.30 + noise * 0.25;
       ekfErr = Math.min(46, ekfErr * 0.84 + 7.4);
       ekfBias = Math.min(14, ekfBias + 0.38);
     } else {
-      ringErr = ringErr * 0.86 + noise * 0.35;
+      if (!wasmEx) ringErr = ringErr * 0.86 + noise * 0.32;
       ekfBias *= 0.985;
       ekfErr = ekfErr * 0.94 + ekfBias * 0.45 + noise * 0.4;
     }
+
     histRing.push(ringErr); histRing.shift();
     histEkf.push(ekfErr); histEkf.shift();
-
-    // Glare and looming
-    if (glareTicks > 0) glareTicks--;
-    if (loomProgress >= 0) {
-      loomProgress += 1.65;
-      if (loomProgress >= 62 && loomProgress < 65) {
-        estopFlash = 45;
-        setStatus("Giant-fibre LOOM_ESTOP dispatched 403 ms before impact over ChaCha20-Poly1305 NLTP.", "--ok");
-      }
-      if (loomProgress > 100) loomProgress = -1;
-    }
     if (estopFlash > 0) estopFlash--;
-
-    // Thruster health shunting
-    t2Health = fouledT2 ? Math.max(0.02, t2Health * 0.72) : Math.min(1.0, t2Health + 0.08);
   }
 
   function title(p, text) {
@@ -476,7 +692,7 @@
   }
 
   function drawCompass(p) {
-    title(p, "CENTRAL COMPLEX · HEADING ERROR (°)");
+    title(p, "CENTRAL COMPLEX · 9-DOF HEADING ERROR (°)");
     const gx = p.x + 20, gy = p.y + 42, gw = p.w - 40, gh = p.h - 82;
     ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
@@ -498,51 +714,106 @@
     });
     ctx.font = "500 12px 'JetBrains Mono', monospace";
     ctx.fillStyle = C.ring;
-    ctx.fillText("NeckCompass " + Math.abs(ringErr).toFixed(1) + "°", gx, p.y + p.h - 18);
+    ctx.fillText("NeckCompass v2 " + Math.abs(ringErr).toFixed(1) + "°", gx, p.y + p.h - 18);
     ctx.fillStyle = C.ekf;
-    ctx.fillText("EKF (ungated) " + Math.abs(ekfErr).toFixed(1) + "°", gx + Math.min(190, gw * 0.52), p.y + p.h - 18);
+    ctx.fillText("Ungated EKF " + Math.abs(ekfErr).toFixed(1) + "°", gx + Math.min(195, gw * 0.54), p.y + p.h - 18);
   }
 
   function drawOptic(p) {
-    title(p, "OPTIC LOBE · T4/T5 + LPLC2 GATE");
+    title(p, webcamActive ? "OPTIC LOBE · LIVE WEBCAM 64×64 (WASM)" : "OPTIC LOBE · LPLC2 + LC4 + DNa02 DODGE");
     const cx = p.x + p.w / 2, cy = p.y + 38 + (p.h - 76) / 2;
     const R = Math.max(30, Math.min(p.w * 0.36, (p.h - 84) / 2));
+
     if (glareTicks > 0) {
       ctx.fillStyle = "rgba(250, 204, 21, " + (0.16 * (glareTicks / 50)).toFixed(3) + ")";
       ctx.fillRect(p.x + 1, p.y + 1, p.w - 2, p.h - 2);
     }
-    ctx.strokeStyle = estopFlash > 0 ? C.ok : "rgba(56, 189, 248, 0.38)";
+
+    // Draw live 64x64 grayscale retina inside circular compound-eye aperture when webcam is active
+    if (webcamActive) {
+      const srcBuf = wasmFrameU8 || localFrame64;
+      const dst = retinaImgData.data;
+      for (let i = 0; i < 4096; i++) {
+        const g = srcBuf[i];
+        const o = i * 4;
+        dst[o] = Math.round(g * 0.72);
+        dst[o + 1] = Math.min(255, Math.round(g * 0.95));
+        dst[o + 2] = Math.min(255, Math.round(g * 1.05));
+        dst[o + 3] = 220;
+      }
+      camCtx.putImageData(retinaImgData, 0, 0);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, R - 2, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(camCanvas, cx - R, cy - R, R * 2, R * 2);
+      ctx.restore();
+    }
+
+    ctx.strokeStyle = estopFlash > 0 ? C.ok : "rgba(56, 189, 248, 0.42)";
     ctx.lineWidth = estopFlash > 0 ? 3 : 1.5;
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI * 2); ctx.stroke();
+
     ctx.strokeStyle = C.grid;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(cx - R, cy); ctx.lineTo(cx + R, cy);
     ctx.moveTo(cx, cy - R); ctx.lineTo(cx, cy + R);
     ctx.stroke();
-    if (loomProgress >= 0) {
-      const lr = R * (0.08 + (loomProgress / 100) * 0.82);
-      ctx.fillStyle = "rgba(34, 211, 238, 0.22)";
-      ctx.strokeStyle = C.optic;
-      ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(cx, cy, lr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+
+    if (!webcamActive && loomProgress >= 0) {
+      if (loomKind === "boulder") {
+        const lr = R * (0.08 + (loomProgress / 100) * 0.68);
+        const ox = cx - R * 0.24;
+        ctx.fillStyle = "rgba(34, 211, 238, 0.24)";
+        ctx.strokeStyle = C.optic;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(ox, cy, lr, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      } else {
+        const pw = Math.max(3, R * (0.04 + (loomProgress / 100) * 0.30));
+        const ox = cx + R * 0.24;
+        ctx.fillStyle = "rgba(167, 139, 250, 0.30)";
+        ctx.strokeStyle = C.pole;
+        ctx.lineWidth = 2;
+        ctx.fillRect(ox - pw / 2, cy - R * 0.78, pw, R * 1.56);
+        ctx.strokeRect(ox - pw / 2, cy - R * 0.78, pw, R * 1.56);
+      }
     }
+
+    // Draw contralateral DNa02 avoidance arrow when looming reflex fires
+    if (estopFlash > 0 && (Math.abs(lastAvoidX) > 0.08 || Math.abs(lastAvoidY) > 0.08)) {
+      const ax = cx + lastAvoidX * R * 0.62;
+      const ay = cy + lastAvoidY * R * 0.45;
+      ctx.strokeStyle = C.ok;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(cx, cy);
+      ctx.lineTo(ax, ay);
+      ctx.stroke();
+      ctx.fillStyle = C.ok;
+      ctx.beginPath();
+      ctx.arc(ax, ay, 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.font = "500 12px 'JetBrains Mono', monospace";
     ctx.fillStyle = estopFlash > 0 ? C.ok : C.ring;
-    const label = estopFlash > 0 ? "LPLC2: LOOM_ESTOP fired"
-      : (glareTicks > 0 ? "100× glare shunted (loom 0.00)" : "Scanning 4 quadrants (FAR 0%)");
+    let label = "LPLC2 " + lastLoomScore.toFixed(2) + " · LC4 " + lastLc4Score.toFixed(2);
+    if (estopFlash > 0) {
+      label = "DODGE! LPLC2 " + lastLoomScore.toFixed(2) + " LC4 " + lastLc4Score.toFixed(2);
+    } else if (glareTicks > 0) {
+      label = "100× glare shunted (0 false alarms)";
+    }
     ctx.fillText(label, p.x + 20, p.y + p.h - 18);
   }
 
   function drawCord(p) {
-    title(p, "NECKCORD · THRUSTERS + NLTP WIRE");
-    const thrust = estopFlash > 0 ? [0, 0, 0, 0]
-      : (fouledT2 ? [0.86, 0.02 * t2Health, 0.88, 0.78] : [0.62, 0.62, 0.62, 0.62]);
+    title(p, "NECKCORD v2 · ACTIVE-SET + 4B CERVICAL");
     const labels = ["T1 port-fwd", "T2 port-aft", "T3 stbd-fwd", "T4 stbd-aft"];
     const top = p.y + 46, avail = p.h - 92, rowH = avail / 4;
     const lx = p.x + 20, bx = p.x + 120, bw = Math.max(40, p.w - 140);
     const barH = Math.min(16, rowH * 0.5);
-    thrust.forEach((v, i) => {
+    lastThrust.forEach((v, i) => {
       const y = top + i * rowH + (rowH - barH) / 2;
       ctx.fillStyle = C.text;
       ctx.font = "500 12px 'JetBrains Mono', monospace";
@@ -550,11 +821,15 @@
       ctx.fillStyle = C.barBg;
       ctx.fillRect(bx, y, bw, barH);
       ctx.fillStyle = (i === 1 && fouledT2) ? C.fault : C.bar;
-      ctx.fillRect(bx, y, Math.max(2, v * bw), barH);
+      ctx.fillRect(bx, y, Math.max(2, Math.min(1, v) * bw), barH);
     });
     ctx.fillStyle = C.ok;
     ctx.font = "500 12px 'JetBrains Mono', monospace";
-    ctx.fillText("NLTP AEAD " + (estopFlash > 0 ? "0x53F0009C freeze" : "0x53000093 4B CRC-4"), lx, p.y + p.h - 18);
+    ctx.fillText(
+      (wasmEx ? "WASM 4B " : "Cervical 4B ") + lastWireHex + (fouledT2 ? " · T2 shunted" : " · CRC-4 OK"),
+      lx,
+      p.y + p.h - 18
+    );
   }
 
   function draw() {
@@ -594,7 +869,6 @@
   draw();
   window.addEventListener("resize", () => { resize(); draw(); });
 
-  // Only animate while the simulator is on screen
   if ("IntersectionObserver" in window) {
     new IntersectionObserver((entries) => {
       entries.forEach((en) => { if (en.isIntersecting) start(); else running = false; });
