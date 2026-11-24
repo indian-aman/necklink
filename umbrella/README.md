@@ -10,14 +10,15 @@
 
 **Six open-source libraries. Five of them run weight matrices compiled from the `157,789`-neuron adult *Drosophila* `BANC v888` connectome inside hand-designed dynamics — including a 4-organ reflex controller plus `MAVLink v2` in `24 KB` of zero-float ANSI C99 RAM (`107.5 KB` standalone WASM) — tested against degree-preserving shuffled wiring. Plus loss-healing `NLTP` transport. Research beta.**
 
-[![Website](https://img.shields.io/badge/website-indian--aman.github.io%2Fnecklink-D4A24C?style=flat-square&labelColor=111318&logo=githubpages&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/)
-[![PyPI necklink](https://img.shields.io/pypi/v/necklink?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necklink/)
-[![PyPI necklink-cns](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink--cns&color=C89236&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=pynltp&color=525B6C&cacheSeconds=180&v=160)](https://pypi.org/project/pynltp/)
-[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcompass&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcompass/)
-[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksight&color=525B6C&cacheSeconds=180&v=300)](https://pypi.org/project/necksight/)
-[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcord&color=C89236&cacheSeconds=180&v=300)](https://pypi.org/project/neckcord/)
-[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksense&color=525B6C&cacheSeconds=180&v=300)](https://pypi.org/project/necksense/)
+[![Website](https://img.shields.io/badge/NeckLink%20Web-WASM%20Sim-D4A24C?style=flat-square&labelColor=111318&logo=githubpages&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/)
+[![NLTP Lab](https://img.shields.io/badge/NLTP%20v1.6.1-Live%20Protocol%20Lab-D4A24C?style=flat-square&labelColor=111318&logo=espressif&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/nltp/)
+[![PyPI necklink](https://img.shields.io/pypi/v/necklink?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/necklink/)
+[![PyPI necklink-cns](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necklink--cns&color=C89236&cacheSeconds=180&v=301)](https://pypi.org/project/necklink-cns/)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=pynltp&color=525B6C&cacheSeconds=180&v=161)](https://pypi.org/project/pynltp/)
+[![PyPI neckcompass](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcompass&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/neckcompass/)
+[![PyPI necksight](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksight&color=525B6C&cacheSeconds=180&v=301)](https://pypi.org/project/necksight/)
+[![PyPI neckcord](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=neckcord&color=C89236&cacheSeconds=180&v=301)](https://pypi.org/project/neckcord/)
+[![PyPI necksense](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=necksense&color=525B6C&cacheSeconds=180&v=301)](https://pypi.org/project/necksense/)
 [![Status](https://img.shields.io/badge/status-research%20beta-D4A24C?style=flat-square&labelColor=111318)](#v300-what-the-connectome-does-and-what-we-measured)
 [![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](https://github.com/indian-aman/necklink/blob/main/LICENSE)
 
@@ -38,16 +39,16 @@
 
 ## Products
 
-Each product takes one subsystem of the adult fruit-fly nervous system (`BANC v888`: `157,789` proofread neurons, `23.55M` synapses) and compiles its circuit into weight matrices for a standalone library. `NeckLink CNS` combines the four sensory-motor organs into one `24 KB` reflex controller. Every product ships on PyPI with a zero-heap, zero-float ANSI C99 core and an Arduino/`ESP32` library (compiled with the ESP32 toolchain; `NLTP` is also hardware-tested on `ESP32`/`ESP8266`). Every connectome-driven class also offers `connectome_weights="v2_analytic"`, the earlier hand-tuned symmetric model.
+Each product takes one subsystem of the adult fruit-fly nervous system (`BANC v888`: `157,789` proofread neurons, `23.55M` synapses) and compiles its circuit into weight matrices for a standalone library. `NeckLink CNS` combines the four sensory-motor organs into one `24 KB` reflex controller. Every product ships on PyPI with a zero-heap, zero-float ANSI C99 core and an Arduino/`ESP32`/`ESP8266`/`AVR` library (strict `-Werror` verified across ESP32, ESP8266, and ATmega2560; bench-tested on real `ESP8266EX @ 160 MHz` and `ATmega2560 @ 16 MHz` silicon alongside live encrypted Wi-Fi `NLTP`). Every connectome-driven class also offers `connectome_weights="v2_analytic"`, the earlier hand-tuned symmetric model.
 
 | Product | Fly circuit (`BANC v888`) | What it does | Package |
 | :--- | :--- | :--- | :--- |
-| **[NeckLink CNS](https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns)** (`v3.0.0`) | Brain → descending neurons → leg motor pools (`10×11`, `6×10`) | 4-organ reflex controller whose decision layer is matrix multiplication through connectome weights, plus **MAVLink v2** & **ROS 2** bridges. `24,024 B` C99 state, `107.5 KB` WASM. Closed-loop boat sim: `66.7%` safe arrival vs `4.6%` with shuffled wiring and `0%` for a classical stack — and `80.0%` with the analytic model. | [`necklink-cns`](https://pypi.org/project/necklink-cns/) |
-| **[NLTP](https://github.com/indian-aman/necklink/tree/main/packages/nltp)** (`v1.6.0`) | Cervical connective (name only) | Loss-healing `GF(2^8)` Cauchy FEC file & priority-command transport with `X25519 + PSK` forward-secret `ChaCha20-Poly1305`, zero-dependency `LZ4`, and a `4.76 KB` MCU profile over UDP or ESP-NOW, in Python, C99, JS/TS, Java and Arduino (`248/248` cross-language checks; hardware-tested on `ESP32`/`ESP8266`). Unchanged in this release. | [`pynltp`](https://pypi.org/project/pynltp/) |
-| **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** (`v3.0.0`) | Optic lobe (`64` `LPLC2`, `32` `LC4`) | Collision and thin-obstacle looming reflex with 3-DOF gyro derotation; receptive fields compiled from the connectome. Wiring helps on thin poles/wires but misses the strict shuffle threshold; the analytic model and gyro-derotated Farneback do better overall. | [`necksight`](https://pypi.org/project/necksight/) |
-| **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** (`v3.0.0`) | Central complex (`EPG`, `PEN`, `Delta7`, `PFL3`, `PFL2`) | 9-axis ring-attractor heading and GPS-denied homing on connectome matrices. Shuffled wiring breaks it (homing `100%` → `4.7%`), but the real wiring drifts and is far less accurate than the analytic model or an EKF. | [`neckcompass`](https://pypi.org/project/neckcompass/) |
-| **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** (`v3.0.0`) | VNC leg-to-leg inhibition (`6×6`), DN → leg pools | Six-leg gait whose tripod pattern emerges from the connectome inhibition matrix (`0.855` vs `0.411` shuffled), plus engineering allocator, ESC observer and 18-servo IK. | [`neckcord`](https://pypi.org/project/neckcord/) |
-| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** (`v3.0.0`) | Mushroom body (`1,024` Kenyon cells, real claws) | Integer novelty detection and continual memory. Shuffled wiring performs the same as real wiring, and classical baselines win on real UCI gas data. | [`necksense`](https://pypi.org/project/necksense/) |
+| **[NeckLink CNS](https://github.com/indian-aman/necklink/tree/main/packages/necklink_cns)** (`v3.0.1`) | Brain → descending neurons → leg motor pools (`10×11`, `6×10`) | 4-organ reflex controller whose decision layer is matrix multiplication through connectome weights, plus **MAVLink v2** & **ROS 2** bridges. `24,024 B` C99 state, `107.5 KB` WASM. Closed-loop boat sim: `66.7%` safe arrival vs `4.6%` with shuffled wiring and `0%` for a classical stack — and `80.0%` with the analytic model. | [`necklink-cns`](https://pypi.org/project/necklink-cns/) |
+| **[NLTP](https://indian-aman.github.io/necklink/nltp/)** ([`packages/nltp`](https://github.com/indian-aman/necklink/tree/main/packages/nltp), `v1.6.1`) | Cervical connective (name only) | Loss-healing `GF(2^8)` Cauchy FEC file & priority-command transport with `X25519 + PSK` forward-secret `ChaCha20-Poly1305`, zero-dependency `LZ4`, and a `4.76 KB` MCU profile over UDP or ESP-NOW, in Python, C99, JS/TS, Java and Arduino (`248/248` cross-language checks; hardware-tested on `ESP32`/`ESP8266`). [**Live Browser Wire Lab ↗**](https://indian-aman.github.io/necklink/nltp/) | [`pynltp`](https://pypi.org/project/pynltp/) |
+| **[NeckSight](https://github.com/indian-aman/necklink/tree/main/packages/necksight)** (`v3.0.1`) | Optic lobe (`64` `LPLC2`, `32` `LC4`) | Collision and thin-obstacle looming reflex with 3-DOF gyro derotation; receptive fields compiled from the connectome. Wiring helps on thin poles/wires but misses the strict shuffle threshold; the analytic model and gyro-derotated Farneback do better overall. | [`necksight`](https://pypi.org/project/necksight/) |
+| **[NeckCompass](https://github.com/indian-aman/necklink/tree/main/packages/neckcompass)** (`v3.0.1`) | Central complex (`EPG`, `PEN`, `Delta7`, `PFL3`, `PFL2`) | 9-axis ring-attractor heading and GPS-denied homing on connectome matrices. Shuffled wiring breaks it (homing `100%` → `4.7%`), but the real wiring drifts and is far less accurate than the analytic model or an EKF. | [`neckcompass`](https://pypi.org/project/neckcompass/) |
+| **[NeckCord](https://github.com/indian-aman/necklink/tree/main/packages/neckcord)** (`v3.0.1`) | VNC leg-to-leg inhibition (`6×6`), DN → leg pools | Six-leg gait whose tripod pattern emerges from the connectome inhibition matrix (`0.855` vs `0.411` shuffled), plus engineering allocator, ESC observer and 18-servo IK. | [`neckcord`](https://pypi.org/project/neckcord/) |
+| **[NeckSense](https://github.com/indian-aman/necklink/tree/main/packages/necksense)** (`v3.0.1`) | Mushroom body (`1,024` Kenyon cells, real claws) | Integer novelty detection and continual memory. Shuffled wiring performs the same as real wiring, and classical baselines win on real UCI gas data. | [`necksense`](https://pypi.org/project/necksense/) |
 
 ---
 
@@ -100,7 +101,20 @@ So roughly **33,000 numbers** from 23.5 million synapses drive the computation; 
 - The pipeline was developed while looking at real-wiring results, so the shuffle comparison is biased toward the real wiring.
 - No correction for testing many things at once; with `K = 100` no result can clear a corrected threshold. The large effects (homing, tripod, whole controller) are robust; `p = 0.02–0.04` results are not convincing.
 - Some shuffle comparisons use `6`–`12` seeds per shuffle; the NeckSight test has `56` rendered episodes.
-- Everything except the UCI gas and CWRU data is simulation. **Nothing has run on real hardware**; microcontroller speed has not been measured (desktop C99: `~166 µs` per full controller tick).
+- All mission and closed-loop vehicle benchmarks remain simulation (no live boat/drone/hexapod field trials yet). **Bench-in-the-loop microcontroller execution has now been measured on real silicon** (`ESP8266EX @ 160 MHz` + `ATmega2560 @ 16 MHz`, WeMos MEGA + WiFi R3 — see table below; desktop C99: `~166 µs` per full controller tick).
+
+### Bench-in-the-loop microcontroller verification (`ESP8266EX` + `ATmega2560`)
+
+Pure-upstream C99 cores (with `43.4 KB` of `BANC v888` weights placed in ESP8266 `PROGMEM` flash, `0 B` `.bss`, peak `nl_cns_step` stack `2,896 B` for 4 KB-stack MCUs, and 16-bit AVR integer overflow fixes in `neckcord.c`) were flashed and timed on a WeMos MEGA + WiFi R3 (`ESP8266EX @ 160 MHz` + `ATmega2560 @ 16 MHz`), with deterministic synthetic sensor vectors, real `A0..A15` AVR ADC reads, and live 2.4 GHz Wi-Fi UDP (`NLTP v1.6.1`). Raw JSON: [`benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json`](https://github.com/indian-aman/necklink/blob/main/benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json).
+
+| Target & workload | `banc_v888` | `v2_analytic` | Footprint / notes |
+| :--- | :---: | :---: | :--- |
+| **ESP8266EX @ 160 MHz** — full 4-organ CNS (no cam) | `16.63 ms` (`60 Hz`) | `6.33 ms` (`158 Hz`) | `nl_cns_t = 23,968 B`, `43.4 KB` weights in Flash `PROGMEM` |
+| **ESP8266EX @ 160 MHz** — full 4-organ CNS + `32×32` cam | `47.98 ms` (`20 Hz`) | `29.63 ms` (`33 Hz`) | `65,324 / 80,192 B` DRAM (`14,472 B` free idle; `8,344 B` with Wi-Fi + NLTP) |
+| **ESP8266EX @ 160 MHz** — live `NLTP v1.6.1` Wi-Fi (`20%` drop) | `209.9 ms` file / `4.8 ms` reflex ACK | — | `X25519` `439.3 ms` (`rfc7748_ok=1`, `1,520 B` stack); `4/4` files `SHA-256` verified (`15–20%` loss) |
+| **ATmega2560 @ 16 MHz** — 4-byte wire + CPG + alloc + ESC + IK + MAVLink + `buoy16` | `38.8 ms` CPG / `13.7 ms` alloc / `6.6 ms` ESC / `9.5 ms` IK / `75 µs` MAVLink | `24.3 ms` CPG | `3,719 / 8,192 B` SRAM (`4,437 B` free), `75,282 B` flash; live broken-prop + limb-park verified |
+
+*3-ISA parity:* `33/33` sampled 4-byte `cervical_wire_4b` frames from ESP8266EX decoded cleanly in desktop Python `neckcord` (`0` CRC-4 errors); ESP8266EX fixed-point `banc_v888` heading matched desktop `float64` Python within `0.19°` (`-9.87°` vs `-10.06°` at tick 39) while rejecting a `+125°` magnetic spike. Caveat: on the specific clone board tested, onboard DIP `SW1` (`Mega TX3 → ESP RX`) was physically open and `SW2` (`ESP TX → Mega RX3`) had `>15–40 kΩ` oxidized contact resistance, so cross-chip `Serial3` execution (`13` live VNC ticks including Phase 4 fault injection) was verified one-way at adaptive `1200 bps` rather than `115200 bps` bidirectional RTT.
 
 <a id="earlier-corrections-v201"></a>
 
@@ -118,6 +132,11 @@ v3.0.0 replaces those benchmarks with the suite described above.
 
 ### Release notes
 
+> **v3.0.1 & NLTP v1.6.1 (November 2026) — real-silicon `ESP8266EX` + `ATmega2560` MCU fixes:**
+> - Moved `43,438 B` of `BANC v888` C99 weight tables to `PROGMEM` on Harvard MCUs (`extract.py` + all organ headers) and cut `necksight.c` / `necksense.c` stack frames so the full 4-organ CNS runs inside the `ESP8266` 4 KB stack (`2,896 B` peak, `0 B` `.bss`).
+> - Fixed 6 silent 16-bit AVR integer overflows in `neckcord.c` (`INT32_C`) and verified the split CNS on real `ESP8266EX @ 160 MHz` + `ATmega2560 @ 16 MHz` silicon ([`wemos_esp8266_atmega2560_silicon.json`](https://github.com/indian-aman/necklink/blob/main/benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json)).
+> - `NLTP` (`pynltp` / `NLTP-Arduino` / PlatformIO / Espressif ESP-IDF Component Registry **`1.6.1`**): 4-temp Montgomery `X25519` (`439.3 ms`, `7.1%` faster, `1,520 B` stack, `rfc7748_ok=1`) + `ESP8266` watchdog yields.
+>
 > **v3.0.0 (November 2026) — `necklink`, `necklink-cns`, `necksight`, `neckcompass`, `neckcord`, `necksense`:**
 > - Connectome-derived weights by default in all five packages (`connectome_weights="banc_v888"`), in Python and zero-float C99, with the earlier models kept as `connectome_weights="v2_analytic"`.
 > - New `necklink_cns.connectome` extraction + Maslov–Sneppen shuffling tools (`pip install "necklink-cns[connectome]"`).
@@ -172,14 +191,14 @@ print(out.descending.behavior_mode, len(out.cervical_wire_4b), hex(out.mavlink_m
 ```text
 necklink/
 ├── packages/
-│   ├── necklink_cns/  4-organ controller, connectome extraction/shuffling, MAVLink v2, ROS 2, WASM (v3.0.0)
-│   ├── nltp/          NLTP wire protocol (v1.6.0): Python, C99, JS/TS (Node.js), Java 11+, Arduino, ESP32/ESP8266
-│   ├── neckcompass/   Ring-attractor compass, plastic ring & homing on connectome matrices (v3.0.0)
-│   ├── necksight/     LPLC2 + LC4 looming on connectome receptive fields, 3-DOF derotation (v3.0.0)
-│   ├── neckcord/      Connectome gait coupling, allocator, ESC observer, 18-servo IK, 4-byte codec (v3.0.0)
-│   └── necksense/     Connectome Kenyon-cell projection, novelty & continual memory (v3.0.0)
-├── benchmarks/v3/     Audited v3.0.0 benchmark suite, raw subgraphs and results JSON
-├── umbrella/          The `necklink` PyPI meta-package (v3.0.0) that installs all six packages
+│   ├── necklink_cns/  4-organ controller, connectome extraction/shuffling, MAVLink v2, ROS 2, WASM (v3.0.1)
+│   ├── nltp/          NLTP wire protocol (v1.6.1): Python, C99, JS/TS (Node.js), Java 11+, Arduino, ESP32/ESP8266
+│   ├── neckcompass/   Ring-attractor compass, plastic ring & homing on connectome matrices (v3.0.1)
+│   ├── necksight/     LPLC2 + LC4 looming on connectome receptive fields, 3-DOF derotation (v3.0.1)
+│   ├── neckcord/      Connectome gait coupling, allocator, ESC observer, 18-servo IK, 4-byte codec (v3.0.1)
+│   └── necksense/     Connectome Kenyon-cell projection, novelty & continual memory (v3.0.1)
+├── benchmarks/v3/     Audited v3.0.0 benchmark suite, silicon artifacts, raw subgraphs and results JSON
+├── umbrella/          The `necklink` PyPI meta-package (v3.0.1) that installs all six packages
 ├── web/               Live C99 WebAssembly + webcam website (deployed to gh-pages)
 └── assets/            NeckLink logo, brand banner and figures
 ```

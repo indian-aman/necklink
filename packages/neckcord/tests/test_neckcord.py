@@ -470,7 +470,7 @@ def test_crc4_documented_multibit_escape_rate() -> None:
 
 def test_v2_version_and_cervical_wrench_4d() -> None:
     """Verify v3.0.0 version string and 4-DOF aerial wrench decoding."""
-    assert neckcord.__version__ == "3.0.0"
+    assert neckcord.__version__ == "3.0.1"
     f_nom = DescendingFrame(drive_fwd=0.5, turn_yaw=-0.4, strafe_lat=0.25)
     w4 = f_nom.to_wrench_4d(hover_thrust=36.0, max_pitch=3.0, max_roll=3.0, max_yaw=0.6)
     assert w4.shape == (4,)
@@ -670,7 +670,7 @@ def test_v2_arduino_library_structure_and_sha256_c99_parity() -> None:
         if "=" in line and not line.strip().startswith("#")
     )
     assert props["name"] == "NeckCord"
-    assert props["version"] == "3.0.0"
+    assert props["version"] == "3.0.1"
     assert props["architectures"] == "*"
 
     sketch = (

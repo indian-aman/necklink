@@ -2,12 +2,12 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NLTP (`pynltp` v1.6.0)
+# NLTP (`pynltp` v1.6.1)
 
 **Loss-resilient, `ChaCha20-Poly1305`-encrypted binary, file, telemetry, and priority-command transport with `X25519 + PSK` ephemeral forward secrecy, built-in zero-dependency `LZ4` block compression, `< 4.8 KB` RAM MCU sensor profile, and `GF(2^8)` Cauchy forward error correction — running identically over UDP/IP (LAN, Wi-Fi, 4G/5G CGNAT, satellite) and routerless 2.4 GHz ESP-NOW across Python, ANSI C99, JavaScript/TypeScript (`Node.js`), Java 11+, and `ESP32`/`ESP8266`.**
 
-[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=180&v=160)](https://pypi.org/project/pynltp/)
-[![Version](https://img.shields.io/badge/version-1.6.0-0EA5E9?style=flat-square)](#8-changelog)
+[![PyPI pynltp](https://img.shields.io/pypi/v/pynltp?style=flat-square&logo=pypi&logoColor=white&label=PyPI%20pynltp&color=3775A9&cacheSeconds=180&v=161)](https://pypi.org/project/pynltp/)
+[![Version](https://img.shields.io/badge/version-1.6.1-0EA5E9?style=flat-square)](#8-changelog)
 [![4-Language Interop](https://img.shields.io/badge/Py%E2%86%94C%E2%86%94JS%E2%86%94Java%20interop-248%2F248%20passed-10B981?style=flat-square)](scripts/multilang_interop_test.py)
 [![ESP32 + ESP8266 Mesh](https://img.shields.io/badge/ESP32%20%2B%20ESP8266%20ESP--NOW-100%25%20SHA--256%20%40%2035%25%20loss-00979D?style=flat-square&logo=espressif&logoColor=white)](#6-benchmarks--hardware-verification)
 [![License: MIT](https://img.shields.io/badge/license-MIT-F59E0B?style=flat-square)](LICENSE)
@@ -720,6 +720,10 @@ python scripts/field_test.py client --host <SERVER_IP> --port 9700 --psk "<KEY>"
 ---
 
 ## 8. Changelog
+
+**`1.6.1`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, PlatformIO & Espressif ESP-IDF Component Registry)* — **real-silicon `ESP8266EX` `X25519` stack reduction & speedup (`100%` wire-compatible with `1.6.0`)**
+- **7.1% Faster, `1,520 B` Stack `X25519` Montgomery Ladder (`csrc/nltp_wire.h`)**: Trimmed temporary `fe25519` stack frames from 6 to 4 in `nltp_x25519_scalarmult` with periodic watchdog yields on `ESP8266` (`nltp_core.c`), preventing 4 KB stack overflow during concurrent `Wi-Fi + NLTP` operation.
+- **Real-Silicon `ESP8266EX @ 160 MHz` Bench Verification**: `X25519` runs in **`439.3 ms`** (`rfc7748_ok=1`, `1,520 B` stack), `ChaCha20-Poly1305` `1.04 ms` enc / `0.99 ms` dec, `Cauchy GF(2^8) k=8` `7.26 ms`, `LZ4` `225 µs` / `96 µs` (`770 -> 118 B`), and live 2.4 GHz Wi-Fi encrypted `NLTP` healed `15-20%` packet drop (**`4/4` files `SHA-256` verified**, `209.9 ms` transfer, **`4.8 ms`** encrypted Reflex ACK RTT).
 
 **`1.6.0`** *(Python, ANSI C99, Arduino/ESP32/ESP8266, JavaScript/TypeScript, Java 11+)* — **lighter, faster release: zero-dependency `LZ4` codec, `4.76 KB` MCU TX-only RAM profile, branchless `GF(2^8)` & clean-link BDP cap (`100%` backward wire-compatible with `1.5.0` when `LZ4` is off)**
 - **Zero-Dependency Standard `LZ4` Block Compression (`#1`)**: Built bounds-checked Yann Collet `LZ4` raw block compressors and decompressors directly into all 5 SDKs (`compress=True` in Python, `{ compress: true }` in Node.js, `compress = true` in Java, `nltp_send_buffer_lz4()` / `sendBytesCompressed()` in C99/Arduino, and `--compress` / `-z` across all CLIs) with zero external libraries. Automatically bypasses compression (`0 B` inflation) on incompressible files, performs zero-heap in-place decompression on C99/Arduino, and verifies `SHA-256` on the uncompressed payload. On `1 MB` structured AQMS JSONL over `Linux tc netem`, `NLTP 1.6.0 + LZ4` cuts cellular wire bytes to **`0.38–0.50×`** and completes in **`0.245 s`** vs. `0.507 s` `TCP BBR` on clean `20 Mbit` (`2.07×`), **`0.642 s`** vs. `1.645 s` `TCP BBR` at `5%` loss (`2.56×`), **`1.516 s`** vs. `3.728 s` `TCP BBR` at `10%` loss (`2.46×`), and **`2.648 s`** vs. `18.352 s` `TCP BBR` at `20%` loss (`6.93×`).

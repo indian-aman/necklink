@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necklink-cns"
-version = "3.0.0"
+version = "3.0.1"
 description = "Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (BANC v888 Descending Arbitration, <24 KB Zero-Float ANSI C99, MAVLink v2 & ROS 2 Bridges)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -39,14 +39,14 @@ classifiers = [
 ]
 dependencies = [
   "numpy>=1.22",
-  "necksight>=3.0.0",
-  "neckcompass>=3.0.0",
-  "neckcord>=3.0.0",
-  "necksense>=3.0.0",
+  "necksight>=3.0.1",
+  "neckcompass>=3.0.1",
+  "neckcord>=3.0.1",
+  "necksense>=3.0.1",
 ]
 
 [project.optional-dependencies]
-wire = ["pynltp>=1.6.0"]
+wire = ["pynltp>=1.6.1"]
 connectome = ["scipy>=1.9", "pandas>=1.5", "pyarrow>=10"]
 
 [project.scripts]

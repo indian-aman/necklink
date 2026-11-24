@@ -1,5 +1,5 @@
 /*
- * NeckCord v3.0.0 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
+ * NeckCord v3.0.1 - Zero-Heap, Pure Fixed-Point ANSI C99 Embedded Core
  *
  * Implements:
  *   1. 4-byte Descending Cervical Command Frame codec + CRC-4 verification
@@ -30,20 +30,20 @@ extern "C" {
 
 #define NC_CORD_VERSION_MAJOR 3
 #define NC_CORD_VERSION_MINOR 0
-#define NC_CORD_VERSION_PATCH 0
-#define NC_CORD_VERSION_STR   "3.0.0"
+#define NC_CORD_VERSION_PATCH 1
+#define NC_CORD_VERSION_STR   "3.0.1"
 
 #define NECKCORD_VERSION_MAJOR 3
 #define NECKCORD_VERSION_MINOR 0
-#define NECKCORD_VERSION_PATCH 0
-#define NECKCORD_VERSION_STR   "3.0.0"
+#define NECKCORD_VERSION_PATCH 1
+#define NECKCORD_VERSION_STR   "3.0.1"
 
 #ifndef NC_VERSION_MAJOR
 #define NC_VERSION_MAJOR 3
 #define NC_VERSION_MINOR 0
-#define NC_VERSION_PATCH 0
+#define NC_VERSION_PATCH 1
 #endif
-#define NC_VERSION_STR   "3.0.0"
+#define NC_VERSION_STR   "3.0.1"
 
 static inline const nc_banc_vnc_weights_t *nc_banc_vnc_default_weights(void)
 {

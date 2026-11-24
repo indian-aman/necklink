@@ -2,14 +2,14 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCompass (`neckcompass` v3.0.0, research beta)
+# NeckCompass (`neckcompass` v3.0.1, research beta)
 
 **A *Drosophila* central-complex 9-DOF tilt-compensated ring-attractor compass, self-calibrating soft-iron plastic ring, and GPS-denied path integrator — grounded in the BANC v888 connectome, in Python, Arduino, and zero-heap, zero-float ANSI C99 (`324 B` base RAM, `1,104 B` plastic ring).**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcompass&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcompass/)
+[![PyPI](https://img.shields.io/pypi/v/neckcompass?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcompass&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/neckcompass/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/neckcompass/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20324%20B%20RAM-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
-[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v3.0.0-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckCompass/)
+[![Arduino](https://img.shields.io/badge/Arduino%20%2F%20ESP32-v3.0.1-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckCompass/)
 [![C99 Self-Tests](https://img.shields.io/badge/C99%20self--tests-12%2F12-D4A24C?style=flat-square&labelColor=111318)](csrc/tools/neckcompass_selftest.c)
 [![Pytest](https://img.shields.io/badge/pytest-46%20tests-D4A24C?style=flat-square&labelColor=111318)](tests/test_neckcompass.py)
 [![License: MIT](https://img.shields.io/badge/license-MIT-525B6C?style=flat-square&labelColor=111318)](LICENSE)
@@ -286,6 +286,9 @@ All estimators see identical sensor streams (seeds 101–105): MEMS gyro bias (`
 ---
 
 ## Changelog
+
+**3.0.1**
+- *ESP8266EX real-silicon bring-up:* moved `BANC v888` C99 weight tables to `PROGMEM` on Harvard MCUs (`0 B` DRAM weight cost), added safe `pgm_read_*` accessors, and verified `5.24 ms` per `banc_v888` tick on `ESP8266EX @ 160 MHz` (matching desktop `float64` Python within `0.19°` while rejecting a `+125°` magnetic spike).
 
 **3.0.0**
 - *Connectome-derived weights:* `RingCompass` and `FanBodyNavigator` run on `BANC v888`-compiled `EPG/PEN/Delta7/PFL3/PFL2` matrices by default (`connectome_weights="banc_v888"`), in Python and zero-float C99 (`neckcompass_banc_weights.h`). The earlier symmetric model remains available as `connectome_weights="v2_analytic"` (C: `nc_compass_set_weights(..., NULL)`).

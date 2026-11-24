@@ -2,11 +2,11 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckLink CNS (`necklink-cns` v3.0.0, research beta)
+# NeckLink CNS (`necklink-cns` v3.0.1, research beta)
 
 **A 4-organ reflex controller whose descending decision layer runs on weight matrices compiled from the adult *Drosophila* `BANC v888` connectome — fusing `NeckSight`, `NeckCompass`, `NeckSense`, and `NeckCord` with `MAVLink v2` and `ROS 2` bridges in `24,024 B` of zero-heap, zero-float ANSI C99 (`107.5 KB` standalone WebAssembly) and Python.**
 
-[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necklink--cns&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necklink-cns/)
+[![PyPI](https://img.shields.io/pypi/v/necklink-cns?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necklink--cns&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/necklink-cns/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necklink-cns/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2023.5%20KB-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
 [![WebAssembly](https://img.shields.io/badge/WASM-107.5%20KB%20standalone-D4A24C?style=flat-square&labelColor=111318&logo=webassembly&logoColor=F8FAFC)](https://indian-aman.github.io/necklink/#simulator)
@@ -172,6 +172,9 @@ The `v2.0.0` "250-episode closed-loop survival gauntlet" (`100%` vs `77.2%` vs `
 ---
 
 ## Changelog
+
+**3.0.1**
+- *Real-silicon `ESP8266EX` + `ATmega2560` bring-up:* moved `43,438 B` of `BANC v888` organ weights to `PROGMEM` (`extract.py` + all C headers), cut peak `nl_cns_step` stack to `2,896 B` (zero `.bss` inflation), and fixed 6 AVR 16-bit integer overflows in `neckcord.c`. Verified on `ESP8266EX @ 160 MHz` (`16.63 ms` / `60 Hz` no-cam; `47.98 ms` / `20 Hz` all-4 + `32x32` cam) and `ATmega2560 @ 16 MHz` (`3,719 / 8,192 B` SRAM).
 
 **3.0.0**
 - *Connectome-driven decision layer:* `ConnectomeArbitrator` replaces the v2 hand-coded priority table with `BANC v888` `W_brain_dn` (`10×11`) and `W_dn_leg` (`6×10`) matrices in Python and C99. `connectome_weights="v2_analytic"` (C: `nl_cns_set_dn_weights(&cns, NULL)`) keeps the earlier model.

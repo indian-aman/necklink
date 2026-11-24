@@ -19,7 +19,7 @@ from .mavlink import (
 )
 from .ros2_node import NeckLinkROS2Adapter, TwistCommand, create_ros2_node
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 
 __all__ = [
     "__version__",

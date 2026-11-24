@@ -70,7 +70,7 @@ def _shuffle_cx_dict(base_cx: dict[str, Any], rng: np.random.Generator) -> dict[
 
 def test_version_and_angle_wrapping() -> None:
     pyproject = (Path(__file__).resolve().parents[1] / "pyproject.toml").read_text(encoding="utf-8")
-    assert __version__ == "3.0.0"
+    assert __version__ == "3.0.1"
     assert f'version = "{__version__}"' in pyproject
     for k in range(-5, 6):
         ang = 0.73 + 2.0 * math.pi * k
@@ -611,7 +611,7 @@ def test_plastic_self_supervised_stays_calibrated_with_noise_and_gyro_bias() -> 
 
 
 def test_banc_connectome_counts_and_delta7_antiphase_readout() -> None:
-    assert __version__ == "3.0.0"
+    assert __version__ == "3.0.1"
     assert BANC_CONNECTOME_COUNTS == {
         "EPG": 50,
         "PEN": 42,
@@ -814,7 +814,7 @@ class _NcBancCxWeights(ctypes.Structure):
 
 def test_c99_v3_header_version_and_struct_sizes(tmp_path: Path) -> None:
     header = (Path(__file__).resolve().parents[1] / "csrc" / "neckcompass.h").read_text(encoding="utf-8")
-    assert '#define NC_VERSION_STRING    "3.0.0"' in header
+    assert '#define NC_VERSION_STRING    "3.0.1"' in header
     assert "#define NC_BANC_EPG_COUNT    50" in header
     assert "#define NC_BANC_PFL2_COUNT   12" in header
     assert ctypes.sizeof(_NcImu9) == 36
@@ -977,7 +977,7 @@ def test_arduino_library_structure_and_c99_sha256_parity() -> None:
         r'#define NC_VERSION_STRING\s+"([^"]+)"',
         (root / "csrc" / "neckcompass.h").read_text(encoding="utf-8"),
     ).group(1)
-    assert c_version == "3.0.0"
+    assert c_version == "3.0.1"
     assert f"version={c_version}" in props_text
     assert "architectures=*" in props_text
 

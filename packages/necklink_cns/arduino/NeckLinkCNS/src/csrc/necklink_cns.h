@@ -1,14 +1,14 @@
 /*
- * necklink_cns.h - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v3.0.0)
+ * necklink_cns.h - Unified Adult Drosophila Whole-CNS Edge Autonomy Controller (v3.0.1)
  *
  * Integrates all four BANC v888 connectome-driven sensory-motor organs plus official MAVLink v2
  * framing inside a single < 25 KB static SRAM footprint (zero dynamic heap allocation,
  * strictly integer fixed-point arithmetic):
  *
- *   1. NeckSight v3.0.0   - Optic Lobe (T4/T5 -> 64 LPLC2 + LPi & 32 LC4 + Li22, 3-DOF derotation)
- *   2. NeckCompass v3.0.0 - Central Complex (50 EPG + 42 PEN + 40 Delta7, CPU4, 25 PFL3 + 12 PFL2)
- *   3. NeckSense v3.0.0   - Antennal Lobe, Chordotonal Vibration & 699 ALPN -> KCg/KCab <-> APL MB
- *   4. NeckCord v3.0.0    - 4-Byte Cervical Frame, BANC VNC CPG + ESC Observer, 4-DOF QP & 18-DOF IK
+ *   1. NeckSight v3.0.1   - Optic Lobe (T4/T5 -> 64 LPLC2 + LPi & 32 LC4 + Li22, 3-DOF derotation)
+ *   2. NeckCompass v3.0.1 - Central Complex (50 EPG + 42 PEN + 40 Delta7, CPU4, 25 PFL3 + 12 PFL2)
+ *   3. NeckSense v3.0.1   - Antennal Lobe, Chordotonal Vibration & 699 ALPN -> KCg/KCab <-> APL MB
+ *   4. NeckCord v3.0.1    - 4-Byte Cervical Frame, BANC VNC CPG + ESC Observer, 4-DOF QP & 18-DOF IK
  *   5. nl_mavlink         - Wire-valid MAVLink v2 (0xFD, X.25 CRC-16 + CRC_EXTRA) autopilot codec
  *
  * Copyright (c) 2026 Amandeep Singh Bains. SPDX-License-Identifier: MIT
@@ -41,8 +41,8 @@ extern "C" {
 
 #define NL_CNS_VERSION_MAJOR  3
 #define NL_CNS_VERSION_MINOR  0
-#define NL_CNS_VERSION_PATCH  0
-#define NL_CNS_VERSION_STRING "3.0.0"
+#define NL_CNS_VERSION_PATCH  1
+#define NL_CNS_VERSION_STRING "3.0.1"
 
 /* Empirical BANC v888 whole-CNS structural constants (157,789 proofread neurons) */
 #define NL_BANC_TOTAL_NEURONS      157789u

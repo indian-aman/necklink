@@ -462,11 +462,11 @@ def test_v2_version_consistency() -> None:
     from pathlib import Path
 
     root = Path(__file__).resolve().parents[1]
-    assert __version__ == "3.0.0"
+    assert __version__ == "3.0.1"
     header = (root / "csrc" / "necksight.h").read_text(encoding="utf-8")
-    assert '#define NECKSIGHT_VERSION_STRING "3.0.0"' in header
+    assert '#define NECKSIGHT_VERSION_STRING "3.0.1"' in header
     props = (root / "arduino" / "NeckSight" / "library.properties").read_text(encoding="utf-8")
-    assert "version=3.0.0" in props
+    assert "version=3.0.1" in props
 
 
 @pytest.mark.parametrize("dark_pole", [True, False])
@@ -687,7 +687,7 @@ def test_c99_zero_heap_zero_float_and_arduino_sha256_parity() -> None:
             k, v = line.split("=", 1)
             props[k.strip()] = v.strip()
     assert props["name"] == "NeckSight"
-    assert props["version"] == "3.0.0"
+    assert props["version"] == "3.0.1"
     assert props["architectures"] == "*"
     assert props["includes"] == "NeckSight.h"
 
@@ -762,7 +762,7 @@ def test_c99_and_python_agreement() -> None:
         c_json = json.loads(res.stdout)
 
     if c_json is not None:
-        assert c_json["version"] == "3.0.0"
+        assert c_json["version"] == "3.0.1"
         assert c_json["state_bytes"] < 15000
         assert c_json["failures"] == 0
         assert c_json["pan_triggers"] == 0

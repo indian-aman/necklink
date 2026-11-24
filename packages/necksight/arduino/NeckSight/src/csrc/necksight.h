@@ -26,8 +26,8 @@ extern "C" {
 
 #define NECKSIGHT_VERSION_MAJOR 3
 #define NECKSIGHT_VERSION_MINOR 0
-#define NECKSIGHT_VERSION_PATCH 0
-#define NECKSIGHT_VERSION_STRING "3.0.0"
+#define NECKSIGHT_VERSION_PATCH 1
+#define NECKSIGHT_VERSION_STRING "3.0.1"
 
 static inline const necksight_banc_weights_t *necksight_header_weights_ref_(void)
 {

@@ -22,7 +22,7 @@ from .cpg import (
 from .esc_observer import ESCFaultCode, ESCObserver, ESCObserverResult
 from .ik import HexapodLegIK, LegIKResult
 
-__version__ = "3.0.0"
+__version__ = "3.0.1"
 
 __all__ = [
     "__version__",

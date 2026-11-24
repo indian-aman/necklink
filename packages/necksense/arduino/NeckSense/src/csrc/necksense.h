@@ -1,5 +1,5 @@
 /*
- * NeckSense v3.0.0 - Zero-Heap, Zero-Float ANSI C99 Sensory & BANC v888 Mushroom Body Core
+ * NeckSense v3.0.1 - Zero-Heap, Zero-Float ANSI C99 Sensory & BANC v888 Mushroom Body Core
  *
  * Fixed-point Q16.16 (`1.0 == 65536`) implementation of:
  *   1. Antennal Lobe dual-timescale drift adaptation, Olsen-Wilson LN normalization,
@@ -33,8 +33,8 @@ extern "C" {
 
 #define NS_VERSION_MAJOR 3
 #define NS_VERSION_MINOR 0
-#define NS_VERSION_PATCH 0
-#define NS_VERSION_STR   "3.0.0"
+#define NS_VERSION_PATCH 1
+#define NS_VERSION_STR   "3.0.1"
 
 /* Fixed-point units: Q16.16 (`1.0 == 65536`) and compact Q14 (`1.0 == 16384`) */
 #define NS_Q16_SHIFT 16

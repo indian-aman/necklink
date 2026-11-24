@@ -1,5 +1,5 @@
 /*
- * NeckCompass v3.0.0 ANSI C99 Embedded Core (Zero-Heap, Zero-Floating-Point, Q15/Q12 Fixed-Point)
+ * NeckCompass v3.0.1 ANSI C99 Embedded Core (Zero-Heap, Zero-Floating-Point, Q15/Q12 Fixed-Point)
  *
  * Biophysical Drosophila Central Complex navigation stack driven by real BANC v888 synaptic matrices:
  *   - 50 EPG compass neurons (45 EPG + 5 EPGt) tiled across 16 Ellipsoid Body wedges (M_exc_q12)
@@ -33,8 +33,8 @@ extern "C" {
 
 #define NC_VERSION_MAJOR     3
 #define NC_VERSION_MINOR     0
-#define NC_VERSION_PATCH     0
-#define NC_VERSION_STRING    "3.0.0"
+#define NC_VERSION_PATCH     1
+#define NC_VERSION_STRING    "3.0.1"
 
 #define NC_NUM_WEDGES        16
 #define NC_NUM_R_NEURONS     32

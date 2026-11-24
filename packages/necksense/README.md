@@ -2,11 +2,11 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSense (`necksense` v3.0.0, research beta)
+# NeckSense (`necksense` v3.0.1, research beta)
 
 **Concentration- and load-invariant normalisation, zero-float vibration/acoustic spectrum conditioning, sparse binary hashing, one-shot novelty detection and continual associative classification, modelled on the *Drosophila* chordotonal organ, antennal lobe and two-compartment mushroom body (`BANC v888` / `MaleCNS`), in Python (NumPy), ANSI C99 (`< 6 KB` SRAM with `-DNS_TINY=1`) and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksense&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necksense/)
+[![PyPI](https://img.shields.io/pypi/v/necksense?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksense&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/necksense/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necksense/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20Q16.16-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
 [![SRAM](https://img.shields.io/badge/MCU%20SRAM-5.8%20KB%20(NS__TINY)-D4A24C?style=flat-square&labelColor=111318)](csrc/)
@@ -305,6 +305,9 @@ What this shows:
 ---
 
 ## Changelog
+
+**3.0.1**
+- *ESP8266EX `PROGMEM` weights & 4 KB stack fix:* moved `BANC v888` `ALPN -> KC` tables to flash (`PROGMEM`) and eliminated a `4,096 B` stack VLA (`kc_raw[1024]`) in `csrc/necksense.c` so `NeckSense` runs inside the `ESP8266` 4 KB hardware stack (`7.52 ms` per tick at `160 MHz`).
 
 **3.0.0**
 - *Connectome-derived projection:* `KenyonHasher`, `KenyonIndex`, `MushroomNoveltyDetector` and `MushroomValenceClassifier` use `BANC v888` `ALPN → KC` claws, `APL` feedback and `KC → MBON` weights by default (`connectome_weights="banc_v888"`, `n_kc <= 1024`), in Python and C99 (`necksense_banc_weights.h`). With `n_kc > 1024`, or `connectome_weights="v2_analytic"`, the `xorshift32` projection is used.

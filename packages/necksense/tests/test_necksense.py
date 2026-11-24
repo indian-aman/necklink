@@ -563,7 +563,7 @@ def test_novelty_default_sparsity_detects_novel_chords_among_scaled_modes() -> N
 
 
 def test_version_3_0_0_and_vibration_exports() -> None:
-    assert necksense.__version__ == "3.0.0"
+    assert necksense.__version__ == "3.0.1"
     assert VibrationAnalyzer is VibrationFrontEnd
     assert NS_VIB_CHANNELS == 16
     assert len(VIBRATION_CHANNEL_NAMES) == 16
@@ -764,7 +764,7 @@ def test_arduino_library_structure_and_sha256_parity() -> None:
         if "=" in line and not line.startswith("#")
     )
     assert props["name"] == "NeckSense"
-    assert props["version"] == "3.0.0"
+    assert props["version"] == "3.0.1"
     assert props["architectures"] == "*"
     assert props["includes"] == "NeckSense.h"
 

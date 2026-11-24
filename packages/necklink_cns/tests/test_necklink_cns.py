@@ -33,7 +33,7 @@ def _strip_c_comments(src: str) -> str:
 
 
 def test_version_and_banc_v888_priors() -> None:
-    assert __version__ == "3.0.0"
+    assert __version__ == "3.0.1"
     assert BANC_V888_PRIORS["total_neurons"] == 157789
     assert BANC_V888_PRIORS["cell_counts"]["DN_all"] == 1316
     assert BANC_V888_PRIORS["cell_counts"]["AN_all"] == 1849

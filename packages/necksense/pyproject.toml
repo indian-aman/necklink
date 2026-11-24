@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "necksense"
-version = "3.0.0"
+version = "3.0.1"
 description = "Drosophila Antennal Lobe, Chordotonal Organ & Mushroom Body load/concentration-invariant sparse hashing, 1-shot vibration & gas anomaly detection, and zero-forgetting associative classification in Python, ANSI C99 (< 6 KB MCU SRAM), and Arduino"
 readme = "README.md"
 requires-python = ">=3.9"

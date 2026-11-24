@@ -2,11 +2,11 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckCord (`neckcord` v3.0.0, research beta)
+# NeckCord (`neckcord` v3.0.1, research beta)
 
 **Bio-inspired 4-byte descending command codec, 6-limb CPG + 18-servo 3-DOF leg IK, sensorless ESC (`RPM + Current`) fault observer, and box-constrained 3-DOF / 4-DOF fault-tolerant thruster & multicopter allocator in Python, pure-integer ANSI C99 (`916 B` combined RAM), and Arduino.**
 
-[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcord&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/neckcord/)
+[![PyPI](https://img.shields.io/pypi/v/neckcord?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20neckcord&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/neckcord/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/neckcord/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%20916%20B-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
 [![Arduino](https://img.shields.io/badge/Arduino-ESP32%20%7C%20RP2040%20%7C%20STM32%20%7C%20AVR-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckCord/)
@@ -290,6 +290,9 @@ In a single 6-DOF `MuJoCo` run (`1.8 kg` airframe, `[0, 4.5 N]` rotors, Rotor #2
 ---
 
 ## Changelog
+
+**3.0.1**
+- *ATmega2560 16-bit AVR integer overflow fixes:* widened 6 intermediate products in `csrc/neckcord.c` (`nc_esc_observer_step` / `nc_shunting4d_alloc`) with explicit `INT32_C` / `int32_t` casts so 16-bit `int` MCUs match 32-bit/64-bit targets without silent wraparound; verified on `ATmega2560 @ 16 MHz` (`3,719 / 8,192 B` SRAM, `38.8 ms` BANC CPG, `13.7 ms` 4-DOF QP, `6.6 ms` ESC observer, `9.5 ms` 18-servo IK).
 
 **3.0.0**
 - *Connectome-derived gait coupling:* `SegmentalCPGCord` integrates phase coupling over the `BANC v888` `C_vnc_inh` matrix and steering over `W_dn_leg` by default (`connectome_weights="banc_v888"`), in Python and C99 (`neckcord_banc_weights.h`). The earlier analytic tripod table remains available as `connectome_weights="v2_analytic"`. Slow tetrapod/wave gaits remain literature-based schedules.

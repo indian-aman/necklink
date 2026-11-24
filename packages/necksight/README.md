@@ -2,11 +2,11 @@
 
 <a href="https://github.com/indian-aman/necklink"><img src="https://raw.githubusercontent.com/indian-aman/necklink/main/assets/logo/necklink-mark.svg" alt="NeckLink" width="52"></a>
 
-# NeckSight (`necksight` v3.0.0, research beta)
+# NeckSight (`necksight` v3.0.1, research beta)
 
 **A collision and thin-obstacle (pole/wire) avoidance reflex for moving cameras, modelled on the *Drosophila* optic lobe (`T4/T5` motion detectors + `LPLC2` radial & `LC4` bar looming neurons + `DNa02` directional dodge), in Python (NumPy), zero-heap/zero-float ANSI C99 (`14.3 KB` state), and Arduino / ESP32-CAM.**
 
-[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksight&color=D4A24C&cacheSeconds=180&v=300)](https://pypi.org/project/necksight/)
+[![PyPI](https://img.shields.io/pypi/v/necksight?style=flat-square&labelColor=111318&logo=pypi&logoColor=F8FAFC&label=PyPI%20necksight&color=D4A24C&cacheSeconds=180&v=301)](https://pypi.org/project/necksight/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-525B6C?style=flat-square&labelColor=111318&logo=python&logoColor=F8FAFC)](https://pypi.org/project/necksight/)
 [![ANSI C99](https://img.shields.io/badge/C99-zero--heap%20%7C%20zero--float%20%7C%2014.3%20KB-C89236?style=flat-square&labelColor=111318&logo=c&logoColor=F8FAFC)](csrc/)
 [![Arduino / ESP32](https://img.shields.io/badge/Arduino-ESP32--CAM%20ready-525B6C?style=flat-square&labelColor=111318&logo=arduino&logoColor=F8FAFC)](arduino/NeckSight/)
@@ -298,6 +298,9 @@ Correlation-type motion detectors mix speed with contrast and spatial frequency.
 ---
 
 ## Changelog
+
+**3.0.1**
+- *ESP8266EX `PROGMEM` weights & 4 KB stack fix:* moved `BANC v888` `LPLC2`/`LC4` receptive-field tables (`~37 KB`) to flash (`PROGMEM`) and replaced a `3,840 B` stack scratch array (`grid_dir[960]`) in `csrc/necksight.c` with incremental row evaluation; verified at `21.91 ms` per `32x32` frame on `ESP8266EX @ 160 MHz`.
 
 **3.0.0**
 - *Connectome-derived receptive fields:* `LPLC2LoomingReflex` / `NeckSightPipeline` use `64` `LPLC2` and `32` `LC4` receptive fields, `T4/T5` input fractions, `LPi` and `Li` inhibition compiled from `BANC v888` by default (`connectome_weights="banc_v888"`), in Python and C99 (`necksight_banc_weights.h`). The earlier uniform detector grid remains available as `connectome_weights="v2_analytic"`.
