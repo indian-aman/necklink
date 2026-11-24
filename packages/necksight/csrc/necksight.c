@@ -452,7 +452,13 @@ static uint32_t clamp_pos_i32(int32_t v)
     return (v > 65535) ? 65535U : (uint32_t)v;
 }
 
-static void step_banc_connectome(
+#if defined(__GNUC__) || defined(__clang__)
+#  define NSIGHT_NOINLINE __attribute__((noinline))
+#else
+#  define NSIGHT_NOINLINE
+#endif
+
+static NSIGHT_NOINLINE void step_banc_connectome(
     necksight_state_t *st,
     uint16_t dt_ms,
     uint32_t t5_gain,
@@ -471,12 +477,24 @@ static void step_banc_connectome(
     uint32_t t4_total = 0U;
     uint32_t t5_total = 0U;
 
-    /* 8x8 patch accumulators: 0=Right(+x), 1=Left(-x), 2=Up(-y), 3=Down(+y) */
-    uint32_t t4_raw[4][NSIGHT_BANC_PATCHES];
-    uint32_t t5_raw[4][NSIGHT_BANC_PATCHES];
-    uint16_t t4_p[4][NSIGHT_BANC_PATCHES];
-    uint16_t t5_p[4][NSIGHT_BANC_PATCHES];
+    /* Non-overlapping Phase 1/2 (LPLC2) and Phase 3 (LC4) patch buffers share 1,024 B stack */
+    union {
+        struct {
+            uint16_t t4_p[4][NSIGHT_BANC_PATCHES];
+            uint16_t t5_p[4][NSIGHT_BANC_PATCHES];
+        } p;
+        struct {
+            uint32_t v_patch[8][8];
+            uint32_t h_patch[8][8];
+            uint32_t bar_buf[NSIGHT_BANC_PATCHES];
+        } lc4;
+    } scratch;
 
+    /* 4-row strip accumulators (256 B vs 2,048 B full 8x8 raw buffers), flushed every 4 rows */
+    uint32_t t4_band[4][8];
+    uint32_t t5_band[4][8];
+
+    uint32_t wf_acc[4] = { 0U, 0U, 0U, 0U };
     uint32_t wf_raw[4];
     uint32_t wf_dir_q8[4];
     uint32_t wf_sum = 1U;
@@ -498,20 +516,22 @@ static void step_banc_connectome(
     int32_t *py16 = &st->sat[512];
     int32_t *ny16 = &st->sat[768];
 
-    memset(t4_raw, 0, sizeof(t4_raw));
-    memset(t5_raw, 0, sizeof(t5_raw));
     memset(st->sat, 0, 1024U * sizeof(int32_t));
 
     /* 1. Single 32x32 pass: T4/T5 EMD, LPTC wide-field flow, 8x8 patches & 16x16 sub-grid */
     for (y = 0; y < NECKSIGHT_GRID; y++) {
         int gy8 = y >> 2;
         int sy16 = y >> 1;
+        if ((y & 3) == 0) {
+            memset(t4_band, 0, sizeof(t4_band));
+            memset(t5_band, 0, sizeof(t5_band));
+        }
         for (x = 0; x < NECKSIGHT_GRID; x++) {
             uint32_t px_on, nx_on, px_off, nx_off;
             uint32_t py_on, ny_on, py_off, ny_off;
             uint32_t px_w, nx_w, py_w, ny_w;
             int32_t vx, vy;
-            int p8 = (gy8 << 3) | (x >> 2);
+            int gx8 = x >> 2;
             int s16 = (sy16 << 4) | (x >> 1);
 
             eval_pixel_x_onoff(st->f_on, st->d_on, st->f_off, st->d_off, y, x,
@@ -539,20 +559,41 @@ static void step_banc_connectome(
             t5_total += px_off + nx_off + py_off + ny_off;
 
             /* Exact BANC v888 direction order: 0=+x Right, 1=-x Left, 2=-y Up, 3=+y Down */
-            t4_raw[0][p8] += px_on;
-            t4_raw[1][p8] += nx_on;
-            t4_raw[2][p8] += ny_on;
-            t4_raw[3][p8] += py_on;
+            t4_band[0][gx8] += px_on;
+            t4_band[1][gx8] += nx_on;
+            t4_band[2][gx8] += ny_on;
+            t4_band[3][gx8] += py_on;
 
-            t5_raw[0][p8] += px_off;
-            t5_raw[1][p8] += nx_off;
-            t5_raw[2][p8] += ny_off;
-            t5_raw[3][p8] += py_off;
+            t5_band[0][gx8] += px_off;
+            t5_band[1][gx8] += nx_off;
+            t5_band[2][gx8] += ny_off;
+            t5_band[3][gx8] += py_off;
 
             px16[s16] += (int32_t)px_w;
             nx16[s16] += (int32_t)nx_w;
             py16[s16] += (int32_t)py_w;
             ny16[s16] += (int32_t)ny_w;
+        }
+
+        if ((y & 3) == 3) {
+            int gx8;
+            for (d = 0; d < 4; d++) {
+                for (gx8 = 0; gx8 < 8; gx8++) {
+                    t4_band[d][gx8] = (t4_band[d][gx8] + 8U) >> 4;
+                    t5_band[d][gx8] = (t5_band[d][gx8] + 8U) >> 4;
+                    wf_acc[d] += (95U * t4_band[d][gx8] + 161U * t5_band[d][gx8]) >> 8;
+                }
+            }
+            for (d = 0; d < 4; d++) {
+                int opp_d = d ^ 1;
+                for (gx8 = 0; gx8 < 8; gx8++) {
+                    int p8 = (gy8 << 3) | gx8;
+                    int32_t v4 = (int32_t)t4_band[d][gx8] - ((5 * (int32_t)t4_band[opp_d][gx8]) / 4);
+                    int32_t v5 = (int32_t)t5_band[d][gx8] - ((5 * (int32_t)t5_band[opp_d][gx8]) / 4);
+                    scratch.p.t4_p[d][p8] = (uint16_t)clamp_pos_i32(v4);
+                    scratch.p.t5_p[d][p8] = (uint16_t)clamp_pos_i32(v5);
+                }
+            }
         }
     }
 
@@ -574,15 +615,9 @@ static void step_banc_connectome(
         ny16[i] = (ny16[i] + 2) >> 2;
     }
 
-    /* Normalize 8x8 patches (16 pixels per patch) */
+    /* Finalize wide-field directional averages across the 64 8x8 patches */
     for (d = 0; d < 4; d++) {
-        uint32_t acc_wf = 0U;
-        for (p = 0; p < (int)NSIGHT_BANC_PATCHES; p++) {
-            t4_raw[d][p] = (t4_raw[d][p] + 8U) >> 4;
-            t5_raw[d][p] = (t5_raw[d][p] + 8U) >> 4;
-            acc_wf += (95U * t4_raw[d][p] + 161U * t5_raw[d][p]) >> 8;
-        }
-        wf_raw[d] = acc_wf >> 6;
+        wf_raw[d] = wf_acc[d] >> 6;
         wf_sum += wf_raw[d];
     }
 
@@ -597,18 +632,11 @@ static void step_banc_connectome(
         if (coh_q8 > 256U) coh_q8 = 256U;
         dir_q8 = net_d * 2U + ((coh_q8 * coh_q8 * 230U) >> 16);
         wf_dir_q8[d] = (dir_q8 > 4095U) ? 4095U : dir_q8;
-
-        for (p = 0; p < (int)NSIGHT_BANC_PATCHES; p++) {
-            int32_t v4 = (int32_t)t4_raw[d][p] - ((5 * (int32_t)t4_raw[opp_d][p]) / 4);
-            int32_t v5 = (int32_t)t5_raw[d][p] - ((5 * (int32_t)t5_raw[opp_d][p]) / 4);
-            t4_p[d][p] = (uint16_t)clamp_pos_i32(v4);
-            t5_p[d][p] = (uint16_t)clamp_pos_i32(v5);
-        }
     }
 
     /* 2. 64 proofread BANC v888 LPLC2 neurons + disynaptic LPi opponency veto */
     for (m = 0; m < (int)NSIGHT_BANC_NUM_LPLC2; m++) {
-        uint32_t f_t4_q8 = (uint32_t)w->lplc2_t4_frac_q8[m];
+        uint32_t f_t4_q8 = (uint32_t)NSIGHT_BANC_RD_U8(&w->lplc2_t4_frac_q8[m]);
         uint32_t f_t5_q8 = 255U - f_t4_q8;
         uint32_t g_t4 = (f_t4_q8 * 563U) >> 8;
         uint32_t g_t5 = (((f_t5_q8 * 384U) >> 8) * t5_gain) / 346U;
@@ -622,14 +650,14 @@ static void step_banc_connectome(
             uint32_t acc4 = 0U;
             uint32_t acc5 = 0U;
             for (p = 0; p < (int)NSIGHT_BANC_PATCHES; p++) {
-                uint32_t w_p = (uint32_t)rf[p];
+                uint32_t w_p = (uint32_t)NSIGHT_BANC_RD_U8(&rf[p]);
                 if (w_p != 0U) {
-                    acc4 += w_p * (uint32_t)t4_p[d][p];
-                    acc5 += w_p * (uint32_t)t5_p[d][p];
+                    acc4 += w_p * (uint32_t)scratch.p.t4_p[d][p];
+                    acc5 += w_p * (uint32_t)scratch.p.t5_p[d][p];
                 }
             }
             b_exc[d] = (g_t4 * (acc4 >> 8) + g_t5 * (acc5 >> 8)) >> 8;
-            inh_q8 += (uint32_t)w->W_lpi_inh_q8[m * 4 + d] * wf_dir_q8[d];
+            inh_q8 += (uint32_t)NSIGHT_BANC_RD_U8(&w->W_lpi_inh_q8[m * 4 + d]) * wf_dir_q8[d];
         }
         inh_q8 >>= 8;
         veto_sub = (inh_q8 * 346U) >> 8;
@@ -661,12 +689,11 @@ static void step_banc_connectome(
     /* 3. 32 proofread BANC v888 LC4 neurons + Li22 wide-field surround inhibition */
     memset(r_lc4, 0, sizeof(r_lc4));
     if (st->enable_lc4_bar != 0U && st->lc4_weight_q8 > 0U) {
-        uint32_t v_patch[8][8];
-        uint32_t h_patch[8][8];
+        uint32_t (*v_patch)[8] = scratch.lc4.v_patch;
+        uint32_t (*h_patch)[8] = scratch.lc4.h_patch;
+        uint32_t *bar_buf = scratch.lc4.bar_buf;
         uint32_t col_prof[8];
         uint32_t row_prof[8];
-        uint32_t bar_raw[NSIGHT_BANC_PATCHES];
-        uint32_t bar_patch[NSIGHT_BANC_PATCHES];
         uint32_t sum_bar_raw = 0U;
         uint32_t sum_bar_patch = 0U;
         uint32_t peak_lc4 = 0U;
@@ -807,7 +834,7 @@ static void step_banc_connectome(
                 uint32_t vp = v_patch[gy][gx];
                 uint32_t hp = (h_patch[gy][gx] > sub_r) ? (h_patch[gy][gx] - sub_r) : 0U;
                 uint32_t bp = (vp >= hp) ? vp : hp;
-                bar_raw[gy * 8 + gx] = bp;
+                bar_buf[gy * 8 + gx] = bp;
                 sum_bar_raw += bp;
             }
         }
@@ -816,9 +843,9 @@ static void step_banc_connectome(
             uint32_t sub_mean = (3U * (sum_bar_raw >> 6)) / 2U;
             uint32_t mean_bp, li_drive;
             for (p = 0; p < (int)NSIGHT_BANC_PATCHES; p++) {
-                uint32_t bp = (bar_raw[p] > sub_mean) ? (bar_raw[p] - sub_mean) : 0U;
-                bar_patch[p] = (bp > 65535U) ? 65535U : bp;
-                sum_bar_patch += bar_patch[p];
+                uint32_t bp = (bar_buf[p] > sub_mean) ? (bar_buf[p] - sub_mean) : 0U;
+                bar_buf[p] = (bp > 65535U) ? 65535U : bp;
+                sum_bar_patch += bar_buf[p];
             }
             mean_bp = sum_bar_patch >> 6;
             li_drive = ((11U * mean_bp) / 5U) + ((wf_net_sum * 90U) >> 8);
@@ -828,13 +855,13 @@ static void step_banc_connectome(
                 uint32_t acc = 0U;
                 uint32_t exc, li_sub, rk;
                 for (p = 0; p < (int)NSIGHT_BANC_PATCHES; p++) {
-                    uint32_t wp = (uint32_t)rf4[p];
+                    uint32_t wp = (uint32_t)NSIGHT_BANC_RD_U8(&rf4[p]);
                     if (wp != 0U) {
-                        acc += wp * bar_patch[p];
+                        acc += wp * bar_buf[p];
                     }
                 }
                 exc = acc >> 8;
-                li_sub = ((uint32_t)w->lc4_li_inh_q8[k] * li_drive) >> 8;
+                li_sub = ((uint32_t)NSIGHT_BANC_RD_U8(&w->lc4_li_inh_q8[k]) * li_drive) >> 8;
                 rk = (exc > li_sub) ? (((exc - li_sub) * 17U) >> 5) : 0U;
                 r_lc4[k] = rk;
                 if (rk > peak_lc4) {
@@ -899,8 +926,8 @@ static void step_banc_connectome(
         for (m = 0; m < (int)NSIGHT_BANC_NUM_LPLC2; m++) {
             uint32_t rm = (r_lplc2[m] > 16383U) ? 16383U : r_lplc2[m];
             int64_t wm = (int64_t)rm * (int64_t)rm;
-            sum_wx += wm * (int64_t)w->lplc2_centers_q7[2 * m + 0];
-            sum_wy += wm * (int64_t)w->lplc2_centers_q7[2 * m + 1];
+            sum_wx += wm * (int64_t)NSIGHT_BANC_RD_I8(&w->lplc2_centers_q7[2 * m + 0]);
+            sum_wy += wm * (int64_t)NSIGHT_BANC_RD_I8(&w->lplc2_centers_q7[2 * m + 1]);
             sum_w += wm;
         }
         for (k = 0; k < (int)NSIGHT_BANC_NUM_LC4; k++) {
@@ -908,8 +935,8 @@ static void step_banc_connectome(
             int64_t wk;
             if (rk > 16383U) rk = 16383U;
             wk = (int64_t)rk * (int64_t)rk;
-            sum_wx += wk * (int64_t)w->lc4_centers_q7[2 * k + 0];
-            sum_wy += wk * (int64_t)w->lc4_centers_q7[2 * k + 1];
+            sum_wx += wk * (int64_t)NSIGHT_BANC_RD_I8(&w->lc4_centers_q7[2 * k + 0]);
+            sum_wy += wk * (int64_t)NSIGHT_BANC_RD_I8(&w->lc4_centers_q7[2 * k + 1]);
             sum_w += wk;
         }
 
@@ -1008,6 +1035,13 @@ static void step_banc_connectome(
     st->frame_count++;
 }
 
+static NSIGHT_NOINLINE void step_analytic_v2(
+    necksight_state_t *st,
+    uint16_t dt_ms,
+    uint32_t t5_gain,
+    necksight_result_t *out
+);
+
 void necksight_step_u16(
     necksight_state_t *st,
     const uint16_t frame_32x32[NECKSIGHT_PIXELS],
@@ -1020,53 +1054,6 @@ void necksight_step_u16(
     int32_t g_step;
     int32_t deadband_q8;
     uint32_t t5_gain;
-
-    int32_t sum_vx = 0;
-    int32_t sum_vy = 0;
-    int32_t sum_yaw_q7 = 0;
-    int32_t sum_rad_q5 = 0;
-    uint32_t total_motion = 0U;
-    uint32_t left_motion = 0U;
-    uint32_t right_motion = 0U;
-    uint32_t top_motion = 0U;
-    uint32_t bot_motion = 0U;
-    uint32_t t4_total = 0U;
-    uint32_t t5_total = 0U;
-
-    uint16_t ql_arr[LPLC2_UNITS];
-    uint16_t qr_arr[LPLC2_UNITS];
-    uint16_t qu_arr[LPLC2_UNITS];
-    uint16_t qd_arr[LPLC2_UNITS];
-
-    uint16_t lc4_a[LC4_UNITS];
-    uint16_t lc4_b[LC4_UNITS];
-
-    uint32_t best_sym = 0U;
-    int best_idx = 0;
-    uint8_t best_cx = 16U;
-    uint8_t best_cy = 16U;
-    uint8_t best_r = LPLC2_RADII[0];
-
-    uint32_t v_bar_peak = 0U;
-    uint8_t v_bar_cx = 16U;
-    uint8_t v_bar_r = LC4_RADII[0];
-    uint16_t v_bar_ql = 0U;
-    uint16_t v_bar_qr = 0U;
-
-    uint32_t h_bar_peak = 0U;
-    uint8_t h_bar_cy = 16U;
-    uint8_t h_bar_r = LC4_RADII[0];
-    uint16_t h_bar_qu = 0U;
-    uint16_t h_bar_qd = 0U;
-
-    uint32_t weighted_lc4 = 0U;
-    uint32_t best_combined = 0U;
-    uint8_t used_lc4 = 0U;
-    uint8_t used_horiz_bar = 0U;
-
-    uint32_t pan_mag;
-    uint32_t gated_score;
-    uint32_t gated_lc4;
 
     if (st == NULL || frame_32x32 == NULL || out == NULL) {
         return;
@@ -1193,6 +1180,64 @@ void necksight_step_u16(
         step_banc_connectome(st, dt_ms, t5_gain, out);
         return;
     }
+
+    step_analytic_v2(st, dt_ms, t5_gain, out);
+}
+
+static NSIGHT_NOINLINE void step_analytic_v2(
+    necksight_state_t *st,
+    uint16_t dt_ms,
+    uint32_t t5_gain,
+    necksight_result_t *out
+)
+{
+    int y, x, i;
+    int32_t sum_vx = 0;
+    int32_t sum_vy = 0;
+    int32_t sum_yaw_q7 = 0;
+    int32_t sum_rad_q5 = 0;
+    uint32_t total_motion = 0U;
+    uint32_t left_motion = 0U;
+    uint32_t right_motion = 0U;
+    uint32_t top_motion = 0U;
+    uint32_t bot_motion = 0U;
+    uint32_t t4_total = 0U;
+    uint32_t t5_total = 0U;
+
+    uint16_t ql_arr[LPLC2_UNITS];
+    uint16_t qr_arr[LPLC2_UNITS];
+    uint16_t qu_arr[LPLC2_UNITS];
+    uint16_t qd_arr[LPLC2_UNITS];
+
+    uint16_t lc4_a[LC4_UNITS];
+    uint16_t lc4_b[LC4_UNITS];
+
+    uint32_t best_sym = 0U;
+    int best_idx = 0;
+    uint8_t best_cx = 16U;
+    uint8_t best_cy = 16U;
+    uint8_t best_r = LPLC2_RADII[0];
+
+    uint32_t v_bar_peak = 0U;
+    uint8_t v_bar_cx = 16U;
+    uint8_t v_bar_r = LC4_RADII[0];
+    uint16_t v_bar_ql = 0U;
+    uint16_t v_bar_qr = 0U;
+
+    uint32_t h_bar_peak = 0U;
+    uint8_t h_bar_cy = 16U;
+    uint8_t h_bar_r = LC4_RADII[0];
+    uint16_t h_bar_qu = 0U;
+    uint16_t h_bar_qd = 0U;
+
+    uint32_t weighted_lc4 = 0U;
+    uint32_t best_combined = 0U;
+    uint8_t used_lc4 = 0U;
+    uint8_t used_horiz_bar = 0U;
+
+    uint32_t pan_mag;
+    uint32_t gated_score;
+    uint32_t gated_lc4;
 
     /* 5. Legacy v2 analytic SAT fallback (st->weights == NULL): Pass X Left arm */
     memset(st->sat, 0, NECKSIGHT_SAT_STRIDE * sizeof(int32_t));
@@ -1697,15 +1742,16 @@ void necksight_step_u8(
     necksight_result_t *out
 )
 {
-    uint16_t buf_q4[NECKSIGHT_PIXELS];
     int i;
-    if (frame_32x32 == NULL) {
+    if (st == NULL || frame_32x32 == NULL || out == NULL) {
         return;
     }
+    /* Stage Q4 input in st->f_off: Loop 1 of necksight_step_u16 reads frame -> st->f_on
+     * completely before Loop 2 writes st->f_off, eliminating 2 KB of stack usage. */
     for (i = 0; i < NECKSIGHT_PIXELS; i++) {
-        buf_q4[i] = (uint16_t)((uint16_t)frame_32x32[i] << 4);
+        st->f_off[i] = (uint16_t)((uint16_t)frame_32x32[i] << 4);
     }
-    necksight_step_u16(st, buf_q4, dt_ms, out);
+    necksight_step_u16(st, st->f_off, dt_ms, out);
 }
 
 void necksight_step_frame_u8(
@@ -1718,12 +1764,11 @@ void necksight_step_frame_u8(
     necksight_result_t *out
 )
 {
-    uint16_t grid_q4[NECKSIGHT_PIXELS];
-    if (src == NULL) {
+    if (st == NULL || src == NULL || out == NULL) {
         return;
     }
-    necksight_downsample_u8(src, src_h, src_w, src_stride, grid_q4);
-    necksight_step_u16(st, grid_q4, dt_ms, out);
+    necksight_downsample_u8(src, src_h, src_w, src_stride, st->f_off);
+    necksight_step_u16(st, st->f_off, dt_ms, out);
 }
 
 /* Bilinear Q4 shift of one 32x32 uint16 plane: out(y, x) = in(y - dy, x - dx), edges clamped. */

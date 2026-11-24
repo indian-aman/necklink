@@ -8,6 +8,17 @@
 
 #include <stdint.h>
 
+#if defined(ESP8266)
+#  include <sys/pgmspace.h>
+#  define NSIGHT_BANC_RODATA PROGMEM
+#  define NSIGHT_BANC_RD_U8(p) ((uint8_t)pgm_read_byte((p)))
+#  define NSIGHT_BANC_RD_I8(p) ((int8_t)pgm_read_byte((p)))
+#else
+#  define NSIGHT_BANC_RODATA
+#  define NSIGHT_BANC_RD_U8(p) (*(p))
+#  define NSIGHT_BANC_RD_I8(p) (*(p))
+#endif
+
 #define NSIGHT_BANC_NUM_LPLC2 64u
 #define NSIGHT_BANC_NUM_LC4 32u
 #define NSIGHT_BANC_PATCHES 64u
@@ -22,7 +33,7 @@ typedef struct {
     int8_t  lc4_centers_q7[32 * 2];
 } necksight_banc_weights_t;
 
-static const necksight_banc_weights_t k_necksight_banc_default = {
+static const necksight_banc_weights_t NSIGHT_BANC_RODATA k_necksight_banc_default = {
   {
     0u, 0u, 0u, 8u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 60u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 85u, 36u, 0u, 0u, 0u, 0u, 0u, 0u, 41u, 16u, 0u, 0u,
     0u, 0u, 0u, 0u, 0u, 8u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u, 0u,

@@ -23,7 +23,7 @@
 </div>
 
 > [!NOTE]
-> **v3.0.0 in one paragraph.** The connectome now supplies real weight matrices — `BANC v888` brain populations → descending neurons (`10×11`) → leg motor pools (`6×10`) here, plus the compass, vision, memory and gait circuits in the four organ packages (about `33,000` numbers in total, from `23.55M` synapses). The dynamics around those matrices are hand-designed. In closed-loop simulation the real wiring clearly beats degree-preserving shuffled wiring, but the earlier hand-tuned symmetric model (`connectome_weights="v2_analytic"`) is still more accurate. Nothing has been validated on real hardware yet. Details: [v3.0.0 results](#v300-results).
+> **v3.0.0 in one paragraph.** The connectome now supplies real weight matrices — `BANC v888` brain populations → descending neurons (`10×11`) → leg motor pools (`6×10`) here, plus the compass, vision, memory and gait circuits in the four organ packages (about `33,000` numbers in total, from `23.55M` synapses). The dynamics around those matrices are hand-designed. In closed-loop simulation the real wiring clearly beats degree-preserving shuffled wiring, but the earlier hand-tuned symmetric model (`connectome_weights="v2_analytic"`) is still more accurate. Bench-in-the-loop C99 timing has been verified on real `ESP8266EX` (`160 MHz`) and `ATmega2560` (`16 MHz`) silicon; no live vehicle field trials have been run yet. Details: [v3.0.0 results](#v300-results).
 
 ---
 
@@ -114,9 +114,11 @@ make -C csrc clean all test sanitize   # 7 C99 self-tests under -Werror + ASan/U
 
 | Target | Measured | Notes |
 | :--- | :--- | :--- |
-| ANSI C99 `nl_cns_t` | `24,024 B` (x86-64) / `23,968 B` (32-bit) state, `0 B` `.data`/`.bss` | Weight tables are `const` (flash) |
-| x86-64 `-O2` | `~166 µs` per full tick | Desktop self-test timing; **not measured on a microcontroller** |
-| ESP32 (`esp32dev`, PlatformIO, Xtensa toolchain) | `47,604 B` RAM (`14.5%`), `515,496 B` flash (`39.3%`) for the example sketch | **Compile-verified only** — not yet run on a board |
+| ANSI C99 `nl_cns_t` | `24,024 B` (x86-64) / `23,968 B` (32-bit) state, `0 B` `.data`/`.bss` | `43.4 KB` weight tables in flash (`PROGMEM` on ESP8266); peak `nl_cns_step` stack `2,896 B` |
+| x86-64 `-O2` | `~166 µs` per full tick | Desktop self-test timing |
+| ESP8266EX (`160 MHz`, bench-verified silicon) | `16.63 ms` (`60 Hz`) no-cam / `47.98 ms` (`20 Hz`) all-4 `banc_v888`; `6.33 ms` (`158 Hz`) / `29.63 ms` (`33 Hz`) `v2_analytic` | `65,324 / 80,192 B` DRAM (`8,344 B` free with live Wi-Fi + encrypted `NLTP v1.6.0`); `0.19°` heading parity vs Python `float64` |
+| ATmega2560 (`16 MHz`, 8-bit AVR, bench-verified silicon) | `397 µs` 4B decode, `38.8 ms` BANC CPG, `13.7 ms` 4-DOF alloc, `6.6 ms` ESC obs, `9.5 ms` 18-servo IK, `75 µs` MAVLink v2 | `3,719 / 8,192 B` SRAM (`4,437 B` free), `75,282 B` flash; runs VNC (`NeckCord` + MAVLink + `buoy16`) |
+| ESP32 (`esp32dev`, PlatformIO, Xtensa toolchain) | `47,604 B` RAM (`14.5%`), `515,496 B` flash (`39.3%`) for the example sketch | Strict `-Werror` compile-verified |
 | Standalone WebAssembly | `110,129 B`, `0` imports | Runs in the [live browser demo](https://indian-aman.github.io/necklink/#simulator) |
 
 [`arduino/NeckLinkCNS/`](arduino/NeckLinkCNS/) contains the Arduino library and an [`ESP32_MAVLink_Survival_Copilot.ino`](arduino/NeckLinkCNS/examples/ESP32_MAVLink_Survival_Copilot/ESP32_MAVLink_Survival_Copilot.ino) example sketch. Use `nl_cns_set_dn_weights(&cns, NULL)` to switch the C core to the analytic model.
@@ -163,7 +165,7 @@ The `v2.0.0` "250-episode closed-loop survival gauntlet" (`100%` vs `77.2%` vs `
 - **Experimenting with a small (`< 24 KB`) reflex layer** beneath ArduPilot, PX4, or ROS 2 — in simulation or on the bench first. For best behaviour use `connectome_weights="v2_analytic"`.
 
 **Do not use it yet for:**
-- **Anything safety-critical.** The controller has not been run on real hardware.
+- **Anything safety-critical.** Bench-in-the-loop MCU timing is verified, but the controller has not been field-tested on a live physical boat, drone, or robot.
 - **Metric 3D mapping, object recognition, or path planning.** This is a reflex controller, not a VIO/SLAM or perception stack.
 - **Untextured environments** (blank walls): pair it with a rangefinder.
 

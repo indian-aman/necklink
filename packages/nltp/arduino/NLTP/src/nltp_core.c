@@ -966,7 +966,10 @@ uint32_t nltp_send_buffer(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len
 
 uint32_t nltp_send_buffer_lz4(nltp_endpoint_t *ep, const uint8_t *data, uint32_t len,
                               uint8_t *comp_scratch, uint32_t comp_cap, const char *filename) {
-#if NLTP_TX_ONLY || defined(ESP8266)
+#if defined(ESP8266)
+    uint32_t htab[128];
+    const unsigned hbits = 7u;
+#elif NLTP_TX_ONLY
     uint32_t htab[512];
     const unsigned hbits = 9u;
 #else

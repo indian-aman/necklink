@@ -1,0 +1,112 @@
+{
+  "date": "2026-11-24",
+  "hardware": "WeMos MEGA + WiFi R3 (ESP8266EX @ 160 MHz + ATmega2560 @ 16 MHz, CH340G)",
+  "test_type": "bench-in-the-loop real silicon (synthetic deterministic sensor stimuli + real 16-ch AVR ADC A0..A15 + live 2.4 GHz Wi-Fi UDP radio + physical Serial3 UART)",
+  "toolchain_verification": {
+    "strict_c99_werror_targets": [
+      "xtensa-esp32-elf-gcc",
+      "xtensa-lx106-elf-gcc -DESP8266",
+      "avr-gcc -mmcu=atmega2560"
+    ],
+    "cns_static_bss_bytes_all_6_files": 0,
+    "pytest_passed": 206,
+    "pytest_failed": 0,
+    "stack_reductions_esp8266_bytes": {
+      "necksight_step_u8": "2048 -> 32",
+      "step_banc_connectome": ">4640 -> 2080",
+      "necksight_step_u16": "1280 -> 224",
+      "ns_vib_extract_impl": "5128 -> 2320",
+      "nltp_send_buffer_lz4": "2224 -> 688",
+      "nltp_x25519_scalarmult": "2544 -> 1520",
+      "peak_nl_cns_step_chain_bytes": 2896
+    },
+    "avr_16bit_overflows_fixed_in_neckcord_c": 6
+  },
+  "esp8266_160mhz": {
+    "flash_bytes": 485952,
+    "static_dram_bytes": 65324,
+    "free_heap_idle_bytes": 14472,
+    "free_heap_with_wifi_and_encrypted_nltp_bytes": 8344,
+    "sizeof_nl_cns_bytes": 23968,
+    "sizeof_nltp_ep_bytes": 4728,
+    "banc_weights_in_progmem_flash_bytes": 43438,
+    "banc_v888": {
+      "neckcompass_avg_us": 5239.5,
+      "necksense_avg_us": 7518.8,
+      "necksight_32x32_avg_us": 21908.3,
+      "cns_full_nocam_avg_us": 16631.5,
+      "cns_full_nocam_max_hz": 60,
+      "cns_full_all4_avg_us": 47978.4,
+      "cns_full_all4_max_hz": 20,
+      "gauntlet_usv_avg_brain_us": 40512,
+      "gauntlet_hexapod_avg_brain_us": 41096
+    },
+    "v2_analytic": {
+      "neckcompass_avg_us": 2636.9,
+      "necksense_avg_us": 1808.0,
+      "necksight_32x32_avg_us": 19912.2,
+      "cns_full_nocam_avg_us": 6328.0,
+      "cns_full_nocam_max_hz": 158,
+      "cns_full_all4_avg_us": 29632.7,
+      "cns_full_all4_max_hz": 33,
+      "gauntlet_usv_avg_brain_us": 26775
+    },
+    "nltp_v160": {
+      "x25519_keygen_us": 439327.8,
+      "x25519_speedup_vs_prior_pct": 7.1,
+      "rfc7748_sec6_1_verified": true,
+      "aead_960b_encrypt_us": 1040.8,
+      "aead_960b_decrypt_us": 988.9,
+      "cauchy_fec_k8_960b_us": 7255.0,
+      "lz4_compress_us": 225.0,
+      "lz4_decompress_us": 96.1,
+      "lz4_770_to_bytes": 118,
+      "lz4_verified": true
+    }
+  },
+  "atmega2560_16mhz": {
+    "flash_bytes": 75282,
+    "static_sram_bytes": 3719,
+    "free_sram_runtime_bytes": 4437,
+    "decode_cervical_4b_us": 397.4,
+    "cpg_banc_v888_us": 38830.0,
+    "cpg_v2_analytic_us": 24310.0,
+    "shunting4d_alloc_us": 13690.0,
+    "esc_observer_us_after_avr_fix": 6598.5,
+    "esc_observer_us_before_avr_fix": 4207.7,
+    "hexapod_ik_18servo_us": 9470.0,
+    "mavlink_v2_encode_us": 74.6,
+    "buoy16_codec_us": 1140.0,
+    "adc_16ch_read_us": 1800.0
+  },
+  "live_wifi_nltp_tests": {
+    "loss_20pct_benchmark_transfer": {
+      "loss_drop_sim": 0.20,
+      "rssi_dbm": -34,
+      "x25519_handshake_plus_reflex_ms": 1066.2,
+      "file_transfer_ms": 209.9,
+      "raw_bytes": 560,
+      "sha256_verified": true,
+      "bidirectional_reflex_ack_rtt_ms": 4.8,
+      "bidirectional_reflex_exec_reply_rtt_ms": 55.2
+    },
+    "loss_15pct_gauntlet_transfers": [
+      { "gauntlet": "banc_usv_t200", "bytes": 1108, "sha256_verified": true },
+      { "gauntlet": "analytic_usv_t200", "bytes": 1114, "sha256_verified": true },
+      { "gauntlet": "banc_hexapod_18dof", "bytes": 1108, "sha256_verified": true }
+    ]
+  },
+  "cross_chip_and_3isa_parity": {
+    "esp8266_wire_frames_decoded_by_python_neckcord": "33/33",
+    "banc_v888_heading_t39_esp8266_deg": -9.87,
+    "banc_v888_heading_t39_python_f64_deg": -10.06,
+    "heading_delta_deg": 0.19,
+    "mag_spike_125deg_rejected_both": true,
+    "physical_serial3_vnc_ticks_captured": 13,
+    "live_avr_fault_transition_t30_to_t31": {
+      "healthy_t30": { "wire": "5D0A0019", "crc4_ok": 1, "active_gait": 1, "esc_broken_mask": 0, "parked_mask": 0 },
+      "fault_t31": { "wire": "5D0A002C", "crc4_ok": 1, "active_gait": 4, "esc_broken_mask": 2, "parked_mask": 2, "vnc_total_us": 57500 }
+    },
+    "caveat": "On the test clone board, DIP SW1 (Mega TX3 -> ESP RX) is physically open and SW2 (ESP TX -> Mega RX3) has >15-40 kOhm contact resistance, limiting Serial3 testing to adaptive 1200 bps one-way frames rather than full 115200 bps bidirectional RTT."
+  }
+}

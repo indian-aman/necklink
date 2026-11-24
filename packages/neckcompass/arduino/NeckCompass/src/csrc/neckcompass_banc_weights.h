@@ -8,6 +8,17 @@
 
 #include <stdint.h>
 
+#if defined(ESP8266)
+#  include <sys/pgmspace.h>
+#  define NC_BANC_RODATA PROGMEM
+#  define NC_BANC_RD_U16(p) ((uint16_t)pgm_read_word((p)))
+#  define NC_BANC_RD_I16(p) ((int16_t)pgm_read_word((p)))
+#else
+#  define NC_BANC_RODATA
+#  define NC_BANC_RD_U16(p) (*(p))
+#  define NC_BANC_RD_I16(p) (*(p))
+#endif
+
 #define NC_BANC_NUM_WEDGES 16u
 #define NC_BANC_NUM_D7 40u
 #define NC_BANC_NUM_PFL3 25u
@@ -28,7 +39,7 @@ typedef struct {
     int16_t  W_pfl2_dna02_q12[24];
 } nc_banc_cx_weights_t;
 
-static const nc_banc_cx_weights_t k_nc_banc_cx_default = {
+static const nc_banc_cx_weights_t NC_BANC_RODATA k_nc_banc_cx_default = {
   {
     862u, 767u, 522u, 280u, 120u, 40u, 10u, 2u, 1u, 3u, 12u, 31u, 78u, 203u, 443u, 722u,
     721u, 839u, 758u, 537u, 293u, 122u, 39u, 9u, 2u, 1u, 3u, 6u, 18u, 68u, 214u, 466u,

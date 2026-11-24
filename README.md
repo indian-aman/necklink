@@ -40,7 +40,7 @@
 
 ## Products
 
-Each product takes one subsystem of the adult fruit-fly nervous system (`BANC v888`: `157,789` proofread neurons, `23.55M` synapses) and compiles its circuit into weight matrices for a standalone library. `NeckLink CNS` combines the four sensory-motor organs into one `24 KB` reflex controller. Every product ships on PyPI with a zero-heap, zero-float ANSI C99 core and an Arduino/`ESP32` library (compiled with the ESP32 toolchain; `NLTP` is also hardware-tested on `ESP32`/`ESP8266`). Every connectome-driven class also offers `connectome_weights="v2_analytic"`, the earlier hand-tuned symmetric model.
+Each product takes one subsystem of the adult fruit-fly nervous system (`BANC v888`: `157,789` proofread neurons, `23.55M` synapses) and compiles its circuit into weight matrices for a standalone library. `NeckLink CNS` combines the four sensory-motor organs into one `24 KB` reflex controller. Every product ships on PyPI with a zero-heap, zero-float ANSI C99 core and an Arduino/`ESP32`/`ESP8266`/`AVR` library (strict `-Werror` verified across ESP32, ESP8266, and ATmega2560; bench-tested on real `ESP8266EX @ 160 MHz` and `ATmega2560 @ 16 MHz` silicon alongside live encrypted Wi-Fi `NLTP`). Every connectome-driven class also offers `connectome_weights="v2_analytic"`, the earlier hand-tuned symmetric model.
 
 | Product | Fly circuit (`BANC v888`) | What it does | Package |
 | :--- | :--- | :--- | :--- |
@@ -102,7 +102,20 @@ So roughly **33,000 numbers** from 23.5 million synapses drive the computation; 
 - The pipeline was developed while looking at real-wiring results, so the shuffle comparison is biased toward the real wiring.
 - No correction for testing many things at once; with `K = 100` no result can clear a corrected threshold. The large effects (homing, tripod, whole controller) are robust; `p = 0.02–0.04` results are not convincing.
 - Some shuffle comparisons use `6`–`12` seeds per shuffle; the NeckSight test has `56` rendered episodes.
-- Everything except the UCI gas and CWRU data is simulation. **Nothing has run on real hardware**; microcontroller speed has not been measured (desktop C99: `~166 µs` per full controller tick).
+- All mission and closed-loop vehicle benchmarks remain simulation (no live boat/drone/hexapod field trials yet). **Bench-in-the-loop microcontroller execution has now been measured on real silicon** (`ESP8266EX @ 160 MHz` + `ATmega2560 @ 16 MHz`, WeMos MEGA + WiFi R3 — see table below; desktop C99: `~166 µs` per full controller tick).
+
+### Bench-in-the-loop microcontroller verification (`ESP8266EX` + `ATmega2560`)
+
+Pure-upstream C99 cores (with `43.4 KB` of `BANC v888` weights placed in ESP8266 `PROGMEM` flash, `0 B` `.bss`, peak `nl_cns_step` stack `2,896 B` for 4 KB-stack MCUs, and 16-bit AVR integer overflow fixes in `neckcord.c`) were flashed and timed on a WeMos MEGA + WiFi R3 (`ESP8266EX @ 160 MHz` + `ATmega2560 @ 16 MHz`), with deterministic synthetic sensor vectors, real `A0..A15` AVR ADC reads, and live 2.4 GHz Wi-Fi UDP (`NLTP v1.6.0`). Raw JSON: [`benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json`](benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json).
+
+| Target & workload | `banc_v888` | `v2_analytic` | Footprint / notes |
+| :--- | :---: | :---: | :--- |
+| **ESP8266EX @ 160 MHz** — full 4-organ CNS (no cam) | `16.63 ms` (`60 Hz`) | `6.33 ms` (`158 Hz`) | `nl_cns_t = 23,968 B`, `43.4 KB` weights in Flash `PROGMEM` |
+| **ESP8266EX @ 160 MHz** — full 4-organ CNS + `32×32` cam | `47.98 ms` (`20 Hz`) | `29.63 ms` (`33 Hz`) | `65,324 / 80,192 B` DRAM (`14,472 B` free idle; `8,344 B` with Wi-Fi + NLTP) |
+| **ESP8266EX @ 160 MHz** — live `NLTP v1.6.0` Wi-Fi (`20%` drop) | `209.9 ms` file / `4.8 ms` reflex ACK | — | `X25519` `439.3 ms` (`rfc7748_ok=1`, `1,520 B` stack); `4/4` files `SHA-256` verified (`15–20%` loss) |
+| **ATmega2560 @ 16 MHz** — 4-byte wire + CPG + alloc + ESC + IK + MAVLink + `buoy16` | `38.8 ms` CPG / `13.7 ms` alloc / `6.6 ms` ESC / `9.5 ms` IK / `75 µs` MAVLink | `24.3 ms` CPG | `3,719 / 8,192 B` SRAM (`4,437 B` free), `75,282 B` flash; live broken-prop + limb-park verified |
+
+*3-ISA parity:* `33/33` sampled 4-byte `cervical_wire_4b` frames from ESP8266EX decoded cleanly in desktop Python `neckcord` (`0` CRC-4 errors); ESP8266EX fixed-point `banc_v888` heading matched desktop `float64` Python within `0.19°` (`-9.87°` vs `-10.06°` at tick 39) while rejecting a `+125°` magnetic spike. Caveat: on the specific clone board tested, onboard DIP `SW1` (`Mega TX3 → ESP RX`) was physically open and `SW2` (`ESP TX → Mega RX3`) had `>15–40 kΩ` oxidized contact resistance, so cross-chip `Serial3` execution (`13` live VNC ticks including Phase 4 fault injection) was verified one-way at adaptive `1200 bps` rather than `115200 bps` bidirectional RTT.
 
 <a id="earlier-corrections-v201"></a>
 

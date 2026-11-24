@@ -8,6 +8,20 @@
 
 #include <stdint.h>
 
+#if defined(ESP8266)
+#  include <sys/pgmspace.h>
+#  define NS_BANC_RODATA PROGMEM
+#  define NS_BANC_RD_U8(p) ((uint8_t)pgm_read_byte((p)))
+static inline uint64_t ns_banc_rd_u64(const uint64_t *p) {
+    const uint32_t *w = (const uint32_t *)(const void *)p;
+    return (uint64_t)pgm_read_dword(w) | ((uint64_t)pgm_read_dword(w + 1) << 32);
+}
+#else
+#  define NS_BANC_RODATA
+#  define NS_BANC_RD_U8(p) (*(p))
+#  define ns_banc_rd_u64(p) (*(p))
+#endif
+
 #define NS_BANC_GLOMERULI 64u
 #define NS_BANC_MAX_KC 1024u
 #define NS_BANC_MAX_CLAWS 6u
@@ -22,7 +36,7 @@ typedef struct {
     uint8_t  kc_to_mbon_inh_q8[1024];
 } ns_banc_mb_weights_t;
 
-static const ns_banc_mb_weights_t k_ns_banc_mb_default = {
+static const ns_banc_mb_weights_t NS_BANC_RODATA k_ns_banc_mb_default = {
   {
     1u, 4u, 5u, 19u, 45u, 34u, 19u, 1u, 4u, 38u, 9u, 255u, 1u, 9u, 4u, 29u, 20u, 39u, 1u, 7u, 28u, 21u, 255u, 255u,
     2u, 24u, 0u, 12u, 51u, 22u, 12u, 0u, 6u, 10u, 25u, 14u, 2u, 12u, 15u, 16u, 3u, 8u, 0u, 12u, 255u, 255u, 255u, 255u,

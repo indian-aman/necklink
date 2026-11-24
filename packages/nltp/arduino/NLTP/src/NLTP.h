@@ -182,7 +182,7 @@ public:
             }
         }
 
-        uint8_t raw[NLTP_PKT_MAX + 96u];
+        uint8_t raw[NLTP_DEC_MAX + 64u];
         for (;;) {
             int pktLen = _udp.parsePacket();
             if (pktLen <= 0) break;

@@ -1076,7 +1076,7 @@ static int16_t nc_hermite_shunt_q15(int32_t h, int32_t floor_q15, int32_t knee_q
     {
         int32_t t_q14 = ((h - floor_q15) * NC_Q14_ONE) / span;
         int32_t t2_q14 = (t_q14 * t_q14) / NC_Q14_ONE;
-        int32_t hermite_q14 = (t2_q14 * (3 * NC_Q14_ONE - 2 * t_q14)) / NC_Q14_ONE;
+        int32_t hermite_q14 = (t2_q14 * (INT32_C(3) * NC_Q14_ONE - 2 * t_q14)) / NC_Q14_ONE;
         int32_t gated_q14 = 5734 + ((10650 * hermite_q14) / NC_Q14_ONE);
         return (int16_t)nc_clamp_i32((gated_q14 * NC_Q15_ONE) / NC_Q14_ONE, 0, NC_Q15_ONE);
     }
@@ -1955,7 +1955,7 @@ static void nc_apply_deadzone4d(
 
     for (pass = 0u; pass < cord->n_actuators; ++pass) {
         int worst_i = -1;
-        int32_t smallest_au = NC_Q15_ONE + 1;
+        int32_t smallest_au = (int32_t)NC_Q15_ONE + 1;
         int32_t u_try0[NC_MAX_ACTUATORS];
         int32_t u_trydz[NC_MAX_ACTUATORS];
         int32_t u_res0[NC_MAX_ACTUATORS];
@@ -2518,7 +2518,7 @@ int nc_esc_observer_update(
 
         abs_rpm = nc_abs_i32(rpm_meas[i]);
         norm_rpm_q15 = (int32_t)nc_clamp_i64(
-            ((int64_t)abs_rpm * NC_Q15_ONE) / obs->rpm_max, 0, 2 * NC_Q15_ONE
+            ((int64_t)abs_rpm * NC_Q15_ONE) / obs->rpm_max, 0, INT32_C(2) * NC_Q15_ONE
         );
         r2_q15 = (int32_t)(((int64_t)norm_rpm_q15 * norm_rpm_q15) / NC_Q15_ONE);
         r3_q15 = (int32_t)(((int64_t)r2_q15 * norm_rpm_q15) / NC_Q15_ONE);
@@ -2531,7 +2531,7 @@ int nc_esc_observer_update(
             (rpm_meas[i] < -(obs->rpm_max / 500) && u_ref > 0)) {
             t_rpm_q15 = 0;
         } else {
-            t_rpm_q15 = nc_clamp_i32(r2_q15, 0, 2 * NC_Q15_ONE);
+            t_rpm_q15 = nc_clamp_i32(r2_q15, 0, INT32_C(2) * NC_Q15_ONE);
         }
 
         if (abs_u <= obs->deadband_q15) {
@@ -2541,7 +2541,7 @@ int nc_esc_observer_update(
         } else {
             int32_t denom_w = (w_exp > 1) ? w_exp : 1;
             int32_t r_omega_q15 = (int32_t)nc_clamp_i64(
-                ((int64_t)abs_rpm * NC_Q15_ONE) / denom_w, 0, 2 * NC_Q15_ONE
+                ((int64_t)abs_rpm * NC_Q15_ONE) / denom_w, 0, INT32_C(2) * NC_Q15_ONE
             );
             int32_t curr_ma = (current_ma[i] > 0) ? current_ma[i] : 0;
             int32_t cmd_r2_q15 = abs_u;
@@ -2569,7 +2569,7 @@ int nc_esc_observer_update(
             } else if (i_dyn_exp_ma >= min_dyn_ma) {
                 int32_t net_curr = (curr_ma > obs->i_idle_ma) ? (curr_ma - obs->i_idle_ma) : 0;
                 int32_t eta_q15 = (int32_t)nc_clamp_i64(
-                    ((int64_t)net_curr * NC_Q15_ONE) / i_dyn_exp_ma, 0, 2 * NC_Q15_ONE
+                    ((int64_t)net_curr * NC_Q15_ONE) / i_dyn_exp_ma, 0, INT32_C(2) * NC_Q15_ONE
                 );
                 if (eta_q15 < obs->broken_ratio_q15) {
                     int32_t knee = (obs->broken_ratio_q15 > 19660) ? obs->broken_ratio_q15 : 19660;

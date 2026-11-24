@@ -457,16 +457,17 @@ int ns_kenyon_hash(
         /* Pass 1: Pooled KC -> APL drive */
         for (j = 0u; j < ctx->n_kc; ++j) {
             int64_t raw_kc = 0;
+            int64_t ka_w = (int64_t)NS_BANC_RD_U8(&w->kc_to_apl_q8[j]);
             uint32_t base_c = j * NS_BANC_MAX_CLAWS;
             for (c = 0u; c < NS_BANC_MAX_CLAWS; ++c) {
-                uint32_t glom = (uint32_t)w->claw_glom[base_c + c];
+                uint32_t glom = (uint32_t)NS_BANC_RD_U8(&w->claw_glom[base_c + c]);
                 if (glom < NS_BANC_GLOMERULI) {
                     uint32_t in_idx = ((glom + glom_offset) & 63u) % ctx->n_inputs;
-                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)w->claw_w_q8[base_c + c];
+                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)NS_BANC_RD_U8(&w->claw_w_q8[base_c + c]);
                 }
             }
-            sum_apl_num += raw_kc * (int64_t)w->kc_to_apl_q8[j];
-            sum_apl_den += (int64_t)w->kc_to_apl_q8[j];
+            sum_apl_num += raw_kc * ka_w;
+            sum_apl_den += ka_w;
         }
         if (sum_apl_den < 1) {
             sum_apl_den = 1;
@@ -479,13 +480,13 @@ int ns_kenyon_hash(
             int64_t eff_kc;
             uint32_t base_c = j * NS_BANC_MAX_CLAWS;
             for (c = 0u; c < NS_BANC_MAX_CLAWS; ++c) {
-                uint32_t glom = (uint32_t)w->claw_glom[base_c + c];
+                uint32_t glom = (uint32_t)NS_BANC_RD_U8(&w->claw_glom[base_c + c]);
                 if (glom < NS_BANC_GLOMERULI) {
                     uint32_t in_idx = ((glom + glom_offset) & 63u) % ctx->n_inputs;
-                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)w->claw_w_q8[base_c + c];
+                    raw_kc += (int64_t)x_q16[in_idx] * (int64_t)NS_BANC_RD_U8(&w->claw_w_q8[base_c + c]);
                 }
             }
-            eff_kc = raw_kc - ns_shr_floor(mean_apl * (int64_t)w->apl_to_kc_q8[j] * 90, 15u);
+            eff_kc = raw_kc - ns_shr_floor(mean_apl * (int64_t)NS_BANC_RD_U8(&w->apl_to_kc_q8[j]) * 90, 15u);
 
             if (j < k) {
                 heap[j].val = eff_kc;
@@ -932,7 +933,7 @@ int ns_valence_consolidate(
             for (kc = 0u; kc < ctx->n_kc; ++kc) {
                 uint32_t w_idx = kc >> 6;
                 uint64_t mask = UINT64_C(1) << (kc & 63u);
-                int is_ab = ((ctx->weights->kc_is_ab_mask_u64[w_idx] & mask) != UINT64_C(0));
+                int is_ab = ((ns_banc_rd_u64(&ctx->weights->kc_is_ab_mask_u64[w_idx]) & mask) != UINT64_C(0));
                 int is_locked = ((ctx->ltm_ab[c][w_idx] & mask) != UINT64_C(0));
                 int32_t w = (int32_t)ctx->weights_q14[c][kc];
                 if (is_ab && !is_locked && (w >= thresh_q14 || w <= -thresh_q14)) {
@@ -944,7 +945,7 @@ int ns_valence_consolidate(
                 for (kc = 0u; kc < ctx->n_kc; ++kc) {
                     uint32_t w_idx = kc >> 6;
                     uint64_t mask = UINT64_C(1) << (kc & 63u);
-                    int is_ab = ((ctx->weights->kc_is_ab_mask_u64[w_idx] & mask) != UINT64_C(0));
+                    int is_ab = ((ns_banc_rd_u64(&ctx->weights->kc_is_ab_mask_u64[w_idx]) & mask) != UINT64_C(0));
                     int is_locked = ((ctx->ltm_ab[c][w_idx] & mask) != UINT64_C(0));
                     int64_t w = (int64_t)ctx->weights_q14[c][kc];
                     if (is_ab) {
@@ -1003,8 +1004,8 @@ int ns_valence_scores(
             while (word != UINT64_C(0)) {
                 uint32_t bit = ns_ctz_u64(word);
                 uint32_t kc = base + bit;
-                gain_den += (int64_t)ctx->weights->kc_to_mbon_ach_q8[kc]
-                          + (int64_t)ctx->weights->kc_to_mbon_inh_q8[kc];
+                gain_den += (int64_t)NS_BANC_RD_U8(&ctx->weights->kc_to_mbon_ach_q8[kc])
+                          + (int64_t)NS_BANC_RD_U8(&ctx->weights->kc_to_mbon_inh_q8[kc]);
                 word &= (word - UINT64_C(1));
             }
         } else {
@@ -1024,8 +1025,8 @@ int ns_valence_scores(
                     uint32_t bit = ns_ctz_u64(word);
                     uint32_t kc = base + bit;
                     int64_t gain = (ctx->weights != NULL)
-                        ? ((int64_t)ctx->weights->kc_to_mbon_ach_q8[kc]
-                           + (int64_t)ctx->weights->kc_to_mbon_inh_q8[kc])
+                        ? ((int64_t)NS_BANC_RD_U8(&ctx->weights->kc_to_mbon_ach_q8[kc])
+                           + (int64_t)NS_BANC_RD_U8(&ctx->weights->kc_to_mbon_inh_q8[kc]))
                         : 1;
                     sum_q14 += (int64_t)ctx->weights_q14[c][kc] * gain;
                     word &= (word - UINT64_C(1));
@@ -1125,14 +1126,16 @@ static void ns_top4_insert(uint64_t top4[4], uint64_t val) {
     }
 }
 
-int ns_vib_extract_q16(
+static int ns_vib_extract_impl(
     const ns_vib_fe_t *ctx,
     const int32_t *samples_q16,
+    const int16_t *samples_i16,
+    uint32_t stride,
+    uint32_t offset,
     uint32_t n_samples,
     int32_t *out_features_q16
 ) {
     int64_t pref[NS_VIB_MAX_SAMPLES + 1u];
-    int64_t epref[NS_VIB_MAX_SAMPLES];
     int64_t sum_x = 0;
     int64_t mean_x;
     uint64_t sum_abs_u = UINT64_C(0);
@@ -1161,7 +1164,7 @@ int ns_vib_extract_q16(
     uint32_t t;
     uint32_t s;
 
-    if (ctx == NULL || samples_q16 == NULL || out_features_q16 == NULL) {
+    if (ctx == NULL || (samples_q16 == NULL && samples_i16 == NULL) || out_features_q16 == NULL) {
         return NS_ERR_ARG;
     }
     if (n_samples < 16u || n_samples > NS_VIB_MAX_SAMPLES) {
@@ -1172,14 +1175,29 @@ int ns_vib_extract_q16(
     }
 
     /* Step 1: Remove window DC offset and build prefix sum pref[0..n_samples] */
-    for (t = 0u; t < n_samples; ++t) {
-        sum_x += (int64_t)samples_q16[t];
-    }
-    mean_x = ns_div_floor_i64(sum_x, (int64_t)n_samples);
-    pref[0] = 0;
-    for (t = 0u; t < n_samples; ++t) {
-        int64_t ut = (int64_t)samples_q16[t] - mean_x;
-        pref[t + 1u] = pref[t] + ut;
+    if (samples_q16 != NULL) {
+        for (t = 0u; t < n_samples; ++t) {
+            sum_x += (int64_t)samples_q16[t];
+        }
+        mean_x = ns_div_floor_i64(sum_x, (int64_t)n_samples);
+        pref[0] = 0;
+        for (t = 0u; t < n_samples; ++t) {
+            int64_t ut = (int64_t)samples_q16[t] - mean_x;
+            pref[t + 1u] = pref[t] + ut;
+        }
+    } else {
+        int64_t scale = (int64_t)1 << ctx->input_shift;
+        for (t = 0u; t < n_samples; ++t) {
+            int32_t sv = (int32_t)((int64_t)samples_i16[t * stride + offset] * scale);
+            sum_x += (int64_t)sv;
+        }
+        mean_x = ns_div_floor_i64(sum_x, (int64_t)n_samples);
+        pref[0] = 0;
+        for (t = 0u; t < n_samples; ++t) {
+            int32_t sv = (int32_t)((int64_t)samples_i16[t * stride + offset] * scale);
+            int64_t ut = (int64_t)sv - mean_x;
+            pref[t + 1u] = pref[t] + ut;
+        }
     }
 
     /* Step 2: Resonators, discrete jerk, crest-excess impulse & rub asymmetry */
@@ -1289,9 +1307,12 @@ int ns_vib_extract_q16(
         out_features_q16[s] = ns_clamp_i32((int64_t)band_mav[s]);
     }
 
-    /* Step 4: Shift-invariant HF envelope demodulation (AM modulation of octaves 0+1) */
+    /* Step 4: Shift-invariant HF envelope demodulation (AM modulation of octaves 0+1).
+     * Reuse `pref` in place as `epref`: each iteration reads pref[t..t+4] and writes pref[t],
+     * and m_env = n_samples - 3 <= NS_VIB_MAX_SAMPLES - 3 so epref[0..m_env] fits in pref. */
     m_env = n_samples - 3u;
     {
+        int64_t *epref = pref;
         int64_t sum_env = 0;
         int64_t mean_env;
         uint64_t sum_efast = UINT64_C(0);
@@ -1336,32 +1357,28 @@ int ns_vib_extract_q16(
     return NS_OK;
 }
 
+int ns_vib_extract_q16(
+    const ns_vib_fe_t *ctx,
+    const int32_t *samples_q16,
+    uint32_t n_samples,
+    int32_t *out_features_q16
+) {
+    if (samples_q16 == NULL) {
+        return NS_ERR_ARG;
+    }
+    return ns_vib_extract_impl(ctx, samples_q16, NULL, 1u, 0u, n_samples, out_features_q16);
+}
+
 int ns_vib_extract_i16(
     const ns_vib_fe_t *ctx,
     const int16_t *samples_i16,
     uint32_t n_samples,
     int32_t *out_features_q16
 ) {
-    int32_t scaled_q16[NS_VIB_MAX_SAMPLES];
-    uint32_t t;
-    uint32_t sh;
-
-    if (ctx == NULL || samples_i16 == NULL || out_features_q16 == NULL) {
+    if (samples_i16 == NULL) {
         return NS_ERR_ARG;
     }
-    if (n_samples < 16u || n_samples > NS_VIB_MAX_SAMPLES) {
-        return NS_ERR_BOUNDS;
-    }
-    if (ctx->window_size != 0u && n_samples != ctx->window_size) {
-        return NS_ERR_BOUNDS;
-    }
-
-    sh = ctx->input_shift;
-    for (t = 0u; t < n_samples; ++t) {
-        int64_t v = (int64_t)samples_i16[t] * ((int64_t)1 << sh);
-        scaled_q16[t] = (int32_t)v;
-    }
-    return ns_vib_extract_q16(ctx, scaled_q16, n_samples, out_features_q16);
+    return ns_vib_extract_impl(ctx, NULL, samples_i16, 1u, 0u, n_samples, out_features_q16);
 }
 
 static int32_t ns_combine_3axis_ch(int32_t a, int32_t b, int32_t c) {
@@ -1390,12 +1407,9 @@ int ns_vib_extract_3axis_i16(
     uint32_t n_samples,
     int32_t *out_features_q16
 ) {
-    int32_t axis_buf[NS_VIB_MAX_SAMPLES];
     int32_t fx[NS_VIB_CHANNELS];
     int32_t fy[NS_VIB_CHANNELS];
     int32_t fz[NS_VIB_CHANNELS];
-    int64_t scale;
-    uint32_t t;
     uint32_t c;
     int rc;
 
@@ -1406,27 +1420,15 @@ int ns_vib_extract_3axis_i16(
         return NS_ERR_BOUNDS;
     }
 
-    scale = (int64_t)1 << ctx->input_shift;
-    for (t = 0u; t < n_samples; ++t) {
-        axis_buf[t] = (int32_t)((int64_t)xyz_interleaved[3u * t] * scale);
-    }
-    rc = ns_vib_extract_q16(ctx, axis_buf, n_samples, fx);
+    rc = ns_vib_extract_impl(ctx, NULL, xyz_interleaved, 3u, 0u, n_samples, fx);
     if (rc != NS_OK) {
         return rc;
     }
-
-    for (t = 0u; t < n_samples; ++t) {
-        axis_buf[t] = (int32_t)((int64_t)xyz_interleaved[3u * t + 1u] * scale);
-    }
-    rc = ns_vib_extract_q16(ctx, axis_buf, n_samples, fy);
+    rc = ns_vib_extract_impl(ctx, NULL, xyz_interleaved, 3u, 1u, n_samples, fy);
     if (rc != NS_OK) {
         return rc;
     }
-
-    for (t = 0u; t < n_samples; ++t) {
-        axis_buf[t] = (int32_t)((int64_t)xyz_interleaved[3u * t + 2u] * scale);
-    }
-    rc = ns_vib_extract_q16(ctx, axis_buf, n_samples, fz);
+    rc = ns_vib_extract_impl(ctx, NULL, xyz_interleaved, 3u, 2u, n_samples, fz);
     if (rc != NS_OK) {
         return rc;
     }

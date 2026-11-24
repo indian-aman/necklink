@@ -303,8 +303,8 @@ static inline int nltp_x25519_scalarmult(
     const uint8_t u32[32]
 ) {
     uint8_t z_clamp[32], u_masked[32];
-    nltp_fe25519_t x_1, x_2, z_2, x_3, z_3, a24_fe;
-    nltp_fe25519_t A, AA, B, BB, E, C, D, DA, CB, t0, t1;
+    nltp_fe25519_t x_1, x_2, z_2, x_3, z_3;
+    nltp_fe25519_t A, B, C, D;
     int i, t, swap = 0;
     uint8_t nz = 0u;
 
@@ -323,12 +323,9 @@ static inline int nltp_x25519_scalarmult(
         z_2[i] = 0;
         x_3[i] = x_1[i];
         z_3[i] = 0;
-        a24_fe[i] = 0;
     }
     x_2[0] = 1;
     z_3[0] = 1;
-    a24_fe[0] = 0xDB41;
-    a24_fe[1] = 1;
 
     for (t = 254; t >= 0; --t) {
         int k_t = (int)((z_clamp[t >> 3] >> (t & 7)) & 1u);
@@ -337,26 +334,29 @@ static inline int nltp_x25519_scalarmult(
         nltp_fe25519_cswap(z_2, z_3, swap);
         swap = k_t;
 
+        /* Compact 4-temporary Montgomery ladder (saves 1 KB stack on 4 KB-stack MCUs) */
         nltp_fe25519_add(A, x_2, z_2);
-        nltp_fe25519_mul(AA, A, A);
         nltp_fe25519_sub(B, x_2, z_2);
-        nltp_fe25519_mul(BB, B, B);
-        nltp_fe25519_sub(E, AA, BB);
         nltp_fe25519_add(C, x_3, z_3);
         nltp_fe25519_sub(D, x_3, z_3);
-        nltp_fe25519_mul(DA, D, A);
-        nltp_fe25519_mul(CB, C, B);
+        nltp_fe25519_mul(D, D, A);          /* D = DA */
+        nltp_fe25519_mul(C, C, B);          /* C = CB */
 
-        nltp_fe25519_add(t0, DA, CB);
-        nltp_fe25519_mul(x_3, t0, t0);
-        nltp_fe25519_sub(t1, DA, CB);
-        nltp_fe25519_mul(t1, t1, t1);
-        nltp_fe25519_mul(z_3, x_1, t1);
+        nltp_fe25519_add(x_3, D, C);
+        nltp_fe25519_mul(x_3, x_3, x_3);    /* x_3 = (DA + CB)^2 */
+        nltp_fe25519_sub(z_3, D, C);
+        nltp_fe25519_mul(z_3, z_3, z_3);
+        nltp_fe25519_mul(z_3, x_1, z_3);    /* z_3 = x_1 * (DA - CB)^2 */
 
-        nltp_fe25519_mul(x_2, AA, BB);
-        nltp_fe25519_mul(t0, a24_fe, E);
-        nltp_fe25519_add(t0, AA, t0);
-        nltp_fe25519_mul(z_2, E, t0);
+        nltp_fe25519_mul(A, A, A);          /* A = AA */
+        nltp_fe25519_mul(B, B, B);          /* B = BB */
+        nltp_fe25519_sub(C, A, B);          /* C = E = AA - BB */
+        nltp_fe25519_mul(x_2, A, B);        /* x_2 = AA * BB */
+        for (i = 0; i < 16; ++i) D[i] = 121665LL * C[i];
+        nltp_fe25519_car(D);
+        nltp_fe25519_car(D);                /* D = a24 * E */
+        nltp_fe25519_add(D, A, D);          /* D = AA + a24 * E */
+        nltp_fe25519_mul(z_2, C, D);        /* z_2 = E * (AA + a24 * E) */
     }
 
     nltp_fe25519_cswap(x_2, x_3, swap);

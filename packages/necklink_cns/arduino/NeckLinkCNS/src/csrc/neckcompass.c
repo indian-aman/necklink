@@ -659,7 +659,7 @@ void nc_compass_delta7_q15(const nc_compass_t *comp, int16_t out_delta7_q15[NC_N
             uint64_t acc = 0ULL;
             for (i = 0; i < NC_NUM_WEDGES; ++i) {
                 uint32_t r_q12 = (comp->wedges_q15[i] > 0) ? ((uint32_t)comp->wedges_q15[i] << 1) : 0u;
-                acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + i] * (uint64_t)r_q12;
+                acc += (uint64_t)NC_BANC_RD_U16(&w->M_ed7_q12[k * NC_NUM_WEDGES + i]) * (uint64_t)r_q12;
             }
             d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
         }
@@ -667,7 +667,7 @@ void nc_compass_delta7_q15(const nc_compass_t *comp, int16_t out_delta7_q15[NC_N
             uint64_t acc = 0ULL;
             uint64_t inh_q15;
             for (k = 0; k < NC_BANC_NUM_D7; ++k) {
-                acc += (uint64_t)w->M_d7e_q12[i * NC_BANC_NUM_D7 + k] * (uint64_t)d7_q12[k];
+                acc += (uint64_t)NC_BANC_RD_U16(&w->M_d7e_q12[i * NC_BANC_NUM_D7 + k]) * (uint64_t)d7_q12[k];
             }
             inh_q15 = ((acc + 2048ULL) >> 12) << 3;
             out_delta7_q15[i] = (inh_q15 > 32767ULL) ? (int16_t)32767 : (int16_t)inh_q15;
@@ -819,7 +819,7 @@ static nc_bam_t nc_compass_update_banc(
         for (k = 0; k < NC_BANC_NUM_D7; ++k) {
             uint64_t acc = 0ULL;
             for (j = 0; j < NC_NUM_WEDGES; ++j) {
-                acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + j] * (uint64_t)r_q12[j];
+                acc += (uint64_t)NC_BANC_RD_U16(&w->M_ed7_q12[k * NC_NUM_WEDGES + j]) * (uint64_t)r_q12[j];
             }
             d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
         }
@@ -830,12 +830,12 @@ static nc_bam_t nc_compass_update_banc(
             int64_t acc_pa = 0LL;
             int64_t pa_q20;
             for (k = 0; k < NC_BANC_NUM_D7; ++k) {
-                acc_i += (uint64_t)w->M_d7e_q12[i * NC_BANC_NUM_D7 + k] * (uint64_t)d7_q12[k];
+                acc_i += (uint64_t)NC_BANC_RD_U16(&w->M_d7e_q12[i * NC_BANC_NUM_D7 + k]) * (uint64_t)d7_q12[k];
             }
             inh_q12[i] = (int32_t)((acc_i + 2048ULL) >> 12);
             for (j = 0; j < NC_NUM_WEDGES; ++j) {
-                acc_e += (uint64_t)w->M_exc_q12[i * NC_NUM_WEDGES + j] * (uint64_t)r_q12[j];
-                acc_pa += (int64_t)w->M_pa_diff_q12[i * NC_NUM_WEDGES + j] * (int64_t)r_q12[j];
+                acc_e += (uint64_t)NC_BANC_RD_U16(&w->M_exc_q12[i * NC_NUM_WEDGES + j]) * (uint64_t)r_q12[j];
+                acc_pa += (int64_t)NC_BANC_RD_I16(&w->M_pa_diff_q12[i * NC_NUM_WEDGES + j]) * (int64_t)r_q12[j];
             }
             exc_q12[i] = (int32_t)((acc_e + 2048ULL) >> 12);
             pa_q20 = nc_div_pow2_round(acc_pa, 4u);
@@ -1688,7 +1688,7 @@ static int32_t nc_navigator_steering_cmd_banc(
     for (k = 0; k < NC_BANC_NUM_D7; ++k) {
         uint64_t acc = 0ULL;
         for (i = 0; i < NC_NUM_WEDGES; ++i) {
-            acc += (uint64_t)w->M_ed7_q12[k * NC_NUM_WEDGES + i] * (uint64_t)r_q12[i];
+            acc += (uint64_t)NC_BANC_RD_U16(&w->M_ed7_q12[k * NC_NUM_WEDGES + i]) * (uint64_t)r_q12[i];
         }
         d7_q12[k] = (int32_t)((acc + 2048ULL) >> 12);
         if (d7_q12[k] > d7_max) {
@@ -1708,15 +1708,15 @@ static int32_t nc_navigator_steering_cmd_banc(
         int32_t epg_q12, d7_s_q12, inh_q12, goal_q15, goal_q12, lin_q12;
         uint8_t is_l;
         for (i = 0; i < NC_NUM_WEDGES; ++i) {
-            acc_e += (uint64_t)w->M_epg_pfl3_q12[p * NC_NUM_WEDGES + i] * (uint64_t)rn_q12[i];
+            acc_e += (uint64_t)NC_BANC_RD_U16(&w->M_epg_pfl3_q12[p * NC_NUM_WEDGES + i]) * (uint64_t)rn_q12[i];
         }
         for (k = 0; k < NC_BANC_NUM_D7; ++k) {
-            acc_d += (uint64_t)w->M_d7_pfl3_q12[p * NC_BANC_NUM_D7 + k] * (uint64_t)dn_q12[k];
+            acc_d += (uint64_t)NC_BANC_RD_U16(&w->M_d7_pfl3_q12[p * NC_BANC_NUM_D7 + k]) * (uint64_t)dn_q12[k];
         }
         epg_q12 = (int32_t)((acc_e + 2048ULL) >> 12);
         d7_s_q12 = (int32_t)((acc_d + 2048ULL) >> 12);
         inh_q12 = (int32_t)(((int64_t)d7_s_q12 * 2867LL + 2048LL) >> 12);
-        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)w->th_fb_pfl3_bam[p], home_bam));
+        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)NC_BANC_RD_U16(&w->th_fb_pfl3_bam[p]), home_bam));
         goal_q12 = (int32_t)nc_div_pow2_round((int64_t)goal_q15 * 3482LL, 15u);
         lin_q12 = epg_q12 - inh_q12 + goal_q12;
         pfl3_q12[p] = (lin_q12 > 0) ? (int32_t)(((int64_t)lin_q12 * (int64_t)lin_q12 + 2048LL) >> 12) : 0;
@@ -1724,7 +1724,7 @@ static int32_t nc_navigator_steering_cmd_banc(
         if (w == &k_nc_banc_cx_default) {
             is_l = (uint8_t)((0x019B26B3u >> p) & 1u);
         } else {
-            is_l = (w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p] >= w->W_pfl3_dna02_q12[p]) ? 1u : 0u;
+            is_l = (NC_BANC_RD_I16(&w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p]) >= NC_BANC_RD_I16(&w->W_pfl3_dna02_q12[p])) ? 1u : 0u;
         }
         if (is_l) {
             sum_l += (int64_t)pfl3_q12[p];
@@ -1733,23 +1733,23 @@ static int32_t nc_navigator_steering_cmd_banc(
             sum_r += (int64_t)pfl3_q12[p];
             cnt_r += 1u;
         }
-        dna0_acc += (int64_t)w->W_pfl3_dna02_q12[p] * (int64_t)pfl3_q12[p];
-        dna1_acc += (int64_t)w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p] * (int64_t)pfl3_q12[p];
+        dna0_acc += (int64_t)NC_BANC_RD_I16(&w->W_pfl3_dna02_q12[p]) * (int64_t)pfl3_q12[p];
+        dna1_acc += (int64_t)NC_BANC_RD_I16(&w->W_pfl3_dna02_q12[NC_BANC_NUM_PFL3 + p]) * (int64_t)pfl3_q12[p];
     }
 
     for (q = 0; q < NC_BANC_NUM_PFL2; ++q) {
         uint64_t acc_e = 0ULL, acc_d = 0ULL;
         int32_t epg_q12, d7_s_q12, inh_q12, goal_q15, goal_q12, lin_q12;
         for (i = 0; i < NC_NUM_WEDGES; ++i) {
-            acc_e += (uint64_t)w->M_epg_pfl2_q12[q * NC_NUM_WEDGES + i] * (uint64_t)rn_q12[i];
+            acc_e += (uint64_t)NC_BANC_RD_U16(&w->M_epg_pfl2_q12[q * NC_NUM_WEDGES + i]) * (uint64_t)rn_q12[i];
         }
         for (k = 0; k < NC_BANC_NUM_D7; ++k) {
-            acc_d += (uint64_t)w->M_d7_pfl2_q12[q * NC_BANC_NUM_D7 + k] * (uint64_t)dn_q12[k];
+            acc_d += (uint64_t)NC_BANC_RD_U16(&w->M_d7_pfl2_q12[q * NC_BANC_NUM_D7 + k]) * (uint64_t)dn_q12[k];
         }
         epg_q12 = (int32_t)((acc_e + 2048ULL) >> 12);
         d7_s_q12 = (int32_t)((acc_d + 2048ULL) >> 12);
         inh_q12 = (int32_t)(((int64_t)d7_s_q12 * 2867LL + 2048LL) >> 12);
-        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)w->th_fb_pfl2_bam[q], home_bam));
+        goal_q15 = (int32_t)nc_cos_q15(nc_bam_sub((nc_bam_t)NC_BANC_RD_U16(&w->th_fb_pfl2_bam[q]), home_bam));
         goal_q12 = (int32_t)nc_div_pow2_round((int64_t)goal_q15 * 3482LL, 15u);
         lin_q12 = epg_q12 - inh_q12 + goal_q12;
         pfl2_q12[q] = (lin_q12 > 0) ? (int32_t)(((int64_t)lin_q12 * (int64_t)lin_q12 + 2048LL) >> 12) : 0;
