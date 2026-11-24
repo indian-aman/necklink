@@ -189,7 +189,7 @@
               </p>
               <div class="story-metrics">
                 <div><strong>24,024 B</strong><span>Static C99 SRAM</span></div>
-                <div><strong>166.3 &mu;s</strong><span>Desktop C99 full tick</span></div>
+                <div><strong>16.6 ms / 166 &mu;s</strong><span>ESP8266EX (60 Hz) / x86</span></div>
               </div>
             </div>
           </div>
@@ -198,9 +198,9 @@
           <div class="dive-step dive-step-left" data-step="4">
             <div class="glass-card story-card" style="--accent-line: var(--accent)">
               <p class="story-kicker">05 · CARRIER HARDWARE &amp; RUNTIME</p>
-              <h2>One connectome stack.<br>Python, C99, ESP32 &amp; WASM.</h2>
+              <h2>One connectome stack.<br>Python, C99, ESP32/8266, AVR &amp; WASM.</h2>
               <p>
-                Audit biological vs. scrambled vs. analytic circuits in Python, integrate the zero-float C99 headers alongside a flight controller, or test the compiled <code>107.5 KB</code> WebAssembly binary below.
+                Audit biological vs. scrambled vs. analytic circuits in Python, run the zero-float C99 core on bench-verified <code>ESP8266EX</code> (<code>60 Hz</code> no-cam / <code>20 Hz</code> 32&times;32 cam) or <code>ATmega2560</code> (<code>3.7 KB</code> SRAM), or test the compiled <code>107.5 KB</code> WebAssembly binary below.
               </p>
               <div class="story-cta-row">
                 <a href="#proof" class="btn btn-primary btn-sm">Connectome Proof</a>
@@ -336,7 +336,7 @@
               </table>
             </div>
             <p class="audit-footnote">
-              Two-sided permutation <code>p = (r + 1)/(K + 1)</code> across <code>K = 100</code> degree-preserving shuffles in closed-loop simulation (not yet flight- or sea-tested on physical vehicles). Classical baselines (<code>&chi;&sup2; EKF</code>, <code>Farneback</code>, <code>One-Class SVM</code>) win on clean floating-point sensors; <code>NeckSense</code> confirms random Kenyon claws match biological claws (<code>p = 0.74</code>).
+              Two-sided permutation <code>p = (r + 1)/(K + 1)</code> across <code>K = 100</code> degree-preserving shuffles in closed-loop simulation (not yet flight- or sea-tested on physical vehicles; bench-in-the-loop C99 timing &amp; <code>0.19&deg;</code> heading parity verified on physical <code>ESP8266EX @ 160 MHz</code> and <code>ATmega2560 @ 16 MHz</code>). Classical baselines (<code>&chi;&sup2; EKF</code>, <code>Farneback</code>, <code>One-Class SVM</code>) win on clean floating-point sensors; <code>NeckSense</code> confirms random Kenyon claws match biological claws (<code>p = 0.74</code>).
             </p>
           </div>
         </div>
