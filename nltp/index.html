@@ -486,11 +486,17 @@
                   <td class="bad">Accepted 40/40 spoofed MAC frames</td>
                   <td class="good">160/160 blocked (0 hub RAM slots allocated to spoofs)</td>
                 </tr>
+                <tr>
+                  <td><strong>ESP8266EX @ 160 MHz Live Wi-Fi UDP</strong> (co-running 24 KB NeckLink CNS)</td>
+                  <td><code>15% – 20%</code></td>
+                  <td>—</td>
+                  <td class="good">4/4 (100% SHA-256) · 209.9 ms file · 4.8 ms Reflex ACK · 439.3 ms RFC-7748 X25519 (1,520 B stack)</td>
+                </tr>
               </tbody>
             </table>
           </div>
           <p class="table-note">
-            Measured on physical <code>ESP32-D0WDQ6</code>, <code>ESP32-D0WD-V3</code>, and <code>ESP8266EX NodeMCU</code> (<code>80 KB</code> SRAM). Raw JSON logs: <code>results/esp32_mesh3_v2_vs_raw_v2.json</code> &amp; <code>results/esp32_esp8266_crosschip_mesh.json</code>.
+            Measured on physical <code>ESP32-D0WDQ6</code>, <code>ESP32-D0WD-V3</code>, and <code>ESP8266EX</code> (<code>80 KB</code> SRAM; <code>v1.6.1</code> 4 KB-stack verified). Raw JSON logs: <code>results/esp32_mesh3_v2_vs_raw_v2.json</code>, <code>results/esp32_esp8266_crosschip_mesh.json</code> &amp; <code>benchmarks/v3/artifacts/wemos_esp8266_atmega2560_silicon.json</code>.
           </p>
         </div>
 
